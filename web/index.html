@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A股三维一体智能量化系统 - 查理芒格好股池与固定风险组合管理</title>
+  <!-- Google Fonts & ECharts CDN -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header Navbar -->
+    <header class="navbar">
+      <div class="logo-area">
+        <span class="logo-icon">🏛️</span>
+        <h1>A股三维一体量化系统 <span class="badge">芒格好股筛选 + 共享账户风险控制</span></h1>
+      </div>
+      <div class="control-panel">
+        <div class="input-group">
+          <label>初始本金(元):</label>
+          <input type="number" id="capitalInput" value="200000" step="10000" style="width: 110px;">
+        </div>
+        <div class="input-group search-combobox">
+          <label>搜单股K线:</label>
+          <div class="search-input-wrapper">
+            <input type="text" id="stockSearchInput" placeholder="代码/名称 (如 600519)..." value="600519 - 贵州茅台" autocomplete="off">
+            <input type="hidden" id="selectedSymbol" value="600519">
+            <ul id="stockSuggestList" class="suggest-dropdown hidden"></ul>
+          </div>
+        </div>
+        <div class="input-group">
+          <label>起始:</label>
+          <input type="date" id="startDate" value="2024-01-01">
+        </div>
+        <div class="input-group">
+          <label>结束:</label>
+          <input type="date" id="endDate" value="2026-07-29">
+        </div>
+        <button id="runBtn" class="btn-primary">
+          <span class="icon">🚀</span> 运行单股与组合回测
+        </button>
+        <div class="input-group api-key-group" title="填入 DeepSeek API Key 以启用真实 AI 风险审计">
+          <label id="apiKeyLabel">🤖 DeepSeek:</label>
+          <input type="password" id="apiKeyInput" placeholder="sk-xxxx (可选)" style="width:130px;">
+          <button id="apiKeySaveBtn" class="btn-secondary-sm" onclick="saveApiKey()">保存</button>
+        </div>
+        <button id="syncDataBtn" class="btn-secondary-sm" onclick="syncLocalData()" title="一键同步最新 K 线与基本面至本地 SQLite 数据库">
+          <span id="syncSpinner" class="icon">🔄</span> 更新本地数据
+        </button>
+      </div>
+    </header>
+
+    <!-- Top Banner: Munger Stock Selection Philosophy & 5 Dimensions -->
+    <section class="munger-philosophy-banner shadow">
+      <div class="banner-title">
+        <span class="munger-icon">🏛️</span>
+        <strong>查理·芒格选股核心哲学：</strong>
+        <span class="quote">“用合理的价格买入伟大的公司，胜过用便宜的价格买入平庸的公司。”</span>
+      </div>
+      <div class="munger-dims-grid">
+        <div class="dim-pill"><span class="dim-num">1</span> <strong>高 ROE 盈利能力</strong>：连续 3 年加权 ROE ≥ 15% (股东复利高)</div>
+        <div class="dim-pill"><span class="dim-num">2</span> <strong>经济护城河</strong>：毛利率 ≥ 30% 且 经营现金流 > 0 (强定价权)</div>
+        <div class="dim-pill"><span class="dim-num">3</span> <strong>安全边际</strong>：资产负债率 &lt; 60% (拒绝债务爆雷)</div>
+        <div class="dim-pill"><span class="dim-num">4</span> <strong>公司治理避雷</strong>：0 次立案调查公告，无 *ST/退市风险</div>
+        <div class="dim-pill"><span class="dim-num">5</span> <strong>估值合理性</strong>：PE-TTM ≤ 60 (拒绝高位非理性泡沫)</div>
+      </div>
+    </section>
+
+    <!-- Main Workspace Layout: 3 Columns (Left Munger Pool + Center Workstation + Right Portfolio Kelly Panel) -->
+    <div class="workspace-layout">
+      <!-- Column 1: Left Sidebar - Munger Filtered Stock Pool (Scrollable & Searchable) -->
+      <aside class="left-sidebar shadow">
+        <div class="sidebar-header">
+          <div class="sidebar-title">
+            <span>🌟 芒格优质公司池</span>
+            <span class="count-badge" id="mungerPoolCount">0 只</span>
+          </div>
+          <div class="sidebar-search">
+            <input type="text" id="mungerListSearch" placeholder="🔍 搜索好股池 (代码/名称)..." autocomplete="off">
+          </div>
+        </div>
+        <div class="sidebar-scroll-list" id="mungerStockCardsList">
+          <div class="loading-state">载入芒格优质股票池...</div>
+        </div>
+      </aside>
+
+      <!-- Column 2: Center Workstation - K-Line Chart & Single Stock AI Drawer -->
+      <div class="center-workstation">
+        <!-- Performance Metrics Bar: 7 Single Stock Quant Evaluation Cards -->
+        <section class="metrics-grid">
+          <div class="metric-card shadow">
+            <div class="metric-title">当前股票累积收益率</div>
+            <div class="metric-value green" id="metricReturn">+0.00%</div>
+            <div class="metric-sub" id="metricNetPnLSub">单股分配本金: ¥30,000</div>
+          </div>
+          <div class="metric-card shadow">
+            <div class="metric-title">年化收益率</div>
+            <div class="metric-value green" id="metricAnnualized">+0.00%</div>
+            <div class="metric-sub">复利年化复权</div>
+          </div>
+          <div class="metric-card shadow">
+            <div class="metric-title">单股胜率 (Win Rate)</div>
+            <div class="metric-value blue" id="metricWinRate">0.0%</div>
+            <div class="metric-sub" id="metricTradesCount">交易: 0 笔</div>
+          </div>
+          <div class="metric-card shadow">
+            <div class="metric-title">单股盈亏比 (P/L Ratio)</div>
+            <div class="metric-value gold" id="metricPLRatio">0.00 : 1</div>
+            <div class="metric-sub">均盈 / 均亏</div>
+          </div>
+          <div class="metric-card shadow">
+            <div class="metric-title">平均持仓天数</div>
+            <div class="metric-value blue" id="metricHoldingDays">0.0 天</div>
+            <div class="metric-sub">波段调仓频率</div>
+          </div>
+          <div class="metric-card shadow">
+            <div class="metric-title">最大回撤 (Max DD)</div>
+            <div class="metric-value red" id="metricMaxDD">0.00%</div>
+            <div class="metric-sub">风控警示线 &lt; 15%</div>
+          </div>
+          <div class="metric-card shadow">
+            <div class="metric-title">扣除税费与滑点</div>
+            <div class="metric-value red" id="metricFriction">¥0.00</div>
+            <div class="metric-sub" id="metricFrictionSub">印花税/滑点/佣金</div>
+          </div>
+        </section>
+
+        <!-- Main K-Line Chart & AI Rationale Drawer -->
+        <main class="main-layout">
+          <!-- Left: Interactive ECharts K-Line -->
+          <div class="chart-section shadow">
+            <div class="chart-header">
+              <h2 id="chartTitle">600519 - 贵州茅台 (K线买卖信号与AI研判理由)</h2>
+              <div class="legend-info">
+                <span class="tag buy-tag">🟢 买入点 (BUY)</span>
+                <span class="tag sell-tag">🔴 卖出点 (SELL)</span>
+                <span class="tag hint">点击 K 线箭头查看 DeepSeek 研判理由</span>
+              </div>
+            </div>
+            <div id="klineChart" class="kline-container"></div>
+          </div>
+
+          <!-- Right: AI Trade Signal Detail Panel (Drawer) -->
+          <aside class="ai-drawer shadow">
+            <div class="drawer-header">
+              <h3>🤖 选中买卖点 - 三维研判理由</h3>
+              <span class="status-badge" id="aiStatusBadge">等待选择节点</span>
+            </div>
+            <div class="drawer-body" id="aiDrawerContent">
+              <div class="empty-state">
+                <span class="empty-icon">💡</span>
+                <p>点击 K 线图表上的 <strong>🟢 买入</strong> 或 <strong>🔴 卖出</strong> 标记点查看 AI 研判理由。</p>
+              </div>
+            </div>
+          </aside>
+        </main>
+
+        <!-- Bottom: Single Stock Trade History Table -->
+        <section class="table-section shadow">
+          <div class="table-header">
+            <h3>📜 当前选定股票回测买卖清单</h3>
+          </div>
+          <div class="table-container">
+            <table class="trade-table">
+              <thead>
+                <tr>
+                  <th>编号</th>
+                  <th>股票代码</th>
+                  <th>股票名称</th>
+                  <th>买入日期</th>
+                  <th>买入均价</th>
+                  <th>卖出日期</th>
+                  <th>卖出均价</th>
+                  <th>成交股数</th>
+                  <th>盈亏率(%)</th>
+                  <th>实现净利润</th>
+                  <th>ML 评分</th>
+                  <th>AI 理由</th>
+                </tr>
+              </thead>
+              <tbody id="tradeTableBody">
+                <tr><td colspan="12" class="text-center">加载数据中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- Column 3: Right Panel - Multi-Stock Portfolio Overall Performance & Kelly Allocation -->
+      <aside class="right-portfolio-drawer shadow">
+        <div class="portfolio-header">
+          <h3>🏆 <span id="capitalText">20万</span>本金【全组合总体战报】</h3>
+          <span class="badge" id="portfolioBadge">多股联动 + 固定风险上限 (共 <span style="color: #ff4d4f; font-weight: bold; font-size: 13px;">12</span> 只股票池)</span>
+        </div>
+        
+        <!-- Overall Multi-Stock Portfolio Performance Cards -->
+        <div class="portfolio-metrics-body" id="portfolioMetricsBody">
+          <div class="p-card">
+            <div class="p-label">全组合本金 ➔ 组合总资产 (2.5年回测)</div>
+            <div class="p-val gold" id="pMetricAssets">¥200,000 ➔ ¥243,850</div>
+          </div>
+          <div class="p-card-grid">
+            <div class="p-card clickable-card" id="pMetricReturnCard" onclick="openYearlyModal()" title="点击查看每一年的收益明细拆解">
+              <div class="p-label">总体收益率 <span class="click-hint">🔍 点击明细</span></div>
+              <div class="p-val green" id="pMetricReturn">+21.93%</div>
+              <div class="p-sub" id="pMetricPnL">净利: +¥43,850</div>
+            </div>
+            <div class="p-card">
+              <div class="p-label">总体胜率 (Overall Win Rate)</div>
+              <div class="p-val blue" id="pMetricWinRate">56.25%</div>
+              <div class="p-sub" id="pMetricTradesCount">45 胜 / 35 负 (80笔)</div>
+            </div>
+            <div class="p-card">
+              <div class="p-label">总体盈亏比 (P/L Ratio)</div>
+              <div class="p-val gold" id="pMetricPLRatio">2.15 : 1</div>
+              <div class="p-sub">均盈 / 均亏报酬比</div>
+            </div>
+            <div class="p-card">
+              <div class="p-label">组合总体最大回撤</div>
+              <div class="p-val red" id="pMetricMaxDD">6.85%</div>
+              <div class="p-sub">极值抗风险防线</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Kelly Criterion Capital Allocation Compass -->
+        <div class="kelly-panel shadow">
+          <div class="kelly-header">
+            <h4>固定风险资金配置 <span id="kellyStockCountBadge" style="font-size:12px; color: #4ade80; margin-left: 6px; font-weight: bold;">(共 <span style="color: #ff4d4f; font-weight: bold; font-size: 13px;">12</span> 只配仓股)</span></h4>
+            <span class="kelly-sub">单股仓位上限 20% ｜ 组合总仓位上限 90%</span>
+          </div>
+
+          <div class="kelly-list-scroll" id="kellyAllocationsList">
+            <div class="loading-state">计算固定风险配仓中...</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- 分年度收益拆解 Modal 弹窗 -->
+  <div class="modal-backdrop" id="yearlyBreakdownModal" style="display:none;" onclick="if(event.target===this)closeYearlyModal()">
+    <div class="modal-dialog shadow">
+      <div class="modal-header">
+        <h3>📅 20万本金【全组合分年度收益拆解】</h3>
+        <button class="modal-close-btn" onclick="closeYearlyModal()">&#x2715;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-period" id="modalPeriodText">回测时间范围: 加载中...</div>
+        <div class="yearly-cards-grid" id="yearlyCardsGrid"></div>
+        <h4 style="margin:15px 0 10px;font-weight:600;">📊 分年度收益统计汇总表</h4>
+        <table class="yearly-table">
+          <thead>
+            <tr>
+              <th>年份</th>
+              <th>年度净利润 (元)</th>
+              <th>年度收益率</th>
+              <th>年度胜率</th>
+              <th>已平仓笔数</th>
+            </tr>
+          </thead>
+          <tbody id="yearlyTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
