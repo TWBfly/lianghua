@@ -4,6 +4,13 @@
 const string CUSTOM_SYMBOL="CN_603986";
 const string CSV_FILE="lianghua_603986_bars.csv";
 
+bool Require(bool result,string property)
+  {
+   if(!result)
+      PrintFormat("LIANGHUA_IMPORT_ERROR property=%s error=%d",property,GetLastError());
+   return result;
+  }
+
 bool ConfigureSymbol()
   {
    bool is_custom=false;
@@ -19,38 +26,33 @@ bool ConfigureSymbol()
       return false;
      }
 
-   bool ok=true;
-   ok&=CustomSymbolSetInteger(CUSTOM_SYMBOL,SYMBOL_DIGITS,2);
-   ok&=CustomSymbolSetInteger(CUSTOM_SYMBOL,SYMBOL_CHART_MODE,SYMBOL_CHART_MODE_LAST);
-   ok&=CustomSymbolSetInteger(CUSTOM_SYMBOL,SYMBOL_TRADE_CALC_MODE,SYMBOL_CALC_MODE_EXCH_STOCKS);
-   ok&=CustomSymbolSetInteger(CUSTOM_SYMBOL,SYMBOL_TRADE_MODE,SYMBOL_TRADE_MODE_FULL);
-   ok&=CustomSymbolSetInteger(CUSTOM_SYMBOL,SYMBOL_ORDER_MODE,SYMBOL_ORDER_MARKET);
-   ok&=CustomSymbolSetInteger(CUSTOM_SYMBOL,SYMBOL_FILLING_MODE,SYMBOL_FILLING_FOK);
-   ok&=CustomSymbolSetDouble(CUSTOM_SYMBOL,SYMBOL_POINT,0.01);
-   ok&=CustomSymbolSetDouble(CUSTOM_SYMBOL,SYMBOL_TRADE_TICK_SIZE,0.01);
-   ok&=CustomSymbolSetDouble(CUSTOM_SYMBOL,SYMBOL_TRADE_TICK_VALUE,1.0);
-   ok&=CustomSymbolSetDouble(CUSTOM_SYMBOL,SYMBOL_TRADE_CONTRACT_SIZE,100.0);
-   ok&=CustomSymbolSetDouble(CUSTOM_SYMBOL,SYMBOL_VOLUME_MIN,1.0);
-   ok&=CustomSymbolSetDouble(CUSTOM_SYMBOL,SYMBOL_VOLUME_STEP,1.0);
-   ok&=CustomSymbolSetDouble(CUSTOM_SYMBOL,SYMBOL_VOLUME_MAX,100000.0);
-   ok&=CustomSymbolSetString(CUSTOM_SYMBOL,SYMBOL_CURRENCY_BASE,"CNY");
-   ok&=CustomSymbolSetString(CUSTOM_SYMBOL,SYMBOL_CURRENCY_PROFIT,"CNY");
-   ok&=CustomSymbolSetString(CUSTOM_SYMBOL,SYMBOL_CURRENCY_MARGIN,"CNY");
+   if(!Require(CustomSymbolSetInteger(CUSTOM_SYMBOL,SYMBOL_DIGITS,2),"SYMBOL_DIGITS") ||
+      !Require(CustomSymbolSetInteger(CUSTOM_SYMBOL,SYMBOL_CHART_MODE,SYMBOL_CHART_MODE_LAST),"SYMBOL_CHART_MODE") ||
+      !Require(CustomSymbolSetInteger(CUSTOM_SYMBOL,SYMBOL_TRADE_CALC_MODE,SYMBOL_CALC_MODE_EXCH_STOCKS),"SYMBOL_TRADE_CALC_MODE") ||
+      !Require(CustomSymbolSetInteger(CUSTOM_SYMBOL,SYMBOL_TRADE_MODE,SYMBOL_TRADE_MODE_FULL),"SYMBOL_TRADE_MODE") ||
+      !Require(CustomSymbolSetInteger(CUSTOM_SYMBOL,SYMBOL_ORDER_MODE,SYMBOL_ORDER_MARKET),"SYMBOL_ORDER_MODE") ||
+      !Require(CustomSymbolSetInteger(CUSTOM_SYMBOL,SYMBOL_FILLING_MODE,SYMBOL_FILLING_FOK),"SYMBOL_FILLING_MODE") ||
+      !Require(CustomSymbolSetDouble(CUSTOM_SYMBOL,SYMBOL_POINT,0.01),"SYMBOL_POINT") ||
+      !Require(CustomSymbolSetDouble(CUSTOM_SYMBOL,SYMBOL_TRADE_TICK_SIZE,0.01),"SYMBOL_TRADE_TICK_SIZE") ||
+      !Require(CustomSymbolSetDouble(CUSTOM_SYMBOL,SYMBOL_TRADE_TICK_VALUE,1.0),"SYMBOL_TRADE_TICK_VALUE") ||
+      !Require(CustomSymbolSetDouble(CUSTOM_SYMBOL,SYMBOL_TRADE_CONTRACT_SIZE,100.0),"SYMBOL_TRADE_CONTRACT_SIZE") ||
+      !Require(CustomSymbolSetDouble(CUSTOM_SYMBOL,SYMBOL_VOLUME_MIN,1.0),"SYMBOL_VOLUME_MIN") ||
+      !Require(CustomSymbolSetDouble(CUSTOM_SYMBOL,SYMBOL_VOLUME_STEP,1.0),"SYMBOL_VOLUME_STEP") ||
+      !Require(CustomSymbolSetDouble(CUSTOM_SYMBOL,SYMBOL_VOLUME_MAX,100000.0),"SYMBOL_VOLUME_MAX") ||
+      !Require(CustomSymbolSetString(CUSTOM_SYMBOL,SYMBOL_CURRENCY_BASE,"CNY"),"SYMBOL_CURRENCY_BASE") ||
+      !Require(CustomSymbolSetString(CUSTOM_SYMBOL,SYMBOL_CURRENCY_PROFIT,"CNY"),"SYMBOL_CURRENCY_PROFIT") ||
+      !Require(CustomSymbolSetString(CUSTOM_SYMBOL,SYMBOL_CURRENCY_MARGIN,"CNY"),"SYMBOL_CURRENCY_MARGIN"))
+      return false;
 
-   datetime morning_start=(datetime)(9*60*60+30*60);
-   datetime morning_end=(datetime)(11*60*60+30*60);
-   datetime afternoon_start=(datetime)(13*60*60);
-   datetime afternoon_end=(datetime)(15*60*60);
+   datetime session_start=0;
+   datetime session_end=(datetime)(24*60*60-1);
    for(int day=MONDAY;day<=FRIDAY;day++)
      {
-      ok&=CustomSymbolSetSessionQuote(CUSTOM_SYMBOL,(ENUM_DAY_OF_WEEK)day,0,morning_start,morning_end);
-      ok&=CustomSymbolSetSessionQuote(CUSTOM_SYMBOL,(ENUM_DAY_OF_WEEK)day,1,afternoon_start,afternoon_end);
-      ok&=CustomSymbolSetSessionTrade(CUSTOM_SYMBOL,(ENUM_DAY_OF_WEEK)day,0,morning_start,morning_end);
-      ok&=CustomSymbolSetSessionTrade(CUSTOM_SYMBOL,(ENUM_DAY_OF_WEEK)day,1,afternoon_start,afternoon_end);
+      if(!Require(CustomSymbolSetSessionQuote(CUSTOM_SYMBOL,(ENUM_DAY_OF_WEEK)day,0,session_start,session_end),"SESSION_QUOTE") ||
+         !Require(CustomSymbolSetSessionTrade(CUSTOM_SYMBOL,(ENUM_DAY_OF_WEEK)day,0,session_start,session_end),"SESSION_TRADE"))
+         return false;
      }
-   if(!ok)
-      PrintFormat("LIANGHUA_IMPORT_ERROR configure=%d",GetLastError());
-   return ok;
+   return true;
   }
 
 bool ReadRates(MqlRates &rates[])

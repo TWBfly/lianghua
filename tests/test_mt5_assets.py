@@ -9,6 +9,8 @@ def test_importer_contract():
     assert "CustomRatesReplace" in source
     assert "CustomSymbolSetSessionTrade" in source
     assert "LIANGHUA_IMPORT_OK" in source
+    assert "property=%s error=%d" in source
+    assert "24*60*60-1" in source
 
     config = Path("mt5/config/import.ini").read_text()
     assert "Script=LianghuaImporter" in config
@@ -36,10 +38,21 @@ def test_supertrend_ea_contract():
 def test_runner_contract():
     source = Path("mt5/run_backtest.sh").read_text()
     for token in (
-        "MetaEditor64.exe",
-        "LianghuaImporter.mq5",
-        "LianghuaSupertrendEA.mq5",
+        "LianghuaImporter.ex5",
+        "LianghuaSupertrendEA.ex5",
+        "precompiled EX5",
+        "wineserver",
         "LIANGHUA_IMPORT_OK",
+        "import_mql.log",
         "lianghua_603986_supertrend",
     ):
         assert token in source
+    assert "/compile:" not in source
+    assert "/config:config\\lianghua_import.ini" in source
+    assert "/config:config\\lianghua_backtest.ini" in source
+    assert "/config:C:" not in source
+    assert 'cd "$MT5_ROOT"' in source
+    assert "-name '20*.log'" in source
+    assert "testing of Experts\\\\LianghuaSupertrendEA\\.ex5 from" in source
+    assert "MetaEditor64.exe" not in source
+    assert "key code" not in source
