@@ -1,8 +1,13 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 from ml_ensemble import (
+    LABEL_HORIZON,
+    RETRAIN_EVERY,
+    TRAINING_WINDOW,
     build_label_frame,
+    build_model_identity,
     causal_feature_frame,
     walk_forward_predict,
     walk_forward_splits,
@@ -90,3 +95,109 @@ def test_walk_forward_predictions_report_training_cutoff():
         < covered.index
     ).all()
     assert covered["probability"].between(0, 1).all()
+    assert (
+        result.loc[result["trained_until"].isna(), "model_version"]
+        == "INSUFFICIENT_HISTORY"
+    ).all()
+
+
+def test_default_walk_forward_uses_latest_fixed_training_window():
+    labels = build_label_frame(market_frame(800))
+
+    splits = walk_forward_splits(labels, labels.index)
+
+    assert splits
+    assert len(splits[0].train_index) == TRAINING_WINDOW == 504
+    mature = labels[
+        labels["label"].notna()
+        & (labels["label_end_time"] < splits[0].prediction_start)
+    ]
+    assert splits[0].train_index.equals(mature.index[-TRAINING_WINDOW:])
+    assert LABEL_HORIZON == 5
+
+
+def test_default_prediction_batches_advance_twenty_one_rows():
+    labels = build_label_frame(market_frame(800))
+
+    splits = walk_forward_splits(labels, labels.index)
+
+    assert RETRAIN_EVERY == 21
+    assert len(splits[0].prediction_index) == RETRAIN_EVERY
+    assert splits[1].prediction_start == labels.index[
+        labels.index.get_loc(splits[0].prediction_start) + RETRAIN_EVERY
+    ]
+
+
+def test_insufficient_history_never_uses_rule_fallback():
+    df = market_frame(TRAINING_WINDOW)
+
+    result = walk_forward_predict(df, factor_frame(df), "000001")
+
+    assert result["probability"].isna().all()
+    assert result["score"].isna().all()
+    assert set(result["model_version"]) == {"INSUFFICIENT_HISTORY"}
+    assert result["trained_until"].isna().all()
+
+
+def test_walk_forward_rejects_invalid_policy_values():
+    labels = build_label_frame(market_frame(20))
+
+    with pytest.raises(ValueError, match="min_train_size"):
+        walk_forward_splits(labels, labels.index, min_train_size=0)
+    with pytest.raises(ValueError, match="retrain_every"):
+        walk_forward_splits(labels, labels.index, retrain_every=0)
+    with pytest.raises(ValueError, match="max_train_size"):
+        walk_forward_splits(
+            labels,
+            labels.index,
+            min_train_size=10,
+            max_train_size=9,
+        )
+
+
+def test_model_identity_changes_with_data_parameters_and_policy():
+    features = pd.DataFrame({"x": [1.0, 2.0]})
+    target = pd.Series([0, 1])
+
+    class Model:
+        def __init__(self, depth=2):
+            self.depth = depth
+
+        def get_params(self, deep=False):
+            return {"depth": self.depth}
+
+    base = build_model_identity(
+        "000001",
+        pd.Timestamp("2025-01-01"),
+        features,
+        target,
+        Model(),
+        {"training_window": 504},
+    )
+    changed_data = build_model_identity(
+        "000001",
+        pd.Timestamp("2025-01-01"),
+        features * 2,
+        target,
+        Model(),
+        {"training_window": 504},
+    )
+    changed_model = build_model_identity(
+        "000001",
+        pd.Timestamp("2025-01-01"),
+        features,
+        target,
+        Model(depth=3),
+        {"training_window": 504},
+    )
+    changed_policy = build_model_identity(
+        "000001",
+        pd.Timestamp("2025-01-01"),
+        features,
+        target,
+        Model(),
+        {"training_window": 252},
+    )
+
+    assert len(base) == 16
+    assert len({base, changed_data, changed_model, changed_policy}) == 4

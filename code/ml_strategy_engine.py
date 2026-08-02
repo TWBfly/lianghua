@@ -1,15 +1,13 @@
 """
 A-Share Machine Learning Quantitative Strategy Engine (ML 多因子选股预测引擎)
 使用梯度提升树 (HistGradientBoosting / LightGBM) 对 A 股全市场进行截面多因子收益率预测与排序选股
-配合时序交叉验证 (Time-Series Split)，防止数据渗漏
+仅用于当前截面研究拟合；历史评估统一由滚动回测引擎处理
 """
 
 import os
 import sys
 import sqlite3
 import pandas as pd
-import numpy as np
-from datetime import datetime
 
 # 引入因子提取管道
 sys.path.append(os.path.dirname(__file__))
@@ -17,7 +15,6 @@ from ashare_factor_pipeline import AShareFactorPipeline, DB_PATH
 
 try:
     from sklearn.ensemble import HistGradientBoostingRegressor
-    from sklearn.metrics import mean_squared_error, r2_score
 except ImportError:
     print("[Error] 请先安装 scikit-learn: pip install scikit-learn")
 
@@ -59,47 +56,38 @@ class AShareMLStrategyEngine:
         print(f"[ML Engine] 全市场 Panel 数据集构建完成，总样本量: {len(panel_df)} 条，特征维度: {panel_df.shape[1]}")
         return panel_df
 
-    def train_and_eval(self, panel_df, split_date="2025-01-01"):
-        """使用时间序列划分训练集与测试集，训练机器学习模型"""
-        self.feature_cols = [c for c in panel_df.columns if c not in ['symbol', 'target_5d_return']]
-
-        # 时间序列切分 (绝无未来数据泄露)
-        train_df = panel_df[panel_df.index < split_date].dropna(subset=['target_5d_return'])
-        test_df = panel_df[panel_df.index >= split_date].dropna(subset=['target_5d_return'])
-
-        X_train, y_train = train_df[self.feature_cols], train_df['target_5d_return']
-        X_test, y_test = test_df[self.feature_cols], test_df['target_5d_return']
-
-        print(f"[ML Train] 训练集样本数 (2022~2024): {len(X_train)} | 测试集样本数 (2025~2026): {len(X_test)}")
-
-        # 模型训练
-        self.model.fit(X_train, y_train)
+    def fit_current_model(self, panel_df):
+        """拟合当前截面研究模型；不产生历史绩效结论。"""
+        self.feature_cols = [
+            column for column in panel_df.columns
+            if column not in {"symbol", "target_5d_return"}
+        ]
+        training = panel_df.dropna(subset=["target_5d_return"])
+        if training.empty:
+            raise ValueError("no mature labels for current snapshot training")
+        self.model.fit(
+            training[self.feature_cols],
+            training["target_5d_return"],
+        )
         self.is_trained = True
+        return {
+            "scope": "CURRENT_SNAPSHOT_RESEARCH_ONLY",
+            "historical_backtest": False,
+            "point_in_time_universe": False,
+            "training_samples": len(training),
+        }
 
-        # 测试集评估
-        y_pred = self.model.predict(X_test)
-        test_df['pred_return'] = y_pred
-
-        # 评估指标计算
-        r2 = r2_score(y_test, y_pred)
-        rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-
-        # 计算 Rank IC (秩相关系数)
-        rank_ic = test_df.groupby(level=0).apply(lambda d: d['pred_return'].corr(d['target_5d_return'], method='spearman')).mean()
-
-        print("\n" + "="*50)
-        print(f"机器学习模型 (HistGradientBoosting) 评估指标:")
-        print(f"  ├─ R² 得分: {r2:.4f}")
-        print(f"  ├─ 均方根误差 (RMSE): {rmse:.4f}")
-        print(f"  └─ 平均 IC (Rank IC): {rank_ic:.4f} {'(表现优异 > 0.05)' if rank_ic > 0.05 else '(预测能力良好)'}")
-        print("="*50)
-
-        return test_df
+    def train_and_eval(self, panel_df, split_date="2025-01-01"):
+        del panel_df, split_date
+        raise RuntimeError(
+            "legacy single-split historical evaluation is disabled; "
+            "use KLineBacktestEngine"
+        )
 
     def predict_top_stocks(self, target_date=None, top_k=10):
         """预测指定日期截面下的前 K 只潜力反弹/领涨股票"""
         if not self.is_trained:
-            print("[Error] 模型尚未训练，请先调用 train_and_eval()")
+            print("[Error] 模型尚未训练，请先调用 fit_current_model()")
             return None
 
         with sqlite3.connect(self.db_path) as conn:
@@ -107,26 +95,38 @@ class AShareMLStrategyEngine:
                 cursor = conn.cursor()
                 cursor.execute("SELECT MAX(trade_date) FROM stock_daily;")
                 target_date = cursor.fetchone()[0]
+            target_date = pd.Timestamp(target_date).strftime("%Y-%m-%d")
 
-        print(f"\n[ML Predict] 正在对截面日期 {target_date} 的股票进行 Alpha 得分预测...")
+            symbols = pd.read_sql_query(
+                "SELECT symbol FROM stock_basic "
+                "ORDER BY total_mv DESC LIMIT 100",
+                conn,
+            )["symbol"].tolist()
 
-        symbols = pd.read_sql_query("SELECT symbol FROM stock_basic ORDER BY total_mv DESC LIMIT 100", conn)['symbol'].tolist()
-        predict_records = []
+            print(f"\n[ML Predict] 正在对截面日期 {target_date} 的股票进行 Alpha 得分预测...")
+            predict_records = []
 
-        for sym in symbols:
-            df = self.pipeline.extract_factors(sym)
-            if df is not None and not df.empty:
-                # 寻找离 target_date 最近的最新可用交易日
-                if target_date in df.index:
-                    latest_row = df.loc[target_date]
-                else:
-                    latest_row = df.iloc[-1]
+            for sym in symbols:
+                df = self.pipeline.extract_factors(
+                    sym, end_date=target_date
+                )
+                if df is None or df.empty:
+                    continue
+                prefix = df.loc[df.index <= pd.Timestamp(target_date)]
+                if prefix.empty:
+                    continue
+                latest_row = prefix.iloc[-1]
 
                 feat_df = pd.DataFrame([latest_row[self.feature_cols]], columns=self.feature_cols)
                 pred_score = self.model.predict(feat_df)[0]
                 
                 # 获取股票名称
-                name_res = pd.read_sql_query(f"SELECT name, price, pe_ttm FROM stock_basic WHERE symbol='{sym}'", conn)
+                name_res = pd.read_sql_query(
+                    "SELECT name, price, pe_ttm FROM stock_basic "
+                    "WHERE symbol=?",
+                    conn,
+                    params=(str(sym),),
+                )
                 name = name_res['name'].values[0] if not name_res.empty else sym
                 price = name_res['price'].values[0] if not name_res.empty else latest_row['close']
                 pe = name_res['pe_ttm'].values[0] if not name_res.empty else 0
@@ -139,7 +139,10 @@ class AShareMLStrategyEngine:
                     'predicted_5d_return_pct': pred_score * 100
                 })
 
-        res_df = pd.DataFrame(predict_records).sort_values(by='predicted_5d_return_pct', ascending=False)
+        res_df = pd.DataFrame(predict_records)
+        if res_df.empty:
+            return res_df
+        res_df = res_df.sort_values(by='predicted_5d_return_pct', ascending=False)
         top_picks = res_df.head(top_k)
         
         print(f"\n[ML Alpha Top {top_k}] 基于 36 维量化因子模型预测的前 {top_k} 股票选股列表:")
@@ -151,5 +154,5 @@ if __name__ == "__main__":
     ml_engine = AShareMLStrategyEngine()
     panel_df = ml_engine.build_dataset()
     if panel_df is not None:
-        ml_engine.train_and_eval(panel_df)
+        print(ml_engine.fit_current_model(panel_df))
         ml_engine.predict_top_stocks(top_k=10)

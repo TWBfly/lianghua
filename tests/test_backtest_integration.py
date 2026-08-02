@@ -129,6 +129,30 @@ def deterministic_predictions(df_kline, df_factors, symbol, **_kwargs):
     return result
 
 
+def insufficient_predictions(df_kline, df_factors, symbol, **_kwargs):
+    index = pd.to_datetime(df_kline["trade_date"])
+    return pd.DataFrame({
+        "probability": np.nan,
+        "score": np.nan,
+        "model_version": "INSUFFICIENT_HISTORY",
+        "trained_until": pd.NaT,
+    }, index=index)
+
+
+def catalog_symbol(engine, symbol, source="TEST_QFQ"):
+    with engine.get_connection() as conn:
+        start_date, end_date, row_count = conn.execute("""
+            SELECT MIN(trade_date), MAX(trade_date), COUNT(*)
+            FROM stock_daily WHERE symbol=?
+        """, (symbol,)).fetchone()
+        conn.execute("""
+            INSERT INTO stock_daily_catalog (
+                symbol, price_mode, source, start_date, end_date,
+                row_count, updated_at
+            ) VALUES (?, 'QFQ', ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """, (symbol, source, start_date, end_date, row_count))
+
+
 def assert_enriched_backtest(result, metrics_key):
     metrics = result[metrics_key]
     assert len(result["daily_results"]) == len(result["equity_curve"])
@@ -146,6 +170,265 @@ def assert_enriched_backtest(result, metrics_key):
     ):
         assert field in metrics
     assert result["backtest_metadata"]["data_provenance"]
+
+
+def test_insufficient_ml_history_creates_hold_without_orders(
+        tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        backtest_kline_engine,
+        "walk_forward_predict",
+        insufficient_predictions,
+    )
+    engine = KLineBacktestEngine(build_test_db(tmp_path))
+
+    result = engine.run_kline_backtest(
+        "000001",
+        "2025-07-01",
+        "2025-10-31",
+        backtest_mode="RESEARCH_PROXY",
+    )
+
+    assert result["trades"] == []
+    assert result["rejected_orders"] == []
+    assert result["backtest_metadata"]["insufficient_history_count"] > 0
+    assert result["backtest_metadata"]["training_mode"] == (
+        "FIXED_WINDOW_WALK_FORWARD"
+    )
+
+
+def test_backtest_metadata_reports_fixed_training_policy(
+        tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        backtest_kline_engine,
+        "walk_forward_predict",
+        deterministic_predictions,
+    )
+    engine = KLineBacktestEngine(build_test_db(tmp_path))
+
+    result = engine.run_kline_backtest(
+        "000001",
+        "2025-07-01",
+        "2025-10-31",
+        backtest_mode="RESEARCH_PROXY",
+    )
+    metadata = result["backtest_metadata"]
+
+    assert metadata["training_window"] == 504
+    assert metadata["retrain_every"] == 21
+    assert metadata["label_horizon"] == 5
+    assert metadata["holdout_size"] == 252
+
+
+def test_strict_backtest_rejects_uncataloged_data(tmp_path):
+    engine = KLineBacktestEngine(build_test_db(tmp_path))
+
+    result = engine.run_kline_backtest(
+        "000001", "2025-07-01", "2025-12-31", 100_000
+    )
+
+    assert result["error_code"] == "UNVERIFIED_DATA_PROVENANCE"
+
+
+def test_strict_backtest_rejects_qfq_execution_proxy(tmp_path):
+    engine = KLineBacktestEngine(build_test_db(tmp_path))
+    catalog_symbol(engine, "000001")
+
+    result = engine.run_kline_backtest(
+        "000001", "2025-07-01", "2025-12-31", 100_000
+    )
+
+    assert result["error_code"] == "RAW_EXECUTION_UNAVAILABLE"
+
+
+def test_explicit_research_proxy_labels_verified_qfq(
+        tmp_path, monkeypatch):
+    engine = KLineBacktestEngine(build_test_db(tmp_path))
+    catalog_symbol(engine, "000001")
+    monkeypatch.setattr(
+        backtest_kline_engine,
+        "walk_forward_predict",
+        deterministic_predictions,
+    )
+
+    result = engine.run_kline_backtest(
+        "000001", "2025-07-01", "2025-12-31", 100_000,
+        backtest_mode="RESEARCH_PROXY",
+    )
+
+    assert "error" not in result
+    metadata = result["backtest_metadata"]
+    assert metadata["backtest_mode"] == "RESEARCH_PROXY"
+    assert metadata["price_semantics"] == "ADJUSTED_PROXY"
+    assert metadata["ai_used"] is False
+    assert metadata["data_license_status"] == (
+        "UNVERIFIED_FOR_COMMERCIAL_USE"
+    )
+    assert metadata["data_provenance"]["verification_status"] == (
+        "VERIFIED"
+    )
+
+
+def test_explicit_research_proxy_labels_legacy_data(
+        tmp_path, monkeypatch):
+    engine = KLineBacktestEngine(build_test_db(tmp_path))
+    monkeypatch.setattr(
+        backtest_kline_engine,
+        "walk_forward_predict",
+        deterministic_predictions,
+    )
+
+    result = engine.run_kline_backtest(
+        "000001", "2025-07-01", "2025-12-31", 100_000,
+        backtest_mode="RESEARCH_PROXY",
+    )
+
+    provenance = result["backtest_metadata"]["data_provenance"]
+    assert provenance["price_mode"] == "UNKNOWN"
+    assert provenance["source"] == "LEGACY_UNCATALOGED"
+    assert provenance["verification_status"] == "UNVERIFIED"
+    assert result["backtest_metadata"]["price_semantics"] == (
+        "LEGACY_UNVERIFIED"
+    )
+
+
+def test_portfolio_uses_same_strict_provenance_gate(tmp_path):
+    engine = KLineBacktestEngine(build_test_db(
+        tmp_path, symbols=("000001", "000002")
+    ))
+
+    result = engine.run_portfolio_backtest(
+        100_000,
+        "2025-07-01",
+        "2025-12-31",
+        symbols=["000001", "000002"],
+    )
+
+    assert result["error_code"] == "UNVERIFIED_DATA_PROVENANCE"
+
+
+def test_mechanical_strategy_uses_shared_simulator_not_ml_pipeline(
+        tmp_path, monkeypatch):
+    engine = KLineBacktestEngine(build_test_db(tmp_path))
+
+    def forbidden(*_args, **_kwargs):
+        raise AssertionError("mechanical strategy used ML factors")
+
+    monkeypatch.setattr(engine.ml_engine.pipeline, "extract_factors", forbidden)
+    original = backtest_kline_engine.simulate_portfolio
+    seen = {}
+
+    def recording_simulator(market, decisions, initial_cash, **kwargs):
+        seen["decisions"] = decisions.copy()
+        return original(market, decisions, initial_cash, **kwargs)
+
+    monkeypatch.setattr(
+        backtest_kline_engine, "simulate_portfolio", recording_simulator
+    )
+
+    result = engine.run_kline_backtest(
+        "000001",
+        "2025-01-01",
+        "2025-12-31",
+        100_000,
+        backtest_mode="RESEARCH_PROXY",
+        strategy="macd_cross",
+    )
+
+    assert "error" not in result
+    assert result["backtest_metadata"]["strategy_name"] == "macd_cross"
+    assert not seen["decisions"].empty
+    assert set(seen["decisions"]["action"]).issubset({
+        "BUY", "SELL", "HOLD",
+    })
+    assert set(seen["decisions"]["model_version"]) == {
+        "mechanical:macd_cross:v1"
+    }
+
+
+def test_unknown_strategy_is_rejected_before_market_work(tmp_path):
+    engine = KLineBacktestEngine(build_test_db(tmp_path))
+
+    result = engine.run_kline_backtest(
+        "000001",
+        "2025-01-01",
+        "2025-12-31",
+        100_000,
+        backtest_mode="RESEARCH_PROXY",
+        strategy="not-real",
+    )
+
+    assert result["error_code"] == "UNKNOWN_STRATEGY"
+
+
+def test_benchmark_uses_first_and_last_common_reporting_dates(
+        tmp_path, monkeypatch):
+    engine = KLineBacktestEngine(build_test_db(tmp_path))
+    monkeypatch.setattr(
+        backtest_kline_engine,
+        "walk_forward_predict",
+        deterministic_predictions,
+    )
+    with engine.get_connection() as conn:
+        dates = [row[0] for row in conn.execute("""
+            SELECT trade_date FROM stock_daily
+            WHERE symbol='000001' AND trade_date >= '2025-07-01'
+            ORDER BY trade_date
+        """).fetchall()]
+        conn.executemany(
+            "INSERT INTO index_daily VALUES "
+            "('000300', ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                (dates[0], 100.0, 100.0, 101.0, 99.0, 1, 1, 0.0),
+                (dates[-1], 110.0, 110.0, 111.0, 109.0, 1, 1, 10.0),
+            ],
+        )
+
+    result = engine.run_kline_backtest(
+        "000001",
+        "2025-07-01",
+        "2025-12-31",
+        100_000,
+        backtest_mode="RESEARCH_PROXY",
+    )
+
+    benchmark = result["metrics"]["benchmark"]
+    assert benchmark == {
+        "status": "AVAILABLE",
+        "benchmark_code": "000300",
+        "start_date": dates[0],
+        "end_date": dates[-1],
+        "return_pct": 10.0,
+        "excess_return_pct": pytest.approx(
+            result["metrics"]["total_return_pct"] - 10.0,
+            abs=0.01,
+        ),
+    }
+
+
+def test_missing_benchmark_is_unknown_not_zero(tmp_path, monkeypatch):
+    engine = KLineBacktestEngine(build_test_db(tmp_path))
+    monkeypatch.setattr(
+        backtest_kline_engine,
+        "walk_forward_predict",
+        deterministic_predictions,
+    )
+
+    result = engine.run_portfolio_backtest(
+        100_000,
+        "2025-07-01",
+        "2025-12-31",
+        symbols=["000001"],
+        backtest_mode="RESEARCH_PROXY",
+    )
+
+    assert result["portfolio_metrics"]["benchmark"] == {
+        "status": "UNKNOWN",
+        "benchmark_code": "000300",
+        "start_date": None,
+        "end_date": None,
+        "return_pct": None,
+        "excess_return_pct": None,
+    }
 
 
 def test_backtest_loads_history_before_reporting_start(
@@ -169,6 +452,7 @@ def test_backtest_loads_history_before_reporting_start(
         "000001", "2025-07-01", "2025-12-31", 100_000,
         persist_experiences=False,
         run_evolution=False,
+        backtest_mode="RESEARCH_PROXY",
     )
 
     assert seen_starts == [pd.Timestamp("2025-01-01")]
@@ -192,7 +476,8 @@ def test_backtest_is_pure_by_default(tmp_path, monkeypatch):
     monkeypatch.setattr(engine, "_run_evolution", forbidden)
 
     result = engine.run_kline_backtest(
-        "000001", "2025-01-01", "2025-12-31", 100_000
+        "000001", "2025-01-01", "2025-12-31", 100_000,
+        backtest_mode="RESEARCH_PROXY",
     )
 
     assert "error" not in result
@@ -215,6 +500,7 @@ def test_single_stock_backtest_is_causal_and_closes_positions(
         100_000,
         skip_ai=True,
         run_evolution=False,
+        backtest_mode="RESEARCH_PROXY",
     )
 
     assert "error" not in result
@@ -269,6 +555,7 @@ def test_small_capital_rejects_unaffordable_lot_without_crashing(
         1_000,
         skip_ai=True,
         run_evolution=False,
+        backtest_mode="RESEARCH_PROXY",
     )
 
     assert "error" not in result
@@ -296,6 +583,7 @@ def test_portfolio_engine_uses_one_account_and_real_drawdown(
         "2025-12-31",
         symbols=["000001", "000002"],
         run_evolution=False,
+        backtest_mode="RESEARCH_PROXY",
     )
 
     metrics = result["portfolio_metrics"]
@@ -313,9 +601,20 @@ def test_portfolio_engine_uses_one_account_and_real_drawdown(
     )
     assert result["backtest_metadata"] == {
         "engine": "NATIVE_A_SHARE_EVENT_V2",
-        "price_mode": "QFQ_ADJUSTED_PROXY",
+        "price_mode": "LEGACY_UNVERIFIED",
+        "price_semantics": "LEGACY_UNVERIFIED",
+        "backtest_mode": "RESEARCH_PROXY",
+        "strategy_name": "causal_ml",
+        "ai_used": False,
+        "data_license_status": "UNVERIFIED_FOR_COMMERCIAL_USE",
         "universe_mode": "USER_SELECTED",
         "fallback_signal_count": 0,
+        "training_mode": "FIXED_WINDOW_WALK_FORWARD",
+        "training_window": 504,
+        "retrain_every": 21,
+        "label_horizon": 5,
+        "holdout_size": 252,
+        "insufficient_history_count": 0,
         "research_limitations": [
             "NO_POINT_IN_TIME_UNIVERSE",
             "NO_HISTORICAL_ST_STATUS",
@@ -325,12 +624,13 @@ def test_portfolio_engine_uses_one_account_and_real_drawdown(
         ],
         "data_provenance": [{
             "symbol": symbol,
-            "price_mode": "QFQ",
+            "price_mode": "UNKNOWN",
             "source": "LEGACY_UNCATALOGED",
             "start_date": result["equity_curve"][0]["date"],
             "end_date": result["equity_curve"][-1]["date"],
             "row_count": len(result["equity_curve"]),
             "updated_at": None,
+            "verification_status": "UNVERIFIED",
         } for symbol in ("000001", "000002")],
     }
     allocation = result["kelly_allocations"][0]
@@ -357,6 +657,7 @@ def test_yearly_breakdown_uses_equity_for_every_calendar_year(
         "2025-01-01",
         "2026-12-31",
         symbols=["000001", "000002"],
+        backtest_mode="RESEARCH_PROXY",
     )
 
     assert [item["year"] for item in result["yearly_breakdown"]] == [
@@ -397,6 +698,7 @@ def test_star_market_allocation_respects_200_share_minimum(
         "2025-01-01",
         "2025-12-31",
         symbols=["688001"],
+        backtest_mode="RESEARCH_PROXY",
     )
 
     assert result["kelly_allocations"][0]["recommend_shares"] == 0
@@ -415,7 +717,8 @@ def test_backtest_runs_evolution_after_experiences_complete(
         def __init__(self, *_args, **_kwargs):
             pass
 
-        def run_after_backtest(self, symbols, now):
+        def run_after_backtest(self, symbols, now, market):
+            assert set(market) == {symbols[0]}
             return [{
                 "symbol": symbols[0],
                 "trained_version": "candidate-v2",
@@ -437,6 +740,7 @@ def test_backtest_runs_evolution_after_experiences_complete(
         100_000,
         persist_experiences=True,
         run_evolution=True,
+        backtest_mode="RESEARCH_PROXY",
     )
 
     assert result["evolution_status"][0]["trained_version"] == "candidate-v2"
@@ -460,6 +764,7 @@ def test_repeated_historical_run_does_not_duplicate_experiences(
             100_000,
             persist_experiences=True,
             run_evolution=False,
+            backtest_mode="RESEARCH_PROXY",
         )
 
     with sqlite3.connect(db_path) as conn:
@@ -499,6 +804,7 @@ def test_champion_is_used_only_after_its_training_cutoff(
         },
         artifact,
         trained_until="2025-06-30",
+        evaluated_until="2025-07-31",
     )
 
     result = KLineBacktestEngine(db_path).run_kline_backtest(
@@ -508,9 +814,10 @@ def test_champion_is_used_only_after_its_training_cutoff(
         100_000,
         persist_experiences=False,
         run_evolution=False,
+        backtest_mode="RESEARCH_PROXY",
     )
 
-    cutoff = pd.Timestamp("2025-06-30")
+    cutoff = pd.Timestamp("2025-07-31")
     before = [
         item for item in result["model_versions"]
         if pd.Timestamp(item["prediction_time"]) <= cutoff

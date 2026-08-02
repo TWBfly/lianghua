@@ -5,7 +5,9 @@ import sqlite3
 import numpy as np
 import pandas as pd
 import joblib
+import pytest
 
+import learning_loop
 from learning_loop import (
     EvaluationMetrics,
     EvolutionManager,
@@ -14,6 +16,8 @@ from learning_loop import (
     PromotionGate,
     evaluate_predictions,
 )
+from ml_ensemble import HOLDOUT_SIZE, MODEL_POLICY_VERSION, TRAINING_WINDOW
+from portfolio_simulator import simulate_portfolio
 
 
 def sample_decision(decision_id="d1"):
@@ -37,6 +41,45 @@ class SignProbabilityModel:
             0.2,
         )
         return np.column_stack([1 - probability, probability])
+
+
+def evaluation_market(periods=40, price=10.0, start="2025-01-01"):
+    index = pd.bdate_range(start, periods=periods)
+    return pd.DataFrame({
+        "open": price,
+        "high": price * 1.01,
+        "low": price * 0.99,
+        "close": price,
+        "volume": 1_000_000,
+    }, index=index)
+
+
+def neutral_decision_features(market):
+    return pd.DataFrame({
+        "close": market["close"],
+        "ma20": market["close"],
+        "rsi_14": 50.0,
+        "macd_hist": 0.0,
+    }, index=market.index)
+
+
+def populate_completed_experiences(store, periods=800):
+    dates = pd.bdate_range("2023-01-02", periods=periods)
+    for i, date in enumerate(dates):
+        item = sample_decision(f"d{i}")
+        item["decision_time"] = date.isoformat()
+        item["action"] = "HOLD"
+        item["features"] = {
+            "momentum": math.sin(i / 7),
+            "volatility": 0.01 + (i % 5) * 0.001,
+        }
+        store.record_decision(item)
+        outcome = math.sin(i / 7) * 0.03
+        store.complete_horizon(
+            f"d{i}", outcome, max(outcome, 0), min(outcome, 0),
+            date + pd.offsets.BDay(5),
+        )
+    return dates
 
 
 def test_experience_write_is_idempotent(tmp_path):
@@ -254,55 +297,181 @@ def test_evaluate_predictions_returns_finite_rolling_metrics():
     )
 
     result = evaluate_predictions(
-        returns, probabilities, folds=3, horizon_bars=5
+        returns,
+        probabilities,
+        market=evaluation_market(180),
+        symbol="000001",
+        folds=3,
+        horizon_bars=5,
     )
 
     assert result.folds == 3
     assert math.isfinite(result.net_return)
     assert 0 <= result.max_drawdown <= 1
-    assert 0 <= result.turnover <= 1
+    assert result.turnover >= 0
     assert 0 <= result.brier_score <= 1
     assert result.evaluated_samples == 36
+
+
+def test_evaluate_predictions_uses_one_continuous_simulation(monkeypatch):
+    calls = []
+    real_simulator = learning_loop.simulate_portfolio
+
+    def counting_simulator(*args, **kwargs):
+        calls.append(args[2])
+        return real_simulator(*args, **kwargs)
+
+    monkeypatch.setattr(
+        learning_loop, "simulate_portfolio", counting_simulator
+    )
+    market = evaluation_market(90)
+    returns = pd.Series(
+        np.sin(np.arange(90) / 7) * 0.02, index=market.index
+    )
+    probabilities = pd.Series(
+        np.where(returns > 0, 0.7, 0.3), index=market.index
+    )
+
+    result = evaluate_predictions(
+        returns,
+        probabilities,
+        market=market,
+        symbol="000001",
+        folds=3,
+        horizon_bars=1,
+        decision_features=neutral_decision_features(market),
+    )
+
+    assert calls == [1_000_000.0]
+    assert len(result.window_metrics) == 3
+
+
+def test_prediction_evaluation_equals_shared_simulator_after_costs():
+    market = evaluation_market(8)
+    probabilities = pd.Series(
+        [0.8, 0.8, 0.2, 0.2, 0.8, 0.8, 0.2, 0.2],
+        index=market.index,
+    )
+    returns = pd.Series(0.02, index=market.index)
+    actions = ["BUY", "HOLD", "SELL", "SELL",
+               "BUY", "HOLD", "SELL", "SELL"]
+    decisions = pd.DataFrame([{
+        "decision_id": f"expected:{date.date()}",
+        "decision_time": date,
+        "symbol": "000001",
+        "action": action,
+        "target_fraction": 0.20,
+        "reason": "test",
+        "model_version": "candidate",
+    } for date, action in zip(market.index, actions)])
+    expected = simulate_portfolio(
+        {"000001": market}, decisions, 1_000_000
+    )
+
+    result = evaluate_predictions(
+        returns,
+        probabilities,
+        market=market,
+        symbol="000001",
+        decision_features=neutral_decision_features(market),
+        folds=1,
+        horizon_bars=1,
+    )
+
+    assert result.net_return == pytest.approx(
+        expected.final_equity / expected.initial_cash - 1.0
+    )
+    assert result.net_return < 0
+
+
+def test_prediction_evaluation_does_not_book_unfilled_limit_up_return():
+    market = evaluation_market(4)
+    market.iloc[1, market.columns.get_loc("open")] = 11.0
+    market.iloc[1, market.columns.get_loc("high")] = 11.0
+    market.iloc[1, market.columns.get_loc("low")] = 11.0
+    market.iloc[1, market.columns.get_loc("close")] = 11.0
+    probabilities = pd.Series([0.8, 0.5, 0.5, 0.5], index=market.index)
+
+    result = evaluate_predictions(
+        pd.Series(0.20, index=market.index),
+        probabilities,
+        market=market,
+        symbol="000001",
+        decision_features=neutral_decision_features(market),
+        folds=1,
+        horizon_bars=1,
+    )
+
+    assert result.net_return == 0
+
+
+def test_prediction_evaluation_rejects_unaligned_market_dates():
+    market = evaluation_market(5)
+    probabilities = pd.Series(0.8, index=market.index)
+    probabilities.index = probabilities.index + pd.offsets.BDay(20)
+
+    with pytest.raises(ValueError, match="market"):
+        evaluate_predictions(
+            pd.Series(0.02, index=probabilities.index),
+            probabilities,
+            market=market,
+            symbol="000001",
+            folds=1,
+            horizon_bars=1,
+        )
 
 
 def test_evolution_manager_registers_auditable_challenger(tmp_path):
     store = ExperienceStore(tmp_path / "test.db")
     registry = ModelRegistry(tmp_path / "test.db")
-    dates = pd.bdate_range("2025-01-01", periods=140)
-    for i, date in enumerate(dates):
-        item = sample_decision(f"d{i}")
-        item["decision_time"] = date.isoformat()
-        item["action"] = "HOLD"
-        item["features"] = {
-            "momentum": math.sin(i / 7),
-            "volatility": 0.01 + (i % 5) * 0.001,
-        }
-        store.record_decision(item)
-        horizon_return = math.sin(i / 7) * 0.03
-        store.complete_horizon(
-            f"d{i}",
-            horizon_return,
-            max(horizon_return, 0),
-            min(horizon_return, 0),
-            date + pd.offsets.BDay(5),
-        )
+    dates = populate_completed_experiences(store)
 
     manager = EvolutionManager(
         store,
         registry,
         tmp_path / "models",
     )
-    version = manager.maybe_train("000001", datetime(2026, 1, 1))
+    version = manager.maybe_train(
+        "000001",
+        datetime(2027, 1, 1),
+        evaluation_market(len(dates) + 2, start=str(dates[0].date())),
+    )
 
     assert version
     row = registry.get(version)
     assert row["status"] in {"CHALLENGER", "SHADOW"}
     assert pd.Timestamp(row["trained_until"]) == (
+        dates[-HOLDOUT_SIZE - 1] + pd.offsets.BDay(5)
+    )
+    assert pd.Timestamp(row["evaluated_until"]) == (
         dates[-1] + pd.offsets.BDay(5)
     )
     assert row["feature_hash"]
     assert row["metrics_json"]
     assert str(tmp_path / "models") in row["artifact_path"]
+    artifact = joblib.load(row["artifact_path"])
+    assert artifact["model_policy_version"] == MODEL_POLICY_VERSION
+    assert artifact["model_version"] == version
+    assert artifact["evaluated_until"] == row["evaluated_until"]
+
+    registry.set_status(version, "SHADOW")
+    shadow = manager.evaluate_shadow("000001")
+    assert shadow["shadow_samples"] == 0
+
+
+def test_evolution_manager_requires_training_window_plus_holdout(tmp_path):
+    store = ExperienceStore(tmp_path / "test.db")
+    registry = ModelRegistry(tmp_path / "test.db")
+    dates = populate_completed_experiences(
+        store, TRAINING_WINDOW + HOLDOUT_SIZE - 1
+    )
+    manager = EvolutionManager(store, registry, tmp_path / "models")
+
+    assert manager.maybe_train(
+        "000001",
+        datetime(2027, 1, 1),
+        evaluation_market(len(dates) + 2, start=str(dates[0].date())),
+    ) is None
 
 
 def test_shadow_model_must_pass_second_gate_before_promotion(tmp_path):
@@ -329,7 +498,7 @@ def test_shadow_model_must_pass_second_gate_before_promotion(tmp_path):
     assert registry.get("new")["status"] == "CHAMPION"
 
 
-def test_run_after_backtest_evaluates_shadow_then_promotes(tmp_path):
+def test_run_after_backtest_keeps_unprofitable_shadow(tmp_path):
     store = ExperienceStore(tmp_path / "test.db")
     registry = ModelRegistry(tmp_path / "test.db")
     dates = pd.bdate_range("2026-01-01", periods=60)
@@ -363,9 +532,11 @@ def test_run_after_backtest_evaluates_shadow_then_promotes(tmp_path):
     manager = EvolutionManager(store, registry, tmp_path / "models")
 
     status = manager.run_after_backtest(
-        ["000001"], datetime(2026, 4, 1)
+        ["000001"],
+        datetime(2026, 4, 1),
+        {"000001": evaluation_market(60, start="2026-01-01")},
     )
 
     assert status[0]["shadow_samples"] == 60
-    assert status[0]["promoted"]
-    assert registry.get("shadow")["status"] == "CHAMPION"
+    assert not status[0]["promoted"]
+    assert registry.get("shadow")["status"] == "SHADOW"

@@ -20,9 +20,21 @@ from ashare_data_engine import AShareDataEngine
 from backtest_metrics import build_daily_ledger, calculate_performance
 from learning_loop import EvolutionManager, ExperienceStore, ModelRegistry
 from market_data import MarketDataError, validate_daily_bars
-from ml_ensemble import walk_forward_predict
+from ml_ensemble import (
+    HOLDOUT_SIZE,
+    LABEL_HORIZON,
+    RETRAIN_EVERY,
+    TRAINING_WINDOW,
+    ml_policy_action,
+    walk_forward_predict,
+)
 from ml_strategy_engine import AShareMLStrategyEngine
 from portfolio_simulator import _buy_quantity, simulate_portfolio
+from strategy_signal_library import SIGNAL_FUNCTIONS
+
+
+BACKTEST_MODES = {"STRICT", "RESEARCH_PROXY"}
+EXECUTABLE_STRATEGIES = ("causal_ml", *SIGNAL_FUNCTIONS)
 
 
 def _valid_symbol(symbol):
@@ -61,13 +73,109 @@ def _backtest_period(simulation):
     return f"{first:%Y-%m-%d} 至 {last:%Y-%m-%d}"
 
 
+def _benchmark_comparison(db_path, simulation, strategy_return_pct,
+                          benchmark_code="000300"):
+    unknown = {
+        "status": "UNKNOWN",
+        "benchmark_code": benchmark_code,
+        "start_date": None,
+        "end_date": None,
+        "return_pct": None,
+        "excess_return_pct": None,
+    }
+    if not simulation.equity_curve:
+        return unknown
+    reporting_dates = {
+        pd.Timestamp(point["date"]).strftime("%Y-%m-%d")
+        for point in simulation.equity_curve
+    }
+    try:
+        with sqlite3.connect(db_path) as conn:
+            rows = conn.execute("""
+                SELECT trade_date, close FROM index_daily
+                WHERE index_code=? AND trade_date>=? AND trade_date<=?
+                ORDER BY trade_date
+            """, (
+                benchmark_code,
+                min(reporting_dates),
+                max(reporting_dates),
+            )).fetchall()
+    except sqlite3.Error:
+        return unknown
+    common = [row for row in rows if row[0] in reporting_dates]
+    if len(common) < 2 or not common[0][1]:
+        return unknown
+    benchmark_return = (
+        float(common[-1][1]) / float(common[0][1]) - 1.0
+    ) * 100.0
+    return {
+        "status": "AVAILABLE",
+        "benchmark_code": benchmark_code,
+        "start_date": common[0][0],
+        "end_date": common[-1][0],
+        "return_pct": round(benchmark_return, 2),
+        "excess_return_pct": round(
+            float(strategy_return_pct) - benchmark_return, 2
+        ),
+    }
+
+
+def _price_semantics(data_provenance):
+    items = (
+        data_provenance
+        if isinstance(data_provenance, list) else [data_provenance]
+    )
+    if any(
+        item.get("verification_status") != "VERIFIED"
+        or item.get("price_mode") == "UNKNOWN"
+        for item in items
+    ):
+        return "LEGACY_UNVERIFIED"
+    if all(item.get("price_mode") == "RAW" for item in items):
+        return "RAW_EXECUTION"
+    return "ADJUSTED_PROXY"
+
+
+def _provenance_error(provenance, backtest_mode):
+    if backtest_mode != "STRICT":
+        return None
+    if provenance.get("verification_status") != "VERIFIED":
+        return {
+            "error": "严格回测拒绝未验证的数据血缘",
+            "error_code": "UNVERIFIED_DATA_PROVENANCE",
+        }
+    if provenance.get("price_mode") != "RAW":
+        return {
+            "error": "严格回测需要原始价格与完整公司行为数据",
+            "error_code": "RAW_EXECUTION_UNAVAILABLE",
+        }
+    return None
+
+
 def _backtest_metadata(fallback_signal_count, universe_mode,
-                       data_provenance):
+                       data_provenance, backtest_mode, strategy,
+                       insufficient_history_count=0):
+    price_semantics = _price_semantics(data_provenance)
     return {
         "engine": "NATIVE_A_SHARE_EVENT_V2",
-        "price_mode": "QFQ_ADJUSTED_PROXY",
+        "price_mode": (
+            "QFQ_ADJUSTED_PROXY"
+            if price_semantics == "ADJUSTED_PROXY"
+            else price_semantics
+        ),
+        "price_semantics": price_semantics,
+        "backtest_mode": backtest_mode,
+        "strategy_name": strategy,
+        "ai_used": False,
+        "data_license_status": "UNVERIFIED_FOR_COMMERCIAL_USE",
         "universe_mode": universe_mode,
         "fallback_signal_count": int(fallback_signal_count),
+        "training_mode": "FIXED_WINDOW_WALK_FORWARD",
+        "training_window": TRAINING_WINDOW,
+        "retrain_every": RETRAIN_EVERY,
+        "label_horizon": LABEL_HORIZON,
+        "holdout_size": HOLDOUT_SIZE,
+        "insufficient_history_count": int(insufficient_history_count),
         "data_provenance": data_provenance,
         "research_limitations": [
             "NO_POINT_IN_TIME_UNIVERSE",
@@ -146,22 +254,28 @@ class KLineBacktestEngine:
         provenance = self.data_engine.get_stock_daily_provenance(symbol)
         if provenance is not None:
             return provenance
-        dates = pd.DatetimeIndex(market_frame.index)
+        dates = pd.DatetimeIndex(pd.to_datetime(
+            market_frame["trade_date"]
+            if "trade_date" in market_frame else market_frame.index
+        ))
         return {
             "symbol": str(symbol),
-            "price_mode": "QFQ",
+            "price_mode": "UNKNOWN",
             "source": "LEGACY_UNCATALOGED",
             "start_date": dates.min().strftime("%Y-%m-%d"),
             "end_date": dates.max().strftime("%Y-%m-%d"),
             "row_count": len(market_frame),
             "updated_at": None,
+            "verification_status": "UNVERIFIED",
         }
 
     def _apply_champion(self, symbol, features, predictions):
         champion = ModelRegistry(self.db_path).champion(symbol)
         if champion is None or not champion["trained_until"]:
             return predictions
-        cutoff = pd.Timestamp(champion["trained_until"])
+        cutoff = pd.Timestamp(
+            champion["evaluated_until"] or champion["trained_until"]
+        )
         prediction_index = features.index[features.index > cutoff]
         if prediction_index.empty:
             return predictions
@@ -189,15 +303,60 @@ class KLineBacktestEngine:
         return result
 
     def _build_symbol_run(self, symbol, frame, initial_capital,
-                          target_fraction, run_id, start_date, end_date):
+                          target_fraction, run_id, start_date, end_date,
+                          strategy):
         index = pd.DatetimeIndex(pd.to_datetime(frame["trade_date"]))
+        report_index = index[index >= pd.Timestamp(start_date)]
+        close = pd.Series(frame["close"].to_numpy(dtype=float), index=index)
+        if strategy != "causal_ml":
+            signal_frame = frame.copy()
+            signal_frame.index = index
+            signal = SIGNAL_FUNCTIONS[strategy](signal_frame).fillna(0).astype(int)
+            model_version = f"mechanical:{strategy}:v1"
+            predictions = pd.DataFrame({
+                "probability": signal.map({-1: 0.0, 0: 0.5, 1: 1.0}),
+                "score": signal.astype(float),
+                "model_version": model_version,
+                "trained_until": pd.NaT,
+            }, index=index)
+            decisions = []
+            for date in report_index:
+                value = int(signal.loc[date])
+                action = {1: "BUY", -1: "SELL"}.get(value, "HOLD")
+                decisions.append({
+                    "decision_id": f"backtest:{symbol}:{date.date()}:{model_version}",
+                    "run_id": run_id,
+                    "decision_time": date,
+                    "symbol": symbol,
+                    "action": action,
+                    "target_fraction": target_fraction,
+                    "desired_shares": _buy_quantity(
+                        symbol,
+                        initial_capital * target_fraction,
+                        close.loc[date],
+                    )[0],
+                    "reason": (
+                        f"MECHANICAL_{strategy.upper()}_{action}"
+                        if action != "HOLD" else "NO_ACTION"
+                    ),
+                    "model_version": model_version,
+                    "features": {"signal": value},
+                    "features_json": json.dumps({"signal": value}),
+                })
+            market_frame = frame.copy()
+            market_frame.index = index
+            return (
+                market_frame.loc[report_index],
+                decisions,
+                predictions.loc[report_index],
+            )
+
         factors = self.ml_engine.pipeline.extract_factors(
             symbol, end_date=end_date
         )
         if factors is None:
             factors = pd.DataFrame(index=index)
         predictions = walk_forward_predict(frame, factors, symbol)
-        close = pd.Series(frame["close"].to_numpy(dtype=float), index=index)
         ma20 = close.rolling(20).mean()
         rsi = factors.get(
             "rsi_14", pd.Series(50.0, index=index)
@@ -216,33 +375,26 @@ class KLineBacktestEngine:
             symbol, decision_features, predictions
         )
 
-        report_index = index[index >= pd.Timestamp(start_date)]
         previous_macd = macd.shift(1)
         decisions = []
         for date in report_index:
-            probability = float(predictions.loc[date, "probability"])
             model_version = str(
                 predictions.loc[date, "model_version"]
             )
-            trend_safe = (
-                pd.notna(ma20.loc[date])
-                and close.loc[date] >= ma20.loc[date] * 0.95
-            )
-            macd_dead = (
-                pd.notna(previous_macd.loc[date])
-                and macd.loc[date] < 0
-                and previous_macd.loc[date] >= 0
-            )
-            if probability >= 0.55 and trend_safe and rsi.loc[date] < 75:
-                action, reason = "BUY", "CAUSAL_ML_ENTRY"
-            elif probability < 0.38 or macd_dead:
-                action = "SELL"
-                reason = (
-                    "CAUSAL_ML_EXIT"
-                    if probability < 0.38 else "MACD_DEATH_CROSS"
-                )
+            raw_probability = predictions.loc[date, "probability"]
+            if pd.isna(raw_probability):
+                probability = None
+                action, reason = "HOLD", model_version
             else:
-                action, reason = "HOLD", "NO_ACTION"
+                probability = float(raw_probability)
+                action, reason = ml_policy_action(
+                    probability,
+                    close.loc[date],
+                    ma20.loc[date],
+                    rsi.loc[date],
+                    macd.loc[date],
+                    previous_macd.loc[date],
+                )
             features = {
                 "close": float(close.loc[date]),
                 "rsi_14": float(rsi.loc[date]),
@@ -341,7 +493,9 @@ class KLineBacktestEngine:
         latest_market_time = max(
             frame.index.max() for frame in market.values()
         ).to_pydatetime()
-        return manager.run_after_backtest(symbols, latest_market_time)
+        return manager.run_after_backtest(
+            symbols, latest_market_time, market
+        )
 
     @staticmethod
     def _trade_metrics(simulation, initial_capital):
@@ -400,7 +554,9 @@ class KLineBacktestEngine:
                            end_date="2026-07-29",
                            initial_capital=1000000.0, skip_ai=False,
                            conn=None, persist_experiences=False,
-                           run_evolution=False):
+                           run_evolution=False,
+                           backtest_mode="STRICT",
+                           strategy="causal_ml"):
         """Generate signals at close and execute them at the next open."""
         del skip_ai
         clean_symbol = _valid_symbol(symbol)
@@ -411,6 +567,18 @@ class KLineBacktestEngine:
             or float(initial_capital) <= 0
         ):
             return {"error": "初始资金必须是有限正数"}
+        backtest_mode = str(backtest_mode).upper()
+        if backtest_mode not in BACKTEST_MODES:
+            return {
+                "error": "回测模式必须是 STRICT 或 RESEARCH_PROXY",
+                "error_code": "INVALID_BACKTEST_MODE",
+            }
+        strategy = str(strategy)
+        if strategy not in EXECUTABLE_STRATEGIES:
+            return {
+                "error": f"策略不可执行: {strategy}",
+                "error_code": "UNKNOWN_STRATEGY",
+            }
 
         local_connection = conn is None
         db_connection = conn or self.get_connection()
@@ -428,6 +596,13 @@ class KLineBacktestEngine:
         if frame.empty:
             return {"error": f"股票 {clean_symbol} 没有区间行情数据"}
 
+        data_provenance = self._data_provenance(clean_symbol, frame)
+        provenance_error = _provenance_error(
+            data_provenance, backtest_mode
+        )
+        if provenance_error:
+            return provenance_error
+
         run_id = uuid.uuid4().hex
         market_frame, decisions, predictions = self._build_symbol_run(
             clean_symbol,
@@ -437,6 +612,7 @@ class KLineBacktestEngine:
             run_id,
             start_date,
             end_date,
+            strategy,
         )
         if market_frame.empty:
             return {"error": f"股票 {clean_symbol} 没有区间行情数据"}
@@ -462,6 +638,9 @@ class KLineBacktestEngine:
             if persist_experiences and run_evolution else []
         )
         stats = self._trade_metrics(simulation, initial_capital)
+        benchmark = _benchmark_comparison(
+            self.db_path, simulation, stats["return"] * 100.0
+        )
         dates = pd.DatetimeIndex(market_frame.index)
         elapsed_days = max(1, (dates[-1] - dates[0]).days)
         annualized = (
@@ -546,6 +725,7 @@ class KLineBacktestEngine:
                 ),
                 "backtest_period": _backtest_period(simulation),
                 "friction_summary": _friction_summary(simulation),
+                "benchmark": benchmark,
                 **performance,
             },
             "category_dates": [
@@ -572,7 +752,12 @@ class KLineBacktestEngine:
             "backtest_metadata": _backtest_metadata(
                 (predictions["model_version"] == "causal-rule-v1").sum(),
                 "SINGLE_USER_SELECTED",
-                self._data_provenance(clean_symbol, market_frame),
+                data_provenance,
+                backtest_mode,
+                strategy,
+                predictions["model_version"].astype(str).str.startswith(
+                    "INSUFFICIENT_"
+                ).sum(),
             ),
         }
 
@@ -580,13 +765,27 @@ class KLineBacktestEngine:
                                start_date="2024-01-01",
                                end_date="2026-07-29", symbols=None,
                                persist_experiences=False,
-                               run_evolution=False):
+                               run_evolution=False,
+                               backtest_mode="STRICT",
+                               strategy="causal_ml"):
         """Backtest several symbols on one timeline and one cash account."""
         if (
             not math.isfinite(float(initial_capital))
             or float(initial_capital) <= 0
         ):
             return {"error": "初始资金必须是有限正数"}
+        backtest_mode = str(backtest_mode).upper()
+        if backtest_mode not in BACKTEST_MODES:
+            return {
+                "error": "回测模式必须是 STRICT 或 RESEARCH_PROXY",
+                "error_code": "INVALID_BACKTEST_MODE",
+            }
+        strategy = str(strategy)
+        if strategy not in EXECUTABLE_STRATEGIES:
+            return {
+                "error": f"策略不可执行: {strategy}",
+                "error_code": "UNKNOWN_STRATEGY",
+            }
 
         with self.get_connection() as conn:
             automatic_universe = symbols is None
@@ -615,6 +814,7 @@ class KLineBacktestEngine:
             decisions = []
             data_provenance = []
             fallback_signal_count = 0
+            insufficient_history_count = 0
             for symbol in symbols:
                 frame, name, _ = self._load_market(
                     conn, symbol, start_date, end_date
@@ -625,6 +825,12 @@ class KLineBacktestEngine:
                     frame = validate_daily_bars(frame, symbol)
                 except MarketDataError as exc:
                     return {"error": f"行情数据质量错误: {exc}"}
+                provenance = self._data_provenance(symbol, frame)
+                provenance_error = _provenance_error(
+                    provenance, backtest_mode
+                )
+                if provenance_error:
+                    return provenance_error
                 market_frame, symbol_decisions, symbol_predictions = (
                     self._build_symbol_run(
                         symbol,
@@ -634,6 +840,7 @@ class KLineBacktestEngine:
                         run_id,
                         start_date,
                         end_date,
+                        strategy,
                     )
                 )
                 if market_frame.empty:
@@ -647,9 +854,11 @@ class KLineBacktestEngine:
                         == "causal-rule-v1"
                     ).sum()
                 )
-                data_provenance.append(
-                    self._data_provenance(symbol, market_frame)
+                insufficient_history_count += int(
+                    symbol_predictions["model_version"].astype(str)
+                    .str.startswith("INSUFFICIENT_").sum()
                 )
+                data_provenance.append(provenance)
 
         if not market:
             return {"error": "选定股票没有区间行情数据"}
@@ -674,6 +883,9 @@ class KLineBacktestEngine:
             if persist_experiences and run_evolution else []
         )
         stats = self._trade_metrics(simulation, initial_capital)
+        benchmark = _benchmark_comparison(
+            self.db_path, simulation, stats["return"] * 100.0
+        )
         portfolio_trades = [{
             **trade,
             "buy_date": pd.Timestamp(
@@ -730,6 +942,7 @@ class KLineBacktestEngine:
                 ),
                 "backtest_period": _backtest_period(simulation),
                 "friction_summary": _friction_summary(simulation),
+                "benchmark": benchmark,
                 **performance,
             },
             "yearly_breakdown": yearly_breakdown,
@@ -749,6 +962,9 @@ class KLineBacktestEngine:
                     if automatic_universe else "USER_SELECTED"
                 ),
                 data_provenance,
+                backtest_mode,
+                strategy,
+                insufficient_history_count,
             ),
         }
 

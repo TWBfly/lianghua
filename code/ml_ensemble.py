@@ -2,10 +2,66 @@
 
 from dataclasses import dataclass
 import hashlib
+import json
 
 import lightgbm as lgb
 import numpy as np
 import pandas as pd
+
+
+TRAINING_WINDOW = 504
+RETRAIN_EVERY = 21
+LABEL_HORIZON = 5
+LABEL_THRESHOLD = 0.015
+HOLDOUT_SIZE = 252
+MODEL_POLICY_VERSION = "fixed-window-walk-forward-v1"
+
+
+def build_model_identity(symbol, trained_until, features, target,
+                         model, policy):
+    metadata = {
+        "schema": MODEL_POLICY_VERSION,
+        "symbol": str(symbol),
+        "trained_until": pd.Timestamp(trained_until).isoformat(),
+        "feature_names": list(features.columns),
+        "model_class": (
+            f"{model.__class__.__module__}.{model.__class__.__qualname__}"
+        ),
+        "model_params": model.get_params(deep=False),
+        "policy": policy,
+    }
+    digest = hashlib.sha256(json.dumps(
+        metadata,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    ).encode())
+    digest.update(pd.util.hash_pandas_object(
+        features, index=True,
+    ).to_numpy().tobytes())
+    digest.update(pd.util.hash_pandas_object(
+        pd.Series(target, index=features.index), index=True,
+    ).to_numpy().tobytes())
+    return digest.hexdigest()[:16]
+
+
+def ml_policy_action(probability, close, ma20, rsi, macd,
+                     previous_macd):
+    trend_safe = pd.notna(ma20) and close >= ma20 * 0.95
+    macd_dead = (
+        pd.notna(previous_macd)
+        and macd < 0
+        and previous_macd >= 0
+    )
+    if probability >= 0.55 and trend_safe and rsi < 75:
+        return "BUY", "CAUSAL_ML_ENTRY"
+    if probability < 0.38 or macd_dead:
+        return (
+            "SELL",
+            "CAUSAL_ML_EXIT" if probability < 0.38
+            else "MACD_DEATH_CROSS",
+        )
+    return "HOLD", "NO_ACTION"
 
 
 def build_features(df_kline: pd.DataFrame,
@@ -90,8 +146,9 @@ def build_features(df_kline: pd.DataFrame,
     return features.astype(np.float32)
 
 
-def build_label_frame(df_kline: pd.DataFrame, forward_days: int = 5,
-                      threshold: float = 0.015) -> pd.DataFrame:
+def build_label_frame(df_kline: pd.DataFrame,
+                      forward_days: int = LABEL_HORIZON,
+                      threshold: float = LABEL_THRESHOLD) -> pd.DataFrame:
     """Build labels whose unknown tail remains NaN."""
     frame = df_kline.copy()
     index = pd.to_datetime(frame["trade_date"])
@@ -112,8 +169,9 @@ def build_label_frame(df_kline: pd.DataFrame, forward_days: int = 5,
     }, index=close.index)
 
 
-def build_labels(df_kline: pd.DataFrame, forward_days: int = 5,
-                 threshold: float = 0.015) -> pd.Series:
+def build_labels(df_kline: pd.DataFrame,
+                 forward_days: int = LABEL_HORIZON,
+                 threshold: float = LABEL_THRESHOLD) -> pd.Series:
     return build_label_frame(
         df_kline, forward_days, threshold
     )["label"]
@@ -134,9 +192,16 @@ class WalkForwardSplit:
 
 def walk_forward_splits(label_frame: pd.DataFrame,
                         prediction_index: pd.DatetimeIndex,
-                        min_train_size: int = 120,
-                        retrain_every: int = 5) -> list:
+                        min_train_size: int = TRAINING_WINDOW,
+                        retrain_every: int = RETRAIN_EVERY,
+                        max_train_size: int = TRAINING_WINDOW) -> list:
     """Use only labels whose outcomes matured before prediction time."""
+    if min_train_size < 1:
+        raise ValueError("min_train_size must be positive")
+    if retrain_every < 1:
+        raise ValueError("retrain_every must be positive")
+    if max_train_size < min_train_size:
+        raise ValueError("max_train_size must be >= min_train_size")
     dates = pd.DatetimeIndex(prediction_index).sort_values()
     splits = []
     for start in range(0, len(dates), retrain_every):
@@ -152,6 +217,7 @@ def walk_forward_splits(label_frame: pd.DataFrame,
         ]
         if len(mature) < min_train_size:
             continue
+        mature = mature.iloc[-max_train_size:]
         splits.append(WalkForwardSplit(
             prediction_start=prediction_dates[0],
             prediction_end=prediction_dates[-1],
@@ -174,29 +240,22 @@ def _default_causal_model():
     )
 
 
-def _rule_score(features: pd.DataFrame) -> pd.Series:
-    rsi = features.get(
-        "rsi_14", pd.Series(50, index=features.index)
-    ).fillna(50)
-    macd = features.get(
-        "macd_hist", pd.Series(0, index=features.index)
-    ).fillna(0)
-    return ((50 - rsi) * 0.10 + macd * 2 + 5.0).clip(1.0, 9.5)
-
-
 def walk_forward_predict(df_kline: pd.DataFrame,
                          df_factors: pd.DataFrame,
                          symbol: str,
-                         min_train_size: int = 120,
-                         retrain_every: int = 5,
+                         min_train_size: int = TRAINING_WINDOW,
+                         retrain_every: int = RETRAIN_EVERY,
+                         max_train_size: int = TRAINING_WINDOW,
+                         forward_days: int = LABEL_HORIZON,
+                         threshold: float = LABEL_THRESHOLD,
                          model_factory=None) -> pd.DataFrame:
-    """Train on expanding mature history, then predict later batches."""
+    """Train on the latest fixed mature window, then predict later batches."""
     features = causal_feature_frame(df_kline, df_factors).fillna(0)
-    labels = build_label_frame(df_kline)
+    labels = build_label_frame(df_kline, forward_days, threshold)
     result = pd.DataFrame(index=features.index)
     result["score"] = np.nan
     result["probability"] = np.nan
-    result["model_version"] = None
+    result["model_version"] = "INSUFFICIENT_HISTORY"
     result["trained_until"] = pd.NaT
     factory = model_factory or _default_causal_model
 
@@ -205,18 +264,22 @@ def walk_forward_predict(df_kline: pd.DataFrame,
         features.index,
         min_train_size,
         retrain_every,
+        max_train_size,
     ):
         train_index = split.train_index.intersection(features.index)
         target = labels.loc[train_index, "label"].astype(int)
+        prediction_index = split.prediction_index.intersection(
+            features.index
+        )
         if target.nunique() < 2:
+            result.loc[
+                prediction_index, "model_version"
+            ] = "INSUFFICIENT_CLASS_VARIATION"
             continue
         model = factory()
         model.fit(
             features.loc[train_index].to_numpy(dtype=np.float32),
             target.to_numpy(),
-        )
-        prediction_index = split.prediction_index.intersection(
-            features.index
         )
         probability = model.predict_proba(
             features.loc[prediction_index].to_numpy(dtype=np.float32)
@@ -224,21 +287,22 @@ def walk_forward_predict(df_kline: pd.DataFrame,
         trained_until = labels.loc[
             train_index, "label_end_time"
         ].max()
-        version = hashlib.sha256(
-            (
-                f"{symbol}|{trained_until.isoformat()}|"
-                f"{','.join(features.columns)}"
-            ).encode()
-        ).hexdigest()[:16]
+        version = build_model_identity(
+            symbol,
+            trained_until,
+            features.loc[train_index],
+            target,
+            model,
+            {
+                "training_window": max_train_size,
+                "min_train_size": min_train_size,
+                "retrain_every": retrain_every,
+                "label_horizon": forward_days,
+                "label_threshold": threshold,
+            },
+        )
         result.loc[prediction_index, "probability"] = probability
         result.loc[prediction_index, "score"] = probability * 10.0
         result.loc[prediction_index, "model_version"] = version
         result.loc[prediction_index, "trained_until"] = trained_until
-
-    fallback = _rule_score(features) / 10.0
-    result["probability"] = result["probability"].fillna(fallback)
-    result["score"] = result["score"].fillna(fallback * 10.0)
-    result["model_version"] = result["model_version"].fillna(
-        "causal-rule-v1"
-    )
     return result

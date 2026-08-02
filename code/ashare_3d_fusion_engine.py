@@ -1,11 +1,4 @@
-"""
-A-Share 3D Fusion Quant Risk & Strategy Engine (三维一体全自动量化风控与交易决策引擎)
-
-融合三大维度：
-【维度一】：行情技术与动量因子 (OHLCV, MACD, RSI, 均线) -> ML 选股模型 (ml_strategy_engine.py)
-【维度二】：财报基本面指标 (营收增长、扣非净利润、ROE) -> 本地数据库财报因子过滤 (ashare_financial_fetcher.py)
-【维度三】：大模型文本语义风控 (最新公告、风险提示、新闻文本) -> DeepSeek API 智能审核 (deepseek_quant_copilot.py)
-"""
+"""Legacy fusion entry point with fail-closed data checks."""
 
 import os
 import sys
@@ -42,7 +35,7 @@ class AShare3DFusionEngine:
             print("[Error] 数据不足，退出。")
             return
 
-        self.ml_engine.train_and_eval(panel_df, split_date="2025-01-01")
+        print(self.ml_engine.fit_current_model(panel_df))
         ml_picks = self.ml_engine.predict_top_stocks(top_k=top_k * 2)  # 多选候选供后置维度过滤
 
         if ml_picks is None or ml_picks.empty:
@@ -59,20 +52,9 @@ class AShare3DFusionEngine:
             sym = row['symbol']
             name = row['name']
             
-            # 从本地数据库优先查询利润表 (0 网络延迟)
-            df_inc = self.fin_fetcher.get_income_statement(sym)
-            
-            is_fund_ok = True
-            fund_reason = "财报健康"
-
-            if df_inc is not None and not df_inc.empty:
-                latest_report = df_inc.iloc[0]
-                net_profit = float(latest_report.get('parent_netprofit', 0.0) or 0.0)
-                
-                # 硬性过滤规则：剔除单季净利润亏损严重的标的
-                if net_profit < 0:
-                    is_fund_ok = False
-                    fund_reason = f"最新季度净利润亏损 ({net_profit / 1e8:.2f} 亿元)"
+            audit = self.fin_fetcher.audit_financial_quality(sym)
+            is_fund_ok = audit["is_passed"]
+            fund_reason = audit["status"]
 
             if is_fund_ok:
                 print(f"   ├─ ✅ [{sym}] {name} - 财报审核通过 ({fund_reason})")
@@ -82,28 +64,14 @@ class AShare3DFusionEngine:
 
         fund_df = pd.DataFrame(fundamental_approved)
         if fund_df.empty:
-            print("[Warning] 基本面过滤后无符合要求股票，放宽条件。")
-            fund_df = ml_picks.head(top_k)
-        else:
-            fund_df = fund_df.head(top_k)
+            print("[Stop] 缺少可验证基本面数据，不生成候选组合。")
+            return pd.DataFrame()
+        fund_df = fund_df.head(top_k)
 
         # ---------------------------------------------------------------------
         # 【维度三】：大模型文本语义风控 (最新公司公告 & 新闻 -> DeepSeek API)
         # ---------------------------------------------------------------------
-        print("\n[维度三 🤖] 结合最新公司公告与新闻，调用 DeepSeek API 进行文本语义风控与终审...")
-        
-        # 为候选股票匹配最新的公告/新闻摘要，传给 DeepSeek
-        notices_summary = []
-        for idx, row in fund_df.iterrows():
-            sym = row['symbol']
-            df_not = self.fin_fetcher.get_company_notices(symbol=sym)
-            recent_notice_title = df_not.iloc[0]['title'] if (df_not is not None and not df_not.empty) else "无重大异常公告"
-            
-            notices_summary.append(
-                f"代码: {sym}, 名称: {row['name']}, 最新公告: 《{recent_notice_title}》, PE: {row['pe_ttm']}"
-            )
-
-        print("   ├─ 已调取本地公告数据，正在发送至 DeepSeek 投资委员会...")
+        print("\n[AI] 缺少带来源与时点的文档，审核结果将为 UNAVAILABLE。")
         audit_res = self.copilot.audit_top_stocks(fund_df)
 
         # ---------------------------------------------------------------------
@@ -138,7 +106,7 @@ class AShare3DFusionEngine:
         print(final_df.to_string(index=False))
         print(f"\n现金保留额度: ¥{initial_capital * (1 - total_alloc/100.0):,.2f} (占比 {(100 - total_alloc):.1f}%)")
         print("="*80)
-        print("✨ 三维一体全自动量化风控系统完成执行！已实现 零手动介入 的全流程避雷与仓位配置。")
+        print("流程结束；仅输出通过可验证检查的结果。")
         return final_df
 
 

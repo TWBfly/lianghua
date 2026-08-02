@@ -46,7 +46,7 @@ class AShareHybridBacktester:
             return
 
         print("\n[Step 1/3] 训练 ML 多因子选股模型...")
-        self.ml_engine.train_and_eval(panel_df, split_date="2025-01-01")
+        print(self.ml_engine.fit_current_model(panel_df))
 
         # 2. 生成最新截面的 Top 候选股票
         print("\n[Step 2/3] 机器学习算法选股中...")

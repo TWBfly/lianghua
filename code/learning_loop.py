@@ -13,6 +13,18 @@ import joblib
 import lightgbm as lgb
 from sklearn.model_selection import TimeSeriesSplit
 
+from ml_ensemble import (
+    HOLDOUT_SIZE,
+    LABEL_HORIZON,
+    LABEL_THRESHOLD,
+    MODEL_POLICY_VERSION,
+    RETRAIN_EVERY,
+    TRAINING_WINDOW,
+    build_model_identity,
+    ml_policy_action,
+)
+from portfolio_simulator import simulate_portfolio
+
 
 @dataclass(frozen=True)
 class EvaluationMetrics:
@@ -97,49 +109,133 @@ class PromotionGate:
         return not reasons, reasons
 
 
-def evaluate_predictions(horizon_returns, probabilities, folds=3,
-                         horizon_bars=5):
-    """Evaluate a long-only probability policy across chronological folds."""
+def evaluate_predictions(horizon_returns, probabilities, market, symbol,
+                         folds=3, horizon_bars=5,
+                         decision_features=None,
+                         initial_cash=1_000_000.0):
+    """Evaluate dated policy decisions through the production simulator."""
     if horizon_bars < 1:
         raise ValueError("horizon_bars must be positive")
+    if isinstance(market, dict):
+        market_frame = market.get(str(symbol))
+    else:
+        market_frame = market
+    if market_frame is None or market_frame.empty:
+        raise ValueError("market data is required for evaluation")
+    market_frame = market_frame.copy()
+    if "trade_date" in market_frame:
+        market_frame.index = pd.to_datetime(market_frame["trade_date"])
+    else:
+        market_frame.index = pd.to_datetime(market_frame.index)
+    market_frame = market_frame.sort_index()
+
     frame = pd.DataFrame({
         "return": pd.Series(horizon_returns, dtype=float),
         "probability": pd.Series(probabilities, dtype=float),
     }).dropna().sort_index().iloc[::horizon_bars]
+    frame.index = pd.to_datetime(frame.index)
     if len(frame) < folds or folds < 1:
         raise ValueError("not enough rows for requested folds")
+    if not frame.index.isin(market_frame.index).all():
+        raise ValueError("market data does not cover prediction dates")
 
+    features = pd.DataFrame(index=market_frame.index)
+    supplied = (
+        decision_features.copy()
+        if decision_features is not None else pd.DataFrame()
+    )
+    if not supplied.empty:
+        supplied.index = pd.to_datetime(supplied.index)
+    features["close"] = supplied.get(
+        "close", market_frame["close"]
+    ).reindex(features.index)
+    features["ma20"] = supplied.get(
+        "ma20", market_frame["close"].rolling(20).mean()
+    ).reindex(features.index)
+    features["rsi_14"] = supplied.get(
+        "rsi_14", pd.Series(50.0, index=features.index)
+    ).reindex(features.index).fillna(50.0)
+    features["macd_hist"] = supplied.get(
+        "macd_hist", pd.Series(0.0, index=features.index)
+    ).reindex(features.index).fillna(0.0)
+    previous_macd = features["macd_hist"].shift(1)
+
+    decisions = []
+    for date, row in frame.iterrows():
+        values = features.loc[date]
+        action, reason = ml_policy_action(
+            float(row["probability"]),
+            float(values["close"]),
+            values["ma20"],
+            float(values["rsi_14"]),
+            float(values["macd_hist"]),
+            previous_macd.loc[date],
+        )
+        decisions.append({
+            "decision_id": f"evaluation:{symbol}:{date.isoformat()}",
+            "decision_time": date,
+            "symbol": str(symbol),
+            "action": action,
+            "target_fraction": 0.20,
+            "reason": reason,
+            "model_version": "candidate",
+        })
+    start_position = market_frame.index.get_loc(frame.index.min())
+    end_position = market_frame.index.get_loc(frame.index.max())
+    evaluation_market = market_frame.iloc[
+        start_position:min(end_position + 2, len(market_frame))
+    ]
+    simulation = simulate_portfolio(
+        {str(symbol): evaluation_market},
+        pd.DataFrame(decisions),
+        float(initial_cash),
+    )
+    points = pd.DataFrame(simulation.equity_curve)
+    label = (frame["return"] > LABEL_THRESHOLD).astype(float)
+    frame_windows = [
+        frame.iloc[index]
+        for index in np.array_split(np.arange(len(frame)), folds)
+    ]
     fold_metrics = []
-    for indices in np.array_split(np.arange(len(frame)), folds):
-        fold = frame.iloc[indices]
-        label = (fold["return"] > 0.015).astype(float)
-        position = (fold["probability"] >= 0.55).astype(float)
-        policy_return = position * (fold["return"] - 0.0015)
-        equity = (1.0 + policy_return).cumprod()
-        peak = equity.cummax()
-        drawdown = ((peak - equity) / peak).max()
+    for window, fold in enumerate(frame_windows):
+        start = fold.index.min()
+        end = (
+            frame_windows[window + 1].index.min()
+            if window + 1 < len(frame_windows) else None
+        )
+        window_points = points.loc[points["date"] >= start]
+        if end is not None:
+            window_points = window_points.loc[window_points["date"] < end]
+        start_equity = float(window_points.iloc[0]["start_equity"])
+        equities = pd.concat([
+            pd.Series([start_equity]),
+            window_points["equity"].reset_index(drop=True),
+        ], ignore_index=True)
+        peak = equities.cummax()
         fold_metrics.append({
-            "net_return": float(equity.iloc[-1] - 1.0),
-            "max_drawdown": float(drawdown),
-            "turnover": float(position.diff().abs().fillna(position).mean()),
+            "net_return": float(
+                equities.iloc[-1] / start_equity - 1.0
+            ),
+            "max_drawdown": float(((peak - equities) / peak).max()),
+            "turnover": float(
+                window_points["turnover"].sum() / start_equity
+            ),
             "brier_score": float(
-                ((fold["probability"] - label) ** 2).mean()
+                ((fold["probability"] - label.loc[fold.index]) ** 2).mean()
             ),
         })
 
-    compounded = float(np.prod([
-        1.0 + item["net_return"] for item in fold_metrics
-    ]) - 1.0)
-    max_drawdown = max(item["max_drawdown"] for item in fold_metrics)
+    max_drawdown = max(
+        (float(point["drawdown"]) for point in simulation.equity_curve),
+        default=0.0,
+    )
     return EvaluationMetrics(
-        net_return=compounded,
+        net_return=float(
+            simulation.final_equity / float(initial_cash) - 1.0
+        ),
         max_drawdown=max_drawdown,
-        turnover=float(np.mean([
-            item["turnover"] for item in fold_metrics
-        ])),
-        brier_score=float(np.mean([
-            item["brier_score"] for item in fold_metrics
-        ])),
+        turnover=float(points["turnover"].sum() / float(initial_cash)),
+        brier_score=float(((frame["probability"] - label) ** 2).mean()),
         folds=len(fold_metrics),
         hit_kill_switch=max_drawdown >= 0.10,
         evaluated_samples=len(frame),
@@ -160,6 +256,7 @@ class ModelRegistry:
                     symbol TEXT NOT NULL,
                     status TEXT NOT NULL,
                     trained_until TEXT,
+                    evaluated_until TEXT,
                     data_hash TEXT,
                     feature_hash TEXT,
                     artifact_path TEXT NOT NULL,
@@ -182,6 +279,11 @@ class ModelRegistry:
                     "ALTER TABLE model_versions "
                     "ADD COLUMN shadow_metrics_json TEXT"
                 )
+            if "evaluated_until" not in columns:
+                conn.execute(
+                    "ALTER TABLE model_versions "
+                    "ADD COLUMN evaluated_until TEXT"
+                )
 
     def _connect(self):
         conn = sqlite3.connect(self.db_path)
@@ -189,21 +291,23 @@ class ModelRegistry:
         return conn
 
     def register(self, version, symbol, status, metrics, artifact_path,
-                 trained_until=None, data_hash="", feature_hash=""):
+                 trained_until=None, evaluated_until=None,
+                 data_hash="", feature_hash=""):
         if status not in self.STATUSES:
             raise ValueError(f"invalid model status: {status}")
         with self._connect() as conn:
             conn.execute("""
                 INSERT INTO model_versions (
-                    version, symbol, status, trained_until,
+                    version, symbol, status, trained_until, evaluated_until,
                     data_hash, feature_hash, artifact_path, metrics_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(version) DO NOTHING
             """, (
                 str(version),
                 str(symbol),
                 status,
                 str(trained_until) if trained_until else None,
+                str(evaluated_until) if evaluated_until else None,
                 str(data_hash),
                 str(feature_hash),
                 str(artifact_path),
@@ -571,14 +675,19 @@ class EvolutionManager:
             n_jobs=1,
         )
 
-    def maybe_train(self, symbol, now):
+    def maybe_train(self, symbol, now, market=None):
         if self.registry.shadow(symbol):
             return None
         if not self.store.retrain_due(symbol, now):
             return None
         frame = self.store.completed_frame(symbol)
-        if len(frame) < 120:
+        if len(frame) < TRAINING_WINDOW + HOLDOUT_SIZE:
             return None
+        if market is None:
+            return None
+        frame = frame.iloc[-(TRAINING_WINDOW + HOLDOUT_SIZE):]
+        development = frame.iloc[:-HOLDOUT_SIZE]
+        holdout = frame.iloc[-HOLDOUT_SIZE:]
 
         excluded = {
             "decision_id", "horizon_return", "horizon_end_time",
@@ -588,14 +697,18 @@ class EvolutionManager:
         )
         if not feature_names:
             return None
-        features = frame[feature_names].apply(
+        features = development[feature_names].apply(
             pd.to_numeric, errors="coerce"
         ).fillna(0.0)
-        target = (frame["horizon_return"] > 0.015).astype(int)
+        holdout_features = holdout[feature_names].apply(
+            pd.to_numeric, errors="coerce"
+        ).fillna(0.0)
+        target = (
+            development["horizon_return"] > LABEL_THRESHOLD
+        ).astype(int)
         if target.nunique() < 2:
             return None
 
-        probabilities = pd.Series(np.nan, index=frame.index, dtype=float)
         valid_folds = 0
         for train_index, validation_index in TimeSeriesSplit(
                 n_splits=3, gap=5).split(features):
@@ -604,21 +717,27 @@ class EvolutionManager:
                 continue
             model = self.model_factory()
             model.fit(features.iloc[train_index], y_train)
-            probabilities.iloc[validation_index] = model.predict_proba(
+            fold_probabilities = model.predict_proba(
                 features.iloc[validation_index]
             )[:, 1]
-            valid_folds += 1
-        valid = probabilities.notna()
-        if valid_folds < 3 or valid.sum() < 3:
+            valid_folds += int(np.isfinite(fold_probabilities).all())
+        if valid_folds < 3:
             return None
 
-        candidate_metrics = evaluate_predictions(
-            frame.loc[valid, "horizon_return"],
-            probabilities.loc[valid],
-            folds=3,
-        )
         final_model = self.model_factory()
         final_model.fit(features, target)
+        probabilities = pd.Series(
+            final_model.predict_proba(holdout_features)[:, 1],
+            index=holdout.index,
+        )
+        candidate_metrics = evaluate_predictions(
+            holdout["horizon_return"],
+            probabilities,
+            market=market,
+            symbol=symbol,
+            folds=3,
+            decision_features=holdout,
+        )
 
         feature_hash = hashlib.sha256(
             ",".join(feature_names).encode()
@@ -626,22 +745,54 @@ class EvolutionManager:
         data_hash = hashlib.sha256(
             "|".join(
                 f"{row.decision_id}:{row.horizon_return:.12f}"
-                for row in frame[["decision_id", "horizon_return"]].itertuples()
+                for row in development[
+                    ["decision_id", "horizon_return"]
+                ].itertuples()
             ).encode()
         ).hexdigest()
-        trained_until = pd.to_datetime(frame["horizon_end_time"]).max()
-        version = hashlib.sha256(
-            f"{symbol}|{trained_until.isoformat()}|{data_hash}|{feature_hash}".encode()
-        ).hexdigest()[:16]
+        trained_until = pd.to_datetime(
+            development["horizon_end_time"]
+        ).max()
+        evaluated_until = pd.to_datetime(
+            holdout["horizon_end_time"]
+        ).max()
+        version = build_model_identity(
+            symbol,
+            trained_until,
+            features,
+            target,
+            final_model,
+            {
+                "training_window": TRAINING_WINDOW,
+                "retrain_every": RETRAIN_EVERY,
+                "label_horizon": LABEL_HORIZON,
+                "label_threshold": LABEL_THRESHOLD,
+                "holdout_size": HOLDOUT_SIZE,
+            },
+        )
         symbol_dir = (self.model_dir / str(symbol)).resolve()
         if self.model_dir not in symbol_dir.parents:
             raise ValueError("model artifact path escapes model directory")
         symbol_dir.mkdir(parents=True, exist_ok=True)
         artifact_path = symbol_dir / f"{version}.joblib"
+        existing = self.registry.get(version)
+        if artifact_path.exists():
+            if (
+                existing
+                and Path(existing["artifact_path"]).resolve()
+                == artifact_path
+            ):
+                return version
+            raise FileExistsError(
+                f"model artifact already exists: {artifact_path}"
+            )
         joblib.dump({
             "model": final_model,
+            "model_version": version,
+            "model_policy_version": MODEL_POLICY_VERSION,
             "feature_names": feature_names,
             "trained_until": trained_until.isoformat(),
+            "evaluated_until": evaluated_until.isoformat(),
             "data_hash": data_hash,
             "feature_hash": feature_hash,
         }, artifact_path)
@@ -653,6 +804,7 @@ class EvolutionManager:
             candidate_metrics.as_dict(),
             artifact_path,
             trained_until=trained_until.isoformat(),
+            evaluated_until=evaluated_until.isoformat(),
             data_hash=data_hash,
             feature_hash=feature_hash,
         )
@@ -700,7 +852,7 @@ class EvolutionManager:
             if passed else False
         )
 
-    def evaluate_shadow(self, symbol, min_shadow_samples=50):
+    def evaluate_shadow(self, symbol, market=None, min_shadow_samples=50):
         candidate = self.registry.shadow(symbol)
         if candidate is None:
             return {
@@ -710,8 +862,10 @@ class EvolutionManager:
                 "promoted": False,
             }
         frame = self.store.completed_frame(symbol)
-        trained_until = pd.Timestamp(candidate["trained_until"])
-        frame = frame.loc[frame.index > trained_until]
+        cutoff = pd.Timestamp(
+            candidate["evaluated_until"] or candidate["trained_until"]
+        )
+        frame = frame.loc[frame.index > cutoff]
         sample_count = len(frame)
         result = {
             "symbol": str(symbol),
@@ -720,6 +874,9 @@ class EvolutionManager:
             "promoted": False,
         }
         if sample_count < min_shadow_samples:
+            return result
+        if market is None:
+            result["error"] = "market data is required for evaluation"
             return result
 
         artifact_path = Path(candidate["artifact_path"]).resolve()
@@ -734,7 +891,10 @@ class EvolutionManager:
         shadow_metrics = evaluate_predictions(
             frame["horizon_return"],
             pd.Series(probabilities, index=frame.index),
+            market=market,
+            symbol=symbol,
             folds=3,
+            decision_features=frame,
         )
         self.registry.record_shadow_metrics(
             candidate["version"],
@@ -746,12 +906,15 @@ class EvolutionManager:
         )
         return result
 
-    def run_after_backtest(self, symbols, now):
+    def run_after_backtest(self, symbols, now, market):
         statuses = []
         for symbol in dict.fromkeys(str(item) for item in symbols):
             try:
-                status = self.evaluate_shadow(symbol)
-                status["trained_version"] = self.maybe_train(symbol, now)
+                symbol_market = market.get(symbol)
+                status = self.evaluate_shadow(symbol, symbol_market)
+                status["trained_version"] = self.maybe_train(
+                    symbol, now, symbol_market
+                )
             except Exception as exc:
                 status = {
                     "symbol": symbol,
