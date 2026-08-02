@@ -14,6 +14,9 @@ class FeeSchedule:
     stamp_duty_rate_before_cutover: float = 0.001
     stamp_duty_cutover: str = "2023-08-28"
     transfer_fee_rate: float = 0.00001
+    transfer_fee_rate_before_cutover: float = 0.00002
+    beijing_transfer_fee_rate_before_cutover: float = 0.000025
+    transfer_fee_cutover: str = "2022-04-29"
     slippage_rate: float = 0.001
 
 
@@ -47,13 +50,31 @@ class SimulationResult:
     positions: dict = field(default_factory=dict)
 
 
-def _buy_cost(shares, raw_price, fees, max_price=None):
+def _is_beijing_symbol(symbol):
+    return str(symbol).startswith(("4", "8", "92"))
+
+
+def _transfer_fee_rate(fees, symbol, date):
+    if (
+        date is None
+        or pd.Timestamp(date) >= pd.Timestamp(fees.transfer_fee_cutover)
+    ):
+        return fees.transfer_fee_rate
+    return (
+        fees.beijing_transfer_fee_rate_before_cutover
+        if _is_beijing_symbol(symbol)
+        else fees.transfer_fee_rate_before_cutover
+    )
+
+
+def _buy_cost(shares, raw_price, fees, max_price=None,
+              symbol="", date=None):
     fill_price = raw_price * (1.0 + fees.slippage_rate)
     if max_price is not None:
         fill_price = min(fill_price, max_price)
     gross = shares * fill_price
     commission = max(fees.min_commission, gross * fees.commission_rate)
-    transfer = gross * fees.transfer_fee_rate
+    transfer = gross * _transfer_fee_rate(fees, symbol, date)
     return fill_price, gross, commission + transfer
 
 
@@ -65,25 +86,26 @@ def _stamp_duty_rate(fees, date):
     )
 
 
-def _sell_proceeds(shares, raw_price, fees, date, min_price=None):
+def _sell_proceeds(shares, raw_price, fees, date, min_price=None, symbol=""):
     fill_price = raw_price * (1.0 - fees.slippage_rate)
     if min_price is not None:
         fill_price = max(fill_price, min_price)
     gross = shares * fill_price
     commission = max(fees.min_commission, gross * fees.commission_rate)
-    transfer = gross * fees.transfer_fee_rate
+    transfer = gross * _transfer_fee_rate(fees, symbol, date)
     stamp = gross * _stamp_duty_rate(fees, date)
     total_fees = commission + transfer + stamp
     return fill_price, gross, total_fees, gross - total_fees
 
 
 def _limit_fraction(symbol, name):
+    symbol = str(symbol)
+    if _is_beijing_symbol(symbol):
+        return 0.30
+    if symbol.startswith(("300", "301", "688", "689")):
+        return 0.20
     if "ST" in str(name).upper():
         return 0.05
-    if symbol.startswith(("300", "301", "688")):
-        return 0.20
-    if symbol.startswith(("4", "8")):
-        return 0.30
     return 0.10
 
 
@@ -108,6 +130,8 @@ def _buy_quantity(symbol, budget, estimated_fill):
     shares = int(budget / estimated_fill)
     if str(symbol).startswith(("688", "689")):
         return (shares if shares >= 200 else 0), 200, 1
+    if _is_beijing_symbol(symbol):
+        return (shares if shares >= 100 else 0), 100, 1
     return shares // 100 * 100, 100, 100
 
 
@@ -277,7 +301,12 @@ def simulate_portfolio(market, decisions, initial_cash,
                 )
                 while shares >= minimum_shares:
                     fill_price, gross, buy_fees = _buy_cost(
-                        shares, raw_price, fee_schedule, limit_up
+                        shares,
+                        raw_price,
+                        fee_schedule,
+                        limit_up,
+                        symbol,
+                        date,
                     )
                     if gross + buy_fees <= cash:
                         break
@@ -290,7 +319,9 @@ def simulate_portfolio(market, decisions, initial_cash,
 
                 total_cost = gross + buy_fees
                 cash -= total_cost
-                transfer_fee = gross * fee_schedule.transfer_fee_rate
+                transfer_fee = gross * _transfer_fee_rate(
+                    fee_schedule, symbol, date
+                )
                 positions[symbol] = Position(
                     shares=shares,
                     average_cost=total_cost / shares,
@@ -329,10 +360,17 @@ def simulate_portfolio(market, decisions, initial_cash,
                     rejected.append(_reject(order, date, "T_PLUS_ONE"))
                     continue
                 fill_price, gross, sell_fees, net_proceeds = _sell_proceeds(
-                    position.shares, raw_price, fee_schedule, date, limit_down
+                    position.shares,
+                    raw_price,
+                    fee_schedule,
+                    date,
+                    limit_down,
+                    symbol,
                 )
                 cash += net_proceeds
-                transfer_fee = gross * fee_schedule.transfer_fee_rate
+                transfer_fee = gross * _transfer_fee_rate(
+                    fee_schedule, symbol, date
+                )
                 stamp_duty = (
                     gross * _stamp_duty_rate(fee_schedule, date)
                 )

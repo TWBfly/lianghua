@@ -68,106 +68,21 @@ class DeepSeekQuantCopilot:
             return None
 
     def audit_top_stocks(self, top_stocks_df):
-        """
-        对 ML 模型推荐的 Top 股票列表进行大模型投资委员会 (Investment Committee) 审核
-        """
-        print(f"\n[AI Copilot] 正在通过 DeepSeek ({self.model}) 进行智能风控与多空终审...")
-
-        stocks_summary = []
-        for idx, row in top_stocks_df.iterrows():
-            stocks_summary.append(
-                f"- 代码: {row['symbol']}, 名称: {row['name']}, 最新价: {row['price']}元, "
-                f"动态PE: {row['pe_ttm']}, ML预测5日收益率: {row['predicted_5d_return_pct']:.2f}%"
-            )
-
-        stocks_text = "\n".join(stocks_summary)
-
-        system_prompt = (
-            "你是一名严谨的 A 股资深量化风控专家与投资委员会主管。"
-            "你的任务是对机器学习算法推荐的候选股票列表进行基本面避雷、研报评估与仓位终审。"
-            "重点排查：立案调查、扣非大额亏损、大股东高比例减持、退市风险（*ST）。"
-            "请严格以 JSON 格式输出分析结果。"
-        )
-
-        user_prompt = f"""
-以下是机器学习多因子模型筛选出的当前最强反弹/领涨候选股票列表：
-
-{stocks_text}
-
-请对上述股票进行综合风险评估与投资审核，要求输出 JSON 格式，结构如下：
-{{
-  "audit_results": [
-    {{
-      "symbol": "股票代码",
-      "name": "股票名称",
-      "decision": "APPROVED (通过) / WATCH (观望) / REJECTED (拉黑)",
-      "suggested_position_pct": 建议仓位百分比(如 15.0),
-      "risk_level": "LOW / MEDIUM / HIGH",
-      "rationale": "简短的量化风控理由 (50字以内)"
-    }}
-  ],
-  "portfolio_summary": "整体组合策略建仓建议 (100字以内)"
-}}
-"""
-
-        raw_response = self._call_api(user_prompt, system_prompt=system_prompt)
-        if not raw_response:
-            print("[AI Copilot] API 返回为空，回退至纯 ML 信号。")
-            return top_stocks_df
-
-        try:
-            # 提取 JSON 内容
-            json_str = raw_response
-            if "```json" in raw_response:
-                json_str = raw_response.split("```json")[1].split("```")[0].strip()
-            elif "```" in raw_response:
-                json_str = raw_response.split("```")[1].split("```")[0].strip()
-
-            parsed = json.loads(json_str)
-            audit_list = parsed.get("audit_results", [])
-            audit_df = pd.DataFrame(audit_list)
-
-            print("\n" + "="*70)
-            print(f"DeepSeek AI 投资委员会终审结果 ({self.model}):")
-            print("="*70)
-            for item in audit_list:
-                status_icon = "🟢" if item['decision'] == 'APPROVED' else ("🟡" if item['decision'] == 'WATCH' else "🔴")
-                print(f"{status_icon} [{item['decision']}] {item['symbol']} ({item['name']}) | 建议仓位: {item['suggested_position_pct']}% | 风险: {item['risk_level']}")
-                print(f"   └─ 理由: {item['rationale']}")
-
-            print(f"\n💡 组合策略建议: {parsed.get('portfolio_summary', '')}")
-            print("="*70)
-
-            return audit_df
-
-        except Exception as e:
-            print(f"[AI Copilot] 完整 JSON 解析提示 ({e})，启动分块正则修复提取...")
-            import re
-            item_matches = re.findall(r'\{\s*"symbol"\s*:\s*"([^"]+)".*?"decision"\s*:\s*"([^"]+)".*?"suggested_position_pct"\s*:\s*([0-9\.]+).*?"risk_level"\s*:\s*"([^"]+)".*?"rationale"\s*:\s*"([^"]+)"', raw_response, re.DOTALL)
-            
-            if item_matches:
-                audit_list = []
-                for sym, dec, pos, risk, rat in item_matches:
-                    audit_list.append({
-                        "symbol": sym,
-                        "name": sym,
-                        "decision": dec,
-                        "suggested_position_pct": float(pos),
-                        "risk_level": risk,
-                        "rationale": rat
-                    })
-                audit_df = pd.DataFrame(audit_list)
-                print("\n" + "="*70)
-                print(f"DeepSeek AI 投资委员会终审结果 (正则提取修复):")
-                print("="*70)
-                for item in audit_list:
-                    status_icon = "🟢" if item['decision'] == 'APPROVED' else ("🟡" if item['decision'] == 'WATCH' else "🔴")
-                    print(f"{status_icon} [{item['decision']}] {item['symbol']} | 建议仓位: {item['suggested_position_pct']}% | 风险: {item['risk_level']}")
-                    print(f"   └─ 理由: {item['rationale']}")
-                print("="*70)
-                return audit_df
-
-            return top_stocks_df
+        """Fail closed until dated, source-identified documents are supplied."""
+        columns = [
+            "symbol", "name", "decision", "suggested_position_pct",
+            "risk_level", "rationale",
+        ]
+        if top_stocks_df is None or top_stocks_df.empty:
+            return pd.DataFrame(columns=columns)
+        return pd.DataFrame([{
+            "symbol": str(row.get("symbol", "")),
+            "name": str(row.get("name", row.get("symbol", ""))),
+            "decision": "UNAVAILABLE",
+            "suggested_position_pct": 0.0,
+            "risk_level": "UNKNOWN",
+            "rationale": "MISSING_GROUNDED_DOCUMENTS",
+        } for _, row in top_stocks_df.iterrows()], columns=columns)
 
 
 if __name__ == "__main__":

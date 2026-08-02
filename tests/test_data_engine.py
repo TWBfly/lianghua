@@ -86,11 +86,19 @@ def test_empty_qfq_refresh_preserves_existing_rows(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(ashare_data_engine.time, "sleep", lambda _: None)
 
-    engine.sync_stock_daily(
+    result = engine.sync_stock_daily(
         symbols=["000001"],
         start_date="20240101",
         end_date="20240103",
     )
+
+    assert result == {
+        "requested": 1,
+        "committed": [],
+        "unchanged": [],
+        "empty": ["000001"],
+        "failed": [],
+    }
 
     with sqlite3.connect(engine.db_path) as conn:
         assert conn.execute(
@@ -198,6 +206,7 @@ def test_qfq_refresh_updates_provenance_atomically(tmp_path, monkeypatch):
         "row_count": 2,
     }
     assert provenance["updated_at"]
+    assert provenance["verification_status"] == "VERIFIED"
 
 
 def test_qfq_catalog_failure_rolls_back_price_replacement(
@@ -238,3 +247,127 @@ def test_qfq_catalog_failure_rolls_back_price_replacement(
         assert conn.execute(
             "SELECT source FROM stock_daily_catalog WHERE symbol='000001'"
         ).fetchone()[0] == "OLD"
+
+
+def test_qfq_provider_error_is_reported_not_counted(tmp_path, monkeypatch):
+    engine = AShareDataEngine(tmp_path / "quant.db")
+
+    def fail(**_):
+        raise RuntimeError("provider unavailable")
+
+    monkeypatch.setattr(ashare_data_engine.ak, "stock_zh_a_hist", fail)
+    monkeypatch.setattr(ashare_data_engine.time, "sleep", lambda _: None)
+
+    result = engine.sync_stock_daily(
+        symbols=["000001"],
+        start_date="20240101",
+        end_date="20240103",
+    )
+
+    assert result["committed"] == []
+    assert result["empty"] == []
+    assert result["failed"] == [{
+        "symbol": "000001",
+        "error": "provider unavailable",
+    }]
+
+
+def test_verified_covered_symbol_is_reported_unchanged(
+        tmp_path, monkeypatch):
+    engine = AShareDataEngine(tmp_path / "quant.db")
+    with sqlite3.connect(engine.db_path) as conn:
+        insert_bar(conn, "000001", "2024-01-01", 10.0)
+        conn.execute("""
+            INSERT INTO stock_daily_catalog VALUES (
+                '000001', 'QFQ', 'TEST', '2024-01-01', '2024-01-01', 1,
+                '2024-01-02 00:00:00'
+            )
+        """)
+
+    def unexpected_fetch(**_):
+        raise AssertionError("verified data should not refresh")
+
+    monkeypatch.setattr(
+        ashare_data_engine.ak, "stock_zh_a_hist", unexpected_fetch
+    )
+
+    result = engine.sync_stock_daily(
+        symbols=["000001"],
+        start_date="20240101",
+        end_date="20240101",
+    )
+
+    assert result == {
+        "requested": 1,
+        "committed": [],
+        "unchanged": ["000001"],
+        "empty": [],
+        "failed": [],
+    }
+
+
+def test_uncataloged_covered_symbol_is_refreshed(tmp_path, monkeypatch):
+    engine = AShareDataEngine(tmp_path / "quant.db")
+    with sqlite3.connect(engine.db_path) as conn:
+        insert_bar(conn, "000001", "2024-01-01", 99.0)
+    calls = []
+
+    def fetch(**kwargs):
+        calls.append(kwargs)
+        return history("000001", [10.0])
+
+    monkeypatch.setattr(ashare_data_engine.ak, "stock_zh_a_hist", fetch)
+    monkeypatch.setattr(ashare_data_engine.time, "sleep", lambda _: None)
+
+    result = engine.sync_stock_daily(
+        symbols=["000001"],
+        start_date="20240101",
+        end_date="20240101",
+    )
+
+    assert calls
+    assert result["committed"] == ["000001"]
+    assert engine.get_stock_daily_provenance("000001")[
+        "verification_status"
+    ] == "VERIFIED"
+
+
+def test_stock_basic_refresh_preserves_symbol_primary_key(
+        tmp_path, monkeypatch):
+    db_path = tmp_path / "quant.db"
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("""
+            CREATE TABLE stock_basic (
+                symbol TEXT, name TEXT, price REAL, pe_ttm REAL, pb REAL,
+                total_mv REAL, circ_mv REAL, updated_at TEXT
+            )
+        """)
+        conn.execute(
+            "INSERT INTO stock_basic VALUES "
+            "('old', 'old', 1, 1, 1, 1, 1, 'old')"
+        )
+
+    spot = pd.DataFrame({
+        "代码": ["000001"],
+        "名称": ["平安银行"],
+        "最新价": [10.0],
+        "市盈率-动态": [6.0],
+        "市净率": [0.7],
+        "总市值": [100.0],
+        "流通市值": [90.0],
+    })
+    monkeypatch.setattr(
+        ashare_data_engine.ak, "stock_zh_a_spot_em", lambda: spot
+    )
+
+    engine = AShareDataEngine(db_path)
+    engine.sync_stock_basic()
+
+    with sqlite3.connect(db_path) as conn:
+        columns = conn.execute("PRAGMA table_info(stock_basic)").fetchall()
+        rows = conn.execute(
+            "SELECT symbol, name FROM stock_basic"
+        ).fetchall()
+    symbol = next(column for column in columns if column[1] == "symbol")
+    assert symbol[5] == 1
+    assert rows == [("000001", "平安银行")]

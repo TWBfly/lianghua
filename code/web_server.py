@@ -8,13 +8,17 @@ import os
 import sys
 import math
 import re
+import hmac
 from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory
 
 sys.path.append(os.path.dirname(__file__))
-from backtest_kline_engine import KLineBacktestEngine, DB_PATH
-from deepseek_analyzer import save_api_key_to_env
-import deepseek_analyzer as _ds_mod
+from backtest_kline_engine import (
+    BACKTEST_MODES,
+    DB_PATH,
+    EXECUTABLE_STRATEGIES,
+    KLineBacktestEngine,
+)
 
 WEB_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "web")
 
@@ -50,6 +54,14 @@ def validate_backtest_request(data, portfolio=False):
         "end_date": end_date,
         "initial_capital": initial_capital,
     }
+    backtest_mode = str(data.get("backtest_mode", "STRICT")).upper()
+    if backtest_mode not in BACKTEST_MODES:
+        raise ValueError("回测模式必须是 STRICT 或 RESEARCH_PROXY")
+    result["backtest_mode"] = backtest_mode
+    strategy = str(data.get("strategy", "causal_ml"))
+    if strategy not in EXECUTABLE_STRATEGIES:
+        raise ValueError(f"策略不可执行: {strategy}")
+    result["strategy"] = strategy
     if portfolio:
         symbols = data.get("symbols")
         if symbols is not None:
@@ -74,6 +86,11 @@ def validate_backtest_request(data, portfolio=False):
 def index():
     """提供前端主页"""
     return send_from_directory(WEB_DIR, "index.html")
+
+
+@app.route("/api/strategies", methods=["GET"])
+def strategies():
+    return jsonify(list(EXECUTABLE_STRATEGIES))
 
 
 @app.route("/<path:path>")
@@ -125,7 +142,7 @@ def search_stocks():
 
 @app.route("/api/munger_stocks", methods=["GET"])
 def get_munger_stocks():
-    """获取符合查理·芒格五维选股标准的优秀股票池"""
+    """Return a current valuation snapshot, not a fundamental audit."""
     import pandas as pd
     query = request.args.get("q", "").strip()
     try:
@@ -133,22 +150,24 @@ def get_munger_stocks():
             if not query:
                 sql = """
                 SELECT symbol, name, price, pe_ttm, pb, total_mv,
-                       ROUND(pb / pe_ttm * 100, 2) as roe_est
+                       'UNKNOWN' AS fundamental_status,
+                       'CURRENT_VALUATION_SNAPSHOT' AS data_scope
                 FROM stock_basic 
                 WHERE pe_ttm > 0 AND pe_ttm <= 60 AND pb > 0 AND total_mv >= 10000000000 
                   AND name NOT LIKE '%ST%' AND name NOT LIKE '%退%'
-                ORDER BY roe_est DESC LIMIT 50;
+                ORDER BY total_mv DESC LIMIT 50;
                 """
                 df = pd.read_sql_query(sql, conn)
             else:
                 sql = """
                 SELECT symbol, name, price, pe_ttm, pb, total_mv,
-                       ROUND(pb / pe_ttm * 100, 2) as roe_est
+                       'UNKNOWN' AS fundamental_status,
+                       'CURRENT_VALUATION_SNAPSHOT' AS data_scope
                 FROM stock_basic 
                 WHERE pe_ttm > 0 AND pe_ttm <= 60 AND pb > 0 AND total_mv >= 10000000000 
                   AND name NOT LIKE '%ST%' AND name NOT LIKE '%退%'
                   AND (symbol LIKE ? OR name LIKE ?)
-                ORDER BY roe_est DESC LIMIT 50;
+                ORDER BY total_mv DESC LIMIT 50;
                 """
                 df = pd.read_sql_query(sql, conn, params=(f"%{query}%", f"%{query}%"))
         
@@ -181,50 +200,66 @@ def run_portfolio_backtest():
 
 
 
-@app.route("/api/set_api_key", methods=["POST"])
-def set_api_key():
-    """保存 DeepSeek API Key 到本地 .env 文件（无需重启服务器）"""
-    data = request.json or {}
-    key = (data.get("api_key") or "").strip()
-    if not key or not key.startswith("sk-"):
-        return jsonify({"error": "API Key 格式不正确，应以 sk- 开头"}), 400
-    save_api_key_to_env(key)
-    return jsonify({"ok": True, "message": f"DeepSeek API Key 已保存并生效 (key={key[:8]}...)"})
-
-
-@app.route("/api/check_api_key", methods=["GET"])
-def check_api_key():
-    """检查当前 DeepSeek API Key 配置状态"""
-    key = _ds_mod.DEEPSEEK_API_KEY or os.environ.get("DEEPSEEK_API_KEY", "")
-    if key:
-        return jsonify({"configured": True, "key_prefix": key[:8] + "..."})
-    return jsonify({"configured": False, "key_prefix": ""})
-
-
 @app.route("/api/sync_data", methods=["POST"])
 def sync_data():
-    """手动一键更新与同步股票最新 K 线及基本面数据至本地 SQLite 数据库"""
+    """Synchronize daily bars through an authenticated admin route."""
+    expected_token = os.environ.get("LIANGHUA_ADMIN_TOKEN", "")
+    if not expected_token:
+        return jsonify({
+            "ok": False,
+            "error": "管理员认证未配置",
+            "error_code": "ADMIN_AUTH_NOT_CONFIGURED",
+        }), 503
+    authorization = request.headers.get("Authorization", "")
+    supplied_token = (
+        authorization[7:] if authorization.startswith("Bearer ") else ""
+    )
+    if not hmac.compare_digest(supplied_token, expected_token):
+        return jsonify({
+            "ok": False,
+            "error": "未授权",
+            "error_code": "UNAUTHORIZED",
+        }), 401
     try:
         data = request.json or {}
-        symbol = data.get("symbol", "600519").strip()
-        print(f"[Web Server 🔄] 手动触发数据同步: 目标股票={symbol}")
-        
-        # 增量同步日线 K 线至本地 SQLite 数据库
-        kline_engine.data_engine.sync_stock_daily(symbols=[symbol])
-        
-        return jsonify({
-            "ok": True,
-            "message": f"股票 [{symbol}] 最新日线 K 线与基本面数据已成功更新并持久化至本地 SQLite 数据库！"
-        })
+        symbol = data.get("symbol", "600519")
+        if not isinstance(symbol, str) or not SYMBOL_RE.fullmatch(symbol):
+            return jsonify({"ok": False, "error": "股票代码必须是6位数字"}), 400
+        summary = kline_engine.data_engine.sync_stock_daily(
+            symbols=[symbol]
+        )
+        completed = summary["committed"] + summary["unchanged"]
+        problems = summary["empty"] + summary["failed"]
+        ok = bool(completed) and not problems
+        status = 200 if ok else (207 if completed else 502)
+        payload = {
+            "ok": ok,
+            "summary": summary,
+            "message": (
+                f"股票 [{symbol}] 日线数据已提交或确认无变化"
+                if ok else "日线数据未完整同步"
+            ),
+        }
+        if not ok:
+            payload["error"] = payload["message"]
+        return jsonify(payload), status
     except Exception as e:
         print(f"[Web Server Error] 同步数据失败: {e}")
         return jsonify({"error": f"同步失败: {str(e)}"}), 500
 
 
+@app.route(
+    "/api/<path:unused>",
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+)
+def api_not_found(unused):
+    return jsonify({"error": "API endpoint not found"}), 404
+
+
 if __name__ == "__main__":
     port = 5050
     print("\n" + "="*70)
-    print("🚀 A 股三维一体量化 Web UI 服务成功启动!")
+    print("A 股策略回测 Web 服务已启动")
     print(f"🌐 访问地址: http://127.0.0.1:{port}")
     print("="*70 + "\n")
     app.run(host="127.0.0.1", port=port, debug=False)

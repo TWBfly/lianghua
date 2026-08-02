@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>A股三维一体智能量化系统 - 查理芒格好股池与固定风险组合管理</title>
+  <title>A股策略回测系统</title>
   <!-- Google Fonts & ECharts CDN -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,7 +17,7 @@
     <header class="navbar">
       <div class="logo-area">
         <span class="logo-icon">🏛️</span>
-        <h1>A股三维一体量化系统 <span class="badge">芒格好股筛选 + 共享账户风险控制</span></h1>
+        <h1>A股策略回测系统 <span class="badge">因果策略 + 共享账户风险控制</span></h1>
       </div>
       <div class="control-panel">
         <div class="input-group">
@@ -40,33 +40,28 @@
           <label>结束:</label>
           <input type="date" id="endDate" value="2026-07-29">
         </div>
+        <div class="input-group">
+          <label for="strategySelect">策略:</label>
+          <select id="strategySelect">
+            <option value="causal_ml">causal_ml</option>
+          </select>
+        </div>
+        <label class="input-group" for="researchProxyMode">
+          <input type="checkbox" id="researchProxyMode">
+          研究代理
+        </label>
         <button id="runBtn" class="btn-primary">
           <span class="icon">🚀</span> 运行单股与组合回测
-        </button>
-        <div class="input-group api-key-group" title="填入 DeepSeek API Key 以启用真实 AI 风险审计">
-          <label id="apiKeyLabel">🤖 DeepSeek:</label>
-          <input type="password" id="apiKeyInput" placeholder="sk-xxxx (可选)" style="width:130px;">
-          <button id="apiKeySaveBtn" class="btn-secondary-sm" onclick="saveApiKey()">保存</button>
-        </div>
-        <button id="syncDataBtn" class="btn-secondary-sm" onclick="syncLocalData()" title="一键同步最新 K 线与基本面至本地 SQLite 数据库">
-          <span id="syncSpinner" class="icon">🔄</span> 更新本地数据
         </button>
       </div>
     </header>
 
-    <!-- Top Banner: Munger Stock Selection Philosophy & 5 Dimensions -->
+    <!-- Current valuation snapshot -->
     <section class="munger-philosophy-banner shadow">
       <div class="banner-title">
         <span class="munger-icon">🏛️</span>
-        <strong>查理·芒格选股核心哲学：</strong>
-        <span class="quote">“用合理的价格买入伟大的公司，胜过用便宜的价格买入平庸的公司。”</span>
-      </div>
-      <div class="munger-dims-grid">
-        <div class="dim-pill"><span class="dim-num">1</span> <strong>高 ROE 盈利能力</strong>：连续 3 年加权 ROE ≥ 15% (股东复利高)</div>
-        <div class="dim-pill"><span class="dim-num">2</span> <strong>经济护城河</strong>：毛利率 ≥ 30% 且 经营现金流 > 0 (强定价权)</div>
-        <div class="dim-pill"><span class="dim-num">3</span> <strong>安全边际</strong>：资产负债率 &lt; 60% (拒绝债务爆雷)</div>
-        <div class="dim-pill"><span class="dim-num">4</span> <strong>公司治理避雷</strong>：0 次立案调查公告，无 *ST/退市风险</div>
-        <div class="dim-pill"><span class="dim-num">5</span> <strong>估值合理性</strong>：PE-TTM ≤ 60 (拒绝高位非理性泡沫)</div>
+        <strong>当前估值快照</strong>
+        <span class="quote">仅展示当前 PE、PB 与市值；缺少时点财报的数据状态为 UNKNOWN。</span>
       </div>
     </section>
 
@@ -76,15 +71,15 @@
       <aside class="left-sidebar shadow">
         <div class="sidebar-header">
           <div class="sidebar-title">
-            <span>🌟 芒格优质公司池</span>
+            <span>当前估值初筛</span>
             <span class="count-badge" id="mungerPoolCount">0 只</span>
           </div>
           <div class="sidebar-search">
-            <input type="text" id="mungerListSearch" placeholder="🔍 搜索好股池 (代码/名称)..." autocomplete="off">
+            <input type="text" id="mungerListSearch" placeholder="搜索估值快照 (代码/名称)..." autocomplete="off">
           </div>
         </div>
         <div class="sidebar-scroll-list" id="mungerStockCardsList">
-          <div class="loading-state">载入芒格优质股票池...</div>
+          <div class="loading-state">载入当前估值快照...</div>
         </div>
       </aside>
 
@@ -129,31 +124,31 @@
           </div>
         </section>
 
-        <!-- Main K-Line Chart & AI Rationale Drawer -->
+        <!-- Main K-Line Chart & Decision Drawer -->
         <main class="main-layout">
           <!-- Left: Interactive ECharts K-Line -->
           <div class="chart-section shadow">
             <div class="chart-header">
-              <h2 id="chartTitle">600519 - 贵州茅台 (K线买卖信号与AI研判理由)</h2>
+              <h2 id="chartTitle">600519 - 贵州茅台 (K线与策略成交记录)</h2>
               <div class="legend-info">
                 <span class="tag buy-tag">🟢 买入点 (BUY)</span>
                 <span class="tag sell-tag">🔴 卖出点 (SELL)</span>
-                <span class="tag hint">点击 K 线箭头查看 DeepSeek 研判理由</span>
+                <span class="tag hint">点击 K 线箭头查看策略决策</span>
               </div>
             </div>
             <div id="klineChart" class="kline-container"></div>
           </div>
 
-          <!-- Right: AI Trade Signal Detail Panel (Drawer) -->
+          <!-- Right: Trade Signal Detail Panel -->
           <aside class="ai-drawer shadow">
             <div class="drawer-header">
-              <h3>🤖 选中买卖点 - 三维研判理由</h3>
+              <h3>策略决策明细</h3>
               <span class="status-badge" id="aiStatusBadge">等待选择节点</span>
             </div>
             <div class="drawer-body" id="aiDrawerContent">
               <div class="empty-state">
                 <span class="empty-icon">💡</span>
-                <p>点击 K 线图表上的 <strong>🟢 买入</strong> 或 <strong>🔴 卖出</strong> 标记点查看 AI 研判理由。</p>
+                <p>点击 K 线图表上的买入或卖出标记查看策略决策与成交明细。</p>
               </div>
             </div>
           </aside>
@@ -179,7 +174,7 @@
                   <th>盈亏率(%)</th>
                   <th>实现净利润</th>
                   <th>ML 评分</th>
-                  <th>AI 理由</th>
+                  <th>策略理由</th>
                 </tr>
               </thead>
               <tbody id="tradeTableBody">

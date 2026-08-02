@@ -1,6 +1,5 @@
 """
-strategy_signal_library.py — TradingView 策略信号 Python 化特征库
-将 lianghua/tradingview/ 下 347 个 Pine Script 策略的核心信号逻辑翻译为 Python/pandas
+strategy_signal_library.py — 已验证 OHLCV 机械策略信号库
 
 每个函数输入: df (包含 open/high/low/close/volume 列的 DataFrame，DatetimeIndex)
 每个函数输出: pd.Series（+1=多头信号, -1=空头信号, 0=无信号），与 df.index 对齐
@@ -108,7 +107,6 @@ def supertrend_crossover(df: pd.DataFrame, period: int = 10, multiplier: float =
     """SuperTrend 方向切换信号（金叉+1, 死叉-1, 否则0）"""
     d = supertrend_signal(df, period, multiplier)
     signal = pd.Series(0, index=df.index)
-    signal[d == 1 and d.shift(1) == -1] = 1   # 方向切多
     signal[(d == 1) & (d.shift(1) == -1)] = 1
     signal[(d == -1) & (d.shift(1) == 1)] = -1
     return signal
@@ -298,10 +296,11 @@ def vwap_deviation_signal(df: pd.DataFrame, period: int = 20, threshold: float =
 
 def pivot_breakout_signal(df: pd.DataFrame, left: int = 5, right: int = 5) -> pd.Series:
     """价格突破 Pivot High/Low 信号"""
-    pivot_high = df['high'].rolling(left + right + 1, center=True).apply(
+    window = left + right + 1
+    pivot_high = df['high'].rolling(window).apply(
         lambda x: x[left] if x[left] == x.max() else np.nan, raw=True
     )
-    pivot_low = df['low'].rolling(left + right + 1, center=True).apply(
+    pivot_low = df['low'].rolling(window).apply(
         lambda x: x[left] if x[left] == x.min() else np.nan, raw=True
     )
     last_ph = pivot_high.ffill()
@@ -412,13 +411,17 @@ def parabolic_sar_signal(df: pd.DataFrame, af_start: float = 0.02,
 
 def market_structure_signal(df: pd.DataFrame, swing_len: int = 5) -> pd.Series:
     """市场结构突破 (BOS/CHoCH) 信号: 突破前高=+1, 跌破前低=-1"""
-    pivot_high = df['high'].rolling(2*swing_len+1, center=True).max()
-    pivot_low = df['low'].rolling(2*swing_len+1, center=True).min()
-    is_ph = df['high'] == pivot_high
-    is_pl = df['low'] == pivot_low
-
-    last_ph_price = df['high'].where(is_ph).ffill()
-    last_pl_price = df['low'].where(is_pl).ffill()
+    window = 2 * swing_len + 1
+    pivot_high = df['high'].rolling(window).apply(
+        lambda x: x[swing_len] if x[swing_len] == x.max() else np.nan,
+        raw=True,
+    )
+    pivot_low = df['low'].rolling(window).apply(
+        lambda x: x[swing_len] if x[swing_len] == x.min() else np.nan,
+        raw=True,
+    )
+    last_ph_price = pivot_high.ffill()
+    last_pl_price = pivot_low.ffill()
 
     signal = pd.Series(0, index=df.index)
     signal[crossover(df['close'], last_ph_price)] = 1
@@ -474,10 +477,7 @@ def compute_all_signals(df: pd.DataFrame) -> pd.DataFrame:
     """
     result = {}
     for name, func in SIGNAL_FUNCTIONS.items():
-        try:
-            result[f'sig_{name}'] = func(df)
-        except Exception as e:
-            result[f'sig_{name}'] = pd.Series(0, index=df.index)
+        result[f'sig_{name}'] = func(df)
 
     signals_df = pd.DataFrame(result, index=df.index)
 

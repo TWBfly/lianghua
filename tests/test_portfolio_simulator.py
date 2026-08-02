@@ -1,6 +1,7 @@
 import pandas as pd
 import pytest
 
+import portfolio_simulator
 from portfolio_simulator import (
     FeeSchedule,
     RiskLimits,
@@ -238,6 +239,52 @@ def test_stamp_duty_changes_on_2023_08_28():
     )
 
     assert before[2] - after[2] == pytest.approx(4.995)
+
+
+@pytest.mark.parametrize(("symbol", "name", "expected"), [
+    ("920001", "北交所样本", 0.30),
+    ("689001", "科创板样本", 0.20),
+    ("300001", "*ST创业", 0.20),
+    ("301001", "ST创业", 0.20),
+    ("600001", "*ST主板", 0.05),
+])
+def test_board_limit_fraction_precedes_generic_st_rule(
+        symbol, name, expected):
+    assert portfolio_simulator._limit_fraction(symbol, name) == expected
+
+
+def test_beijing_market_uses_100_share_minimum_then_one_share_steps():
+    assert portfolio_simulator._buy_quantity(
+        "920001", 1_010, 10
+    ) == (101, 100, 1)
+    assert portfolio_simulator._buy_quantity(
+        "920001", 990, 10
+    ) == (0, 100, 1)
+
+
+def test_star_689_uses_200_share_minimum_then_one_share_steps():
+    assert portfolio_simulator._buy_quantity(
+        "689001", 2_010, 10
+    ) == (201, 200, 1)
+
+
+@pytest.mark.parametrize(("symbol", "expected_before"), [
+    ("600001", 0.00002),
+    ("000001", 0.00002),
+    ("920001", 0.000025),
+])
+def test_transfer_fee_changes_on_2022_04_29(symbol, expected_before):
+    fees = FeeSchedule()
+
+    before = portfolio_simulator._transfer_fee_rate(
+        fees, symbol, pd.Timestamp("2022-04-28")
+    )
+    after = portfolio_simulator._transfer_fee_rate(
+        fees, symbol, pd.Timestamp("2022-04-29")
+    )
+
+    assert before == expected_before
+    assert after == 0.00001
 
 
 def test_star_market_rejects_buy_below_200_share_minimum():

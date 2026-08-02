@@ -1,6 +1,5 @@
 /**
- * A-Share 3D Quant Web UI Logic
- * Charlie Munger Stock Screener + Kelly Criterion Multi-Stock Portfolio Engine + ECharts K-Line + DeepSeek AI
+ * A-Share causal strategy backtest UI.
  */
 
 let chartInstance = null;
@@ -10,18 +9,8 @@ let mungerStocksData = [];
 document.addEventListener('DOMContentLoaded', () => {
   initChart();
   bindEvents();
-  
-  // 1. 初始化调取芒格好股票池
+  loadStrategies();
   fetchMungerStocks('');
-
-  // 2. 默认运行单股回测 (贵州茅台)
-  fetchAndRenderBacktest();
-
-  // 3. 默认运行【20万本金全组合 + 固定风险配仓】总体回测
-  fetchPortfolioBacktest();
-
-  // 4. 检查 DeepSeek API Key 状态
-  checkApiKeyStatus();
 });
 
 function initChart() {
@@ -43,8 +32,6 @@ function bindEvents() {
     const val = parseFloat(capitalInput.value) || 200000;
     const formatCapital = (val / 10000).toFixed(0) + '万';
     document.getElementById('capitalText').innerText = formatCapital;
-    fetchPortfolioBacktest();
-    fetchAndRenderBacktest();
   });
 
   // 全局股票搜索框
@@ -76,16 +63,6 @@ function bindEvents() {
     }
   });
 
-  document.getElementById('startDate').addEventListener('change', () => {
-    fetchAndRenderBacktest();
-    fetchPortfolioBacktest();
-  });
-
-  document.getElementById('endDate').addEventListener('change', () => {
-    fetchAndRenderBacktest();
-    fetchPortfolioBacktest();
-  });
-
   document.getElementById('runBtn').addEventListener('click', () => {
     fetchAndRenderBacktest();
     fetchPortfolioBacktest();
@@ -93,12 +70,30 @@ function bindEvents() {
 
   chartInstance.on('click', (params) => {
     if (params.componentType === 'markPoint' && params.data && params.data.tradeRecord) {
-      renderAIDrawer(params.data.tradeRecord, params.data.type);
+      renderDecisionDrawer(params.data.tradeRecord, params.data.type);
     }
   });
 }
 
 let latestPortfolioData = null;
+
+function selectedBacktestOptions() {
+  return {
+    strategy: document.getElementById('strategySelect')?.value || 'causal_ml',
+    backtest_mode: document.getElementById('researchProxyMode')?.checked
+      ? 'RESEARCH_PROXY'
+      : 'STRICT'
+  };
+}
+
+async function loadStrategies() {
+  const response = await fetch('/api/strategies');
+  const strategies = await response.json();
+  const select = document.getElementById('strategySelect');
+  select.innerHTML = strategies
+    .map(name => `<option value="${name}">${name}</option>`)
+    .join('');
+}
 
 /**
  * 调取【全组合多股总体战报 + 固定风险资金分配】
@@ -117,7 +112,12 @@ async function fetchPortfolioBacktest() {
     const response = await fetch('/api/run_portfolio_backtest', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ initial_capital: initialCapital, start_date: startDate, end_date: endDate })
+      body: JSON.stringify({
+        initial_capital: initialCapital,
+        start_date: startDate,
+        end_date: endDate,
+        ...selectedBacktestOptions()
+      })
     });
 
     const data = await response.json();
@@ -233,7 +233,7 @@ function renderKellyAllocations(allocs, totalCap) {
 }
 
 /**
- * 调取芒格好股票池
+ * 调取当前估值快照
  */
 async function fetchMungerStocks(query) {
   const container = document.getElementById('mungerStockCardsList');
@@ -253,29 +253,25 @@ function renderMungerStockList(stocks) {
   const currentSymbol = document.getElementById('selectedSymbol').value;
 
   if (!stocks || stocks.length === 0) {
-    container.innerHTML = '<div class="empty-state">未找到匹配的好股票</div>';
+    container.innerHTML = '<div class="empty-state">未找到匹配的估值快照</div>';
     return;
   }
 
   container.innerHTML = stocks.map(s => {
     const isActive = s.symbol === currentSymbol;
-    const roeText = s.roe_est ? `ROE ${s.roe_est}%` : 'ROE ≥ 15%';
-    const profitText = s.total_mv ? `市值 ${(s.total_mv / 1e8).toFixed(0)} 亿` : '高毛利';
+    const statusText = s.fundamental_status || 'UNKNOWN';
+    const marketValueText = s.total_mv ? `市值 ${(s.total_mv / 1e8).toFixed(0)} 亿` : '市值未知';
 
     return `
       <div class="munger-stock-card ${isActive ? 'active' : ''}" onclick="selectMungerCard('${s.symbol}', '${s.name}')">
         <div class="card-top-line">
           <span class="stock-code-name">${s.symbol} ${s.name}</span>
-          <span class="roe-tag">${roeText}</span>
+          <span class="roe-tag">基本面 ${statusText}</span>
         </div>
         <div class="card-metrics-line">
           <span>PE: ${s.pe_ttm ? s.pe_ttm.toFixed(1) : '--'}</span>
           <span>PB: ${s.pb ? s.pb.toFixed(2) : '--'}</span>
-          <span>${profitText}</span>
-        </div>
-        <div class="card-badge-line">
-          <span class="tag-moat">🟢 强护城河</span>
-          <span class="tag-moat">🛡️ 安全边际高</span>
+          <span>${marketValueText}</span>
         </div>
       </div>
     `;
@@ -287,7 +283,6 @@ function selectMungerCard(symbol, name) {
   document.getElementById('stockSearchInput').value = `${symbol} - ${name}`;
 
   renderMungerStockList(mungerStocksData);
-  fetchAndRenderBacktest();
 }
 
 async function fetchStockSuggestions(query) {
@@ -342,21 +337,30 @@ async function fetchAndRenderBacktest() {
     const response = await fetch('/api/run_backtest', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ symbol, start_date: startDate, end_date: endDate, initial_capital: capital })
+      body: JSON.stringify({
+        symbol,
+        start_date: startDate,
+        end_date: endDate,
+        initial_capital: capital,
+        ...selectedBacktestOptions()
+      })
     });
 
     const data = await response.json();
-    if (data.error) return;
+    if (data.error) {
+      alert(data.error);
+      return;
+    }
 
     currentBacktestData = data;
 
     updateMetrics(data.metrics);
-    document.getElementById('chartTitle').innerText = `${data.symbol} - ${data.name} (K线买卖信号与AI研判理由)`;
+    document.getElementById('chartTitle').innerText = `${data.symbol} - ${data.name} (K线与策略成交记录)`;
     renderKlineChart(data);
     renderTradeTable(data.trades);
 
     if (data.trades && data.trades.length > 0) {
-      renderAIDrawer(data.trades[0], 'BUY');
+      renderDecisionDrawer(data.trades[0], 'BUY');
     }
 
   } catch (err) {
@@ -496,7 +500,7 @@ function calculateMA(dayCount, data) {
   return result;
 }
 
-function renderAIDrawer(t, actionType) {
+function renderDecisionDrawer(t, actionType) {
   const isBuy = actionType === 'BUY';
   document.getElementById('aiStatusBadge').innerText = isBuy ? `🟢 买入信号 - ${t.buy_date}` : `🔴 卖出信号 - ${t.sell_date}`;
 
@@ -508,23 +512,31 @@ function renderAIDrawer(t, actionType) {
       </div>
 
       <div class="dim-section">
-        <div class="dim-title">📈 维度一：三算法集成 ML (LightGBM+XGB+Cat) 评分</div>
+        <div class="dim-title">执行策略</div>
         <div class="dim-content">
-          330 策略正交降维预测胜率得分: <strong>${t.ml_score_pct} / 10 分</strong>
+          <strong>${currentBacktestData?.backtest_metadata?.strategy_name || 'unknown'}</strong>
+          | AI 参与: <strong>${currentBacktestData?.backtest_metadata?.ai_used === true ? '是' : '否'}</strong>
         </div>
       </div>
 
       <div class="dim-section">
-        <div class="dim-title">📊 维度二：财报基本面硬核风控</div>
+        <div class="dim-title">信号值</div>
         <div class="dim-content">
-          数据库财报状态: <strong>${t.financial_status}</strong>
+          <strong>${t.ml_score_pct}</strong>
         </div>
       </div>
 
       <div class="dim-section">
-        <div class="dim-title">🤖 维度三：DeepSeek API 大模型研判理由</div>
+        <div class="dim-title">历史数据边界</div>
         <div class="dim-content">
-          ${isBuy ? t.deepseek_reason : t.sell_reason}
+          ${t.financial_status || 'UNKNOWN'}
+        </div>
+      </div>
+
+      <div class="dim-section">
+        <div class="dim-title">决策理由</div>
+        <div class="dim-content">
+          ${isBuy ? (t.deepseek_reason || '策略信号触发') : t.sell_reason}
         </div>
       </div>
 
@@ -563,7 +575,7 @@ function renderTradeTable(trades) {
       <td>${t.shares} 股</td>
       <td class="${t.pnl_pct >= 0 ? 'pnl-pos' : 'pnl-neg'}">${t.pnl_pct >= 0 ? '+' : ''}${t.pnl_pct}%</td>
       <td class="${t.pnl_amount >= 0 ? 'pnl-pos' : 'pnl-neg'}">¥${t.pnl_amount}</td>
-      <td>+${t.ml_score_pct}%</td>
+      <td>${t.ml_score_pct}</td>
       <td><button class="btn-detail" onclick="event.stopPropagation(); onTableRowClick(${t.id})">查看理由 🔍</button></td>
     </tr>
   `).join('');
@@ -573,73 +585,7 @@ function onTableRowClick(tradeId) {
   if (!currentBacktestData || !currentBacktestData.trades) return;
   const trade = currentBacktestData.trades.find(t => t.id === tradeId);
   if (trade) {
-    renderAIDrawer(trade, 'BUY');
+    renderDecisionDrawer(trade, 'BUY');
     chartInstance.dispatchAction({ type: 'showTip', seriesIndex: 0, name: trade.buy_date });
-  }
-}
-
-// ─── DeepSeek API Key 管理 ────────────────────────────────────────────────────
-async function checkApiKeyStatus() {
-  try {
-    const resp = await fetch('/api/check_api_key');
-    const data = await resp.json();
-    const label = document.getElementById('apiKeyLabel');
-    if (!label) return;
-    if (data.configured) {
-      label.textContent = `🤖 DeepSeek: ✅`;
-      label.title = `已配置 Key: ${data.key_prefix}`;
-      label.style.color = '#4ade80';
-    } else {
-      label.textContent = '🤖 DeepSeek: ⚠️未配置';
-      label.style.color = '#facc15';
-    }
-  } catch (e) { /* 静默失败 */ }
-}
-
-async function saveApiKey() {
-  const key = (document.getElementById('apiKeyInput')?.value || '').trim();
-  if (!key) { alert('请输入 API Key'); return; }
-  try {
-    const resp = await fetch('/api/set_api_key', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ api_key: key })
-    });
-    const data = await resp.json();
-    if (data.ok) {
-      alert(`✅ ${data.message}\n\nDeepSeek AI 维度已激活！下次运行回测时，每次买入信号将自动调用 DeepSeek 对公告进行真实 AI 风险审计。`);
-      document.getElementById('apiKeyInput').value = '';
-      checkApiKeyStatus();
-    } else {
-      alert(`❌ 保存失败: ${data.error}`);
-    }
-  } catch (e) {
-    alert(`❌ 请求失败: ${e.message}`);
-  }
-}
-
-async function syncLocalData() {
-  const btn = document.getElementById('syncDataBtn');
-  const spinner = document.getElementById('syncSpinner');
-  if (btn) btn.disabled = true;
-
-  try {
-    const symbol = document.getElementById('selectedSymbol').value || '600519';
-    const resp = await fetch('/api/sync_data', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ symbol })
-    });
-    const data = await resp.json();
-    if (data.ok) {
-      alert(`✅ ${data.message}\n\n已成功将最新日线 K 线、财务报表及公告增量更新并持久化存入本地 SQLite 数据库 ashare_quant.db！后续查询与回测将 100% 优先读取本地数据库，无需再次发起网络请求。`);
-      fetchAndRenderBacktest();
-    } else {
-      alert(`⚠️ 同步提醒: ${data.error || '无法同步最新数据'}`);
-    }
-  } catch (e) {
-    alert(`❌ 同步失败: ${e.message}`);
-  } finally {
-    if (btn) btn.disabled = false;
   }
 }

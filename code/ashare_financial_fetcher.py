@@ -81,12 +81,20 @@ class AShareFinancialFetcher:
 
         if not force_update:
             db_conn = conn if conn is not None else self.get_connection()
-            query = f"SELECT * FROM stock_income_statement WHERE symbol='{clean_sym}' ORDER BY report_date DESC;"
-            df_cached = pd.read_sql_query(query, db_conn)
+            df_cached = pd.read_sql_query(
+                "SELECT * FROM stock_income_statement "
+                "WHERE symbol=? ORDER BY report_date DESC",
+                db_conn,
+                params=(clean_sym,),
+            )
             if conn is None:
                 db_conn.close()
             if not df_cached.empty:
                 return df_cached
+            if conn is not None:
+                return df_cached
+        elif conn is not None:
+            return pd.DataFrame()
 
         # 本地数据库未命中，调用网络 API 抓取
         print(f"[API Fetch 🌐] 本地无 {clean_sym} 财报数据，正在调用网络 API 抓取...")
@@ -128,18 +136,29 @@ class AShareFinancialFetcher:
     # =========================================================================
     # 2. 公司公告数据 (数据库优先 + API 补抓缓存)
     # =========================================================================
-    def get_company_notices(self, symbol=None, category="全部", force_update=False):
+    def get_company_notices(self, symbol=None, category="全部",
+                            force_update=False, conn=None):
         """优先从本地数据库查询公告，无数据时调用 API 并存库"""
         clean_sym = str(symbol).replace("SH", "").replace("SZ", "").replace("BJ", "") if symbol else None
-        where_clause = f"WHERE symbol='{clean_sym}'" if clean_sym else ""
 
         if not force_update:
-            with self.get_connection() as conn:
-                query = f"SELECT * FROM stock_notices {where_clause} ORDER BY notice_date DESC;"
-                df_cached = pd.read_sql_query(query, conn)
-                if not df_cached.empty:
-                    print(f"[Cache Hit ⚡] 成功从本地数据库读取 {len(df_cached)} 条公司公告 (0 网络请求)")
-                    return df_cached
+            db_conn = conn if conn is not None else self.get_connection()
+            query = "SELECT * FROM stock_notices"
+            params = None
+            if clean_sym:
+                query += " WHERE symbol=?"
+                params = (clean_sym,)
+            query += " ORDER BY notice_date DESC"
+            df_cached = pd.read_sql_query(query, db_conn, params=params)
+            if conn is None:
+                db_conn.close()
+            if not df_cached.empty:
+                print(f"[Cache Hit ⚡] 成功从本地数据库读取 {len(df_cached)} 条公司公告 (0 网络请求)")
+                return df_cached
+            if conn is not None:
+                return df_cached
+        elif conn is not None:
+            return pd.DataFrame()
 
         print(f"[API Fetch 🌐] 本地无公告记录，正在从线上 API 拉取公告数据...")
         try:
@@ -172,7 +191,11 @@ class AShareFinancialFetcher:
 
                 if clean_sym:
                     with self.get_connection() as conn:
-                        return pd.read_sql_query(f"SELECT * FROM stock_notices WHERE symbol='{clean_sym}';", conn)
+                        return pd.read_sql_query(
+                            "SELECT * FROM stock_notices WHERE symbol=?",
+                            conn,
+                            params=(clean_sym,),
+                        )
                 return df_to_save
 
         except Exception as e:
@@ -185,79 +208,101 @@ class AShareFinancialFetcher:
     # 3. 瑞达利欧五维基本面硬核风控审计 (Multi-Factor Financial Quality Audit)
     # =========================================================================
     def audit_financial_quality(self, symbol="600519", conn=None):
-        """
-        五维基本面硬核排雷与质量诊断：
-        1. 现金流充沛度: 经营现金流/净利润 ≥ 0.8 (防虚假净利润做假账)
-        2. 盈利能力: 扣非 ROE ≥ 10.0%
-        3. 估值健康度: PE_TTM ≤ 60 且 PB > 0
-        4. 债务与商誉安全: 资产负债与商誉悬崖校验
-        5. 利润持续性: 归母净利润正向增长
-        """
+        """Audit only fields actually stored in the local database."""
         clean_sym = str(symbol).replace("SH", "").replace("SZ", "").replace("BJ", "")
         db_conn = conn if conn is not None else self.get_connection()
+        checks = {
+            name: {"status": "UNKNOWN", "detail": "数据不可用"}
+            for name in (
+                "valuation",
+                "reported_profit",
+                "reported_revenue",
+                "roe",
+                "cash_flow",
+                "leverage_goodwill",
+                "profit_growth",
+                "point_in_time",
+            )
+        }
+
+        def result(status="UNKNOWN", latest_profit_yi=None):
+            return {
+                "status": status,
+                "is_passed": status == "PASS",
+                "quality_score": None,
+                "cfo_ratio": None,
+                "roe_est": None,
+                "latest_profit_yi": latest_profit_yi,
+                "checks": checks,
+                "reasons": [
+                    f"{name}: {check['status']} - {check['detail']}"
+                    for name, check in checks.items()
+                ],
+                "badge": (
+                    "基本面存在已确认风险"
+                    if status == "FAIL" else "基本面数据不足"
+                ),
+            }
 
         try:
-            # 查基础指标
-            p_df = pd.read_sql_query(f"SELECT name, price, pe_ttm, pb, total_mv, ROUND(pb/pe_ttm*100, 2) as roe_est FROM stock_basic WHERE symbol='{clean_sym}';", db_conn)
+            p_df = pd.read_sql_query(
+                "SELECT name, price, pe_ttm, pb, total_mv "
+                "FROM stock_basic WHERE symbol=?",
+                db_conn,
+                params=(clean_sym,),
+            )
             if p_df.empty:
-                return {"is_passed": True, "quality_score": 75.0, "reasons": ["🟡 基础数据良好"], "badge": "🟢 财报合格"}
+                return result()
 
             row = p_df.iloc[0]
-            pe = float(row.get('pe_ttm', 25.0) or 25.0)
-            pb = float(row.get('pb', 2.5) or 2.5)
-            roe = float(row.get('roe_est', 15.0) or 15.0)
+            pe = row.get('pe_ttm')
+            pb = row.get('pb')
+            if pd.isna(pe) or pd.isna(pb):
+                checks["valuation"]["detail"] = "PE 或 PB 缺失"
+            elif float(pe) > 0 and float(pe) <= 60 and float(pb) > 0:
+                checks["valuation"] = {
+                    "status": "PASS",
+                    "detail": f"PE={float(pe):.2f}, PB={float(pb):.2f}",
+                }
+            else:
+                checks["valuation"] = {
+                    "status": "FAIL",
+                    "detail": f"PE={float(pe):.2f}, PB={float(pb):.2f}",
+                }
 
-            # 查财报利润表
             inc_df = self.get_income_statement(clean_sym, conn=db_conn)
-            latest_profit_yi = (inc_df.iloc[0]['parent_netprofit'] / 1e8) if (inc_df is not None and not inc_df.empty) else 5.0
-            latest_rev_yi = (inc_df.iloc[0]['total_revenue'] / 1e8) if (inc_df is not None and not inc_df.empty) else 20.0
+            latest_profit_yi = None
+            if inc_df is not None and not inc_df.empty:
+                latest = inc_df.iloc[0]
+                profit = latest.get("parent_netprofit")
+                revenue = latest.get("total_revenue")
+                if not pd.isna(profit):
+                    profit = float(profit)
+                    latest_profit_yi = round(profit / 1e8, 2)
+                    checks["reported_profit"] = {
+                        "status": "PASS" if profit > 0 else "FAIL",
+                        "detail": f"归母净利润={profit:.2f}",
+                    }
+                if not pd.isna(revenue):
+                    revenue = float(revenue)
+                    checks["reported_revenue"] = {
+                        "status": "PASS" if revenue > 0 else "FAIL",
+                        "detail": f"营业收入={revenue:.2f}",
+                    }
 
-            # 计算现金流比率 (模拟经营现金流/净利润，优质公司通常 ≥ 1.0)
-            cfo_ratio = round(max(0.85, min(1.45, 1.0 + (roe - 15.0) * 0.02)), 2)
-
-            reasons = []
-            is_passed = True
-            score = 80.0
-
-            if roe >= 15.0:
-                score += 10.0
-                reasons.append(f"🟢 ROE={roe:.1f}% (极高净资产收益率)")
-            elif roe >= 10.0:
-                score += 5.0
-                reasons.append(f"🟢 ROE={roe:.1f}% (盈利能力稳健)")
-            else:
-                score -= 15.0
-                reasons.append(f"⚠️ ROE={roe:.1f}% < 10.0% (盈利能力偏弱)")
-
-            if cfo_ratio >= 0.8:
-                score += 5.0
-                reasons.append(f"🟢 经营现金流真金白银 (CFO/净利={cfo_ratio} ≥ 0.8)")
-            else:
-                is_passed = False
-                score -= 20.0
-                reasons.append(f"🔴 警惕虚假利润 (CFO/净利={cfo_ratio} < 0.8 现金流断裂)")
-
-            if pe > 60:
-                score -= 10.0
-                reasons.append(f"⚠️ PE={pe:.1f} 估值偏高")
-            else:
-                reasons.append(f"🟢 PE={pe:.1f} 处于安全安全边际")
-
-            reasons.append(f"🟢 净利润 {latest_profit_yi:.2f} 亿 (营收 {latest_rev_yi:.2f} 亿)")
-
-            badge = "🟢 五维财报超级优秀" if score >= 85 else ("🟡 财报中规中矩" if score >= 70 else "🔴 基本面存在隐患")
-
-            return {
-                "is_passed": is_passed and score >= 60,
-                "quality_score": round(score, 1),
-                "cfo_ratio": cfo_ratio,
-                "roe_est": roe,
-                "latest_profit_yi": round(latest_profit_yi, 2),
-                "reasons": reasons,
-                "badge": badge
-            }
-        except Exception as e:
-            return {"is_passed": True, "quality_score": 75.0, "reasons": [f"🟡 财报读取默认正常 ({e})"], "badge": "🟢 财报合格"}
+            statuses = {check["status"] for check in checks.values()}
+            status = (
+                "FAIL" if "FAIL" in statuses
+                else "UNKNOWN" if "UNKNOWN" in statuses
+                else "PASS"
+            )
+            return result(status, latest_profit_yi)
+        except Exception as exc:
+            checks["point_in_time"]["detail"] = f"数据库读取失败: {exc}"
+            return result()
+        finally:
+            if conn is None:
+                db_conn.close()
 
 
 if __name__ == "__main__":

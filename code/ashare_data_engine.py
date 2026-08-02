@@ -47,6 +47,37 @@ class AShareDataEngine:
                 updated_at TEXT
             );
             """)
+            stock_basic_columns = cursor.execute(
+                "PRAGMA table_info(stock_basic)"
+            ).fetchall()
+            symbol_column = next(
+                (row for row in stock_basic_columns if row[1] == "symbol"),
+                None,
+            )
+            if symbol_column is None or symbol_column[5] != 1:
+                cursor.execute(
+                    "ALTER TABLE stock_basic RENAME TO stock_basic_legacy"
+                )
+                cursor.execute("""
+                    CREATE TABLE stock_basic (
+                        symbol TEXT PRIMARY KEY,
+                        name TEXT,
+                        price REAL,
+                        pe_ttm REAL,
+                        pb REAL,
+                        total_mv REAL,
+                        circ_mv REAL,
+                        updated_at TEXT
+                    )
+                """)
+                cursor.execute("""
+                    INSERT OR REPLACE INTO stock_basic
+                    SELECT symbol, name, price, pe_ttm, pb, total_mv,
+                           circ_mv, updated_at
+                    FROM stock_basic_legacy
+                    WHERE symbol IS NOT NULL
+                """)
+                cursor.execute("DROP TABLE stock_basic_legacy")
 
             # 2. 个股历史日线表 (前复权)
             cursor.execute("""
@@ -118,8 +149,23 @@ class AShareDataEngine:
             df_clean = df[list(rename_map.keys())].rename(columns=rename_map)
             df_clean['updated_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
+            rows = [
+                tuple(
+                    None if pd.isna(value) else (
+                        value.item() if hasattr(value, 'item') else value
+                    )
+                    for value in row
+                )
+                for row in df_clean.itertuples(index=False, name=None)
+            ]
+
             with self.get_connection() as conn:
-                df_clean.to_sql('stock_basic', conn, if_exists='replace', index=False)
+                conn.execute("DELETE FROM stock_basic")
+                conn.executemany(
+                    "INSERT INTO stock_basic VALUES "
+                    "(?, ?, ?, ?, ?, ?, ?, ?)",
+                    rows,
+                )
             print(f"[Sync] 成功同步 {len(df_clean)} 只 A 股基本信息到数据库。")
             return df_clean
         except Exception as e:
@@ -190,8 +236,15 @@ class AShareDataEngine:
 
         print(f"[Sync] 开始同步 {len(symbols)} 只股票的日线行情数据 ({start_date} 至 {end_date})...")
 
+        symbols = [str(symbol) for symbol in symbols]
         total = len(symbols)
-        success_count = 0
+        result = {
+            "requested": total,
+            "committed": [],
+            "unchanged": [],
+            "empty": [],
+            "failed": [],
+        }
         
         for i, sym in enumerate(symbols, 1):
             try:
@@ -203,6 +256,7 @@ class AShareDataEngine:
                     )}
                 earliest_date = min(existing_dates, default=None)
                 latest_date = max(existing_dates, default=None)
+                provenance = self.get_stock_daily_provenance(sym)
                 requested_start = start_date.replace('-', '')
                 requested_end = end_date.replace('-', '')
                 if (
@@ -210,8 +264,10 @@ class AShareDataEngine:
                     and latest_date.replace('-', '') >= requested_end
                     and earliest_date
                     and earliest_date.replace('-', '') <= requested_start
+                    and provenance is not None
+                    and provenance["verification_status"] == "VERIFIED"
                 ):
-                    success_count += 1
+                    result["unchanged"].append(sym)
                     continue
                 refresh_start = min(
                     requested_start,
@@ -234,7 +290,9 @@ class AShareDataEngine:
                     adjust="qfq"
                 )
 
-                if df_hist is not None and not df_hist.empty:
+                if df_hist is None or df_hist.empty:
+                    result["empty"].append(sym)
+                else:
                     rename_map = {
                         '股票代码': 'symbol',
                         '日期': 'trade_date',
@@ -312,18 +370,32 @@ class AShareDataEngine:
                             df_clean['trade_date'].max(),
                             len(df_clean),
                         ))
-
-                success_count += 1
+                    result["committed"].append(sym)
                 if i % 20 == 0 or i == total:
-                    print(f"   ├─ 进度: [{i}/{total}] (已成功: {success_count}) 当前处理: {sym}")
+                    print(
+                        f"   ├─ 进度: [{i}/{total}] "
+                        f"(已提交: {len(result['committed'])}) "
+                        f"当前处理: {sym}"
+                    )
 
                 # 避免频繁请求 API 限制
                 time.sleep(0.05)
 
             except Exception as e:
                 print(f"   └─ 股票 {sym} 同步失败: {e}")
+                result["failed"].append({
+                    "symbol": sym,
+                    "error": str(e),
+                })
 
-        print(f"[Sync] 股票日线数据同步结束！成功率: {success_count}/{total}")
+        print(
+            "[Sync] 股票日线数据同步结束！"
+            f"提交: {len(result['committed'])}, "
+            f"无变化: {len(result['unchanged'])}, "
+            f"空数据: {len(result['empty'])}, "
+            f"失败: {len(result['failed'])}"
+        )
+        return result
 
     def get_stock_daily_provenance(self, symbol):
         with self.get_connection() as conn:
@@ -332,13 +404,27 @@ class AShareDataEngine:
                        row_count, updated_at
                 FROM stock_daily_catalog WHERE symbol=?
             """, (str(symbol),)).fetchone()
+            actual = conn.execute("""
+                SELECT MIN(trade_date), MAX(trade_date), COUNT(*)
+                FROM stock_daily WHERE symbol=?
+            """, (str(symbol),)).fetchone()
         if row is None:
             return None
         keys = (
             'symbol', 'price_mode', 'source', 'start_date', 'end_date',
             'row_count', 'updated_at',
         )
-        return dict(zip(keys, row))
+        result = dict(zip(keys, row))
+        result["verification_status"] = (
+            "VERIFIED"
+            if actual == (
+                result["start_date"],
+                result["end_date"],
+                result["row_count"],
+            )
+            else "MISMATCH"
+        )
+        return result
 
     def get_latest_date(self, table_name, date_col, condition=None):
         """查询指定表记录的最新日期"""
