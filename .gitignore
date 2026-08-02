@@ -1,4 +1,6 @@
 .worktrees/
+mt5/exports/
+mt5/results/
 .env
 __pycache__/
 *.pyc
