@@ -325,7 +325,7 @@ class KLineBacktestEngine:
                 WHERE index_code=? AND trade_date<=?
                 ORDER BY trade_date
             """, conn, params=(REGIME_INDEX_CODE, end_date))
-        except sqlite3.Error:
+        except (sqlite3.Error, pd.errors.DatabaseError):
             frame = pd.DataFrame(columns=["trade_date", "close"])
         return walk_forward_regimes(frame)
 

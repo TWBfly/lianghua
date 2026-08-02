@@ -21,9 +21,18 @@ STATE_COLUMNS = {
 
 def build_regime_observations(frame: pd.DataFrame) -> pd.DataFrame:
     """Build prefix-invariant market observations from index closes."""
-    clean = frame.copy()
-    clean.index = pd.to_datetime(clean["trade_date"])
-    clean = clean.sort_index()
+    dates = pd.to_datetime(frame["trade_date"], errors="raise")
+    close_values = pd.to_numeric(frame["close"], errors="raise")
+    if dates.duplicated().any():
+        raise ValueError("duplicate market regime date")
+    if (
+        not np.isfinite(close_values.to_numpy(dtype=float)).all()
+        or (close_values <= 0).any()
+    ):
+        raise ValueError("invalid market regime close")
+    clean = pd.DataFrame({
+        "close": close_values.to_numpy(dtype=float),
+    }, index=pd.DatetimeIndex(dates)).sort_index()
     close = pd.Series(
         clean["close"].to_numpy(dtype=float), index=clean.index
     )
@@ -140,9 +149,12 @@ def walk_forward_regimes(
     try:
         observations = build_regime_observations(frame)
     except (KeyError, TypeError, ValueError):
-        index = pd.to_datetime(
-            frame.get("trade_date", pd.Series(dtype="datetime64[ns]"))
-        )
+        index = pd.DatetimeIndex(pd.to_datetime(
+            frame.get(
+                "trade_date", pd.Series(dtype="datetime64[ns]")
+            ),
+            errors="coerce",
+        )).dropna().unique().sort_values()
         return _empty_regimes(index)
 
     result = _empty_regimes(observations.index)
@@ -188,7 +200,12 @@ def walk_forward_regimes(
                     normalized_training, means, covariances
                 ),
             )
-            if (train_alpha.sum(axis=0) <= 1e-6).any():
+            posterior = getattr(model, "predict_proba", None)
+            occupancy = (
+                posterior(normalized_training).sum(axis=0)
+                if callable(posterior) else train_alpha.sum(axis=0)
+            )
+            if (occupancy < 1.0).any():
                 raise ValueError("empty effective HMM state")
             batch_alpha = _forward(
                 train_alpha[-1] @ transition,

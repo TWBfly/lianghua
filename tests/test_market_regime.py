@@ -122,6 +122,41 @@ def test_overlay_never_blocks_sell():
     )[:3] == ("SELL", "EXIT", 0.2)
 
 
+def test_bull_overlay_keeps_full_entry_exposure():
+    assert apply_regime_overlay(
+        "BUY", "ENTRY", 0.2, regime("LOW_VOL_BULL")
+    )[:3] == ("BUY", "ENTRY", 0.2)
+
+
+def test_bad_or_duplicate_index_dates_fail_closed():
+    malformed = walk_forward_regimes(pd.DataFrame({
+        "trade_date": ["not-a-date"],
+        "close": [100.0],
+    }))
+    duplicate = walk_forward_regimes(pd.DataFrame({
+        "trade_date": ["2025-01-02", "2025-01-02"],
+        "close": [100.0, 101.0],
+    }))
+
+    assert malformed.empty
+    assert duplicate.index.is_unique
+    assert set(duplicate["status"]) == {"REGIME_DATA_UNAVAILABLE"}
+
+
+def test_missing_hmm_dependency_is_explicit():
+    def missing_dependency():
+        raise ImportError("hmmlearn missing")
+
+    result = walk_forward_regimes(
+        index_bars(70),
+        missing_dependency,
+        training_window=30,
+        retrain_every=5,
+    )
+
+    assert "REGIME_DEPENDENCY_UNAVAILABLE" in set(result["status"])
+
+
 def add_index_daily(engine):
     with engine.get_connection() as conn:
         rows = conn.execute("""
@@ -135,6 +170,15 @@ def add_index_daily(engine):
             "('000300', ?, ?, ?, ?, ?, ?, ?, ?)",
             rows,
         )
+
+
+def test_missing_index_table_returns_unavailable_regimes(tmp_path):
+    engine = KLineBacktestEngine(build_test_db(tmp_path))
+    with engine.get_connection() as conn:
+        conn.execute("DROP TABLE index_daily")
+        result = engine._load_market_regimes(conn, "2025-12-31")
+
+    assert result.empty
 
 
 def fixed_regimes(state, calls):
