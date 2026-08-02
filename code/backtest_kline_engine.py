@@ -20,6 +20,15 @@ from ashare_data_engine import AShareDataEngine
 from backtest_metrics import build_daily_ledger, calculate_performance
 from learning_loop import EvolutionManager, ExperienceStore, ModelRegistry
 from market_data import MarketDataError, validate_daily_bars
+from market_regime import (
+    INDEX_CODE as REGIME_INDEX_CODE,
+    N_STATES as REGIME_STATES,
+    POLICY_VERSION as REGIME_POLICY_VERSION,
+    RETRAIN_EVERY as REGIME_RETRAIN_EVERY,
+    TRAINING_WINDOW as REGIME_TRAINING_WINDOW,
+    apply_regime_overlay,
+    walk_forward_regimes,
+)
 from ml_ensemble import (
     HOLDOUT_SIZE,
     LABEL_HORIZON,
@@ -154,9 +163,19 @@ def _provenance_error(provenance, backtest_mode):
 
 def _backtest_metadata(fallback_signal_count, universe_mode,
                        data_provenance, backtest_mode, strategy,
-                       insufficient_history_count=0):
+                       insufficient_history_count=0,
+                       market_regime=None):
     price_semantics = _price_semantics(data_provenance)
-    return {
+    limitations = [
+        "NO_POINT_IN_TIME_UNIVERSE",
+        "NO_HISTORICAL_ST_STATUS",
+        "NO_HISTORICAL_IPO_LIMIT_STATUS",
+        "NO_CORPORATE_ACTION_CASH_LEDGER",
+        "TRANSACTION_RULES_APPROXIMATE",
+    ]
+    if market_regime is not None:
+        limitations.append("UNVERIFIED_MARKET_REGIME_DATA")
+    metadata = {
         "engine": "NATIVE_A_SHARE_EVENT_V2",
         "price_mode": (
             "QFQ_ADJUSTED_PROXY"
@@ -177,13 +196,61 @@ def _backtest_metadata(fallback_signal_count, universe_mode,
         "holdout_size": HOLDOUT_SIZE,
         "insufficient_history_count": int(insufficient_history_count),
         "data_provenance": data_provenance,
-        "research_limitations": [
-            "NO_POINT_IN_TIME_UNIVERSE",
-            "NO_HISTORICAL_ST_STATUS",
-            "NO_HISTORICAL_IPO_LIMIT_STATUS",
-            "NO_CORPORATE_ACTION_CASH_LEDGER",
-            "TRANSACTION_RULES_APPROXIMATE",
-        ],
+        "research_limitations": limitations,
+    }
+    if market_regime is not None:
+        metadata["market_regime"] = market_regime
+    return metadata
+
+
+def _regime_at(regimes, date):
+    if regimes is None:
+        return None
+    if date in regimes.index:
+        return regimes.loc[date]
+    return pd.Series({"status": "REGIME_DATA_UNAVAILABLE"})
+
+
+def _regime_metadata(regimes, decisions):
+    decision_dates = pd.DatetimeIndex(sorted({
+        pd.Timestamp(item["decision_time"]) for item in decisions
+    }))
+    aligned = regimes.reindex(decision_dates)
+    status = aligned.get(
+        "status", pd.Series(index=decision_dates, dtype=object)
+    )
+    state = aligned.get(
+        "state", pd.Series(index=decision_dates, dtype=object)
+    )
+    state_counts = state.value_counts().to_dict()
+    fits = regimes.attrs.get("fits", [])
+    return {
+        "enabled": True,
+        "policy_version": REGIME_POLICY_VERSION,
+        "index_code": REGIME_INDEX_CODE,
+        "state_count": REGIME_STATES,
+        "training_window": REGIME_TRAINING_WINDOW,
+        "retrain_every": REGIME_RETRAIN_EVERY,
+        "coverage_count": int((status == "AVAILABLE").sum()),
+        "unavailable_count": int((status != "AVAILABLE").sum()),
+        "state_day_counts": {
+            name: int(state_counts.get(name, 0))
+            for name in (
+                "LOW_VOL_BULL", "RANGE", "HIGH_VOL_BEAR"
+            )
+        },
+        "filtered_buy_count": sum(
+            item["reason"] in {
+                "REGIME_HIGH_VOL_BEAR", "REGIME_UNAVAILABLE"
+            }
+            for item in decisions
+        ),
+        "scaled_buy_count": sum(
+            "REGIME_RANGE_HALF" in item["reason"]
+            for item in decisions
+        ),
+        "model_fit_count": len(fits),
+        "latest_fit": fits[-1] if fits else None,
     }
 
 
@@ -250,6 +317,18 @@ class KLineBacktestEngine:
         )
         return frame, name, pe_ttm
 
+    @staticmethod
+    def _load_market_regimes(conn, end_date):
+        try:
+            frame = pd.read_sql_query("""
+                SELECT trade_date, close FROM index_daily
+                WHERE index_code=? AND trade_date<=?
+                ORDER BY trade_date
+            """, conn, params=(REGIME_INDEX_CODE, end_date))
+        except sqlite3.Error:
+            frame = pd.DataFrame(columns=["trade_date", "close"])
+        return walk_forward_regimes(frame)
+
     def _data_provenance(self, symbol, market_frame):
         provenance = self.data_engine.get_stock_daily_provenance(symbol)
         if provenance is not None:
@@ -304,7 +383,7 @@ class KLineBacktestEngine:
 
     def _build_symbol_run(self, symbol, frame, initial_capital,
                           target_fraction, run_id, start_date, end_date,
-                          strategy):
+                          strategy, regimes=None):
         index = pd.DatetimeIndex(pd.to_datetime(frame["trade_date"]))
         report_index = index[index >= pd.Timestamp(start_date)]
         close = pd.Series(frame["close"].to_numpy(dtype=float), index=index)
@@ -323,25 +402,37 @@ class KLineBacktestEngine:
             for date in report_index:
                 value = int(signal.loc[date])
                 action = {1: "BUY", -1: "SELL"}.get(value, "HOLD")
+                reason = (
+                    f"MECHANICAL_{strategy.upper()}_{action}"
+                    if action != "HOLD" else "NO_ACTION"
+                )
+                action, reason, effective_fraction, regime_features = (
+                    apply_regime_overlay(
+                        action,
+                        reason,
+                        target_fraction,
+                        _regime_at(regimes, date),
+                    )
+                )
+                features = {"signal": value, **regime_features}
                 decisions.append({
                     "decision_id": f"backtest:{symbol}:{date.date()}:{model_version}",
                     "run_id": run_id,
                     "decision_time": date,
                     "symbol": symbol,
                     "action": action,
-                    "target_fraction": target_fraction,
+                    "target_fraction": effective_fraction,
                     "desired_shares": _buy_quantity(
                         symbol,
-                        initial_capital * target_fraction,
+                        initial_capital * effective_fraction,
                         close.loc[date],
                     )[0],
-                    "reason": (
-                        f"MECHANICAL_{strategy.upper()}_{action}"
-                        if action != "HOLD" else "NO_ACTION"
-                    ),
+                    "reason": reason,
                     "model_version": model_version,
-                    "features": {"signal": value},
-                    "features_json": json.dumps({"signal": value}),
+                    "features": features,
+                    "features_json": json.dumps(
+                        features, sort_keys=True
+                    ),
                 })
             market_frame = frame.copy()
             market_frame.index = index
@@ -405,6 +496,15 @@ class KLineBacktestEngine:
                     if pd.notna(ma20.loc[date]) else 0.0
                 ),
             }
+            action, reason, effective_fraction, regime_features = (
+                apply_regime_overlay(
+                    action,
+                    reason,
+                    target_fraction,
+                    _regime_at(regimes, date),
+                )
+            )
+            features.update(regime_features)
             decisions.append({
                 "decision_id": (
                     f"backtest:{symbol}:{date.date()}:{model_version}"
@@ -413,10 +513,10 @@ class KLineBacktestEngine:
                 "decision_time": date,
                 "symbol": symbol,
                 "action": action,
-                "target_fraction": target_fraction,
+                "target_fraction": effective_fraction,
                 "desired_shares": _buy_quantity(
                     symbol,
-                    initial_capital * target_fraction,
+                    initial_capital * effective_fraction,
                     close.loc[date],
                 )[0],
                 "reason": reason,
@@ -556,9 +656,15 @@ class KLineBacktestEngine:
                            conn=None, persist_experiences=False,
                            run_evolution=False,
                            backtest_mode="STRICT",
-                           strategy="causal_ml"):
+                           strategy="causal_ml",
+                           regime_filter=False):
         """Generate signals at close and execute them at the next open."""
         del skip_ai
+        if regime_filter and run_evolution:
+            return {
+                "error": "市场状态过滤暂不支持模型进化",
+                "error_code": "REGIME_EVOLUTION_UNSUPPORTED",
+            }
         clean_symbol = _valid_symbol(symbol)
         if clean_symbol is None:
             return {"error": "股票代码必须是6位数字"}
@@ -588,6 +694,10 @@ class KLineBacktestEngine:
             )
             if not frame.empty:
                 frame = validate_daily_bars(frame, clean_symbol)
+            regimes = (
+                self._load_market_regimes(db_connection, end_date)
+                if regime_filter else None
+            )
         except MarketDataError as exc:
             return {"error": f"行情数据质量错误: {exc}"}
         finally:
@@ -613,6 +723,7 @@ class KLineBacktestEngine:
             start_date,
             end_date,
             strategy,
+            regimes,
         )
         if market_frame.empty:
             return {"error": f"股票 {clean_symbol} 没有区间行情数据"}
@@ -758,6 +869,10 @@ class KLineBacktestEngine:
                 predictions["model_version"].astype(str).str.startswith(
                     "INSUFFICIENT_"
                 ).sum(),
+                (
+                    _regime_metadata(regimes, decisions)
+                    if regime_filter else None
+                ),
             ),
         }
 
@@ -767,8 +882,14 @@ class KLineBacktestEngine:
                                persist_experiences=False,
                                run_evolution=False,
                                backtest_mode="STRICT",
-                               strategy="causal_ml"):
+                               strategy="causal_ml",
+                               regime_filter=False):
         """Backtest several symbols on one timeline and one cash account."""
+        if regime_filter and run_evolution:
+            return {
+                "error": "市场状态过滤暂不支持模型进化",
+                "error_code": "REGIME_EVOLUTION_UNSUPPORTED",
+            }
         if (
             not math.isfinite(float(initial_capital))
             or float(initial_capital) <= 0
@@ -808,6 +929,10 @@ class KLineBacktestEngine:
                 return {"error": f"股票代码格式错误: {invalid}"}
 
             run_id = uuid.uuid4().hex
+            regimes = (
+                self._load_market_regimes(conn, end_date)
+                if regime_filter else None
+            )
             target_fraction = min(0.20, 0.90 / max(1, len(symbols)))
             market = {}
             names = {}
@@ -841,6 +966,7 @@ class KLineBacktestEngine:
                         start_date,
                         end_date,
                         strategy,
+                        regimes,
                     )
                 )
                 if market_frame.empty:
@@ -965,6 +1091,10 @@ class KLineBacktestEngine:
                 backtest_mode,
                 strategy,
                 insufficient_history_count,
+                (
+                    _regime_metadata(regimes, decisions)
+                    if regime_filter else None
+                ),
             ),
         }
 
