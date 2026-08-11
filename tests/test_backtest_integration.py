@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from pathlib import Path
 from types import SimpleNamespace
@@ -217,6 +218,62 @@ def test_backtest_metadata_reports_fixed_training_policy(
     assert metadata["retrain_every"] == 21
     assert metadata["label_horizon"] == 5
     assert metadata["holdout_size"] == 252
+
+
+@pytest.mark.parametrize(("atr_value", "expected_status"), [
+    (0.8, "AVAILABLE"),
+    (np.nan, "UNAVAILABLE"),
+])
+def test_causal_ml_buy_decision_carries_atr_risk_metadata(
+        tmp_path, monkeypatch, atr_value, expected_status):
+    seen = {}
+    real_simulator = backtest_kline_engine.simulate_portfolio
+
+    def recording_simulator(market, decisions, initial_cash, **kwargs):
+        seen["decisions"] = decisions.copy()
+        return real_simulator(market, decisions, initial_cash, **kwargs)
+
+    monkeypatch.setattr(
+        backtest_kline_engine, "walk_forward_predict",
+        deterministic_predictions,
+    )
+    monkeypatch.setattr(
+        backtest_kline_engine,
+        "calculate_atr",
+        lambda frame, n=14: pd.Series(atr_value, index=frame.index),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        backtest_kline_engine, "simulate_portfolio", recording_simulator
+    )
+    monkeypatch.setattr(
+        KLineBacktestEngine,
+        "_load_market_regimes",
+        staticmethod(lambda _conn, _end_date: None),
+    )
+    engine = KLineBacktestEngine(build_test_db(tmp_path))
+    engine.run_kline_backtest(
+        "000001", "2025-07-01", "2025-10-31",
+        backtest_mode="RESEARCH_PROXY",
+    )
+
+    buy = seen["decisions"].loc[
+        seen["decisions"]["action"] == "BUY"
+    ].iloc[0]
+    features = json.loads(buy["features_json"])
+    assert buy["risk_exit_status"] == expected_status
+    assert features["risk_exit_status"] == expected_status
+    if expected_status == "AVAILABLE":
+        assert buy["risk_exit"] == {
+            "entry_atr": 0.8,
+            "stop_atr_multiple": 1.25,
+            "stop_floor_fraction": 0.972,
+            "take_profit_atr_multiple": 2.5,
+            "trailing_activation_fraction": 1.03,
+            "trailing_atr_multiple": 1.0,
+        }
+    else:
+        assert buy["risk_exit"] is None
 
 
 def test_strict_backtest_rejects_uncataloged_data(tmp_path):

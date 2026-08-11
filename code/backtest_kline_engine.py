@@ -40,9 +40,17 @@ from ml_ensemble import (
 from ml_strategy_engine import AShareMLStrategyEngine
 from portfolio_simulator import _buy_quantity, simulate_portfolio
 from strategy_signal_library import SIGNAL_FUNCTIONS
+from technical_indicators import calculate_atr
 
 
 BACKTEST_MODES = {"STRICT", "RESEARCH_PROXY"}
+ATR_RISK_POLICY = {
+    "stop_atr_multiple": 1.25,
+    "stop_floor_fraction": 0.972,
+    "take_profit_atr_multiple": 2.5,
+    "trailing_activation_fraction": 1.03,
+    "trailing_atr_multiple": 1.0,
+}
 EXECUTABLE_STRATEGIES = ("causal_ml", *SIGNAL_FUNCTIONS)
 
 
@@ -442,6 +450,9 @@ class KLineBacktestEngine:
                 predictions.loc[report_index],
             )
 
+        market_frame = frame.copy()
+        market_frame.index = index
+        atr = calculate_atr(market_frame, 14)
         factors = self.ml_engine.pipeline.extract_factors(
             symbol, end_date=end_date
         )
@@ -505,6 +516,21 @@ class KLineBacktestEngine:
                 )
             )
             features.update(regime_features)
+            atr_value = atr.loc[date]
+            risk_available = (
+                action == "BUY"
+                and pd.notna(atr_value)
+                and math.isfinite(float(atr_value))
+                and float(atr_value) > 0
+            )
+            risk_exit = (
+                {"entry_atr": float(atr_value), **ATR_RISK_POLICY}
+                if risk_available else None
+            )
+            risk_exit_status = (
+                "AVAILABLE" if risk_available else "UNAVAILABLE"
+            )
+            features["risk_exit_status"] = risk_exit_status
             decisions.append({
                 "decision_id": (
                     f"backtest:{symbol}:{date.date()}:{model_version}"
@@ -521,12 +547,12 @@ class KLineBacktestEngine:
                 )[0],
                 "reason": reason,
                 "model_version": model_version,
+                "risk_exit_status": risk_exit_status,
+                "risk_exit": risk_exit,
                 "features": features,
                 "features_json": json.dumps(features, sort_keys=True),
             })
 
-        market_frame = frame.copy()
-        market_frame.index = index
         return (
             market_frame.loc[report_index],
             decisions,
