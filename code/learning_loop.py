@@ -825,7 +825,35 @@ class EvolutionManager:
         self.store.record_training(symbol, version, now)
         return version
 
-    def promote_if_ready(self, version, min_shadow_samples=50):
+    def _artifact_probabilities(self, record, frame):
+        artifact_path = Path(record["artifact_path"]).resolve()
+        if self.model_dir not in artifact_path.parents:
+            raise ValueError(
+                f"{record['version']} artifact path escapes model directory"
+            )
+        artifact = joblib.load(artifact_path)
+        feature_names = list(artifact["feature_names"])
+        missing = sorted(set(feature_names) - set(frame.columns))
+        if missing:
+            raise ValueError(
+                f"{record['version']} artifact has incompatible features: "
+                + ", ".join(missing)
+            )
+        features = frame.loc[:, feature_names].apply(
+            pd.to_numeric, errors="coerce"
+        ).fillna(0.0)
+        values = np.asarray(
+            artifact["model"].predict_proba(features)[:, 1],
+            dtype=float,
+        )
+        if len(values) != len(frame) or not np.isfinite(values).all():
+            raise ValueError(
+                f"{record['version']} artifact returned invalid probabilities"
+            )
+        return pd.Series(values, index=frame.index)
+
+    def promote_if_ready(self, version, min_shadow_samples=50,
+                         champion_metrics=None):
         candidate = self.registry.get(version)
         if (
             candidate is None
@@ -839,9 +867,8 @@ class EvolutionManager:
         )
         champion = self.registry.champion(candidate["symbol"])
         if champion:
-            champion_metrics = EvaluationMetrics(
-                **json.loads(champion["metrics_json"])
-            )
+            if champion_metrics is None:
+                return False
             passed = self.gate.passes(
                 shadow_metrics, champion_metrics
             )[0]
@@ -879,30 +906,52 @@ class EvolutionManager:
             result["error"] = "market data is required for evaluation"
             return result
 
-        artifact_path = Path(candidate["artifact_path"]).resolve()
-        if self.model_dir not in artifact_path.parents:
-            raise ValueError("model artifact path escapes model directory")
-        artifact = joblib.load(artifact_path)
-        feature_names = artifact["feature_names"]
-        features = frame.reindex(columns=feature_names).apply(
-            pd.to_numeric, errors="coerce"
-        ).fillna(0.0)
-        probabilities = artifact["model"].predict_proba(features)[:, 1]
-        shadow_metrics = evaluate_predictions(
-            frame["horizon_return"],
-            pd.Series(probabilities, index=frame.index),
-            market=market,
-            symbol=symbol,
-            folds=3,
-            decision_features=frame,
-        )
+        champion = self.registry.champion(symbol)
+        try:
+            shadow_probabilities = self._artifact_probabilities(
+                candidate, frame
+            )
+            shadow_metrics = evaluate_predictions(
+                frame["horizon_return"],
+                shadow_probabilities,
+                market=market,
+                symbol=symbol,
+                folds=3,
+                decision_features=frame,
+            )
+            champion_metrics = None
+            if champion is not None:
+                champion_probabilities = self._artifact_probabilities(
+                    champion, frame
+                )
+                champion_metrics = evaluate_predictions(
+                    frame["horizon_return"],
+                    champion_probabilities,
+                    market=market,
+                    symbol=symbol,
+                    folds=3,
+                    decision_features=frame,
+                )
+        except Exception as exc:
+            result["error"] = str(exc)
+            return result
         self.registry.record_shadow_metrics(
             candidate["version"],
             shadow_metrics.as_dict(),
             sample_count,
         )
+        result["challenger_metrics"] = shadow_metrics.as_dict()
+        result["champion_version"] = (
+            champion["version"] if champion is not None else None
+        )
+        result["champion_metrics"] = (
+            champion_metrics.as_dict()
+            if champion_metrics is not None else None
+        )
         result["promoted"] = self.promote_if_ready(
-            candidate["version"], min_shadow_samples
+            candidate["version"],
+            min_shadow_samples,
+            champion_metrics=champion_metrics,
         )
         return result
 

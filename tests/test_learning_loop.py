@@ -43,6 +43,26 @@ class SignProbabilityModel:
         return np.column_stack([1 - probability, probability])
 
 
+class ConstantProbabilityModel:
+    def __init__(self, probability):
+        self.probability = probability
+
+    def predict_proba(self, features):
+        probability = np.full(len(features), self.probability)
+        return np.column_stack([1 - probability, probability])
+
+
+def write_artifact(model_dir, symbol, version, probability,
+                   feature_names=("momentum",)):
+    path = model_dir / symbol / f"{version}.joblib"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump({
+        "model": ConstantProbabilityModel(probability),
+        "feature_names": list(feature_names),
+    }, path)
+    return path
+
+
 def evaluation_market(periods=40, price=10.0, start="2025-01-01"):
     index = pd.bdate_range(start, periods=periods)
     return pd.DataFrame({
@@ -494,8 +514,101 @@ def test_shadow_model_must_pass_second_gate_before_promotion(tmp_path):
     registry.record_shadow_metrics(
         "new", metrics(net=0.12).as_dict(), sample_count=50
     )
-    assert manager.promote_if_ready("new")
+    assert not manager.promote_if_ready("new")
+    assert manager.promote_if_ready(
+        "new", champion_metrics=metrics(net=0.10)
+    )
     assert registry.get("new")["status"] == "CHAMPION"
+
+
+def test_shadow_models_are_evaluated_on_identical_dates(
+        tmp_path, monkeypatch):
+    store = ExperienceStore(tmp_path / "test.db")
+    registry = ModelRegistry(tmp_path / "test.db")
+    model_dir = tmp_path / "models"
+    dates = pd.bdate_range("2026-01-01", periods=60)
+    for i, date in enumerate(dates):
+        item = sample_decision(f"d{i}")
+        item["decision_time"] = date.isoformat()
+        item["action"] = "HOLD"
+        item["features"] = {"momentum": float(i % 2)}
+        store.record_decision(item)
+        store.complete_horizon(
+            f"d{i}", 0.01, 0.02, -0.01,
+            date + pd.offsets.BDay(5),
+        )
+    champion_path = write_artifact(
+        model_dir, "000001", "old", 0.6
+    )
+    shadow_path = write_artifact(
+        model_dir, "000001", "new", 0.7
+    )
+    registry.register(
+        "old", "000001", "CHAMPION", metrics().as_dict(),
+        champion_path, evaluated_until="2025-12-31",
+    )
+    registry.register(
+        "new", "000001", "SHADOW", metrics(net=0.11).as_dict(),
+        shadow_path, evaluated_until="2025-12-31",
+    )
+    seen = []
+
+    def recording_evaluation(returns, probabilities, **kwargs):
+        seen.append(probabilities.index.copy())
+        return metrics(net=float(probabilities.iloc[0]))
+
+    monkeypatch.setattr(
+        learning_loop, "evaluate_predictions", recording_evaluation
+    )
+    manager = EvolutionManager(store, registry, model_dir)
+    result = manager.evaluate_shadow(
+        "000001", evaluation_market(60, start="2026-01-01")
+    )
+
+    assert len(seen) == 2
+    assert seen[0].equals(seen[1])
+    assert seen[0].equals(store.completed_frame("000001").index)
+    assert result["champion_version"] == "old"
+
+
+@pytest.mark.parametrize("invalid_kind", ["missing", "incompatible"])
+def test_invalid_champion_artifact_blocks_shadow_promotion(
+        tmp_path, invalid_kind):
+    store = ExperienceStore(tmp_path / "test.db")
+    registry = ModelRegistry(tmp_path / "test.db")
+    model_dir = tmp_path / "models"
+    dates = populate_completed_experiences(store, periods=60)
+    cutoff = (dates[0] - pd.offsets.BDay(1)).isoformat()
+    shadow_path = write_artifact(
+        model_dir, "000001", "new", 0.7
+    )
+    if invalid_kind == "missing":
+        champion_path = model_dir / "000001" / "old.joblib"
+    else:
+        champion_path = write_artifact(
+            model_dir,
+            "000001",
+            "old",
+            0.6,
+            feature_names=("missing_feature",),
+        )
+    registry.register(
+        "old", "000001", "CHAMPION", metrics().as_dict(),
+        champion_path, evaluated_until=cutoff,
+    )
+    registry.register(
+        "new", "000001", "SHADOW", metrics(net=0.11).as_dict(),
+        shadow_path, evaluated_until=cutoff,
+    )
+    manager = EvolutionManager(store, registry, model_dir)
+    result = manager.evaluate_shadow(
+        "000001",
+        evaluation_market(60, start=str(dates[0].date())),
+    )
+
+    assert result["promoted"] is False
+    assert "old" in result["error"]
+    assert registry.get("new")["status"] == "SHADOW"
 
 
 def test_run_after_backtest_keeps_unprofitable_shadow(tmp_path):
