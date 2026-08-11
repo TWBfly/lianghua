@@ -10,6 +10,20 @@ from deepseek_quant_copilot import DeepSeekQuantCopilot
 from web_server import validate_backtest_request
 
 
+RESEARCH_ONLY_INVALIDATED = {
+    "futures_ml_strategy_engine",
+    "futures_self_evolving_holy_grail_engine",
+    "futures_v14_complete_self_evolving_engine",
+    "futures_v15_anti_degradation_engine",
+    "multi_timeframe_benchmark_evaluator",
+    "xauusd_ml_strategy",
+    "xauusd_self_evolving_engine",
+    "xauusd_hardcore_multi_tf",
+    "xauusd_hardcore_stress_test",
+    "xauusd_m5_runner",
+}
+
+
 def test_valid_backtest_request_is_normalized():
     result = validate_backtest_request({
         "symbol": "000001",
@@ -231,3 +245,26 @@ def test_frontend_exposes_truthful_strategy_and_mode_controls():
     assert "backtest_mode" in script
     assert "strategy" in script
     assert "ai_used" in script
+
+
+def test_invalidated_ml_engines_are_documented_and_not_executable():
+    from strategy_hot_plugger import hot_plugger
+    from web_server import app
+
+    root = Path(__file__).resolve().parents[1]
+    status_path = root / "docs" / "research-only-ml-engines.md"
+    assert status_path.exists()
+    status = status_path.read_text(encoding="utf-8")
+    executable = set(hot_plugger.get_executable_strategies())
+    response = app.test_client().get("/api/strategies")
+    assert response.status_code == 200
+    exposed = {
+        item["name"] if isinstance(item, dict) else item
+        for item in response.get_json()
+    }
+
+    for module in RESEARCH_ONLY_INVALIDATED:
+        assert (root / "code" / f"{module}.py").exists()
+        assert f"`{module}` — `RESEARCH_ONLY_INVALIDATED`" in status
+        assert module not in executable
+        assert module not in exposed
