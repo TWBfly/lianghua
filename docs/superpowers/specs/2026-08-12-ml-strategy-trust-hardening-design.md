@@ -204,4 +204,3 @@ Implementation follows test-first red-green cycles. Required checks are:
 - Real XAUUSD data and a position-reconciled evaluator.
 - Reconsidering any invalidated engine only after it passes the same trusted
   simulator and temporal-validation contract.
-
