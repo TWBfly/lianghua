@@ -62,6 +62,81 @@ The callable signatures are:
 
 ---
 
+### Task 0: Repair the committed ATR baseline contract
+
+**Files:**
+- Modify: `code/technical_indicators.py`
+- Modify: `tests/test_technical_indicators.py`
+
+**Interfaces:**
+- Consumes: OHLC frames already passed by `backtest_kline_engine.py`.
+- Produces: `calculate_atr(frame: pd.DataFrame, n: int = 14) -> pd.Series`.
+
+- [ ] **Step 1: Write a failing direct ATR contract test**
+
+Import `calculate_atr` and add a three-bar, two-period test whose last bar gaps
+up from the prior close:
+
+```python
+def test_calculate_atr_is_public_and_uses_previous_close():
+    frame = pd.DataFrame({
+        "open": [10.0, 11.0, 20.0],
+        "high": [11.0, 12.0, 21.0],
+        "low": [9.0, 10.0, 19.0],
+        "close": [10.0, 11.0, 20.0],
+    })
+
+    result = calculate_atr(frame, n=2)
+
+    assert result.iloc[0] != result.iloc[0]
+    assert result.iloc[1] == pytest.approx(2.0)
+    assert result.iloc[2] == pytest.approx(6.0)
+```
+
+- [ ] **Step 2: Run the focused test and verify red**
+
+Run: `pytest -q tests/test_technical_indicators.py::test_calculate_atr_is_public_and_uses_previous_close`
+
+Expected: test collection fails because `calculate_atr` is not exported.
+
+- [ ] **Step 3: Add the minimum shared ATR function**
+
+Add one function after `_wilder_average`; reuse the existing Wilder smoothing
+rather than changing any other indicator:
+
+```python
+def calculate_atr(frame: pd.DataFrame, n: int = 14) -> pd.Series:
+    high = frame["high"].astype(float)
+    low = frame["low"].astype(float)
+    close = frame["close"].astype(float)
+    true_range = pd.concat([
+        high - low,
+        (high - close.shift(1)).abs(),
+        (low - close.shift(1)).abs(),
+    ], axis=1).max(axis=1)
+    return _wilder_average(true_range, n)
+```
+
+- [ ] **Step 4: Verify focused and full baseline tests**
+
+Run: `pytest -q tests/test_technical_indicators.py`
+
+Expected: all technical-indicator tests pass.
+
+Run: `pytest -q`
+
+Expected: the collection failure is removed and the complete committed
+baseline suite passes.
+
+- [ ] **Step 5: Commit the baseline repair**
+
+```bash
+git add code/technical_indicators.py tests/test_technical_indicators.py
+git commit -m "fix: restore shared ATR contract"
+```
+
+---
+
 ### Task 1: Make the futures import honest and transactional
 
 **Files:**
