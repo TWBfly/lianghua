@@ -1,57 +1,121 @@
+import hashlib
 import sqlite3
+
+import pytest
 
 from import_futures_5m import import_exports
 
 
-def test_import_exports_cleans_and_replaces_only_target_5m(tmp_path):
+VALID_EXPORT = """AGL9 白银加权 5分钟线 不复权
+日期\t时间\t开盘\t最高\t最低\t收盘\t成交量\t持仓量\t结算价
+2026/08/12\t0905\t10\t12\t9\t11\t5\t100\t10.5
+2026/08/12\t0910\t11\t13\t10\t12\t6\t101\t11.5
+"""
+
+
+def _write_export(directory, text=VALID_EXPORT):
+    path = directory / "30#AGL9.txt"
+    path.write_bytes(text.encode("gb18030"))
+    return path
+
+
+def _counts(db_path):
+    with sqlite3.connect(db_path) as conn:
+        return tuple(
+            conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+            for table in ("futures_min_bars", "futures_series_metadata")
+        )
+
+
+def test_import_preserves_source_fields_and_provenance(tmp_path):
     export_dir = tmp_path / "export"
     export_dir.mkdir()
-    text = """AGL9 白银加权 5分钟线 不复权
-      日期\t    时间\t    开盘\t    最高\t    最低\t    收盘\t    成交量\t    持仓量\t    结算价
-2026/08/12\t0905\t10\t12\t9\t11\t5\t100\t0
-2026/08/12\t0905\t11\t13\t10\t12\t6\t101\t0
-2026/08/12\t0910\t10\t9\t8\t11\t5\t100\t0
-2026/08/12\t0915\t12\t14\t11\t13\t7\t102\t0
-#数据来源:通达信
-"""
-    (export_dir / "30#AGL9.txt").write_bytes(text.encode("gb18030"))
+    source = _write_export(export_dir)
     db_path = tmp_path / "quant.db"
+
+    result = import_exports(export_dir, db_path)
+
+    assert result == {
+        "files": 1, "symbols": 1, "raw": 2,
+        "rows": 2, "invalid": 0, "duplicates": 0,
+    }
     with sqlite3.connect(db_path) as conn:
-        conn.execute("""
-            CREATE TABLE futures_min_bars (
-                symbol TEXT, timeframe TEXT, trade_time TEXT,
-                open REAL, high REAL, low REAL, close REAL,
-                volume REAL, amount REAL,
-                PRIMARY KEY (symbol, timeframe, trade_time)
-            )
-        """)
+        bars = conn.execute(
+            "SELECT trade_time, open, high, low, close, volume, amount, "
+            "open_interest, settlement FROM futures_min_bars ORDER BY trade_time"
+        ).fetchall()
+        metadata = conn.execute(
+            "SELECT source_file, source_title, series_type, source_encoding, "
+            "source_sha256, row_count, start_time, end_time "
+            "FROM futures_series_metadata WHERE symbol='AG_IDX' AND timeframe='5m'"
+        ).fetchone()
+    assert bars == [
+        ("2026-08-12 09:05:00", 10.0, 12.0, 9.0, 11.0, 5.0, None, 100.0, 10.5),
+        ("2026-08-12 09:10:00", 11.0, 13.0, 10.0, 12.0, 6.0, None, 101.0, 11.5),
+    ]
+    assert metadata == (
+        source.name,
+        "AGL9 白银加权 5分钟线 不复权",
+        "WEIGHTED_INDEX",
+        "gb18030",
+        hashlib.sha256(source.read_bytes()).hexdigest(),
+        2,
+        "2026-08-12 09:05:00",
+        "2026-08-12 09:10:00",
+    )
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        VALID_EXPORT.replace("\t12\t9\t11\t5", "\t9\t8\t11\t5", 1),
+        VALID_EXPORT.replace(
+            "2026/08/12\t0910", "2026/08/12\t0905", 1
+        ),
+        VALID_EXPORT.replace("白银加权", "白银主连"),
+    ],
+    ids=["invalid_ohlc", "duplicate_timestamp", "unknown_title"],
+)
+def test_invalid_export_rolls_back_bars_and_metadata(tmp_path, text):
+    export_dir = tmp_path / "export"
+    export_dir.mkdir()
+    _write_export(export_dir, text)
+    db_path = tmp_path / "quant.db"
+
+    with pytest.raises(ValueError):
+        import_exports(export_dir, db_path)
+
+    assert _counts(db_path) == (0, 0)
+
+
+def test_import_requires_explicit_replacement_and_preserves_other_series(tmp_path):
+    export_dir = tmp_path / "export"
+    export_dir.mkdir()
+    _write_export(export_dir)
+    db_path = tmp_path / "quant.db"
+
+    import_exports(export_dir, db_path)
+    with sqlite3.connect(db_path) as conn:
         conn.executemany(
-            "INSERT INTO futures_min_bars VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO futures_min_bars "
+            "(symbol, timeframe, trade_time, open, high, low, close, volume, amount) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
-                ("AG_IDX", "5m", "2020-01-01 09:05:00", 1, 1, 1, 1, 1, 1),
-                ("AG_IDX", "15m", "2020-01-01 09:15:00", 1, 1, 1, 1, 1, 1),
-                ("OTHER_IDX", "5m", "2020-01-01 09:05:00", 1, 1, 1, 1, 1, 1),
+                ("AG_IDX", "15m", "2020-01-01 09:15:00", 1, 1, 1, 1, 1, None),
+                ("OTHER_IDX", "5m", "2020-01-01 09:05:00", 1, 1, 1, 1, 1, None),
             ],
         )
 
-    result = import_exports(export_dir, db_path)
-    import_exports(export_dir, db_path)
+    with pytest.raises(ValueError, match="--replace-existing"):
+        import_exports(export_dir, db_path)
+    import_exports(export_dir, db_path, replace_existing=True)
 
-    assert result == {
-        "files": 1, "symbols": 1, "raw": 4,
-        "rows": 2, "invalid": 1, "duplicates": 1,
-    }
     with sqlite3.connect(db_path) as conn:
         assert conn.execute(
-            "SELECT trade_time, open, high, low, close, volume, amount "
-            "FROM futures_min_bars WHERE symbol='AG_IDX' AND timeframe='5m' "
-            "ORDER BY trade_time"
-        ).fetchall() == [
-            ("2026-08-12 09:05:00", 11.0, 13.0, 10.0, 12.0, 6.0, 72.0),
-            ("2026-08-12 09:15:00", 12.0, 14.0, 11.0, 13.0, 7.0, 91.0),
-        ]
+            "SELECT COUNT(*) FROM futures_min_bars "
+            "WHERE symbol='AG_IDX' AND timeframe='5m'"
+        ).fetchone()[0] == 2
         assert conn.execute(
             "SELECT COUNT(*) FROM futures_min_bars "
-            "WHERE (symbol='AG_IDX' AND timeframe='15m') "
-            "OR symbol='OTHER_IDX'"
+            "WHERE (symbol='AG_IDX' AND timeframe='15m') OR symbol='OTHER_IDX'"
         ).fetchone()[0] == 2
