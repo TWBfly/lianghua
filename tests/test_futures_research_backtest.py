@@ -430,8 +430,65 @@ def test_select_candidate_rejects_duplicate_fold_name_or_window_before_fit(
 
     monkeypatch.setattr(research, "fit_predict", unexpected_fit)
     for folds in cases:
-        with pytest.raises(ResearchRejected, match="two distinct inner folds"):
+        with pytest.raises(ResearchRejected, match="inner"):
             select_candidate(dataset, None, folds, ResearchConfig(embargo_bars=0))
+
+
+@pytest.mark.parametrize(
+    "case",
+    ["reversed_same_set", "duplicate_timestamp", "partial_overlap"],
+)
+def test_select_candidate_rejects_invalid_evaluation_windows_before_fit(
+    monkeypatch, case,
+):
+    dataset = make_model_dataset(30)
+    market = make_model_market(dataset)
+    times = pd.DatetimeIndex(dataset["decision_time"].unique())
+    first_window = times[10:14]
+    if case == "reversed_same_set":
+        second_window = first_window[::-1]
+    elif case == "duplicate_timestamp":
+        first_window = pd.DatetimeIndex([
+            times[10], times[11], times[11], times[12],
+        ])
+        second_window = times[14:18]
+    else:
+        first_window = times[10:15]
+        second_window = times[14:18]
+    folds = [
+        research.TemporalFold("inner_1", times[:10], first_window),
+        research.TemporalFold("inner_2", times[:14], second_window),
+    ]
+    fit_calls = 0
+
+    def unexpected_fit(*args, **kwargs):
+        nonlocal fit_calls
+        fit_calls += 1
+        raise AssertionError("model fit happened before window validation")
+
+    monkeypatch.setattr(research, "fit_predict", unexpected_fit)
+    with pytest.raises(ResearchRejected, match="inner evaluation windows"):
+        select_candidate(dataset, market, folds, ResearchConfig(embargo_bars=0))
+    assert fit_calls == 0
+
+
+def test_select_candidate_accepts_adjacent_nonoverlapping_evaluation_windows():
+    dataset = make_model_dataset(50)
+    times = pd.DatetimeIndex(dataset["decision_time"].unique())
+    folds = [
+        research.TemporalFold("inner_1", times[:20], times[20:30]),
+        research.TemporalFold("inner_2", times[:30], times[30:40]),
+    ]
+
+    chosen, scores = select_candidate(
+        dataset,
+        make_model_market(dataset),
+        folds,
+        ResearchConfig(embargo_bars=0, thresholds=(0.55,)),
+    )
+
+    assert chosen == Candidate("logistic_c0.1", 0.55)
+    assert len(scores) == 8
 
 
 def _two_fold_scores(candidates):

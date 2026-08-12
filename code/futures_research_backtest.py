@@ -350,12 +350,29 @@ def choose_from_scores(scores):
 
 def select_candidate(dataset, market, folds, config=ResearchConfig()):
     folds = tuple(folds)
-    if (
-        len(folds) != 2
-        or len({fold.name for fold in folds}) != 2
-        or len({tuple(fold.evaluation_times) for fold in folds}) != 2
-    ):
+    try:
+        distinct_names = len({fold.name for fold in folds}) == 2
+        evaluation_windows = tuple(
+            pd.DatetimeIndex(fold.evaluation_times) for fold in folds
+        )
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise ResearchRejected("invalid inner evaluation windows") from exc
+    if len(folds) != 2 or not distinct_names:
         raise ResearchRejected("selection requires two distinct inner folds")
+    if (
+        any(
+            window.empty
+            or window.has_duplicates
+            or not window.is_monotonic_increasing
+            for window in evaluation_windows
+        )
+        or not evaluation_windows[0].intersection(evaluation_windows[1]).empty
+    ):
+        raise ResearchRejected("invalid inner evaluation windows")
+    folds = tuple(
+        TemporalFold(fold.name, fold.train_times, window)
+        for fold, window in zip(folds, evaluation_windows)
+    )
     thresholds = tuple(config.thresholds)
     allowed_thresholds = (0.52, 0.55, 0.58)
     if (
