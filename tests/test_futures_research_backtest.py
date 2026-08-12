@@ -60,6 +60,16 @@ def test_load_rejects_missing_or_non_weighted_metadata(tmp_path, metadata, serie
         load_futures_bars(db_path)
 
 
+def test_load_rejects_null_timestamp(tmp_path):
+    db_path = tmp_path / "futures.db"
+    _write_source(db_path, make_bars(2))
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("UPDATE futures_min_bars SET trade_time=NULL")
+
+    with pytest.raises(ResearchRejected):
+        load_futures_bars(db_path)
+
+
 def test_validation_segments_every_unusable_boundary():
     bars = make_bars(40)
     bars.loc[10:, "trade_time"] += pd.Timedelta(minutes=5)
@@ -86,6 +96,33 @@ def test_symbol_above_zero_volume_limit_is_excluded():
 
     assert clean.empty
     assert quality.loc["AG_IDX", "reason"] == "ZERO_VOLUME_FRACTION"
+
+
+def test_close_jump_starts_a_new_segment():
+    bars = make_bars(3)
+    bars.loc[1, "close"] = bars.loc[0, "close"] * 1.04
+    bars.loc[1, "high"] = max(bars.loc[1, "high"], bars.loc[1, "close"])
+
+    clean, _ = validate_and_segment(bars, ResearchConfig(min_symbol_rows=1, min_fold_rows=1))
+
+    assert clean["segment_id"].iloc[1] != clean["segment_id"].iloc[0]
+
+
+def test_mixed_timezone_timestamps_are_normalized():
+    bars = make_bars(3)
+    bars["trade_time"] = bars["trade_time"].astype(object)
+    bars.loc[1, "trade_time"] = pd.Timestamp("2026-01-02 09:05:00+00:00")
+
+    clean, _ = validate_and_segment(bars, ResearchConfig(min_symbol_rows=1, min_fold_rows=1))
+
+    assert pd.api.types.is_datetime64_dtype(clean["trade_time"])
+
+
+def test_empty_structurally_correct_bars_fail_closed():
+    bars = make_bars(0)
+
+    with pytest.raises(ResearchRejected, match="no futures bars"):
+        validate_and_segment(bars)
 
 
 def test_non_null_optional_source_values_must_be_finite():

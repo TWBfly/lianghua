@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
@@ -39,6 +38,16 @@ class ResearchRejected(ValueError):
     pass
 
 
+def _parse_trade_time(values: pd.Series) -> pd.Series:
+    try:
+        parsed = pd.to_datetime(values, errors="raise", utc=True)
+    except (TypeError, ValueError) as exc:
+        raise ResearchRejected("unparseable futures timestamp") from exc
+    if parsed.isna().any():
+        raise ResearchRejected("null futures timestamp")
+    return parsed.dt.tz_localize(None)
+
+
 def load_futures_bars(db_path, timeframe="5m") -> pd.DataFrame:
     """Load only provenance-approved futures index bars from SQLite."""
     try:
@@ -75,10 +84,7 @@ def load_futures_bars(db_path, timeframe="5m") -> pd.DataFrame:
         raise ResearchRejected("no approved futures bars")
     if not frame["series_type"].isin(SERIES_TYPES).all():
         raise ResearchRejected("unsupported futures series type")
-    try:
-        frame["trade_time"] = pd.to_datetime(frame["trade_time"], errors="raise")
-    except (TypeError, ValueError) as exc:
-        raise ResearchRejected("unparseable futures timestamp") from exc
+    frame["trade_time"] = _parse_trade_time(frame["trade_time"])
     return frame.loc[:, BAR_COLUMNS]
 
 
@@ -87,12 +93,11 @@ def _reject_if_invalid(bars: pd.DataFrame) -> pd.DataFrame:
     missing = required.difference(bars.columns)
     if missing:
         raise ResearchRejected(f"missing required columns: {', '.join(sorted(missing))}")
+    if bars.empty:
+        raise ResearchRejected("no futures bars")
     frame = bars.copy()
-    try:
-        frame["trade_time"] = pd.to_datetime(frame["trade_time"], errors="raise")
-    except (TypeError, ValueError) as exc:
-        raise ResearchRejected("unparseable futures timestamp") from exc
-    if frame["trade_time"].isna().any() or frame["symbol"].isna().any():
+    frame["trade_time"] = _parse_trade_time(frame["trade_time"])
+    if frame["symbol"].isna().any():
         raise ResearchRejected("null symbol or timestamp")
     if (
         frame["trade_time"].dt.minute.mod(5).ne(0).any()
