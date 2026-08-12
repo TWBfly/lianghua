@@ -361,11 +361,26 @@ Every trade record contains symbol, signal time, entry time, exit time,
 direction, raw prices, gross return, each cost, net return, fold, model identity,
 threshold, and exit reason.
 
+### Mark-to-market equity
+
+Each symbol sleeve keeps its own equity and compounds only its own sequential
+trades. While a position is active, the sleeve is marked on every available bar
+close from its entry price, including the entry cost already paid. The exit
+mark applies the exit cost and becomes that sleeve's new cash balance. Inactive
+sleeves remain unchanged and are never redistributed to active symbols.
+
+Portfolio equity at each timestamp is the sum of every sleeve's marked equity.
+Daily equity is the final timestamp mark for that date. Drawdown, volatility,
+and Sharpe are calculated from this marked daily path, not from returns booked
+only when trades close. Thus an interim loss remains visible even if the trade
+later exits profitably.
+
 ### Reconciliation
 
-Daily and total returns are calculated only from the trade/position ledger.
-The report writer independently recomputes every trade and fixed-sleeve
-portfolio return. A discrepancy greater than `1e-12` rejects the run.
+Daily and total returns are calculated only from the trade/position ledger and
+its bar-by-bar marks. The report writer independently recomputes every trade,
+sleeve transition, timestamp equity, and daily portfolio return. A discrepancy
+greater than `1e-12` rejects the run.
 
 ## Model and Strategy Metrics
 
