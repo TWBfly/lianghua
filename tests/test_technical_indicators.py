@@ -4,9 +4,25 @@ import pytest
 
 from technical_indicators import (
     build_forward_return_target,
+    calculate_atr,
     calculate_technical_indicators,
     causal_expanding_zscore,
 )
+
+
+def test_calculate_atr_is_public_and_uses_previous_close():
+    frame = pd.DataFrame({
+        "open": [10.0, 11.0, 20.0],
+        "high": [11.0, 12.0, 21.0],
+        "low": [9.0, 10.0, 19.0],
+        "close": [10.0, 11.0, 20.0],
+    })
+
+    result = calculate_atr(frame, n=2)
+
+    assert result.iloc[0] != result.iloc[0]
+    assert result.iloc[1] == pytest.approx(2.0)
+    assert result.iloc[2] == pytest.approx(6.0)
 
 
 def indicator_bars(length=40):

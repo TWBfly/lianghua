@@ -23,6 +23,18 @@ def _wilder_average(values: pd.Series, periods: int) -> pd.Series:
     return result
 
 
+def calculate_atr(frame: pd.DataFrame, n: int = 14) -> pd.Series:
+    high = frame["high"].astype(float)
+    low = frame["low"].astype(float)
+    close = frame["close"].astype(float)
+    true_range = pd.concat([
+        high - low,
+        (high - close.shift(1)).abs(),
+        (low - close.shift(1)).abs(),
+    ], axis=1).max(axis=1)
+    return _wilder_average(true_range, n)
+
+
 def calculate_technical_indicators(frame: pd.DataFrame) -> pd.DataFrame:
     close = frame["close"].astype(float)
     high = frame["high"].astype(float)
