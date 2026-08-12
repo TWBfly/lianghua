@@ -39,13 +39,21 @@ class ResearchRejected(ValueError):
 
 
 def _parse_trade_time(values: pd.Series) -> pd.Series:
+    def is_timezone_aware(value):
+        try:
+            return pd.Timestamp(value).tzinfo is not None
+        except (TypeError, ValueError, OverflowError):
+            return False
+
+    if values.dropna().map(is_timezone_aware).any():
+        raise ResearchRejected("timezone-aware futures timestamps are unsupported")
     try:
-        parsed = pd.to_datetime(values, errors="raise", utc=True)
+        parsed = pd.to_datetime(values, errors="raise")
     except (TypeError, ValueError) as exc:
         raise ResearchRejected("unparseable futures timestamp") from exc
     if parsed.isna().any():
         raise ResearchRejected("null futures timestamp")
-    return parsed.dt.tz_localize(None)
+    return parsed
 
 
 def load_futures_bars(db_path, timeframe="5m") -> pd.DataFrame:

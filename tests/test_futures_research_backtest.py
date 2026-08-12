@@ -70,6 +70,16 @@ def test_load_rejects_null_timestamp(tmp_path):
         load_futures_bars(db_path)
 
 
+def test_load_rejects_offset_aware_timestamp(tmp_path):
+    db_path = tmp_path / "futures.db"
+    _write_source(db_path, make_bars(2))
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("UPDATE futures_min_bars SET trade_time=trade_time || '+00:00'")
+
+    with pytest.raises(ResearchRejected, match="timezone-aware"):
+        load_futures_bars(db_path)
+
+
 def test_validation_segments_every_unusable_boundary():
     bars = make_bars(40)
     bars.loc[10:, "trade_time"] += pd.Timedelta(minutes=5)
@@ -108,14 +118,21 @@ def test_close_jump_starts_a_new_segment():
     assert clean["segment_id"].iloc[1] != clean["segment_id"].iloc[0]
 
 
-def test_mixed_timezone_timestamps_are_normalized():
+def test_mixed_timezone_timestamps_are_rejected():
     bars = make_bars(3)
     bars["trade_time"] = bars["trade_time"].astype(object)
     bars.loc[1, "trade_time"] = pd.Timestamp("2026-01-02 09:05:00+00:00")
 
-    clean, _ = validate_and_segment(bars, ResearchConfig(min_symbol_rows=1, min_fold_rows=1))
+    with pytest.raises(ResearchRejected, match="timezone-aware"):
+        validate_and_segment(bars, ResearchConfig(min_symbol_rows=1, min_fold_rows=1))
 
-    assert pd.api.types.is_datetime64_dtype(clean["trade_time"])
+
+def test_pure_timezone_aware_timestamps_are_rejected():
+    bars = make_bars(3)
+    bars["trade_time"] = bars["trade_time"].dt.tz_localize("UTC")
+
+    with pytest.raises(ResearchRejected, match="timezone-aware"):
+        validate_and_segment(bars, ResearchConfig(min_symbol_rows=1, min_fold_rows=1))
 
 
 def test_empty_structurally_correct_bars_fail_closed():
