@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
+from numbers import Real
 from pathlib import Path
 
 import numpy as np
@@ -325,3 +326,337 @@ def make_temporal_partitions(dataset, config=ResearchConfig()):
         "holdout_fold": TemporalFold("holdout", development, holdout_times),
         "eligible_symbols": tuple(sorted(eligible)),
     }
+
+
+def _direction(probability, threshold):
+    if probability >= threshold:
+        return 1
+    if probability <= 1.0 - threshold:
+        return -1
+    return 0
+
+
+def _net_sleeve_return(direction, entry_open, exit_open, cost_bps):
+    ratio = float(exit_open) / float(entry_open)
+    cost = float(cost_bps) / 10_000.0
+    gross = int(direction) * (ratio - 1.0)
+    return gross, cost, cost * ratio, gross - cost * (1.0 + ratio)
+
+
+def _finite_number(value):
+    return isinstance(value, Real) and not isinstance(value, (bool, np.bool_)) and np.isfinite(value)
+
+
+def simulate_standardized_ledger(scored, market, threshold, cost_bps, symbol_count):
+    """Build the fixed-sleeve, next-open, bar-marked research ledger."""
+    if not _finite_number(threshold) or not 0.5 < float(threshold) < 1.0:
+        raise ResearchRejected("threshold must be between 0.5 and 1.0")
+    if not _finite_number(cost_bps) or float(cost_bps) < 0.0:
+        raise ResearchRejected("cost_bps must be finite and non-negative")
+    if (
+        isinstance(symbol_count, (bool, np.bool_))
+        or not isinstance(symbol_count, (int, np.integer))
+        or symbol_count < 1
+    ):
+        raise ResearchRejected("symbol_count must be a positive integer")
+
+    scored_required = {
+        "symbol", "segment_id", "decision_time", "entry_time", "entry_open",
+        "exit_time", "exit_open", "probability",
+    }
+    market_required = {"symbol", "segment_id", "trade_time", "open", "close"}
+    missing = scored_required.difference(scored.columns)
+    if missing:
+        raise ResearchRejected(f"missing scored columns: {', '.join(sorted(missing))}")
+    missing = market_required.difference(market.columns)
+    if missing:
+        raise ResearchRejected(f"missing market columns: {', '.join(sorted(missing))}")
+    if market.empty:
+        raise ResearchRejected("no segmented market bars")
+
+    decisions = scored.copy()
+    marks = market.copy()
+    for column in ("decision_time", "entry_time", "exit_time"):
+        decisions[column] = _parse_trade_time(decisions[column])
+    marks["trade_time"] = _parse_trade_time(marks["trade_time"])
+    if decisions[["symbol", "segment_id"]].isna().any().any():
+        raise ResearchRejected("null scored symbol or segment")
+    if marks[["symbol", "segment_id"]].isna().any().any():
+        raise ResearchRejected("null market symbol or segment")
+
+    for column in ("probability", "entry_open", "exit_open"):
+        decisions[column] = pd.to_numeric(decisions[column], errors="coerce")
+    if "terminal_open" in decisions:
+        decisions["terminal_open"] = pd.to_numeric(decisions["terminal_open"], errors="coerce")
+    if (
+        not np.isfinite(decisions["probability"]).all()
+        or decisions["probability"].le(0.0).any()
+        or decisions["probability"].gt(1.0).any()
+    ):
+        raise ResearchRejected("probabilities must be finite and in (0, 1]")
+    if not np.isfinite(decisions["entry_open"]).all() or decisions["entry_open"].le(0.0).any():
+        raise ResearchRejected("entry prices must be finite and positive")
+    terminal = decisions.get("terminal_open", pd.Series(np.nan, index=decisions.index))
+    usable_exit = decisions["exit_open"].where(decisions["exit_open"].notna(), terminal)
+    if not np.isfinite(usable_exit).all() or usable_exit.le(0.0).any():
+        raise ResearchRejected("exit prices must be finite and positive")
+    if (
+        decisions["entry_time"].le(decisions["decision_time"]).any()
+        or decisions["exit_time"].le(decisions["entry_time"]).any()
+    ):
+        raise ResearchRejected("decision, entry, and exit times are inconsistent")
+
+    symbols = tuple(sorted(decisions["symbol"].unique()))
+    if len(symbols) > symbol_count:
+        raise ResearchRejected("symbol_count is smaller than the scored universe")
+    for column in ("open", "close"):
+        marks[column] = pd.to_numeric(marks[column], errors="coerce")
+        if not np.isfinite(marks[column]).all() or marks[column].le(0.0).any():
+            raise ResearchRejected(f"market {column} must be finite and positive")
+    if marks.duplicated(["symbol", "segment_id", "trade_time"]).any():
+        raise ResearchRejected("duplicate segmented market timestamp")
+    marks = marks.sort_values(["trade_time", "symbol", "segment_id"], kind="stable").reset_index(drop=True)
+
+    decisions = decisions.sort_values(
+        ["entry_time", "symbol", "decision_time"], kind="stable"
+    ).reset_index(drop=True)
+    sleeve_cash = {symbol: 1.0 / symbol_count for symbol in symbols}
+    available_after = {}
+    trades = []
+    for row in decisions.itertuples(index=False):
+        direction = _direction(float(row.probability), float(threshold))
+        if not direction or row.entry_time < available_after.get(row.symbol, pd.Timestamp.min):
+            continue
+        segment_marks = marks[
+            marks["symbol"].eq(row.symbol)
+            & marks["segment_id"].eq(row.segment_id)
+            & marks["trade_time"].between(row.entry_time, row.exit_time)
+        ]
+        if (
+            segment_marks.empty
+            or segment_marks["trade_time"].iloc[0] != row.entry_time
+            or segment_marks["trade_time"].iloc[-1] != row.exit_time
+            or segment_marks["trade_time"].diff().dropna().ne(pd.Timedelta(minutes=5)).any()
+        ):
+            raise ResearchRejected("trade path is missing segmented market marks")
+
+        terminal_close = pd.isna(row.exit_open)
+        exit_open = float(row.terminal_open) if terminal_close else float(row.exit_open)
+        if terminal_close:
+            segment_end = marks.loc[
+                marks["symbol"].eq(row.symbol) & marks["segment_id"].eq(row.segment_id),
+                "trade_time",
+            ].max()
+            if row.exit_time != segment_end:
+                raise ResearchRejected("terminal close is not the final segment open")
+        entry_market_open = float(segment_marks["open"].iloc[0])
+        exit_market_open = float(segment_marks["open"].iloc[-1])
+        if (
+            not np.isclose(float(row.entry_open), entry_market_open, rtol=0.0, atol=1e-12)
+            or not np.isclose(exit_open, exit_market_open, rtol=0.0, atol=1e-12)
+        ):
+            raise ResearchRejected("scored prices do not match market opens")
+
+        gross, entry_cost, exit_cost, net_return = _net_sleeve_return(
+            direction, row.entry_open, exit_open, cost_bps
+        )
+        start_equity = sleeve_cash[row.symbol]
+        end_equity = start_equity * (1.0 + net_return)
+        if not np.isfinite(end_equity):
+            raise ResearchRejected("non-finite sleeve equity")
+        ratio = exit_open / float(row.entry_open)
+        trade = {
+            "symbol": row.symbol,
+            "segment_id": row.segment_id,
+            "decision_time": row.decision_time,
+            "entry_time": row.entry_time,
+            "exit_time": row.exit_time,
+            "direction": direction,
+            "entry_open": float(row.entry_open),
+            "exit_open": exit_open,
+            "gross_return": gross,
+            "entry_cost": entry_cost,
+            "exit_cost": exit_cost,
+            "net_sleeve_return": net_return,
+            "portfolio_return": net_return / symbol_count,
+            "threshold": float(threshold),
+            "cost_bps": float(cost_bps),
+            "exit_reason": "TERMINAL_CLOSE" if terminal_close else "HORIZON_EXIT",
+            "sleeve_start_equity": start_equity,
+            "sleeve_end_equity": end_equity,
+            "sleeve_pnl": end_equity - start_equity,
+            "turnover": start_equity * (1.0 + ratio),
+        }
+        trades.append(trade)
+        sleeve_cash[row.symbol] = end_equity
+        available_after[row.symbol] = row.exit_time
+
+    trade_columns = (
+        "symbol", "segment_id", "decision_time", "entry_time", "exit_time", "direction",
+        "entry_open", "exit_open", "gross_return", "entry_cost", "exit_cost",
+        "net_sleeve_return", "portfolio_return", "threshold", "cost_bps", "exit_reason",
+        "sleeve_start_equity", "sleeve_end_equity", "sleeve_pnl", "turnover",
+    )
+    trade_frame = pd.DataFrame(trades, columns=trade_columns)
+
+    per_symbol = {
+        symbol: trade_frame.loc[trade_frame["symbol"].eq(symbol)].reset_index(drop=True)
+        for symbol in symbols
+    }
+    sleeve_value = {symbol: 1.0 / symbol_count for symbol in symbols}
+    next_trade = {symbol: 0 for symbol in symbols}
+    active = {}
+    unused_cash = 1.0 - len(symbols) / symbol_count
+    timestamp_rows = []
+    for timestamp, timestamp_marks in marks.groupby("trade_time", sort=True):
+        timestamp_turnover = 0.0
+        by_symbol = {row.symbol: row for row in timestamp_marks.itertuples(index=False)}
+        for symbol in symbols:
+            bar = by_symbol.get(symbol)
+            current = active.get(symbol)
+            if current is not None and timestamp == current.exit_time:
+                sleeve_value[symbol] = float(current.sleeve_end_equity)
+                timestamp_turnover += float(current.sleeve_start_equity) * (
+                    float(current.exit_open) / float(current.entry_open)
+                )
+                active.pop(symbol)
+                next_trade[symbol] += 1
+
+            candidates = per_symbol[symbol]
+            position = next_trade[symbol]
+            if position < len(candidates):
+                candidate = candidates.iloc[position]
+                if timestamp == candidate.entry_time:
+                    active[symbol] = candidate
+                    current = candidate
+                    timestamp_turnover += float(candidate.sleeve_start_equity)
+
+            current = active.get(symbol)
+            if current is not None and bar is not None:
+                sleeve_value[symbol] = float(current.sleeve_start_equity) * (
+                    1.0 - float(current.entry_cost)
+                    + int(current.direction) * (float(bar.close) / float(current.entry_open) - 1.0)
+                )
+
+        equity = unused_cash + sum(sleeve_value.values())
+        if not np.isfinite(equity) or equity <= 0.0:
+            raise ResearchRejected("non-positive portfolio equity")
+        timestamp_rows.append({
+            "trade_time": timestamp,
+            "equity": equity,
+            "gross_exposure": len(active) / symbol_count,
+            "turnover": timestamp_turnover,
+            "sleeve_total": sum(sleeve_value.values()),
+        })
+
+    timestamp_frame = pd.DataFrame(timestamp_rows)
+    timestamp_frame["date"] = timestamp_frame["trade_time"].dt.normalize()
+    daily_rows = []
+    previous_equity = 1.0
+    for date, group in timestamp_frame.groupby("date", sort=True):
+        equity = float(group["equity"].iloc[-1])
+        daily_rows.append({
+            "date": date,
+            "equity": equity,
+            "pnl": equity - previous_equity,
+            "portfolio_return": equity / previous_equity - 1.0,
+            "gross_exposure": float(group["gross_exposure"].mean()),
+            "turnover": float(group["turnover"].sum()),
+        })
+        previous_equity = equity
+    daily = pd.DataFrame(
+        daily_rows,
+        columns=("date", "equity", "pnl", "portfolio_return", "gross_exposure", "turnover"),
+    )
+
+    tolerance = 1e-12
+    for trade in trade_frame.itertuples(index=False):
+        recomputed = _net_sleeve_return(
+            trade.direction, trade.entry_open, trade.exit_open, trade.cost_bps
+        )
+        observed = (trade.gross_return, trade.entry_cost, trade.exit_cost, trade.net_sleeve_return)
+        if max(abs(left - right) for left, right in zip(recomputed, observed)) > tolerance:
+            raise ResearchRejected("ledger mismatch")
+        if abs(trade.sleeve_end_equity - trade.sleeve_start_equity * (1.0 + trade.net_sleeve_return)) > tolerance:
+            raise ResearchRejected("ledger mismatch")
+    if (timestamp_frame["equity"] - timestamp_frame["sleeve_total"] - unused_cash).abs().max() > tolerance:
+        raise ResearchRejected("ledger mismatch")
+    if not daily.empty:
+        compounded = float((1.0 + daily["portfolio_return"]).prod())
+        if (
+            abs(compounded - float(daily["equity"].iloc[-1])) > tolerance
+            or abs(float(daily["pnl"].sum()) - (float(daily["equity"].iloc[-1]) - 1.0)) > tolerance
+            or abs(float(trade_frame["sleeve_pnl"].sum()) - (float(daily["equity"].iloc[-1]) - 1.0)) > tolerance
+        ):
+            raise ResearchRejected("ledger mismatch")
+    return trade_frame, daily
+
+
+def strategy_metrics(trades, daily):
+    """Return finite strategy statistics from the marked daily ledger."""
+    zero = {
+        "days": 0,
+        "trades": int(len(trades)),
+        "total_return": 0.0,
+        "annualized_return": 0.0,
+        "annualized_volatility": 0.0,
+        "sharpe": 0.0,
+        "max_drawdown": 0.0,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "exposure": 0.0,
+        "turnover": 0.0,
+    }
+    if daily.empty:
+        return zero
+    required = {"equity", "portfolio_return", "gross_exposure", "turnover"}
+    missing = required.difference(daily.columns)
+    if missing:
+        raise ResearchRejected(f"missing daily ledger columns: {', '.join(sorted(missing))}")
+    frame = daily.copy()
+    for column in required:
+        frame[column] = pd.to_numeric(frame[column], errors="coerce")
+        if not np.isfinite(frame[column]).all():
+            raise ResearchRejected("non-finite strategy metric input")
+    if frame["equity"].le(0.0).any() or frame["portfolio_return"].le(-1.0).any():
+        raise ResearchRejected("non-positive strategy equity")
+
+    returns = frame["portfolio_return"].astype(float)
+    equity = frame["equity"].to_numpy(dtype=float)
+    expected_returns = equity / np.r_[1.0, equity[:-1]] - 1.0
+    if np.max(np.abs(returns.to_numpy() - expected_returns)) > 1e-12:
+        raise ResearchRejected("ledger mismatch")
+    compounded = float((1.0 + returns).prod())
+    if abs(compounded - float(frame["equity"].iloc[-1])) > 1e-12:
+        raise ResearchRejected("ledger mismatch")
+    deviation = float(returns.std(ddof=1)) if len(returns) > 1 else 0.0
+    total_return = compounded - 1.0
+    pnl_column = "sleeve_pnl" if "sleeve_pnl" in trades else "portfolio_return"
+    if trades.empty:
+        pnl = pd.Series(dtype=float)
+    elif pnl_column not in trades:
+        raise ResearchRejected("missing trade pnl column")
+    else:
+        pnl = pd.to_numeric(trades[pnl_column], errors="coerce")
+        if not np.isfinite(pnl).all():
+            raise ResearchRejected("non-finite strategy metric input")
+    wins = float(pnl[pnl > 0.0].sum())
+    losses = float(-pnl[pnl < 0.0].sum())
+    peak = np.maximum.accumulate(np.r_[1.0, frame["equity"].to_numpy(dtype=float)])
+    drawdown = 1.0 - np.r_[1.0, frame["equity"].to_numpy(dtype=float)] / peak
+    result = {
+        "days": int(len(frame)),
+        "trades": int(len(trades)),
+        "total_return": total_return,
+        "annualized_return": compounded ** (252.0 / len(frame)) - 1.0,
+        "annualized_volatility": deviation * np.sqrt(252.0),
+        "sharpe": float(returns.mean()) / deviation * np.sqrt(252.0) if deviation else 0.0,
+        "max_drawdown": float(drawdown.max()),
+        "win_rate": float(pnl.gt(0.0).mean()) if len(pnl) else 0.0,
+        "profit_factor": wins / losses if losses else 0.0,
+        "exposure": float(frame["gross_exposure"].mean()),
+        "turnover": float(frame["turnover"].sum()),
+    }
+    if not all(np.isfinite(value) for value in result.values()):
+        raise ResearchRejected("non-finite strategy metrics")
+    return result
