@@ -6,14 +6,20 @@ import pytest
 
 import futures_research_backtest as research
 from futures_research_backtest import (
+    Candidate,
     FEATURE_COLUMNS,
     ResearchConfig,
     ResearchRejected,
     assert_feature_columns,
     build_causal_dataset,
+    candidate_names,
+    choose_from_scores,
+    fit_predict,
+    inverse_symbol_class_weights,
     load_futures_bars,
     make_temporal_partitions,
     purged_training_rows,
+    select_candidate,
     simulate_standardized_ledger,
     strategy_metrics,
     validate_and_segment,
@@ -254,6 +260,205 @@ def test_purge_excludes_label_ending_at_evaluation_start_without_embargo():
     purged = purged_training_rows(dataset, dataset["decision_time"], evaluation_start, embargo_bars=0)
 
     assert purged.index.tolist() == [0]
+
+
+def make_model_dataset(rows=460):
+    decision_times = pd.date_range("2026-01-01", periods=rows, freq="20min")
+    labels = np.arange(rows) % 2
+    sign = labels * 2.0 - 1.0
+    frames = []
+    for symbol_number, symbol in enumerate(("AG_IDX", "CU_IDX")):
+        frame = pd.DataFrame({
+            "symbol": symbol,
+            "segment_id": f"{symbol}:1",
+            "decision_time": decision_times,
+            "entry_time": decision_times + pd.Timedelta(minutes=5),
+            "entry_open": 100.0,
+            "exit_time": decision_times + pd.Timedelta(minutes=15),
+            "exit_open": 100.0 + sign,
+            "label_end_time": decision_times + pd.Timedelta(minutes=15),
+            "future_return": sign / 100.0,
+            "label": labels,
+        })
+        for feature_number, name in enumerate(FEATURE_COLUMNS, start=1):
+            frame[name] = sign * feature_number + symbol_number * 0.01
+        frames.append(frame)
+    return pd.concat(frames, ignore_index=True).sort_values(
+        ["decision_time", "symbol"], kind="stable"
+    ).reset_index(drop=True)
+
+
+def make_model_market(dataset):
+    rows = []
+    for row in dataset.itertuples(index=False):
+        middle = (row.entry_open + row.exit_open) / 2.0
+        for time, price in (
+            (row.decision_time, row.entry_open),
+            (row.entry_time, row.entry_open),
+            (row.entry_time + pd.Timedelta(minutes=5), middle),
+            (row.exit_time, row.exit_open),
+        ):
+            rows.append({
+                "symbol": row.symbol,
+                "segment_id": row.segment_id,
+                "trade_time": time,
+                "open": price,
+                "close": price,
+            })
+    return pd.DataFrame(rows)
+
+
+def test_candidate_names_are_fixed():
+    assert candidate_names() == (
+        "logistic_c0.1", "logistic_c1.0", "lightgbm_constrained"
+    )
+
+
+@pytest.mark.parametrize("model_name", [
+    "logistic_c0.1", "logistic_c1.0", "lightgbm_constrained",
+])
+def test_model_probabilities_are_finite_and_bounded(model_name):
+    dataset = make_model_dataset()
+    train = dataset[dataset["decision_time"] < dataset["decision_time"].unique()[360]]
+    evaluation = dataset[dataset["decision_time"] >= dataset["decision_time"].unique()[360]]
+
+    probability, _ = fit_predict(Candidate(model_name, 0.55), train, evaluation)
+
+    assert len(probability) == len(evaluation)
+    assert np.isfinite(probability).all()
+    assert ((0.0 <= probability) & (probability <= 1.0)).all()
+
+
+def test_evaluation_extremes_cannot_change_logistic_scaler():
+    dataset = make_model_dataset()
+    train = dataset[dataset["decision_time"] < dataset["decision_time"].unique()[360]]
+    evaluation = dataset[dataset["decision_time"] >= dataset["decision_time"].unique()[360]]
+    attacked = evaluation.copy()
+    attacked.loc[:, FEATURE_COLUMNS] *= 1e12
+
+    _, clean_model = fit_predict(Candidate("logistic_c0.1", 0.55), train, evaluation)
+    _, attacked_model = fit_predict(Candidate("logistic_c0.1", 0.55), train, attacked)
+    clean_scaler = clean_model.named_steps["standardscaler"]
+    attacked_scaler = attacked_model.named_steps["standardscaler"]
+
+    np.testing.assert_array_equal(clean_scaler.mean_, attacked_scaler.mean_)
+    np.testing.assert_array_equal(clean_scaler.scale_, attacked_scaler.scale_)
+    np.testing.assert_array_equal(
+        clean_scaler.transform(train.loc[:, FEATURE_COLUMNS]),
+        attacked_scaler.transform(train.loc[:, FEATURE_COLUMNS]),
+    )
+
+
+def test_inverse_weights_equalize_each_symbol_and_class_total():
+    frame = pd.DataFrame({
+        "symbol": ["AG_IDX"] * 6 + ["CU_IDX"] * 6,
+        "label": [0, 0, 0, 1, 1, 1] * 2,
+    })
+
+    weights = inverse_symbol_class_weights(frame)
+
+    weighted = frame.assign(weight=weights)
+    assert weights.mean() == pytest.approx(1.0)
+    assert weighted.groupby("symbol")["weight"].sum().nunique() == 1
+    assert weighted.groupby("label")["weight"].sum().nunique() == 1
+
+
+@pytest.mark.parametrize("column", ["label", "ret_1"])
+def test_model_boundaries_fail_closed_for_one_class_or_non_finite(column):
+    dataset = make_model_dataset()
+    train = dataset.iloc[:700].copy()
+    evaluation = dataset.iloc[700:].copy()
+    if column == "label":
+        evaluation["label"] = 1
+    else:
+        evaluation.loc[evaluation.index[0], column] = np.inf
+
+    with pytest.raises(ResearchRejected):
+        fit_predict(Candidate("logistic_c0.1", 0.55), train, evaluation)
+
+
+def test_selection_requires_both_inner_folds_positive():
+    scores = pd.DataFrame([
+        {"model_name": "lightgbm_constrained", "threshold": 0.52,
+         "fold": "inner_1", "return_5bps": 0.20, "turnover": 0.4},
+        {"model_name": "lightgbm_constrained", "threshold": 0.52,
+         "fold": "inner_2", "return_5bps": -0.01, "turnover": 0.4},
+        {"model_name": "logistic_c0.1", "threshold": 0.55,
+         "fold": "inner_1", "return_5bps": 0.02, "turnover": 0.2},
+        {"model_name": "logistic_c0.1", "threshold": 0.55,
+         "fold": "inner_2", "return_5bps": 0.01, "turnover": 0.2},
+    ])
+    assert choose_from_scores(scores) == Candidate("logistic_c0.1", 0.55)
+
+
+def _two_fold_scores(candidates):
+    return pd.DataFrame([
+        {"model_name": model, "threshold": threshold, "fold": fold,
+         "return_5bps": return_, "turnover": turnover}
+        for model, threshold, return_, turnover in candidates
+        for fold in ("inner_1", "inner_2")
+    ])
+
+
+def test_selection_ties_use_return_turnover_logistic_then_higher_threshold():
+    assert choose_from_scores(_two_fold_scores([
+        ("logistic_c0.1", 0.52, 0.0100, 0.1),
+        ("logistic_c1.0", 0.55, 0.0111, 0.9),
+    ])) == Candidate("logistic_c1.0", 0.55)
+    assert choose_from_scores(_two_fold_scores([
+        ("logistic_c0.1", 0.52, 0.0100, 0.1),
+        ("logistic_c1.0", 0.55, 0.0109, 0.2),
+    ])) == Candidate("logistic_c0.1", 0.52)
+    assert choose_from_scores(_two_fold_scores([
+        ("lightgbm_constrained", 0.58, 0.0100, 0.1),
+        ("logistic_c1.0", 0.52, 0.0100, 0.1),
+    ])) == Candidate("logistic_c1.0", 0.52)
+    assert choose_from_scores(_two_fold_scores([
+        ("logistic_c0.1", 0.52, 0.0100, 0.1),
+        ("logistic_c0.1", 0.58, 0.0100, 0.1),
+    ])) == Candidate("logistic_c0.1", 0.58)
+
+
+def test_selection_rejects_when_no_candidate_passes_both_folds():
+    scores = _two_fold_scores([("logistic_c0.1", 0.55, 0.0, 0.0)])
+
+    with pytest.raises(ResearchRejected, match="no candidate"):
+        choose_from_scores(scores)
+
+
+def test_select_candidate_scores_fixed_search_and_reports_dummy_prior():
+    dataset = make_model_dataset()
+    times = pd.DatetimeIndex(dataset["decision_time"].unique())
+    folds = [
+        research.TemporalFold("inner_1", times[:240], times[240:340]),
+        research.TemporalFold("inner_2", times[:340], times[340:440]),
+    ]
+
+    market = make_model_market(dataset)
+    chosen, scores = select_candidate(dataset, market, folds)
+    outer_only = dataset.copy()
+    outside = outer_only["decision_time"] >= times[440]
+    outer_only.loc[outside, "symbol"] = "OUTER_ONLY"
+    outer_only.loc[outside, "label"] = 7
+    outer_only.loc[outside, "future_return"] = np.inf
+    outer_only["label_end_time"] = outer_only["label_end_time"].astype(object)
+    outer_only.loc[outside, "label_end_time"] = "OUTER_ONLY"
+    outer_market = market.copy()
+    outer_market.loc[outer_market["trade_time"] >= times[440], "open"] = np.inf
+    protected_chosen, protected_scores = select_candidate(
+        outer_only, outer_market, folds
+    )
+
+    assert chosen == Candidate("logistic_c0.1", 0.58)
+    assert protected_chosen == chosen
+    pd.testing.assert_frame_equal(protected_scores, scores)
+    assert len(scores) == 20
+    assert scores.loc[scores["model_name"].eq("dummy_prior"), "fold"].tolist() == [
+        "inner_1", "inner_2"
+    ]
+    selectable = scores[scores["model_name"].isin(candidate_names())]
+    assert set(selectable["threshold"]) == set(ResearchConfig().thresholds)
+    assert len(selectable) == 18
 
 
 @pytest.mark.parametrize(

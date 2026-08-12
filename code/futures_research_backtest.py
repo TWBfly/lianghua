@@ -7,6 +7,12 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from lightgbm import LGBMClassifier
+from sklearn.dummy import DummyClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import balanced_accuracy_score, brier_score_loss, roc_auc_score
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 
 
 FEATURE_COLUMNS = (
@@ -37,6 +43,12 @@ class ResearchConfig:
 
 class ResearchRejected(ValueError):
     pass
+
+
+@dataclass(frozen=True)
+class Candidate:
+    model_name: str
+    threshold: float
 
 
 @dataclass(frozen=True)
@@ -196,6 +208,202 @@ def assert_feature_columns(matrix):
         )
 
 
+def candidate_names():
+    return ("logistic_c0.1", "logistic_c1.0", "lightgbm_constrained")
+
+
+def inverse_symbol_class_weights(frame):
+    symbol_count = frame.groupby("symbol")["symbol"].transform("size")
+    class_count = frame.groupby("label")["label"].transform("size")
+    weights = 1.0 / symbol_count.astype(float) / class_count.astype(float)
+    return weights / weights.mean()
+
+
+def _fit_matrix(candidate, x_train, y_train, sample_weight, x_evaluation, config):
+    if candidate.model_name not in candidate_names():
+        raise ResearchRejected(f"unknown model candidate: {candidate.model_name}")
+    arrays = (x_train, y_train, sample_weight, x_evaluation)
+    if any(not np.isfinite(np.asarray(array, dtype=float)).all() for array in arrays):
+        raise ResearchRejected("model inputs must be finite")
+    if candidate.model_name.startswith("logistic_c"):
+        c_value = float(candidate.model_name.removeprefix("logistic_c"))
+        model = make_pipeline(
+            StandardScaler(),
+            LogisticRegression(
+                C=c_value, penalty="l2", solver="liblinear",
+                max_iter=1000, random_state=config.seed,
+            ),
+        )
+        model.fit(
+            x_train, y_train,
+            logisticregression__sample_weight=sample_weight,
+        )
+    else:
+        model = LGBMClassifier(
+            n_estimators=100, learning_rate=0.03, max_depth=3,
+            num_leaves=7, min_child_samples=200, subsample=0.8,
+            colsample_bytree=0.8, subsample_freq=1, reg_alpha=1.0,
+            reg_lambda=5.0, objective="binary", verbosity=-1,
+            n_jobs=1, random_state=config.seed,
+        )
+        model.fit(x_train, y_train, sample_weight=sample_weight)
+    probability = model.predict_proba(x_evaluation)[:, 1]
+    if not np.isfinite(probability).all() or ((probability < 0.0) | (probability > 1.0)).any():
+        raise ResearchRejected("model probabilities must be finite and in [0, 1]")
+    return probability, model
+
+
+def fit_predict(candidate, train, evaluation, config=ResearchConfig()):
+    if not isinstance(train, pd.DataFrame) or not isinstance(evaluation, pd.DataFrame):
+        raise ResearchRejected("train and evaluation must be data frames")
+    required = {"symbol", "label", *FEATURE_COLUMNS}
+    if required.difference(train.columns) or required.difference(evaluation.columns):
+        raise ResearchRejected("model frame is missing required columns")
+    if train.empty or evaluation.empty:
+        raise ResearchRejected("model frames must not be empty")
+    x_train = train.loc[:, FEATURE_COLUMNS]
+    x_evaluation = evaluation.loc[:, FEATURE_COLUMNS]
+    assert_feature_columns(x_train)
+    assert_feature_columns(x_evaluation)
+    y_train = pd.to_numeric(train["label"], errors="coerce")
+    y_evaluation = pd.to_numeric(evaluation["label"], errors="coerce")
+    if set(y_train.unique()) != {0, 1} or set(y_evaluation.unique()) != {0, 1}:
+        raise ResearchRejected("train and evaluation must each contain both classes")
+    sample_weight = inverse_symbol_class_weights(train)
+    return _fit_matrix(
+        candidate, x_train, y_train, sample_weight, x_evaluation, config
+    )
+
+
+def _probability_metrics(labels, probability, threshold):
+    return {
+        "roc_auc": float(roc_auc_score(labels, probability)),
+        "balanced_accuracy": float(
+            balanced_accuracy_score(labels, probability >= threshold)
+        ),
+        "brier_score": float(brier_score_loss(labels, probability)),
+    }
+
+
+def choose_from_scores(scores):
+    grouped = []
+    for (model_name, threshold), rows in scores.groupby(
+        ["model_name", "threshold"], sort=False
+    ):
+        if len(rows) != 2 or not (rows["return_5bps"] > 0).all():
+            continue
+        grouped.append({
+            "candidate": Candidate(str(model_name), float(threshold)),
+            "median_return": float(rows["return_5bps"].median()),
+            "turnover": float(rows["turnover"].mean()),
+        })
+    if not grouped:
+        raise ResearchRejected("no candidate passed both inner folds")
+    best_return = max(row["median_return"] for row in grouped)
+    near = [
+        row for row in grouped
+        if best_return - row["median_return"] <= 0.001
+    ]
+    near.sort(key=lambda row: (
+        row["turnover"],
+        row["candidate"].model_name == "lightgbm_constrained",
+        -row["candidate"].threshold,
+    ))
+    return near[0]["candidate"]
+
+
+def select_candidate(dataset, market, folds, config=ResearchConfig()):
+    folds = tuple(folds)
+    thresholds = tuple(config.thresholds)
+    allowed_thresholds = (0.52, 0.55, 0.58)
+    if (
+        not thresholds
+        or any(not _finite_number(value) for value in thresholds)
+        or any(float(value) not in allowed_thresholds for value in thresholds)
+        or len(set(thresholds)) != len(thresholds)
+    ):
+        raise ResearchRejected("candidate thresholds must be a unique fixed subset")
+    score_rows = []
+    selectable_rows = []
+    selection_times = pd.DatetimeIndex([])
+    for fold in folds:
+        selection_times = selection_times.union(fold.train_times).union(
+            fold.evaluation_times
+        )
+    symbol_count = int(dataset.loc[
+        dataset["decision_time"].isin(selection_times), "symbol"
+    ].nunique())
+    if symbol_count < 1:
+        raise ResearchRejected("model dataset has no symbols")
+    for fold in folds:
+        if fold.evaluation_times.empty:
+            raise ResearchRejected("empty inner evaluation window")
+        train = purged_training_rows(
+            dataset, fold.train_times, fold.evaluation_times[0], config.embargo_bars
+        )
+        evaluation = dataset[
+            dataset["decision_time"].isin(fold.evaluation_times)
+        ].copy()
+        evaluation_pairs = pd.MultiIndex.from_frame(
+            evaluation.loc[:, ["symbol", "segment_id"]].drop_duplicates()
+        )
+        market_pairs = pd.MultiIndex.from_frame(
+            market.loc[:, ["symbol", "segment_id"]]
+        )
+        fold_market = market.loc[
+            market_pairs.isin(evaluation_pairs)
+            & market["trade_time"].between(
+                evaluation["decision_time"].min(), evaluation["exit_time"].max()
+            )
+        ]
+        for model_name in candidate_names():
+            probability, _ = fit_predict(
+                Candidate(model_name, float(thresholds[0])), train, evaluation, config
+            )
+            for threshold in thresholds:
+                threshold = float(threshold)
+                scored = evaluation.copy()
+                scored["probability"] = probability
+                trades, daily = simulate_standardized_ledger(
+                    scored, fold_market, threshold, 5, symbol_count
+                )
+                strategy = strategy_metrics(trades, daily)
+                row = {
+                    "model_name": model_name,
+                    "threshold": threshold,
+                    "fold": fold.name,
+                    "train_rows": len(train),
+                    "evaluation_rows": len(evaluation),
+                    **_probability_metrics(evaluation["label"], probability, threshold),
+                    "return_5bps": strategy["total_return"],
+                    "turnover": strategy["turnover"],
+                }
+                score_rows.append(row)
+                selectable_rows.append(row)
+
+        x_train = train.loc[:, FEATURE_COLUMNS]
+        x_evaluation = evaluation.loc[:, FEATURE_COLUMNS]
+        dummy = DummyClassifier(strategy="prior", random_state=config.seed)
+        dummy.fit(
+            x_train, train["label"],
+            sample_weight=inverse_symbol_class_weights(train),
+        )
+        dummy_probability = dummy.predict_proba(x_evaluation)[:, 1]
+        if not np.isfinite(dummy_probability).all():
+            raise ResearchRejected("dummy probabilities must be finite")
+        score_rows.append({
+            "model_name": "dummy_prior",
+            "threshold": np.nan,
+            "fold": fold.name,
+            "train_rows": len(train),
+            "evaluation_rows": len(evaluation),
+            **_probability_metrics(evaluation["label"], dummy_probability, 0.5),
+            "return_5bps": np.nan,
+            "turnover": np.nan,
+        })
+    return choose_from_scores(pd.DataFrame(selectable_rows)), pd.DataFrame(score_rows)
+
+
 def _segment_features(group):
     close = group["close"].astype(float)
     volume = group["volume"].astype(float)
@@ -275,10 +483,8 @@ def _contiguous_windows(times, count):
 def purged_training_rows(dataset, train_times, evaluation_start, embargo_bars):
     if embargo_bars < 0:
         raise ResearchRejected("embargo bars must be non-negative")
-    train = dataset[
-        dataset["decision_time"].isin(train_times)
-        & (dataset["label_end_time"] < evaluation_start)
-    ].copy()
+    train = dataset[dataset["decision_time"].isin(train_times)].copy()
+    train = train[train["label_end_time"] < evaluation_start].copy()
     keep = pd.Series(True, index=train.index)
     for _, group in train.groupby("symbol", sort=False):
         keep.loc[group.sort_values("decision_time").tail(embargo_bars).index] = False
