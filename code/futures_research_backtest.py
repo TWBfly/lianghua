@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import sqlite3
 from dataclasses import dataclass
 from numbers import Real
@@ -282,13 +284,7 @@ def fit_predict(candidate, train, evaluation, config=ResearchConfig()):
 
 
 def _probability_metrics(labels, probability, threshold):
-    return {
-        "roc_auc": float(roc_auc_score(labels, probability)),
-        "balanced_accuracy": float(
-            balanced_accuracy_score(labels, probability >= threshold)
-        ),
-        "brier_score": float(brier_score_loss(labels, probability)),
-    }
+    return predictive_metrics(labels, probability, threshold)
 
 
 def choose_from_scores(scores):
@@ -962,3 +958,381 @@ def strategy_metrics(trades, daily):
     if not all(np.isfinite(value) for value in result.values()):
         raise ResearchRejected("non-finite strategy metrics")
     return result
+
+
+def predictive_metrics(labels, probability, threshold):
+    try:
+        labels = np.asarray(labels, dtype=float)
+        probability = np.asarray(probability, dtype=float)
+    except (TypeError, ValueError) as exc:
+        raise ResearchRejected("invalid predictive metric input") from exc
+    if (
+        labels.ndim != 1
+        or probability.ndim != 1
+        or len(labels) != len(probability)
+        or not len(labels)
+        or not np.isfinite(labels).all()
+        or not np.isfinite(probability).all()
+        or set(labels) != {0, 1}
+        or (probability < 0.0).any()
+        or (probability > 1.0).any()
+        or not _finite_number(threshold)
+        or not 0.0 <= float(threshold) <= 1.0
+    ):
+        raise ResearchRejected("invalid predictive metric input")
+    label_rank = pd.Series(labels).rank().to_numpy(dtype=float)
+    probability_rank = pd.Series(probability).rank().to_numpy(dtype=float)
+    rank_correlation = (
+        0.0
+        if np.ptp(label_rank) == 0.0 or np.ptp(probability_rank) == 0.0
+        else float(np.corrcoef(label_rank, probability_rank)[0, 1])
+    )
+    return {
+        "roc_auc": float(roc_auc_score(labels, probability)),
+        "balanced_accuracy": float(
+            balanced_accuracy_score(labels, probability >= float(threshold))
+        ),
+        "brier_score": float(brier_score_loss(labels, probability)),
+        "rank_correlation": rank_correlation,
+    }
+
+
+def moving_block_return_interval(daily_returns, config=ResearchConfig()):
+    returns = np.asarray(daily_returns, dtype=float)
+    if returns.ndim != 1 or len(returns) < 5 or not np.isfinite(returns).all():
+        raise ResearchRejected("moving-block interval requires five finite daily returns")
+    rng = np.random.default_rng(config.seed)
+    totals = []
+    for _ in range(1000):
+        sample = []
+        while len(sample) < len(returns):
+            start = int(rng.integers(0, len(returns) - 4))
+            sample.extend(returns[start:start + 5])
+        total = float(np.prod(1.0 + np.asarray(sample[:len(returns)])) - 1.0)
+        if not np.isfinite(total):
+            raise ResearchRejected("non-finite moving-block return")
+        totals.append(total)
+    p05, p50, p95 = np.percentile(totals, [5, 50, 95])
+    return {
+        "samples": 1000,
+        "block_days": 5,
+        "p05": float(p05),
+        "p50": float(p50),
+        "p95": float(p95),
+    }
+
+
+def _stable_parameter(value):
+    if value is None or isinstance(value, (str, bool, int, float)):
+        return value
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, (tuple, list)):
+        return [_stable_parameter(item) for item in value]
+    if isinstance(value, dict):
+        return {
+            str(key): _stable_parameter(item)
+            for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
+        }
+    return repr(value)
+
+
+def _model_identity(candidate, model, train):
+    parameters = {
+        key: _stable_parameter(value)
+        for key, value in sorted(model.get_params(deep=True).items())
+    }
+    cutoff = pd.Timestamp(train["decision_time"].max()).isoformat()
+    header = json.dumps({
+        "model_name": candidate.model_name,
+        "parameters": parameters,
+        "feature_names": FEATURE_COLUMNS,
+        "training_cutoff": cutoff,
+    }, sort_keys=True, separators=(",", ":")).encode()
+    row_hash = pd.util.hash_pandas_object(train, index=True).to_numpy(dtype=np.uint64)
+    target_hash = pd.util.hash_pandas_object(
+        train["label"], index=True
+    ).to_numpy(dtype=np.uint64)
+    digest = hashlib.sha256(header)
+    digest.update(row_hash.tobytes())
+    digest.update(target_hash.tobytes())
+    return digest.hexdigest()[:16], parameters
+
+
+def _evaluation_market(evaluation, market):
+    required = {"symbol", "segment_id", "trade_time", "open", "close"}
+    if not isinstance(market, pd.DataFrame) or required.difference(market.columns):
+        raise ResearchRejected("invalid segmented evaluation market")
+    pairs = pd.MultiIndex.from_frame(
+        evaluation.loc[:, ["symbol", "segment_id"]].drop_duplicates()
+    )
+    market_pairs = pd.MultiIndex.from_frame(market.loc[:, ["symbol", "segment_id"]])
+    return market.loc[
+        market_pairs.isin(pairs)
+        & market["trade_time"].between(
+            evaluation["decision_time"].min(), evaluation["exit_time"].max()
+        )
+    ].copy()
+
+
+def _ledger_by_cost(scored, market, threshold, costs, symbol_count):
+    trades_by_cost = {}
+    daily_by_cost = {}
+    metrics_by_cost = {}
+    signature = None
+    identity_columns = [
+        "symbol", "decision_time", "entry_time", "exit_time", "direction",
+        "entry_open", "exit_open",
+    ]
+    for cost in costs:
+        key = int(cost) if float(cost).is_integer() else float(cost)
+        trades, daily = simulate_standardized_ledger(
+            scored, market, threshold, cost, symbol_count
+        )
+        current = trades.loc[:, identity_columns].reset_index(drop=True)
+        if signature is None:
+            signature = current
+        elif not current.equals(signature):
+            raise ResearchRejected("cost runs changed the frozen trade set")
+        trades_by_cost[key] = trades
+        daily_by_cost[key] = daily
+        metrics_by_cost[key] = strategy_metrics(trades, daily)
+    return trades_by_cost, daily_by_cost, metrics_by_cost
+
+
+def evaluate_fold(dataset, market, fold, candidate, config=ResearchConfig()):
+    if not isinstance(dataset, pd.DataFrame) or not isinstance(candidate, Candidate):
+        raise ResearchRejected("invalid fold evaluation input")
+    try:
+        evaluation_times = pd.DatetimeIndex(fold.evaluation_times)
+        evaluation_start = evaluation_times[0]
+    except (AttributeError, IndexError, TypeError, ValueError) as exc:
+        raise ResearchRejected("invalid fold evaluation window") from exc
+    if (
+        evaluation_times.empty
+        or evaluation_times.has_duplicates
+        or not evaluation_times.is_monotonic_increasing
+    ):
+        raise ResearchRejected("invalid fold evaluation window")
+
+    train = purged_training_rows(
+        dataset, fold.train_times, evaluation_start, config.embargo_bars
+    )
+    evaluation = dataset[
+        dataset["decision_time"].isin(evaluation_times)
+    ].copy()
+    if evaluation.empty:
+        raise ResearchRejected("empty fold evaluation rows")
+    probability, model = fit_predict(candidate, train, evaluation, config)
+    scored = evaluation.copy()
+    scored["probability"] = probability
+    metrics = predictive_metrics(evaluation["label"], probability, candidate.threshold)
+    fold_market = _evaluation_market(evaluation, market)
+    symbol_count = int(evaluation["symbol"].nunique())
+    if symbol_count < 1:
+        raise ResearchRejected("model dataset has no symbols")
+    costs = tuple(config.costs_bps)
+    if (
+        not costs
+        or any(not _finite_number(cost) or float(cost) < 0.0 for cost in costs)
+        or len(set(float(cost) for cost in costs)) != len(costs)
+    ):
+        raise ResearchRejected("evaluation costs must be non-empty and unique")
+    model_identity, model_parameters = _model_identity(candidate, model, train)
+    trades_by_cost, daily_by_cost, cost_metrics = _ledger_by_cost(
+        scored, fold_market, candidate.threshold, costs, symbol_count
+    )
+    for cost, trades in trades_by_cost.items():
+        trades["fold"] = fold.name
+        trades["model_identity"] = model_identity
+        daily_by_cost[cost]["fold"] = fold.name
+        daily_by_cost[cost]["model_identity"] = model_identity
+
+    symbol_rows = []
+    for symbol in sorted(evaluation["symbol"].unique()):
+        symbol_scored = scored[scored["symbol"].eq(symbol)].copy()
+        symbol_predictive = predictive_metrics(
+            symbol_scored["label"], symbol_scored["probability"], candidate.threshold
+        )
+        _, _, symbol_cost_metrics = _ledger_by_cost(
+            symbol_scored, fold_market, candidate.threshold, costs, symbol_count
+        )
+        for cost, strategy in symbol_cost_metrics.items():
+            symbol_rows.append({
+                "fold": fold.name,
+                "symbol": symbol,
+                "cost_bps": cost,
+                "rows": len(symbol_scored),
+                **symbol_predictive,
+                **strategy,
+            })
+
+    dummy = DummyClassifier(strategy="prior", random_state=config.seed)
+    dummy.fit(
+        train.loc[:, FEATURE_COLUMNS], train["label"],
+        sample_weight=inverse_symbol_class_weights(train),
+    )
+    dummy_probability = dummy.predict_proba(evaluation.loc[:, FEATURE_COLUMNS])[:, 1]
+    benchmark_probabilities = {
+        "dummy_prior": dummy_probability,
+        "equal_weight_long_only": np.ones(len(evaluation)),
+    }
+    benchmarks = {}
+    reference_dates = {
+        cost: daily["date"].reset_index(drop=True)
+        for cost, daily in daily_by_cost.items()
+    }
+    for name, benchmark_probability in benchmark_probabilities.items():
+        benchmark_scored = evaluation.copy()
+        benchmark_scored["probability"] = benchmark_probability
+        benchmark_trades, benchmark_daily, benchmark_cost_metrics = _ledger_by_cost(
+            benchmark_scored, fold_market, candidate.threshold, costs, symbol_count
+        )
+        for cost, daily in benchmark_daily.items():
+            if not daily["date"].reset_index(drop=True).equals(reference_dates[cost]):
+                raise ResearchRejected("benchmark evaluation timestamps changed")
+        benchmarks[name] = {
+            "predictive_metrics": predictive_metrics(
+                evaluation["label"], benchmark_probability, candidate.threshold
+            ),
+            "cost_metrics": benchmark_cost_metrics,
+            "trades": benchmark_trades,
+            "daily": benchmark_daily,
+        }
+
+    result = {
+        "fold": fold.name,
+        "candidate": candidate,
+        "model_name": candidate.model_name,
+        "model_parameters": model_parameters,
+        "model_identity": model_identity,
+        "threshold": candidate.threshold,
+        "split_cutoffs": {
+            "training_start": pd.Timestamp(train["decision_time"].min()),
+            "training_cutoff": pd.Timestamp(train["decision_time"].max()),
+            "label_cutoff": pd.Timestamp(train["label_end_time"].max()),
+            "evaluation_start": pd.Timestamp(evaluation["decision_time"].min()),
+            "evaluation_end": pd.Timestamp(evaluation["decision_time"].max()),
+        },
+        "sample_counts": {
+            "train_rows": int(len(train)),
+            "evaluation_rows": int(len(evaluation)),
+            "symbols": symbol_count,
+            "train_dates": int(train["decision_time"].dt.normalize().nunique()),
+            "evaluation_dates": int(evaluation["decision_time"].dt.normalize().nunique()),
+            "positive_labels": int(evaluation["label"].sum()),
+            "negative_labels": int(len(evaluation) - evaluation["label"].sum()),
+        },
+        "predictive_metrics": metrics,
+        "cost_metrics": cost_metrics,
+        "benchmarks": benchmarks,
+        "symbol_metrics": pd.DataFrame(symbol_rows),
+        "trades": trades_by_cost,
+        "daily": daily_by_cost,
+    }
+    if fold.name == "holdout":
+        if 5 not in daily_by_cost:
+            raise ResearchRejected("locked holdout requires the 5 bp ledger")
+        result["bootstrap"] = moving_block_return_interval(
+            daily_by_cost[5]["portfolio_return"], config
+        )
+    return result
+
+
+def _partition_times(fold):
+    try:
+        train = pd.DatetimeIndex(fold.train_times)
+        evaluation = pd.DatetimeIndex(fold.evaluation_times)
+        ordered = train[-1] < evaluation[0]
+    except (AttributeError, IndexError, TypeError, ValueError) as exc:
+        raise ResearchRejected("invalid evaluation partition") from exc
+    if (
+        train.empty
+        or evaluation.empty
+        or train.hasnans
+        or evaluation.hasnans
+        or train.has_duplicates
+        or evaluation.has_duplicates
+        or not train.is_monotonic_increasing
+        or not evaluation.is_monotonic_increasing
+        or not ordered
+    ):
+        raise ResearchRejected("invalid evaluation partition")
+    return train, evaluation
+
+
+def _validate_evaluation_partitions(partitions):
+    try:
+        outer_folds = tuple(partitions["outer_folds"])
+        inner_by_outer = partitions["inner_by_outer"]
+        development_inner = tuple(partitions["development_inner_folds"])
+        holdout_fold = partitions["holdout_fold"]
+        outer_names = tuple(fold.name for fold in outer_folds)
+    except (AttributeError, KeyError, TypeError) as exc:
+        raise ResearchRejected("invalid evaluation partition") from exc
+    if (
+        len(outer_folds) != 3
+        or len(set(outer_names)) != 3
+        or "holdout" in outer_names
+        or holdout_fold.name != "holdout"
+    ):
+        raise ResearchRejected("invalid evaluation partition")
+    development, holdout = _partition_times(holdout_fold)
+    previous_outer_end = None
+    for fold in outer_folds:
+        train, evaluation = _partition_times(fold)
+        if (
+            not train.isin(development).all()
+            or not evaluation.isin(development).all()
+            or (previous_outer_end is not None and evaluation[0] <= previous_outer_end)
+        ):
+            raise ResearchRejected("invalid evaluation partition")
+        previous_outer_end = evaluation[-1]
+        try:
+            inner_folds = tuple(inner_by_outer[fold.name])
+        except (KeyError, TypeError) as exc:
+            raise ResearchRejected("invalid evaluation partition") from exc
+        _validate_inner_domains(inner_folds, train)
+    _validate_inner_domains(development_inner, development)
+    if not holdout.intersection(development).empty:
+        raise ResearchRejected("invalid evaluation partition")
+
+
+def _validate_inner_domains(folds, allowed_times):
+    try:
+        names = tuple(fold.name for fold in folds)
+    except (AttributeError, TypeError) as exc:
+        raise ResearchRejected("invalid evaluation partition") from exc
+    if len(folds) != 2 or len(set(names)) != 2:
+        raise ResearchRejected("invalid evaluation partition")
+    evaluation_windows = []
+    for fold in folds:
+        train, evaluation = _partition_times(fold)
+        if not train.isin(allowed_times).all() or not evaluation.isin(allowed_times).all():
+            raise ResearchRejected("invalid evaluation partition")
+        evaluation_windows.append(evaluation)
+    if not evaluation_windows[0].intersection(evaluation_windows[1]).empty:
+        raise ResearchRejected("invalid evaluation partition")
+
+
+def build_base_evaluation(dataset, market, partitions, config=ResearchConfig()):
+    _validate_evaluation_partitions(partitions)
+    outer_results = []
+    for fold in partitions["outer_folds"]:
+        inner = partitions["inner_by_outer"][fold.name]
+        chosen, inner_scores = select_candidate(dataset, market, inner, config)
+        outer_result = evaluate_fold(dataset, market, fold, chosen, config)
+        outer_result["inner_scores"] = inner_scores
+        outer_results.append(outer_result)
+    final_candidate, final_inner_scores = select_candidate(
+        dataset, market, partitions["development_inner_folds"], config
+    )
+    holdout_result = evaluate_fold(
+        dataset, market, partitions["holdout_fold"], final_candidate, config
+    )
+    return {
+        "outer_results": outer_results,
+        "final_candidate": final_candidate,
+        "final_inner_scores": final_inner_scores,
+        "holdout": holdout_result,
+    }

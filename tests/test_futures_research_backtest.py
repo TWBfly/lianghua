@@ -172,6 +172,31 @@ def make_segmented_bars(rows=120, symbol="AG_IDX", segment_id=None, start="2026-
     return bars
 
 
+def make_causal_evaluation_fixture(days=160):
+    frames = []
+    for symbol_number, symbol in enumerate(("AG_IDX", "CU_IDX")):
+        for day_number, day in enumerate(pd.bdate_range("2025-01-02", periods=days)):
+            direction = 1.0 if day_number % 2 == 0 else -1.0
+            times = pd.date_range(day + pd.Timedelta(hours=9), periods=64, freq="5min")
+            opens = (100.0 + symbol_number * 10.0) * np.exp(
+                direction * 0.001 * np.arange(len(times))
+            )
+            closes = opens * (1.0 + direction * 0.0002)
+            frames.append(pd.DataFrame({
+                "symbol": symbol,
+                "segment_id": f"{symbol}:{day.date()}",
+                "trade_time": times,
+                "open": opens,
+                "high": np.maximum(opens, closes) * 1.001,
+                "low": np.minimum(opens, closes) * 0.999,
+                "close": closes,
+                "volume": 100.0 + np.arange(len(times)) + np.arange(len(times)) % 3,
+            }))
+    segmented = pd.concat(frames, ignore_index=True)
+    dataset = build_causal_dataset(segmented)
+    return dataset, segmented
+
+
 def test_causal_label_uses_next_open_to_six_bar_exit_open_and_stays_in_segment():
     bars = make_segmented_bars()
     dataset = build_causal_dataset(bars, ResearchConfig(horizon=6))
@@ -596,6 +621,292 @@ def test_select_candidate_scores_fixed_search_and_reports_dummy_prior():
     selectable = scores[scores["model_name"].isin(candidate_names())]
     assert set(selectable["threshold"]) == set(ResearchConfig().thresholds)
     assert len(selectable) == 18
+
+
+class HoldoutGuardFrame(pd.DataFrame):
+    _metadata = ["holdout_start", "holdout_unlocked"]
+
+    @property
+    def _constructor(self):
+        return HoldoutGuardFrame
+
+    def __getitem__(self, key):
+        if (
+            isinstance(key, str)
+            and key in {"label", "future_return"}
+            and not self.holdout_unlocked
+            and (
+                pd.DataFrame.__getitem__(self, "decision_time")
+                >= self.holdout_start
+            ).any()
+        ):
+            raise AssertionError("locked holdout value accessed during selection")
+        return super().__getitem__(key)
+
+
+def test_outer_and_holdout_base_evaluation_is_temporally_isolated(monkeypatch):
+    dataset, market = make_causal_evaluation_fixture()
+    config = ResearchConfig(min_symbols=2, min_fold_rows=5)
+    partitions = make_temporal_partitions(dataset, config)
+    holdout = partitions["holdout_fold"]
+    guarded = HoldoutGuardFrame(dataset)
+    guarded.holdout_start = holdout.evaluation_times[0]
+    guarded.holdout_unlocked = False
+    selection_calls = []
+    holdout_fits = []
+    real_select = research.select_candidate
+    real_evaluate = research.evaluate_fold
+    real_fit = research.fit_predict
+
+    def tracked_select(rows, marks, folds, supplied_config):
+        chosen, scores = real_select(rows, marks, folds, supplied_config)
+        selection_calls.append((tuple(fold.name for fold in folds), chosen, scores))
+        return chosen, scores
+
+    def unlock_only_for_final_evaluation(rows, marks, fold, candidate, supplied_config):
+        if fold.name == "holdout":
+            rows.holdout_unlocked = True
+        return real_evaluate(rows, marks, fold, candidate, supplied_config)
+
+    def tracked_fit(candidate, train, evaluation, supplied_config=ResearchConfig()):
+        if evaluation["decision_time"].min() == holdout.evaluation_times[0]:
+            holdout_fits.append(train.copy())
+        return real_fit(candidate, train, evaluation, supplied_config)
+
+    monkeypatch.setattr(research, "select_candidate", tracked_select)
+    monkeypatch.setattr(research, "evaluate_fold", unlock_only_for_final_evaluation)
+    monkeypatch.setattr(research, "fit_predict", tracked_fit)
+
+    result = research.build_base_evaluation(guarded, market, partitions, config)
+
+    assert len(result["outer_results"]) == 3
+    expected_selection_folds = [
+        tuple(fold.name for fold in partitions["inner_by_outer"][outer.name])
+        for outer in partitions["outer_folds"]
+    ] + [tuple(fold.name for fold in partitions["development_inner_folds"])]
+    assert [call[0] for call in selection_calls] == expected_selection_folds
+    assert [fold_result["candidate"] for fold_result in result["outer_results"]] == [
+        call[1] for call in selection_calls[:3]
+    ]
+    for _, chosen, scores in selection_calls[:3]:
+        candidate_scores = scores[scores["model_name"].isin(candidate_names())]
+        assert chosen == choose_from_scores(candidate_scores)
+    assert result["final_candidate"] == selection_calls[-1][1]
+    pd.testing.assert_frame_equal(result["final_inner_scores"], selection_calls[-1][2])
+
+    assert len(holdout_fits) == 1
+    final_train = holdout_fits[0]
+    assert (final_train["label_end_time"] < holdout.evaluation_times[0]).all()
+    eligible = dataset[
+        dataset["decision_time"].isin(holdout.train_times)
+        & (dataset["label_end_time"] < holdout.evaluation_times[0])
+    ]
+    for _, rows in eligible.groupby("symbol"):
+        embargoed = rows.sort_values("decision_time").tail(config.embargo_bars)
+        assert set(embargoed.index).isdisjoint(final_train.index)
+
+    for fold_result in [*result["outer_results"], result["holdout"]]:
+        assert len(fold_result["model_identity"]) == 16
+        assert int(fold_result["model_identity"], 16) >= 0
+        assert set(fold_result["cost_metrics"]) == set(config.costs_bps)
+        assert set(fold_result["benchmarks"]) == {
+            "dummy_prior", "equal_weight_long_only",
+        }
+        reference = fold_result["trades"][config.costs_bps[0]][
+            ["symbol", "decision_time", "entry_time", "exit_time", "direction"]
+        ].reset_index(drop=True)
+        for cost in config.costs_bps[1:]:
+            pd.testing.assert_frame_equal(
+                reference,
+                fold_result["trades"][cost][reference.columns].reset_index(drop=True),
+            )
+        for cost in config.costs_bps:
+            counts = fold_result["trades"][cost].groupby("symbol").size()
+            rows = fold_result["symbol_metrics"]
+            rows = rows[rows["cost_bps"].eq(cost)].set_index("symbol")
+            assert rows["trades"].to_dict() == {
+                symbol: int(counts.get(symbol, 0)) for symbol in rows.index
+            }
+            for benchmark in fold_result["benchmarks"].values():
+                pd.testing.assert_series_equal(
+                    benchmark["daily"][cost]["date"].reset_index(drop=True),
+                    fold_result["daily"][cost]["date"].reset_index(drop=True),
+                )
+
+
+def test_outer_evaluation_ignores_future_only_symbol_statistics():
+    dataset = make_model_dataset()
+    market = make_model_market(dataset)
+    times = pd.DatetimeIndex(dataset["decision_time"].unique())
+    fold = research.TemporalFold("outer_future_guard", times[:240], times[240:340])
+    config = ResearchConfig(costs_bps=(5,))
+    expected = research.evaluate_fold(
+        dataset, market, fold, Candidate("logistic_c0.1", 0.55), config
+    )
+    attacked = dataset.copy()
+    attacked.loc[attacked["decision_time"] >= times[340], "symbol"] = "FUTURE_ONLY"
+    attacked_market = market.copy()
+    attacked_market.loc[
+        attacked_market["trade_time"] >= times[340], "symbol"
+    ] = "FUTURE_ONLY"
+
+    actual = research.evaluate_fold(
+        attacked, attacked_market, fold, Candidate("logistic_c0.1", 0.55), config
+    )
+
+    assert actual["sample_counts"] == expected["sample_counts"]
+    assert actual["model_identity"] == expected["model_identity"]
+    assert actual["predictive_metrics"] == pytest.approx(expected["predictive_metrics"])
+    assert actual["cost_metrics"][5] == pytest.approx(expected["cost_metrics"][5])
+
+
+def test_model_identity_hashes_every_audit_input(monkeypatch):
+    dataset = make_model_dataset(80)
+    train = dataset.iloc[:120].copy()
+    evaluation = dataset.iloc[120:].copy()
+    candidate = Candidate("logistic_c0.1", 0.55)
+    _, model = fit_predict(candidate, train, evaluation)
+    baseline = research._model_identity(candidate, model, train)[0]
+    identities = {baseline}
+    identities.add(research._model_identity(
+        Candidate("logistic_c1.0", 0.55), model, train
+    )[0])
+    model.set_params(logisticregression__C=2.0)
+    identities.add(research._model_identity(candidate, model, train)[0])
+    model.set_params(logisticregression__C=0.1)
+    changed_row = train.copy()
+    changed_row.loc[changed_row.index[0], "ret_1"] += 1.0
+    identities.add(research._model_identity(candidate, model, changed_row)[0])
+    changed_target = train.copy()
+    changed_target.loc[changed_target.index[0], "label"] = 1 - changed_target.loc[
+        changed_target.index[0], "label"
+    ]
+    identities.add(research._model_identity(candidate, model, changed_target)[0])
+    original_features = research.FEATURE_COLUMNS
+    monkeypatch.setattr(research, "FEATURE_COLUMNS", original_features[::-1])
+    identities.add(research._model_identity(candidate, model, train)[0])
+
+    assert len(baseline) == 16
+    assert int(baseline, 16) >= 0
+    assert len(identities) == 6
+
+
+def test_base_evaluation_rejects_holdout_time_in_inner_domain_before_selection(
+    monkeypatch,
+):
+    dataset = make_partition_dataset()
+    config = ResearchConfig(min_symbols=2, min_fold_rows=50)
+    partitions = make_temporal_partitions(dataset, config)
+    holdout_time = partitions["holdout_fold"].evaluation_times[0]
+    development_inner = list(partitions["development_inner_folds"])
+    poisoned = development_inner[1]
+    development_inner[1] = research.TemporalFold(
+        poisoned.name,
+        poisoned.train_times,
+        poisoned.evaluation_times.append(pd.DatetimeIndex([holdout_time])),
+    )
+    partitions["development_inner_folds"] = development_inner
+    calls = 0
+
+    def unexpected_selection(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        raise AssertionError("selection started before partition validation")
+
+    monkeypatch.setattr(research, "select_candidate", unexpected_selection)
+
+    with pytest.raises(ResearchRejected, match="partition"):
+        research.build_base_evaluation(dataset, None, partitions, config)
+    assert calls == 0
+
+
+def test_base_evaluation_rejects_renamed_holdout_before_selection(monkeypatch):
+    dataset = make_partition_dataset()
+    config = ResearchConfig(min_symbols=2, min_fold_rows=50)
+    partitions = make_temporal_partitions(dataset, config)
+    holdout = partitions["holdout_fold"]
+    partitions["holdout_fold"] = research.TemporalFold(
+        "renamed", holdout.train_times, holdout.evaluation_times
+    )
+    calls = 0
+
+    def unexpected_selection(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        raise AssertionError("selection started before partition validation")
+
+    monkeypatch.setattr(research, "select_candidate", unexpected_selection)
+
+    with pytest.raises(ResearchRejected, match="partition"):
+        research.build_base_evaluation(dataset, None, partitions, config)
+    assert calls == 0
+
+
+def test_base_evaluation_rejects_outer_named_holdout_before_selection(monkeypatch):
+    dataset = make_partition_dataset()
+    config = ResearchConfig(min_symbols=2, min_fold_rows=50)
+    partitions = make_temporal_partitions(dataset, config)
+    outer = list(partitions["outer_folds"])
+    renamed = research.TemporalFold(
+        "holdout", outer[0].train_times, outer[0].evaluation_times
+    )
+    inner_by_outer = dict(partitions["inner_by_outer"])
+    inner_by_outer[renamed.name] = inner_by_outer.pop(outer[0].name)
+    outer[0] = renamed
+    partitions["outer_folds"] = outer
+    partitions["inner_by_outer"] = inner_by_outer
+    calls = 0
+
+    def unexpected_selection(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        raise AssertionError("selection started before partition validation")
+
+    monkeypatch.setattr(research, "select_candidate", unexpected_selection)
+
+    with pytest.raises(ResearchRejected, match="partition"):
+        research.build_base_evaluation(dataset, None, partitions, config)
+    assert calls == 0
+
+
+def test_holdout_predictive_metrics_fail_closed_and_include_rank_correlation():
+    metrics = research.predictive_metrics([0, 0, 1, 1], [0.1, 0.2, 0.8, 0.9], 0.55)
+
+    assert metrics == pytest.approx({
+        "roc_auc": 1.0,
+        "balanced_accuracy": 1.0,
+        "brier_score": 0.025,
+        "rank_correlation": 0.8944271909999159,
+    })
+    with pytest.raises(ResearchRejected):
+        research.predictive_metrics([1, 1], [0.8, 0.9], 0.55)
+    with pytest.raises(ResearchRejected):
+        research.predictive_metrics([0, 1], [0.2, np.inf], 0.55)
+    with pytest.raises(ResearchRejected):
+        research.predictive_metrics([0, "bad"], [0.2, 0.8], 0.55)
+
+
+def test_bootstrap_uses_1000_deterministic_five_day_moving_blocks():
+    returns = np.array([0.01, -0.02, 0.03, 0.00, 0.02, -0.01, 0.04, -0.03])
+    rng = np.random.default_rng(42)
+    samples = []
+    for _ in range(1000):
+        sample = []
+        while len(sample) < len(returns):
+            start = rng.integers(0, len(returns) - 5 + 1)
+            sample.extend(returns[start:start + 5])
+        samples.append(np.prod(1.0 + np.asarray(sample[:len(returns)])) - 1.0)
+    expected = np.percentile(samples, [5, 50, 95])
+
+    first = research.moving_block_return_interval(returns, ResearchConfig(seed=42))
+    second = research.moving_block_return_interval(returns, ResearchConfig(seed=42))
+
+    assert first == second
+    assert first["samples"] == 1000
+    assert first["block_days"] == 5
+    assert [first["p05"], first["p50"], first["p95"]] == pytest.approx(expected)
+    with pytest.raises(ResearchRejected):
+        research.moving_block_return_interval(returns[:4], ResearchConfig(seed=42))
 
 
 @pytest.mark.parametrize(
