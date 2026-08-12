@@ -12,6 +12,7 @@ from pathlib import Path
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 EXPORT_DIR = DATA_DIR / "export"
 DB_PATH = DATA_DIR / "ashare_quant.db"
+HEADER = ["日期", "时间", "开盘", "最高", "最低", "收盘", "成交量", "持仓量", "结算价"]
 INSERT_SQL = """
 INSERT INTO futures_min_bars (
     symbol, timeframe, trade_time, open, high, low, close,
@@ -79,9 +80,11 @@ def read_export(path):
         reader = csv.reader(stream, delimiter="\t")
         try:
             title = next(reader)[0].strip()
-            next(reader)
+            header = [field.strip() for field in next(reader)]
         except (IndexError, StopIteration) as exc:
             raise ValueError(f"malformed export: {path.name}") from exc
+        if header != HEADER:
+            raise ValueError(f"unsupported export header: {path.name}")
         for line_number, fields in enumerate(reader, start=3):
             if len(fields) != 9:
                 raise ValueError(f"malformed row {line_number} in {path.name}")

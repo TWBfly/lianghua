@@ -88,6 +88,23 @@ def test_invalid_export_rolls_back_bars_and_metadata(tmp_path, text):
     assert _counts(db_path) == (0, 0)
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        VALID_EXPORT.replace("成交量", "成交额", 1),
+        VALID_EXPORT.replace("成交量\t持仓量", "持仓量\t成交量", 1),
+    ],
+    ids=["wrong_column_name", "wrong_column_order"],
+)
+def test_import_rejects_export_with_drifted_header(tmp_path, text):
+    export_dir = tmp_path / "export"
+    export_dir.mkdir()
+    _write_export(export_dir, text)
+
+    with pytest.raises(ValueError, match="header"):
+        import_exports(export_dir, tmp_path / "quant.db")
+
+
 def test_import_requires_explicit_replacement_and_preserves_other_series(tmp_path):
     export_dir = tmp_path / "export"
     export_dir.mkdir()
@@ -119,3 +136,43 @@ def test_import_requires_explicit_replacement_and_preserves_other_series(tmp_pat
             "SELECT COUNT(*) FROM futures_min_bars "
             "WHERE (symbol='AG_IDX' AND timeframe='15m') OR symbol='OTHER_IDX'"
         ).fetchone()[0] == 2
+
+
+def test_replace_rolls_back_bars_and_metadata_when_metadata_upsert_fails(tmp_path):
+    export_dir = tmp_path / "export"
+    export_dir.mkdir()
+    _write_export(export_dir)
+    db_path = tmp_path / "quant.db"
+    import_exports(export_dir, db_path)
+
+    with sqlite3.connect(db_path) as conn:
+        old_bars = conn.execute(
+            "SELECT * FROM futures_min_bars WHERE symbol='AG_IDX' AND timeframe='5m'"
+        ).fetchall()
+        old_metadata = conn.execute(
+            "SELECT * FROM futures_series_metadata "
+            "WHERE symbol='AG_IDX' AND timeframe='5m'"
+        ).fetchall()
+        conn.execute("""
+            CREATE TRIGGER fail_metadata_update
+            BEFORE UPDATE ON futures_series_metadata
+            BEGIN
+                SELECT RAISE(ABORT, 'metadata upsert failure');
+            END
+        """)
+
+    _write_export(
+        export_dir,
+        VALID_EXPORT.replace("\t10\t12\t9\t11\t5\t100", "\t20\t22\t19\t21\t5\t100", 1),
+    )
+    with pytest.raises(sqlite3.IntegrityError, match="metadata upsert failure"):
+        import_exports(export_dir, db_path, replace_existing=True)
+
+    with sqlite3.connect(db_path) as conn:
+        assert conn.execute(
+            "SELECT * FROM futures_min_bars WHERE symbol='AG_IDX' AND timeframe='5m'"
+        ).fetchall() == old_bars
+        assert conn.execute(
+            "SELECT * FROM futures_series_metadata "
+            "WHERE symbol='AG_IDX' AND timeframe='5m'"
+        ).fetchall() == old_metadata
