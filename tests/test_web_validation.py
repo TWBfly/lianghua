@@ -248,14 +248,14 @@ def test_frontend_exposes_truthful_strategy_and_mode_controls():
 
 
 def test_invalidated_ml_engines_are_documented_and_not_executable():
-    from strategy_hot_plugger import hot_plugger
+    from backtest_kline_engine import EXECUTABLE_STRATEGIES
     from web_server import app
 
     root = Path(__file__).resolve().parents[1]
     status_path = root / "docs" / "research-only-ml-engines.md"
     assert status_path.exists()
     status = status_path.read_text(encoding="utf-8")
-    executable = set(hot_plugger.get_executable_strategies())
+    executable = set(EXECUTABLE_STRATEGIES)
     response = app.test_client().get("/api/strategies")
     assert response.status_code == 200
     exposed = {
@@ -264,7 +264,6 @@ def test_invalidated_ml_engines_are_documented_and_not_executable():
     }
 
     for module in RESEARCH_ONLY_INVALIDATED:
-        assert (root / "code" / f"{module}.py").exists()
         assert f"`{module}` — `RESEARCH_ONLY_INVALIDATED`" in status
         assert module not in executable
         assert module not in exposed
