@@ -351,8 +351,8 @@ def test_evaluation_extremes_cannot_change_logistic_scaler():
 
 def test_inverse_weights_equalize_each_symbol_and_class_total():
     frame = pd.DataFrame({
-        "symbol": ["AG_IDX"] * 6 + ["CU_IDX"] * 6,
-        "label": [0, 0, 0, 1, 1, 1] * 2,
+        "symbol": ["AG_IDX"] * 100 + ["CU_IDX"] * 20,
+        "label": [0] * 90 + [1] * 10 + [0] * 10 + [1] * 10,
     })
 
     weights = inverse_symbol_class_weights(frame)
@@ -361,6 +361,16 @@ def test_inverse_weights_equalize_each_symbol_and_class_total():
     assert weights.mean() == pytest.approx(1.0)
     assert weighted.groupby("symbol")["weight"].sum().nunique() == 1
     assert weighted.groupby("label")["weight"].sum().nunique() == 1
+
+
+def test_inverse_weights_reject_symbol_missing_a_class():
+    frame = pd.DataFrame({
+        "symbol": ["AG_IDX"] * 4 + ["CU_IDX"] * 2,
+        "label": [0, 0, 1, 1, 0, 0],
+    })
+
+    with pytest.raises(ResearchRejected, match="each symbol.*both classes"):
+        inverse_symbol_class_weights(frame)
 
 
 @pytest.mark.parametrize("column", ["label", "ret_1"])
@@ -391,6 +401,39 @@ def test_selection_requires_both_inner_folds_positive():
     assert choose_from_scores(scores) == Candidate("logistic_c0.1", 0.55)
 
 
+def test_selection_requires_two_distinct_score_folds():
+    scores = pd.DataFrame([
+        {"model_name": "logistic_c0.1", "threshold": 0.55,
+         "fold": "inner_1", "return_5bps": 0.02, "turnover": 0.2},
+        {"model_name": "logistic_c0.1", "threshold": 0.55,
+         "fold": "inner_1", "return_5bps": 0.01, "turnover": 0.2},
+    ])
+
+    with pytest.raises(ResearchRejected):
+        choose_from_scores(scores)
+
+
+def test_select_candidate_rejects_duplicate_fold_name_or_window_before_fit(
+    monkeypatch,
+):
+    dataset = make_model_dataset(30)
+    times = pd.DatetimeIndex(dataset["decision_time"].unique())
+    first = research.TemporalFold("inner_1", times[:10], times[10:14])
+    cases = [
+        [first, first],
+        [first, research.TemporalFold("inner_1", times[:14], times[14:18])],
+        [first, research.TemporalFold("inner_2", times[:14], times[10:14])],
+    ]
+
+    def unexpected_fit(*args, **kwargs):
+        raise AssertionError("model fit happened before fold validation")
+
+    monkeypatch.setattr(research, "fit_predict", unexpected_fit)
+    for folds in cases:
+        with pytest.raises(ResearchRejected, match="two distinct inner folds"):
+            select_candidate(dataset, None, folds, ResearchConfig(embargo_bars=0))
+
+
 def _two_fold_scores(candidates):
     return pd.DataFrame([
         {"model_name": model, "threshold": threshold, "fold": fold,
@@ -398,6 +441,43 @@ def _two_fold_scores(candidates):
         for model, threshold, return_, turnover in candidates
         for fold in ("inner_1", "inner_2")
     ])
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda scores: scores.drop(columns="turnover"),
+        lambda scores: scores.assign(model_name="dummy_prior"),
+        lambda scores: scores.assign(model_name="unapproved_model"),
+        lambda scores: scores.assign(threshold=0.51),
+        lambda scores: scores.assign(return_5bps=np.inf),
+        lambda scores: scores.assign(turnover=np.nan),
+        lambda scores: scores.assign(turnover=-0.1),
+    ],
+    ids=[
+        "missing_schema", "dummy_numeric_threshold", "unknown_model",
+        "unknown_threshold", "infinite_return", "nan_turnover",
+        "negative_turnover",
+    ],
+)
+def test_score_chooser_rejects_invalid_public_contract(mutate):
+    scores = _two_fold_scores([("logistic_c0.1", 0.55, 0.01, 0.1)])
+
+    with pytest.raises(ResearchRejected):
+        choose_from_scores(mutate(scores))
+
+
+def test_score_chooser_is_independent_of_input_order_on_exact_ties():
+    scores = _two_fold_scores([
+        ("logistic_c0.1", 0.55, 0.01, 0.1),
+        ("logistic_c1.0", 0.55, 0.01, 0.1),
+    ])
+
+    expected = choose_from_scores(scores)
+    actual = choose_from_scores(scores.iloc[::-1].reset_index(drop=True))
+
+    assert expected == Candidate("logistic_c0.1", 0.55)
+    assert actual == expected
 
 
 def test_selection_ties_use_return_turnover_logistic_then_higher_threshold():

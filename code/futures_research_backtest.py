@@ -213,9 +213,15 @@ def candidate_names():
 
 
 def inverse_symbol_class_weights(frame):
-    symbol_count = frame.groupby("symbol")["symbol"].transform("size")
-    class_count = frame.groupby("label")["label"].transform("size")
-    weights = 1.0 / symbol_count.astype(float) / class_count.astype(float)
+    complete = frame.groupby("symbol", dropna=False)["label"].agg(
+        lambda labels: set(labels) == {0, 1}
+    )
+    if frame.empty or not complete.all():
+        raise ResearchRejected("each symbol must contain both classes")
+    cell_count = frame.groupby(
+        ["symbol", "label"], dropna=False
+    )["label"].transform("size")
+    weights = 1.0 / cell_count.astype(float)
     return weights / weights.mean()
 
 
@@ -286,11 +292,40 @@ def _probability_metrics(labels, probability, threshold):
 
 
 def choose_from_scores(scores):
+    required = {"model_name", "threshold", "fold", "return_5bps", "turnover"}
+    if (
+        not isinstance(scores, pd.DataFrame)
+        or scores.empty
+        or not scores.columns.is_unique
+        or required.difference(scores.columns)
+    ):
+        raise ResearchRejected("invalid candidate score frame")
+    if (
+        not scores["model_name"].map(lambda value: isinstance(value, str)).all()
+        or not scores["model_name"].isin(candidate_names()).all()
+        or not scores["fold"].map(
+            lambda value: isinstance(value, str) and bool(value)
+        ).all()
+        or scores["fold"].nunique() != 2
+        or not scores["threshold"].map(
+            lambda value: _finite_number(value)
+            and float(value) in (0.52, 0.55, 0.58)
+        ).all()
+        or not scores["return_5bps"].map(_finite_number).all()
+        or not scores["turnover"].map(_finite_number).all()
+        or (scores["turnover"] < 0.0).any()
+    ):
+        raise ResearchRejected("invalid candidate score frame")
     grouped = []
     for (model_name, threshold), rows in scores.groupby(
         ["model_name", "threshold"], sort=False
     ):
-        if len(rows) != 2 or not (rows["return_5bps"] > 0).all():
+        if (
+            len(rows) != 2
+            or rows["fold"].nunique(dropna=False) != 2
+        ):
+            raise ResearchRejected("invalid candidate score frame")
+        if not (rows["return_5bps"] > 0).all():
             continue
         grouped.append({
             "candidate": Candidate(str(model_name), float(threshold)),
@@ -308,12 +343,19 @@ def choose_from_scores(scores):
         row["turnover"],
         row["candidate"].model_name == "lightgbm_constrained",
         -row["candidate"].threshold,
+        candidate_names().index(row["candidate"].model_name),
     ))
     return near[0]["candidate"]
 
 
 def select_candidate(dataset, market, folds, config=ResearchConfig()):
     folds = tuple(folds)
+    if (
+        len(folds) != 2
+        or len({fold.name for fold in folds}) != 2
+        or len({tuple(fold.evaluation_times) for fold in folds}) != 2
+    ):
+        raise ResearchRejected("selection requires two distinct inner folds")
     thresholds = tuple(config.thresholds)
     allowed_thresholds = (0.52, 0.55, 0.58)
     if (
