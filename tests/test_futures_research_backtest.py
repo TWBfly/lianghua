@@ -5,9 +5,14 @@ import pandas as pd
 import pytest
 
 from futures_research_backtest import (
+    FEATURE_COLUMNS,
     ResearchConfig,
     ResearchRejected,
+    assert_feature_columns,
+    build_causal_dataset,
     load_futures_bars,
+    make_temporal_partitions,
+    purged_training_rows,
     validate_and_segment,
 )
 from import_futures_5m import ensure_schema
@@ -148,6 +153,85 @@ def test_non_null_optional_source_values_must_be_finite():
 
     with pytest.raises(ResearchRejected):
         validate_and_segment(bars, ResearchConfig(min_symbol_rows=1, min_fold_rows=1))
+
+
+def make_segmented_bars(rows=120, symbol="AG_IDX", segment_id=None, start="2026-01-02 09:00"):
+    bars = make_bars(rows, symbol)
+    bars["trade_time"] = pd.date_range(start, periods=rows, freq="5min")
+    bars["volume"] = np.arange(1.0, rows + 1.0)
+    bars["segment_id"] = segment_id or f"{symbol}:1"
+    return bars
+
+
+def test_causal_label_uses_next_open_to_six_bar_exit_open_and_stays_in_segment():
+    bars = make_segmented_bars()
+    dataset = build_causal_dataset(bars, ResearchConfig(horizon=6))
+    decision = bars.iloc[60]
+    row = dataset.loc[dataset["decision_time"].eq(decision.trade_time)].iloc[0]
+
+    assert row.entry_time == bars.iloc[61].trade_time
+    assert row.exit_time == bars.iloc[67].trade_time
+    assert row.entry_open == pytest.approx(bars.iloc[61].open)
+    assert row.exit_open == pytest.approx(bars.iloc[67].open)
+    assert row.future_return == pytest.approx(bars.iloc[67].open / bars.iloc[61].open - 1)
+    assert row.label == 1
+
+    segmented = bars.copy()
+    segmented.loc[64:, "segment_id"] = "AG_IDX:2"
+    broken = build_causal_dataset(segmented, ResearchConfig(horizon=6))
+    assert decision.trade_time not in set(broken["decision_time"])
+
+
+def test_causal_dataset_prefix_is_unchanged_when_future_bars_are_appended():
+    bars = make_segmented_bars()
+    before = build_causal_dataset(bars, ResearchConfig(horizon=6)).reset_index(drop=True)
+    extended = pd.concat([bars, make_segmented_bars(10, start="2026-01-02 19:00")], ignore_index=True)
+    after = build_causal_dataset(extended, ResearchConfig(horizon=6))
+    prefix = after[after["decision_time"].isin(before["decision_time"])].reset_index(drop=True)
+
+    pd.testing.assert_frame_equal(before, prefix)
+
+
+def test_feature_whitelist_rejects_future_and_unknown_columns():
+    matrix = pd.DataFrame({name: [0.0] for name in FEATURE_COLUMNS})
+    assert_feature_columns(matrix)
+    with pytest.raises(ResearchRejected, match="feature whitelist"):
+        assert_feature_columns(matrix.assign(future_return=1.0))
+    with pytest.raises(ResearchRejected, match="feature whitelist"):
+        assert_feature_columns(matrix.assign(symbol_code=1.0))
+
+
+def make_partition_dataset():
+    times = pd.date_range("2020-01-01", periods=1500, freq="D")
+    rows = []
+    for symbol in ("AG_IDX", "CU_IDX"):
+        rows.append(pd.DataFrame({
+            "symbol": symbol,
+            "decision_time": times,
+            "label_end_time": times + pd.Timedelta(days=1),
+        }))
+    return pd.concat(rows, ignore_index=True)
+
+
+def test_temporal_partitions_lock_holdout_and_purge_labels_and_embargo():
+    dataset = make_partition_dataset()
+    config = ResearchConfig(min_symbols=2, min_fold_rows=50, embargo_bars=6)
+    partitions = make_temporal_partitions(dataset, config)
+    times = pd.DatetimeIndex(dataset["decision_time"].unique()).sort_values()
+    holdout = partitions["holdout_fold"]
+
+    assert holdout.evaluation_times[0] == times[int(np.floor(0.8 * len(times)))]
+    outer = partitions["outer_folds"]
+    assert len(outer) == 3
+    assert pd.DatetimeIndex(np.concatenate([fold.evaluation_times for fold in outer])).is_monotonic_increasing
+    assert len(set().union(*(set(fold.evaluation_times) for fold in outer))) == sum(len(fold.evaluation_times) for fold in outer)
+
+    fold = outer[0]
+    purged = purged_training_rows(dataset, fold.train_times, fold.evaluation_times[0], config.embargo_bars)
+    assert (purged["label_end_time"] < fold.evaluation_times[0]).all()
+    for symbol, group in dataset[dataset["decision_time"].isin(fold.train_times)].groupby("symbol"):
+        eligible = group[group["label_end_time"] < fold.evaluation_times[0]].sort_values("decision_time")
+        assert set(eligible.tail(config.embargo_bars).index).isdisjoint(purged.index)
 
 
 @pytest.mark.parametrize(
