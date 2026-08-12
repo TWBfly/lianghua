@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import futures_research_backtest as research
 from futures_research_backtest import (
     FEATURE_COLUMNS,
     ResearchConfig,
@@ -586,21 +587,20 @@ def test_ledger_market_lookup_count_is_not_per_trade(monkeypatch):
         ["symbol", "segment_id", "trade_time"]
     )
     calls = 0
-    original = pd.Series.eq
+    original = research._segment_arrays
 
-    def counted_eq(series, other, *args, **kwargs):
+    def counted_segment_arrays(group):
         nonlocal calls
-        if len(series) == len(market) and series.name in {"symbol", "segment_id"}:
-            calls += 1
-        return original(series, other, *args, **kwargs)
+        calls += 1
+        return original(group)
 
-    monkeypatch.setattr(pd.Series, "eq", counted_eq)
+    monkeypatch.setattr(research, "_segment_arrays", counted_segment_arrays)
     trades, _ = simulate_standardized_ledger(
         pd.DataFrame(scored_rows), market, 0.55, 5, 1
     )
 
     assert len(trades) == len(scored_rows)
-    assert calls <= 2
+    assert calls == 1
 
 
 def test_long_short_multibar_marks_reconcile_by_hand_with_unused_cash():
@@ -637,4 +637,97 @@ def test_long_short_multibar_marks_reconcile_by_hand_with_unused_cash():
     assert daily["equity"].tolist() == pytest.approx([1.0, 0.95, 1.05])
     assert daily["unused_cash"].tolist() == pytest.approx([0.5, 0.5, 0.5])
     assert daily["sleeve_equity"].tolist() == pytest.approx([0.5, 0.45, 0.55])
-    assert daily["gross_exposure"].tolist() == pytest.approx([0.5, 0.5, 0.0])
+    assert daily["gross_exposure"].tolist() == pytest.approx([0.25, 0.5, 0.0])
+
+
+def test_neutral_decision_extends_evaluation_days_without_changing_equity():
+    accepted = make_scored("AG_IDX", "2026-01-01 09:05", 0.80, 100.0, 110.0)
+    neutral = make_scored("AG_IDX", "2026-01-02 09:05", 0.50, 110.0, 120.0)
+    scored = pd.DataFrame([accepted, neutral])
+    market = pd.concat([
+        make_mark_market(pd.DataFrame([accepted])),
+        make_mark_market(pd.DataFrame([neutral])),
+    ], ignore_index=True)
+
+    trades, daily = simulate_standardized_ledger(scored, market, 0.55, 0, 1)
+
+    assert len(trades) == 1
+    assert daily["date"].tolist() == [
+        pd.Timestamp("2026-01-01"), pd.Timestamp("2026-01-02")
+    ]
+    assert daily["equity"].tolist() == pytest.approx([1.1, 1.1])
+    assert daily["pnl"].tolist() == pytest.approx([0.1, 0.0])
+    assert daily["portfolio_return"].tolist() == pytest.approx([0.1, 0.0])
+    assert daily["gross_exposure"].tolist() == pytest.approx([0.5, 0.0])
+    assert strategy_metrics(trades, daily)["days"] == 2
+
+
+def test_all_neutral_scored_rows_return_flat_complete_evaluation_days():
+    rows = [
+        make_scored("AG_IDX", "2026-01-01 09:05", 0.50, 100.0, 110.0),
+        make_scored("AG_IDX", "2026-01-02 09:05", 0.50, 110.0, 120.0),
+    ]
+    scored = pd.DataFrame(rows)
+    market = pd.concat(
+        [make_mark_market(pd.DataFrame([row])) for row in rows], ignore_index=True
+    )
+
+    trades, daily = simulate_standardized_ledger(scored, market, 0.55, 5, 1)
+    metrics = strategy_metrics(trades, daily)
+
+    assert trades.empty
+    assert daily["date"].tolist() == [
+        pd.Timestamp("2026-01-01"), pd.Timestamp("2026-01-02")
+    ]
+    np.testing.assert_allclose(
+        daily[["equity", "pnl", "portfolio_return", "gross_exposure"]],
+        [[1.0, 0.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]],
+    )
+    assert metrics["days"] == 2
+    assert metrics["trades"] == 0
+    assert all(metrics[name] == 0.0 for name in (
+        "total_return", "annualized_return", "annualized_volatility", "sharpe",
+        "max_drawdown", "win_rate", "profit_factor", "exposure", "turnover",
+    ))
+
+
+@pytest.mark.parametrize("bad_market", [None, pd.DataFrame({"open": []})])
+def test_empty_scored_still_rejects_bad_market_contract(bad_market):
+    scored = pd.DataFrame([
+        make_scored("AG_IDX", "2026-01-01 09:05", 0.50, 100.0, 110.0)
+    ]).iloc[0:0]
+
+    with pytest.raises(ResearchRejected):
+        simulate_standardized_ledger(scored, bad_market, 0.55, 5, 1)
+
+
+def test_empty_scored_accepts_typed_empty_market():
+    scored = pd.DataFrame([
+        make_scored("AG_IDX", "2026-01-01 09:05", 0.50, 100.0, 110.0)
+    ]).iloc[0:0]
+    market = make_mark_market(pd.DataFrame([
+        make_scored("AG_IDX", "2026-01-01 09:05", 0.50, 100.0, 110.0)
+    ])).iloc[0:0]
+
+    trades, daily = simulate_standardized_ledger(scored, market, 0.55, 5, 1)
+
+    assert trades.empty
+    assert daily.empty
+
+
+def test_decision_to_entry_gap_is_rejected_even_when_entry_is_next_row():
+    row = make_scored("AG_IDX", "2026-01-01 09:00", 0.80, 100.0, 110.0)
+    row["entry_time"] = pd.Timestamp("2026-01-01 10:00")
+    row["exit_time"] = pd.Timestamp("2026-01-01 10:10")
+    market = pd.DataFrame([
+        {"symbol": "AG_IDX", "segment_id": "AG_IDX:1", "trade_time": time, "open": open_, "close": open_}
+        for time, open_ in (
+            ("2026-01-01 09:00", 99.0),
+            ("2026-01-01 10:00", 100.0),
+            ("2026-01-01 10:05", 105.0),
+            ("2026-01-01 10:10", 110.0),
+        )
+    ])
+
+    with pytest.raises(ResearchRejected, match="continuous|missing"):
+        simulate_standardized_ledger(pd.DataFrame([row]), market, 0.55, 5, 1)
