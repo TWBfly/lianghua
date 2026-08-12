@@ -303,6 +303,7 @@ def make_mark_market(scored=None):
         exit_open = row.exit_open if pd.notna(row.exit_open) else row.terminal_open
         middle = (float(row.entry_open) + float(exit_open)) / 2.0
         for time, open_, close in (
+            (row.decision_time, row.entry_open, row.entry_open),
             (row.entry_time, row.entry_open, row.entry_open),
             (row.entry_time + pd.Timedelta(minutes=5), middle, middle),
             (row.exit_time, exit_open, exit_open),
@@ -344,9 +345,18 @@ def test_ledger_reconciles_long_short_and_double_sided_costs():
 
 def test_overlap_and_alternating_signals_leave_one_position():
     first = make_scored("AG_IDX", "2026-01-01 09:05", 0.80, 100.0, 110.0)
-    repeated = make_scored("AG_IDX", "2026-01-01 09:10", 0.20, 102.0, 90.0)
+    repeated = make_scored("AG_IDX", "2026-01-01 09:10", 0.20, 105.0, 90.0)
     repeated["exit_time"] = pd.Timestamp("2026-01-01 09:30")
-    market = make_mark_market(pd.DataFrame([first]))
+    market = pd.concat([
+        make_mark_market(pd.DataFrame([first])),
+        pd.DataFrame([
+            {"symbol": "AG_IDX", "segment_id": "AG_IDX:1", "trade_time": time, "open": open_, "close": open_}
+            for time, open_ in (
+                ("2026-01-01 09:25", 95.0),
+                ("2026-01-01 09:30", 90.0),
+            )
+        ]),
+    ], ignore_index=True)
 
     trades, _ = simulate_standardized_ledger(
         pd.DataFrame([repeated, first]), market, threshold=0.55, cost_bps=5, symbol_count=1
@@ -381,7 +391,7 @@ def test_ledger_order_is_deterministic_and_sleeves_cap_exposure():
 def test_daily_marks_retain_adverse_excursion_before_profitable_exit():
     scored = pd.DataFrame([make_scored("AG_IDX", "2026-01-01 23:50", 0.80, 100.0, 110.0)])
     scored.loc[0, "exit_time"] = pd.Timestamp("2026-01-03 00:00")
-    times = pd.date_range("2026-01-01 23:55", "2026-01-03 00:00", freq="5min")
+    times = pd.date_range("2026-01-01 23:50", "2026-01-03 00:00", freq="5min")
     market = pd.DataFrame({
         "symbol": "AG_IDX",
         "segment_id": "AG_IDX:1",
@@ -466,7 +476,7 @@ def test_ledger_parameters_fail_closed(threshold, cost_bps, symbol_count):
 
 def test_strategy_metrics_reject_non_finite_inputs():
     with pytest.raises(ResearchRejected):
-        strategy_metrics(pd.DataFrame(), pd.DataFrame({
+        strategy_metrics(pd.DataFrame({"sleeve_pnl": []}), pd.DataFrame({
             "equity": [1.0],
             "portfolio_return": [np.nan],
             "gross_exposure": [0.0],
@@ -483,4 +493,148 @@ def test_strategy_metrics_rejects_daily_reconciliation_mismatch():
     })
 
     with pytest.raises(ResearchRejected, match="ledger mismatch"):
-        strategy_metrics(pd.DataFrame(), daily)
+        strategy_metrics(pd.DataFrame({"sleeve_pnl": []}), daily)
+
+
+def test_market_outside_scored_paths_does_not_change_ledger_or_metrics():
+    scored = pd.DataFrame([
+        make_scored("AG_IDX", "2026-01-02 09:05", 0.80, 100.0, 110.0),
+    ])
+    market = make_mark_market(scored)
+    unrelated = pd.DataFrame([
+        {"symbol": "AG_IDX", "segment_id": "AG_IDX:1", "trade_time": "2026-01-01 09:00", "open": 50.0, "close": 50.0},
+        {"symbol": "AG_IDX", "segment_id": "AG_IDX:1", "trade_time": "2026-01-03 09:00", "open": 500.0, "close": 500.0},
+        {"symbol": "CU_IDX", "segment_id": "CU_IDX:9", "trade_time": "2025-12-01 09:00", "open": 1.0, "close": 1.0},
+        {"symbol": "CU_IDX", "segment_id": "CU_IDX:9", "trade_time": "2027-12-01 09:00", "open": 9.0, "close": 9.0},
+    ])
+
+    expected = simulate_standardized_ledger(scored, market, 0.55, 5, 2)
+    actual = simulate_standardized_ledger(
+        scored,
+        pd.concat([unrelated, market], ignore_index=True),
+        0.55,
+        5,
+        2,
+    )
+
+    pd.testing.assert_frame_equal(expected[0], actual[0])
+    pd.testing.assert_frame_equal(expected[1], actual[1])
+    assert strategy_metrics(*expected) == strategy_metrics(*actual)
+
+
+def test_empty_scored_rows_return_empty_ledger_without_replaying_market():
+    scored = pd.DataFrame([
+        make_scored("AG_IDX", "2026-01-02 09:05", 0.80, 100.0, 110.0),
+    ])
+
+    trades, daily = simulate_standardized_ledger(
+        scored.iloc[0:0], make_mark_market(scored), 0.55, 5, 1
+    )
+
+    assert trades.empty
+    assert daily.empty
+    assert strategy_metrics(trades, daily)["days"] == 0
+
+
+def test_entry_must_be_first_same_segment_bar_after_decision():
+    row = make_scored("AG_IDX", "2026-01-01 09:05", 0.80, 100.0, 110.0)
+    row["entry_time"] = pd.Timestamp("2026-01-01 09:15")
+    market = pd.DataFrame([
+        {"symbol": "AG_IDX", "segment_id": "AG_IDX:1", "trade_time": time, "open": open_, "close": open_}
+        for time, open_ in (
+            ("2026-01-01 09:05", 99.0),
+            ("2026-01-01 09:10", 101.0),
+            ("2026-01-01 09:15", 100.0),
+            ("2026-01-01 09:20", 110.0),
+        )
+    ])
+
+    with pytest.raises(ResearchRejected, match="first bar"):
+        simulate_standardized_ledger(pd.DataFrame([row]), market, 0.55, 5, 1)
+
+
+def test_duplicate_decision_ties_fail_closed_independent_of_shuffle():
+    long = make_scored("AG_IDX", "2026-01-01 09:05", 0.80, 100.0, 110.0)
+    short = {**long, "probability": 0.20}
+    scored = pd.DataFrame([long, short])
+    market = make_mark_market(scored)
+
+    for rows in (scored, scored.iloc[::-1].reset_index(drop=True)):
+        with pytest.raises(ResearchRejected, match="duplicate decision"):
+            simulate_standardized_ledger(rows, market, 0.55, 5, 1)
+
+
+@pytest.mark.parametrize(
+    "trades",
+    [pd.DataFrame({"sleeve_pnl": [1.0]}), pd.DataFrame({"sleeve_pnl": [np.inf]})],
+)
+def test_strategy_metrics_rejects_nonempty_trades_with_empty_daily(trades):
+    with pytest.raises(ResearchRejected):
+        strategy_metrics(trades, pd.DataFrame())
+
+
+def test_ledger_market_lookup_count_is_not_per_trade(monkeypatch):
+    scored_rows = []
+    market_rows = []
+    start = pd.Timestamp("2026-01-01 09:00")
+    for number in range(40):
+        decision = start + pd.Timedelta(minutes=20 * number)
+        row = make_scored("AG_IDX", decision, 0.80, 100.0, 101.0)
+        scored_rows.append(row)
+        market_rows.extend(make_mark_market(pd.DataFrame([row])).to_dict("records"))
+    market = pd.DataFrame(market_rows).drop_duplicates(
+        ["symbol", "segment_id", "trade_time"]
+    )
+    calls = 0
+    original = pd.Series.eq
+
+    def counted_eq(series, other, *args, **kwargs):
+        nonlocal calls
+        if len(series) == len(market) and series.name in {"symbol", "segment_id"}:
+            calls += 1
+        return original(series, other, *args, **kwargs)
+
+    monkeypatch.setattr(pd.Series, "eq", counted_eq)
+    trades, _ = simulate_standardized_ledger(
+        pd.DataFrame(scored_rows), market, 0.55, 5, 1
+    )
+
+    assert len(trades) == len(scored_rows)
+    assert calls <= 2
+
+
+def test_long_short_multibar_marks_reconcile_by_hand_with_unused_cash():
+    scored = pd.DataFrame([
+        make_scored("AG_IDX", "2026-01-01 23:50", 0.80, 100.0, 110.0),
+        make_scored("CU_IDX", "2026-01-01 23:50", 0.20, 200.0, 180.0),
+    ])
+    scored["exit_time"] = pd.Timestamp("2026-01-03 00:00")
+    times = pd.date_range("2026-01-01 23:50", "2026-01-03 00:00", freq="5min")
+    frames = []
+    for symbol, entry, adverse, exit_ in (
+        ("AG_IDX", 100.0, 90.0, 110.0),
+        ("CU_IDX", 200.0, 220.0, 180.0),
+    ):
+        values = np.where(
+            times < pd.Timestamp("2026-01-02"),
+            entry,
+            np.where(times < times[-1], adverse, exit_),
+        )
+        frames.append(pd.DataFrame({
+            "symbol": symbol,
+            "segment_id": f"{symbol}:1",
+            "trade_time": times,
+            "open": values,
+            "close": values,
+        }))
+
+    trades, daily = simulate_standardized_ledger(
+        scored, pd.concat(frames, ignore_index=True), 0.55, 0, 4
+    )
+
+    assert trades["sleeve_start_equity"].tolist() == pytest.approx([0.25, 0.25])
+    assert trades["sleeve_end_equity"].tolist() == pytest.approx([0.275, 0.275])
+    assert daily["equity"].tolist() == pytest.approx([1.0, 0.95, 1.05])
+    assert daily["unused_cash"].tolist() == pytest.approx([0.5, 0.5, 0.5])
+    assert daily["sleeve_equity"].tolist() == pytest.approx([0.5, 0.45, 0.55])
+    assert daily["gross_exposure"].tolist() == pytest.approx([0.5, 0.5, 0.0])

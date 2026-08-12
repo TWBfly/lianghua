@@ -349,6 +349,16 @@ def _finite_number(value):
 
 def simulate_standardized_ledger(scored, market, threshold, cost_bps, symbol_count):
     """Build the fixed-sleeve, next-open, bar-marked research ledger."""
+    trade_columns = (
+        "symbol", "segment_id", "decision_time", "entry_time", "exit_time", "direction",
+        "entry_open", "exit_open", "gross_return", "entry_cost", "exit_cost",
+        "net_sleeve_return", "portfolio_return", "threshold", "cost_bps", "exit_reason",
+        "sleeve_start_equity", "sleeve_end_equity", "sleeve_pnl", "turnover",
+    )
+    daily_columns = (
+        "date", "equity", "pnl", "portfolio_return", "gross_exposure", "turnover",
+        "unused_cash", "sleeve_equity",
+    )
     if not _finite_number(threshold) or not 0.5 < float(threshold) < 1.0:
         raise ResearchRejected("threshold must be between 0.5 and 1.0")
     if not _finite_number(cost_bps) or float(cost_bps) < 0.0:
@@ -368,6 +378,8 @@ def simulate_standardized_ledger(scored, market, threshold, cost_bps, symbol_cou
     missing = scored_required.difference(scored.columns)
     if missing:
         raise ResearchRejected(f"missing scored columns: {', '.join(sorted(missing))}")
+    if scored.empty:
+        return pd.DataFrame(columns=trade_columns), pd.DataFrame(columns=daily_columns)
     missing = market_required.difference(market.columns)
     if missing:
         raise ResearchRejected(f"missing market columns: {', '.join(sorted(missing))}")
@@ -379,6 +391,8 @@ def simulate_standardized_ledger(scored, market, threshold, cost_bps, symbol_cou
     for column in ("decision_time", "entry_time", "exit_time"):
         decisions[column] = _parse_trade_time(decisions[column])
     marks["trade_time"] = _parse_trade_time(marks["trade_time"])
+    if decisions.duplicated(["symbol", "decision_time"]).any():
+        raise ResearchRejected("duplicate decision")
     if decisions[["symbol", "segment_id"]].isna().any().any():
         raise ResearchRejected("null scored symbol or segment")
     if marks[["symbol", "segment_id"]].isna().any().any():
@@ -415,7 +429,10 @@ def simulate_standardized_ledger(scored, market, threshold, cost_bps, symbol_cou
             raise ResearchRejected(f"market {column} must be finite and positive")
     if marks.duplicated(["symbol", "segment_id", "trade_time"]).any():
         raise ResearchRejected("duplicate segmented market timestamp")
-    marks = marks.sort_values(["trade_time", "symbol", "segment_id"], kind="stable").reset_index(drop=True)
+    market_groups = {
+        key: group.sort_values("trade_time", kind="stable").set_index("trade_time", drop=False)
+        for key, group in marks.groupby(["symbol", "segment_id"], sort=False)
+    }
 
     decisions = decisions.sort_values(
         ["entry_time", "symbol", "decision_time"], kind="stable"
@@ -423,39 +440,38 @@ def simulate_standardized_ledger(scored, market, threshold, cost_bps, symbol_cou
     sleeve_cash = {symbol: 1.0 / symbol_count for symbol in symbols}
     available_after = {}
     trades = []
+    accepted_paths = []
     for row in decisions.itertuples(index=False):
-        direction = _direction(float(row.probability), float(threshold))
-        if not direction or row.entry_time < available_after.get(row.symbol, pd.Timestamp.min):
-            continue
-        segment_marks = marks[
-            marks["symbol"].eq(row.symbol)
-            & marks["segment_id"].eq(row.segment_id)
-            & marks["trade_time"].between(row.entry_time, row.exit_time)
-        ]
-        if (
-            segment_marks.empty
-            or segment_marks["trade_time"].iloc[0] != row.entry_time
-            or segment_marks["trade_time"].iloc[-1] != row.exit_time
-            or segment_marks["trade_time"].diff().dropna().ne(pd.Timedelta(minutes=5)).any()
-        ):
+        group = market_groups.get((row.symbol, row.segment_id))
+        if group is None:
+            raise ResearchRejected("scored segment is missing from market")
+        try:
+            decision_position = group.index.get_loc(row.decision_time)
+            entry_position = group.index.get_loc(row.entry_time)
+            exit_position = group.index.get_loc(row.exit_time)
+        except KeyError as exc:
+            raise ResearchRejected("trade path is missing segmented market marks") from exc
+        if entry_position != decision_position + 1:
+            raise ResearchRejected("entry_time must be the first bar after decision")
+        if exit_position <= entry_position:
+            raise ResearchRejected("exit must follow entry")
+        path = group.iloc[entry_position:exit_position + 1]
+        if path["trade_time"].diff().dropna().ne(pd.Timedelta(minutes=5)).any():
             raise ResearchRejected("trade path is missing segmented market marks")
 
         terminal_close = pd.isna(row.exit_open)
         exit_open = float(row.terminal_open) if terminal_close else float(row.exit_open)
-        if terminal_close:
-            segment_end = marks.loc[
-                marks["symbol"].eq(row.symbol) & marks["segment_id"].eq(row.segment_id),
-                "trade_time",
-            ].max()
-            if row.exit_time != segment_end:
-                raise ResearchRejected("terminal close is not the final segment open")
-        entry_market_open = float(segment_marks["open"].iloc[0])
-        exit_market_open = float(segment_marks["open"].iloc[-1])
+        if terminal_close and row.exit_time != group.index[-1]:
+            raise ResearchRejected("terminal close is not the final segment open")
         if (
-            not np.isclose(float(row.entry_open), entry_market_open, rtol=0.0, atol=1e-12)
-            or not np.isclose(exit_open, exit_market_open, rtol=0.0, atol=1e-12)
+            not np.isclose(float(row.entry_open), float(path["open"].iloc[0]), rtol=0.0, atol=1e-12)
+            or not np.isclose(exit_open, float(path["open"].iloc[-1]), rtol=0.0, atol=1e-12)
         ):
             raise ResearchRejected("scored prices do not match market opens")
+
+        direction = _direction(float(row.probability), float(threshold))
+        if not direction or row.entry_time < available_after.get(row.symbol, pd.Timestamp.min):
+            continue
 
         gross, entry_cost, exit_cost, net_return = _net_sleeve_return(
             direction, row.entry_open, exit_open, cost_bps
@@ -488,65 +504,63 @@ def simulate_standardized_ledger(scored, market, threshold, cost_bps, symbol_cou
             "turnover": start_equity * (1.0 + ratio),
         }
         trades.append(trade)
+        accepted_paths.append((trade, path))
         sleeve_cash[row.symbol] = end_equity
         available_after[row.symbol] = row.exit_time
 
-    trade_columns = (
-        "symbol", "segment_id", "decision_time", "entry_time", "exit_time", "direction",
-        "entry_open", "exit_open", "gross_return", "entry_cost", "exit_cost",
-        "net_sleeve_return", "portfolio_return", "threshold", "cost_bps", "exit_reason",
-        "sleeve_start_equity", "sleeve_end_equity", "sleeve_pnl", "turnover",
-    )
     trade_frame = pd.DataFrame(trades, columns=trade_columns)
+    if trade_frame.empty:
+        return trade_frame, pd.DataFrame(columns=daily_columns)
 
-    per_symbol = {
-        symbol: trade_frame.loc[trade_frame["symbol"].eq(symbol)].reset_index(drop=True)
-        for symbol in symbols
-    }
-    sleeve_value = {symbol: 1.0 / symbol_count for symbol in symbols}
-    next_trade = {symbol: 0 for symbol in symbols}
-    active = {}
     unused_cash = 1.0 - len(symbols) / symbol_count
+    events = []
+    for trade, path in accepted_paths:
+        for bar in path.itertuples(index=False):
+            is_entry = bar.trade_time == trade["entry_time"]
+            is_exit = bar.trade_time == trade["exit_time"]
+            sleeve_value = (
+                trade["sleeve_end_equity"]
+                if is_exit
+                else trade["sleeve_start_equity"] * (
+                    1.0 - trade["entry_cost"]
+                    + trade["direction"] * (float(bar.close) / trade["entry_open"] - 1.0)
+                )
+            )
+            events.append({
+                "trade_time": bar.trade_time,
+                "symbol": trade["symbol"],
+                "sleeve_value": sleeve_value,
+                "exposure_delta": (1.0 / symbol_count if is_entry else 0.0)
+                - (1.0 / symbol_count if is_exit else 0.0),
+                "turnover": (
+                    trade["sleeve_start_equity"] if is_entry else 0.0
+                ) + (
+                    trade["sleeve_start_equity"] * trade["exit_open"] / trade["entry_open"]
+                    if is_exit else 0.0
+                ),
+            })
+
+    sleeve_values = {symbol: 1.0 / symbol_count for symbol in symbols}
+    gross_exposure = 0.0
     timestamp_rows = []
-    for timestamp, timestamp_marks in marks.groupby("trade_time", sort=True):
-        timestamp_turnover = 0.0
-        by_symbol = {row.symbol: row for row in timestamp_marks.itertuples(index=False)}
-        for symbol in symbols:
-            bar = by_symbol.get(symbol)
-            current = active.get(symbol)
-            if current is not None and timestamp == current.exit_time:
-                sleeve_value[symbol] = float(current.sleeve_end_equity)
-                timestamp_turnover += float(current.sleeve_start_equity) * (
-                    float(current.exit_open) / float(current.entry_open)
-                )
-                active.pop(symbol)
-                next_trade[symbol] += 1
-
-            candidates = per_symbol[symbol]
-            position = next_trade[symbol]
-            if position < len(candidates):
-                candidate = candidates.iloc[position]
-                if timestamp == candidate.entry_time:
-                    active[symbol] = candidate
-                    current = candidate
-                    timestamp_turnover += float(candidate.sleeve_start_equity)
-
-            current = active.get(symbol)
-            if current is not None and bar is not None:
-                sleeve_value[symbol] = float(current.sleeve_start_equity) * (
-                    1.0 - float(current.entry_cost)
-                    + int(current.direction) * (float(bar.close) / float(current.entry_open) - 1.0)
-                )
-
-        equity = unused_cash + sum(sleeve_value.values())
+    event_frame = pd.DataFrame(events).sort_values("trade_time", kind="stable")
+    for timestamp, timestamp_events in event_frame.groupby("trade_time", sort=True):
+        for event in timestamp_events.itertuples(index=False):
+            sleeve_values[event.symbol] = float(event.sleeve_value)
+            gross_exposure += float(event.exposure_delta)
+        sleeve_equity = sum(sleeve_values.values())
+        equity = unused_cash + sleeve_equity
         if not np.isfinite(equity) or equity <= 0.0:
             raise ResearchRejected("non-positive portfolio equity")
+        if gross_exposure < -1e-12 or gross_exposure > 1.0 + 1e-12:
+            raise ResearchRejected("invalid gross exposure")
         timestamp_rows.append({
             "trade_time": timestamp,
             "equity": equity,
-            "gross_exposure": len(active) / symbol_count,
-            "turnover": timestamp_turnover,
-            "sleeve_total": sum(sleeve_value.values()),
+            "gross_exposure": gross_exposure,
+            "turnover": float(timestamp_events["turnover"].sum()),
+            "unused_cash": unused_cash,
+            "sleeve_equity": sleeve_equity,
         })
 
     timestamp_frame = pd.DataFrame(timestamp_rows)
@@ -562,12 +576,11 @@ def simulate_standardized_ledger(scored, market, threshold, cost_bps, symbol_cou
             "portfolio_return": equity / previous_equity - 1.0,
             "gross_exposure": float(group["gross_exposure"].mean()),
             "turnover": float(group["turnover"].sum()),
+            "unused_cash": unused_cash,
+            "sleeve_equity": float(group["sleeve_equity"].iloc[-1]),
         })
         previous_equity = equity
-    daily = pd.DataFrame(
-        daily_rows,
-        columns=("date", "equity", "pnl", "portfolio_return", "gross_exposure", "turnover"),
-    )
+    daily = pd.DataFrame(daily_rows, columns=daily_columns)
 
     tolerance = 1e-12
     for trade in trade_frame.itertuples(index=False):
@@ -579,7 +592,7 @@ def simulate_standardized_ledger(scored, market, threshold, cost_bps, symbol_cou
             raise ResearchRejected("ledger mismatch")
         if abs(trade.sleeve_end_equity - trade.sleeve_start_equity * (1.0 + trade.net_sleeve_return)) > tolerance:
             raise ResearchRejected("ledger mismatch")
-    if (timestamp_frame["equity"] - timestamp_frame["sleeve_total"] - unused_cash).abs().max() > tolerance:
+    if (timestamp_frame["equity"] - timestamp_frame["sleeve_equity"] - unused_cash).abs().max() > tolerance:
         raise ResearchRejected("ledger mismatch")
     if not daily.empty:
         compounded = float((1.0 + daily["portfolio_return"]).prod())
@@ -607,12 +620,20 @@ def strategy_metrics(trades, daily):
         "exposure": 0.0,
         "turnover": 0.0,
     }
-    if daily.empty:
-        return zero
+    if "sleeve_pnl" not in trades:
+        raise ResearchRejected("missing trade pnl column")
     required = {"equity", "portfolio_return", "gross_exposure", "turnover"}
     missing = required.difference(daily.columns)
     if missing:
         raise ResearchRejected(f"missing daily ledger columns: {', '.join(sorted(missing))}")
+    pnl = pd.to_numeric(trades["sleeve_pnl"], errors="coerce")
+    numeric_trades = trades.select_dtypes(include=[np.number])
+    if not np.isfinite(pnl).all() or not np.isfinite(numeric_trades).all().all():
+        raise ResearchRejected("non-finite strategy metric input")
+    if daily.empty:
+        if not trades.empty:
+            raise ResearchRejected("nonempty trades require a daily ledger")
+        return zero
     frame = daily.copy()
     for column in required:
         frame[column] = pd.to_numeric(frame[column], errors="coerce")
@@ -631,15 +652,6 @@ def strategy_metrics(trades, daily):
         raise ResearchRejected("ledger mismatch")
     deviation = float(returns.std(ddof=1)) if len(returns) > 1 else 0.0
     total_return = compounded - 1.0
-    pnl_column = "sleeve_pnl" if "sleeve_pnl" in trades else "portfolio_return"
-    if trades.empty:
-        pnl = pd.Series(dtype=float)
-    elif pnl_column not in trades:
-        raise ResearchRejected("missing trade pnl column")
-    else:
-        pnl = pd.to_numeric(trades[pnl_column], errors="coerce")
-        if not np.isfinite(pnl).all():
-            raise ResearchRejected("non-finite strategy metric input")
     wins = float(pnl[pnl > 0.0].sum())
     losses = float(-pnl[pnl < 0.0].sum())
     peak = np.maximum.accumulate(np.r_[1.0, frame["equity"].to_numpy(dtype=float)])
