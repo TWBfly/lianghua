@@ -217,6 +217,13 @@ def _segment_features(group):
 
 
 def build_causal_dataset(segmented, config=ResearchConfig()) -> pd.DataFrame:
+    horizon = config.horizon
+    if (
+        isinstance(horizon, (bool, np.bool_))
+        or not isinstance(horizon, (int, np.integer))
+        or horizon < 1
+    ):
+        raise ResearchRejected("horizon must be an integer greater than or equal to one")
     required = {"symbol", "segment_id", "trade_time", "open", "high", "low", "close", "volume"}
     missing = required.difference(segmented.columns)
     if missing:

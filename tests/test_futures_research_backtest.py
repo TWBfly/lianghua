@@ -182,6 +182,12 @@ def test_causal_label_uses_next_open_to_six_bar_exit_open_and_stays_in_segment()
     assert decision.trade_time not in set(broken["decision_time"])
 
 
+@pytest.mark.parametrize("horizon", [-1, 0, 1.5, True], ids=["negative", "zero", "fractional", "bool"])
+def test_causal_label_rejects_invalid_horizon_before_backward_exit(horizon):
+    with pytest.raises(ResearchRejected, match="horizon"):
+        build_causal_dataset(make_segmented_bars(), ResearchConfig(horizon=horizon))
+
+
 def test_causal_dataset_prefix_is_unchanged_when_future_bars_are_appended():
     bars = make_segmented_bars()
     before = build_causal_dataset(bars, ResearchConfig(horizon=6)).reset_index(drop=True)
@@ -232,6 +238,19 @@ def test_temporal_partitions_lock_holdout_and_purge_labels_and_embargo():
     for symbol, group in dataset[dataset["decision_time"].isin(fold.train_times)].groupby("symbol"):
         eligible = group[group["label_end_time"] < fold.evaluation_times[0]].sort_values("decision_time")
         assert set(eligible.tail(config.embargo_bars).index).isdisjoint(purged.index)
+
+
+def test_purge_excludes_label_ending_at_evaluation_start_without_embargo():
+    evaluation_start = pd.Timestamp("2026-01-02 09:15")
+    dataset = pd.DataFrame({
+        "symbol": ["AG_IDX", "AG_IDX"],
+        "decision_time": [evaluation_start - pd.Timedelta(minutes=10), evaluation_start - pd.Timedelta(minutes=5)],
+        "label_end_time": [evaluation_start - pd.Timedelta(minutes=5), evaluation_start],
+    })
+
+    purged = purged_training_rows(dataset, dataset["decision_time"], evaluation_start, embargo_bars=0)
+
+    assert purged.index.tolist() == [0]
 
 
 @pytest.mark.parametrize(
