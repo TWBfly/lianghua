@@ -1,3 +1,4 @@
+import inspect
 import sqlite3
 
 import numpy as np
@@ -1680,7 +1681,11 @@ def test_prefix_attack_rebuilds_and_preserves_frozen_prefix():
     fold = research.TemporalFold("holdout", times[:split], times[split:])
     context = {
         "bars": bars,
-        "partitions": {"outer_folds": (), "holdout_fold": fold},
+        "partitions": {
+            "outer_folds": (),
+            "holdout_fold": fold,
+            "eligible_symbols": (dataset["symbol"].iloc[0],),
+        },
         "base": {
             "outer_results": [],
             "final_candidate": Candidate("logistic_c0.1", 0.55),
@@ -1722,7 +1727,8 @@ def test_prefix_attack_rebuilds_and_preserves_frozen_prefix():
     assert result["attack_execution_identity"] == context["base"]["holdout"][
         "attack_execution_identity"
     ]
-    assert len(result["evidence_sha256"]) == 64
+    assert len(result["consistency_sha256"]) == 64
+    assert "evidence_sha256" not in result
 
 
 def test_whitelist_attack_rejects_future_and_unknown_columns():
@@ -1866,7 +1872,7 @@ def test_feature_attack_from_another_real_holdout_cannot_be_mixed(monkeypatch):
     assert research.research_status(gates) == "RESEARCH_REJECTED"
 
 
-def test_coordinated_identity_alias_cannot_relabel_a_foreign_attack(monkeypatch):
+def test_pure_evaluator_consistency_checksum_is_not_source_authentication(monkeypatch):
     original = passing_gate_context()
     other = make_attack_context(80, holdout_start=55, holdout_end=75)
 
@@ -1881,6 +1887,7 @@ def test_coordinated_identity_alias_cannot_relabel_a_foreign_attack(monkeypatch)
     foreign["attack_execution_identity"] = original["holdout"][
         "attack_execution_identity"
     ]
+    foreign["consistency_sha256"] = research._attack_consistency_sha256(foreign)
     original["attacks"] = [
         foreign if row["id"] == "noise_features" else row
         for row in original["attacks"]
@@ -1888,8 +1895,102 @@ def test_coordinated_identity_alias_cannot_relabel_a_foreign_attack(monkeypatch)
 
     gates = research.evaluate_acceptance_gates(original)
 
-    assert all(gate["passed"] is False for gate in gates)
-    assert research.research_status(gates) == "RESEARCH_REJECTED"
+    assert all(gate["passed"] is True for gate in gates)
+    assert research.research_status(gates) == "RESEARCH_ACCEPTED"
+
+
+def _patch_official_attack_producers(monkeypatch, context, noise=None):
+    attacks = {row["id"]: row for row in context["attacks"]}
+    monkeypatch.setattr(
+        research, "run_prefix_attack", lambda built: dict(attacks["prefix_invariance"])
+    )
+    monkeypatch.setattr(
+        research, "run_label_shuffle_attack", lambda built: dict(attacks["label_shuffle"])
+    )
+    monkeypatch.setattr(
+        research,
+        "run_feature_attack",
+        lambda built, kind: dict(
+            noise if kind == "noise" and noise is not None
+            else attacks[f"{kind}_features"]
+        ),
+    )
+
+
+def _official_adversarial_arguments(context):
+    base = {
+        key: context[key]
+        for key in ("outer_results", "holdout", "final_candidate")
+    }
+    partitions = {
+        **context["partitions"],
+        "eligible_symbols": context["eligible_symbols"],
+    }
+    return (
+        base,
+        pd.DataFrame({"raw": [1]}),
+        context["dataset"],
+        context["segmented"],
+        partitions,
+        context["checks"],
+        context["config"],
+    )
+
+
+def _run_official_adversarial_checks(context):
+    return research.run_adversarial_checks(
+        *_official_adversarial_arguments(context)
+    )
+
+
+def test_official_adversarial_entry_has_no_attack_or_context_injection(monkeypatch):
+    context = passing_gate_context()
+    _patch_official_attack_producers(monkeypatch, context)
+
+    signature = inspect.signature(research.run_adversarial_checks)
+    assert "context" not in signature.parameters
+    assert "attacks" not in signature.parameters
+    with pytest.raises(TypeError):
+        research.run_adversarial_checks(
+            *_official_adversarial_arguments(context), attacks=[]
+        )
+
+    result = _run_official_adversarial_checks(context)
+
+    assert [row["id"] for row in result["attacks"]] == [
+        "prefix_invariance", "feature_whitelist", "label_shuffle",
+        "noise_features", "calendar_features",
+    ]
+    produced = {row["id"]: row for row in result["attacks"]}
+    expected = {row["id"]: row for row in context["attacks"]}
+    for attack_id in (
+        "prefix_invariance", "label_shuffle", "noise_features",
+        "calendar_features",
+    ):
+        assert produced[attack_id] == expected[attack_id]
+    names = ("base", "bars", "dataset", "segmented", "partitions", "checks", "config")
+    expected_context = dict(zip(names, _official_adversarial_arguments(context)))
+    expected_context["attacks"] = result["attacks"]
+    assert result["gates"] == research.evaluate_acceptance_gates(expected_context)
+    assert result["status"] == research.research_status(result["gates"])
+    assert result["status"] == "RESEARCH_ACCEPTED"
+
+
+def test_official_adversarial_entry_rejects_a_foreign_producer_result(monkeypatch):
+    context = passing_gate_context()
+    other = make_attack_context(80, holdout_start=55, holdout_end=75)
+
+    def capture_fit(candidate, x_train, y_train, weights, x_evaluation, config):
+        return np.linspace(0.1, 0.9, len(x_evaluation)), object()
+
+    monkeypatch.setattr(research, "_fit_matrix", capture_fit)
+    foreign = research.run_feature_attack(other, "noise")
+    _patch_official_attack_producers(monkeypatch, context, noise=foreign)
+
+    result = _run_official_adversarial_checks(context)
+
+    assert result["status"] == "RESEARCH_REJECTED"
+    assert all(gate["passed"] is False for gate in result["gates"])
 
 
 def passing_gate_context():
@@ -2050,7 +2151,7 @@ def passing_gate_context():
         attack["attack_execution_identity"] = dict(
             holdout["attack_execution_identity"]
         )
-        attack["evidence_sha256"] = research._attack_evidence_sha256(attack)
+        attack["consistency_sha256"] = research._attack_consistency_sha256(attack)
     return context
 
 
@@ -2064,7 +2165,7 @@ def _refresh_attack_execution_evidence(context):
     context["holdout"]["attack_execution_identity"] = identity
     for attack in context["attacks"]:
         attack["attack_execution_identity"] = dict(identity)
-        attack["evidence_sha256"] = research._attack_evidence_sha256(attack)
+        attack["consistency_sha256"] = research._attack_consistency_sha256(attack)
 
 
 def _attack_ready_partition_dataset():
@@ -2339,7 +2440,7 @@ def test_feature_attack_gain_boundary_has_only_roundoff_tolerance(metric, limit)
     )
     attack = _attack(context, "noise_features")
     attack[metric] = baseline + limit + 0.5e-12
-    attack["evidence_sha256"] = research._attack_evidence_sha256(attack)
+    attack["consistency_sha256"] = research._attack_consistency_sha256(attack)
 
     boundary = next(
         row for row in research.evaluate_acceptance_gates(context)
@@ -2348,7 +2449,7 @@ def test_feature_attack_gain_boundary_has_only_roundoff_tolerance(metric, limit)
     assert boundary["passed"] is True
 
     attack[metric] = baseline + limit + 2e-12
-    attack["evidence_sha256"] = research._attack_evidence_sha256(attack)
+    attack["consistency_sha256"] = research._attack_consistency_sha256(attack)
     exceeded = next(
         row for row in research.evaluate_acceptance_gates(context)
         if row["id"] == "feature_attacks"

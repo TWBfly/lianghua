@@ -1597,10 +1597,13 @@ def _attack_execution_identity(train, evaluation, market):
     return {"id": hashlib.sha256(encoded).hexdigest(), **payload}
 
 
-def _attack_evidence_sha256(attack):
+def _attack_consistency_sha256(attack):
     if not isinstance(attack, dict):
-        raise ResearchRejected("invalid attack evidence")
-    payload = {key: value for key, value in attack.items() if key != "evidence_sha256"}
+        raise ResearchRejected("invalid attack consistency data")
+    payload = {
+        key: value for key, value in attack.items()
+        if key != "consistency_sha256"
+    }
     candidate = payload.get("candidate")
     if isinstance(candidate, Candidate):
         payload["candidate"] = {
@@ -1613,8 +1616,8 @@ def _attack_evidence_sha256(attack):
     return hashlib.sha256(encoded).hexdigest()
 
 
-def _seal_attack_evidence(attack):
-    attack["evidence_sha256"] = _attack_evidence_sha256(attack)
+def _seal_attack_consistency(attack):
+    attack["consistency_sha256"] = _attack_consistency_sha256(attack)
     return attack
 
 
@@ -1664,8 +1667,10 @@ def run_prefix_attack(context):
     extended_segmented, _ = validate_and_segment(
         pd.concat([bars, appended], ignore_index=True), config
     )
-    original = build_causal_dataset(original_segmented, config)
-    extended = build_causal_dataset(extended_segmented, config)
+    full_original = build_causal_dataset(original_segmented, config)
+    full_extended = build_causal_dataset(extended_segmented, config)
+    original = full_original
+    extended = full_extended
     eligible = partitions.get("eligible_symbols")
     if eligible is not None:
         original = original[original["symbol"].isin(eligible)].copy()
@@ -1756,11 +1761,11 @@ def run_prefix_attack(context):
     }
     passed = all(checks.values())
     holdout_fold = partitions["holdout_fold"]
-    holdout_evaluation = original[
-        original["decision_time"].isin(holdout_fold.evaluation_times)
+    holdout_evaluation = full_original[
+        full_original["decision_time"].isin(holdout_fold.evaluation_times)
     ].copy()
     holdout_train = purged_training_rows(
-        original,
+        full_original,
         holdout_fold.train_times,
         holdout_fold.evaluation_times[0],
         config.embargo_bars,
@@ -1770,7 +1775,7 @@ def run_prefix_attack(context):
         holdout_evaluation,
         _evaluation_market(holdout_evaluation, original_segmented),
     )
-    return _seal_attack_evidence({
+    return _seal_attack_consistency({
         "id": "prefix_invariance",
         **_frozen_attack_evidence(
             context, "prefix_invariance", execution_identity
@@ -1820,7 +1825,7 @@ def run_label_shuffle_attack(context):
     returns = np.asarray([row["return_5bps"] for row in metrics], dtype=float)
     if not np.isfinite(aucs).all() or not np.isfinite(returns).all():
         raise ResearchRejected("non-finite label shuffle result")
-    return _seal_attack_evidence({
+    return _seal_attack_consistency({
         "id": "label_shuffle",
         **_frozen_attack_evidence(
             context, "label_shuffle", execution_identity
@@ -1892,7 +1897,7 @@ def run_feature_attack(context, kind):
     predictive, strategy = _attack_strategy_metrics(
         evaluation, probability, market, candidate
     )
-    return _seal_attack_evidence({
+    return _seal_attack_consistency({
         "id": f"{kind}_features",
         **_frozen_attack_evidence(
             context, f"{kind}_features", execution_identity
@@ -1904,7 +1909,20 @@ def run_feature_attack(context, kind):
     })
 
 
-def run_adversarial_checks(context):
+def run_adversarial_checks(
+    base, bars, dataset, segmented, partitions, checks,
+    config=ResearchConfig(),
+):
+    """Run the official in-process attacks and immediately derive gate status."""
+    context = {
+        "base": base,
+        "bars": bars,
+        "dataset": dataset,
+        "segmented": segmented,
+        "partitions": partitions,
+        "checks": checks,
+        "config": config,
+    }
     matrix = pd.DataFrame({name: [0.0] for name in FEATURE_COLUMNS})
     rejected = []
     for extra in ("future_return", "unknown"):
@@ -1915,9 +1933,9 @@ def run_adversarial_checks(context):
     whitelist_passed = rejected == ["future_return", "unknown"]
     train, evaluation, market, _, _ = _attack_domain(context)
     execution_identity = _attack_execution_identity(train, evaluation, market)
-    return [
+    attacks = [
         run_prefix_attack(context),
-        _seal_attack_evidence({
+        _seal_attack_consistency({
             "id": "feature_whitelist",
             **_frozen_attack_evidence(
                 context, "feature_whitelist", execution_identity
@@ -1933,6 +1951,13 @@ def run_adversarial_checks(context):
         run_feature_attack(context, "noise"),
         run_feature_attack(context, "calendar"),
     ]
+    gate_context = {**context, "attacks": attacks}
+    gates = evaluate_acceptance_gates(gate_context)
+    return {
+        "attacks": attacks,
+        "gates": gates,
+        "status": research_status(gates),
+    }
 
 
 def _gate_record(gate_id, passed, observed, required, affected_fold, reason):
@@ -1997,7 +2022,7 @@ def _gate_inputs(context):
         required = {
             "candidate", "threshold", "kind", "columns",
             "baseline_evaluation_identity", "attack_execution_identity",
-            "evidence_sha256",
+            "consistency_sha256",
         }
         if (
             required.difference(attack)
@@ -2008,9 +2033,9 @@ def _gate_inputs(context):
             or "future_return" in attack["columns"]
             or attack["baseline_evaluation_identity"] != identity
             or attack["attack_execution_identity"] != expected_execution
-            or attack["evidence_sha256"] != _attack_evidence_sha256(attack)
+            or attack["consistency_sha256"] != _attack_consistency_sha256(attack)
         ):
-            raise ValueError(f"attack evidence is not frozen: {attack_id}")
+            raise ValueError(f"attack data is inconsistent: {attack_id}")
     whitelist = attack_map["feature_whitelist"]
     if tuple(whitelist.get("rejected_columns", ())) != ("future_return", "unknown"):
         raise ValueError("feature whitelist evidence is incomplete")
@@ -2103,6 +2128,7 @@ def _temporal_integrity(context, base):
 
 
 def evaluate_acceptance_gates(context):
+    """Check supplied gate data for consistency; this does not authenticate origin."""
     gates = []
     try:
         base, outer, holdout, attacks, attack_map = _gate_inputs(context)
