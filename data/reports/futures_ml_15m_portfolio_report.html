@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>期货机器学习 15m 多品种组合回测报告</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: #141c2e;
+            --border-color: #23314d;
+            --text-main: #f0f4fc;
+            --text-sub: #94a3b8;
+            --primary: #3b82f6;
+            --green: #10b981;
+            --red: #ef4444;
+            --gold: #f59e0b;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 30px 40px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .title h1 {
+            font-size: 26px;
+            margin: 0 0 8px 0;
+            color: #ffffff;
+            letter-spacing: 0.5px;
+        }
+        .title p {
+            margin: 0;
+            color: var(--text-sub);
+            font-size: 14px;
+        }
+        .badge-v16 {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 35px;
+        }
+        .metric-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            transition: transform 0.2s;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+        }
+        .metric-label {
+            font-size: 13px;
+            color: var(--text-sub);
+            margin-bottom: 8px;
+        }
+        .metric-val {
+            font-size: 24px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+        .pos { color: var(--green) !important; }
+        .neg { color: var(--red) !important; }
+        .gold { color: var(--gold) !important; }
+        
+        .chart-container {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 35px;
+        }
+        .chart-header {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #ffffff;
+        }
+        
+        .table-container {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 14px;
+        }
+        th {
+            background-color: #1e293b;
+            color: var(--text-sub);
+            padding: 14px 16px;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+        }
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        tr:hover td {
+            background-color: #1a2438;
+        }
+        .badge {
+            background-color: #1e293b;
+            color: var(--primary);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="title">
+            <h1>📊 期货机器学习 15m 多品种组合回测报告 (V16 第一性原理版)</h1>
+            <p>评估区间: <strong>2025-12-10 11:30:00</strong> 至 <strong>2026-08-13 23:00:00</strong> | 包含 <strong>12</strong> 个高活跃品种组合对冲</p>
+        </div>
+        <div class="badge-v16">V16 第一性原理引擎</div>
+    </div>
+
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-label">组合累计收益率</div>
+            <div class="metric-val pos">-0.09%</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">🏆 组合胜率 (Win Rate)</div>
+            <div class="metric-val gold">44.9%</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">🏆 组合盈亏比 (PL Ratio)</div>
+            <div class="metric-val gold">3.38:1</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">🏆 组合最大回撤 (Max DD)</div>
+            <div class="metric-val neg">0.68%</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">组合交易总笔数</div>
+            <div class="metric-val">156 笔</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">年化夏普比率 (Sharpe)</div>
+            <div class="metric-val">-1.32</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">期末总权益</div>
+            <div class="metric-val">¥1,215,279.68</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">累计净利润</div>
+            <div class="metric-val pos">¥-1,103.81</div>
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <div class="chart-header">📈 组合资金权益曲线 (Mark-to-Market 逐Bar估值)</div>
+        <canvas id="equityChart" height="90"></canvas>
+    </div>
+
+    <div class="table-container">
+        <div class="chart-header">📋 各品种 15m K线机器学习回测明细表</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>品种名称</th>
+                    <th>板块分类</th>
+                    <th>回测时间段</th>
+                    <th>累计收益率</th>
+                    <th>交易胜率</th>
+                    <th>盈亏比</th>
+                    <th>最大回撤</th>
+                    <th>交易笔数</th>
+                    <th>均盈利</th>
+                    <th>均亏损</th>
+                    <th>夏普比率</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+        <tr>
+            <td><strong>沪银</strong> (AG_IDX)</td>
+            <td><span class="badge">贵金属</span></td>
+            <td>2026-02-12 ~ 2026-08-08</td>
+            <td class="pos">+250.11%</td>
+            <td><strong>52.3%</strong></td>
+            <td><strong>3.47:1</strong></td>
+            <td class="neg">9.96%</td>
+            <td>109 笔</td>
+            <td>¥59,558.29</td>
+            <td>¥17,186.47</td>
+            <td>5.25</td>
+        </tr>
+        
+        <tr>
+            <td><strong>沪铜</strong> (CU_IDX)</td>
+            <td><span class="badge">有色工业</span></td>
+            <td>2025-12-10 ~ 2026-08-13</td>
+            <td class="pos">+11.93%</td>
+            <td><strong>32.0%</strong></td>
+            <td><strong>5.13:1</strong></td>
+            <td class="neg">6.76%</td>
+            <td>25 笔</td>
+            <td>¥25,477.26</td>
+            <td>¥4,970.29</td>
+            <td>1.58</td>
+        </tr>
+        
+        <tr>
+            <td><strong>螺纹钢</strong> (RB_IDX)</td>
+            <td><span class="badge">黑色建筑</span></td>
+            <td>2026-07-31 ~ 2026-08-07</td>
+            <td class="neg">-0.31%</td>
+            <td><strong>20.0%</strong></td>
+            <td><strong>0.45:1</strong></td>
+            <td class="neg">0.45%</td>
+            <td>5 笔</td>
+            <td>¥392.63</td>
+            <td>¥881.45</td>
+            <td>-7.07</td>
+        </tr>
+        
+        <tr>
+            <td><strong>铁矿石</strong> (I_IDX)</td>
+            <td><span class="badge">黑色原材料</span></td>
+            <td>2026-07-31 ~ 2026-08-07</td>
+            <td class="neg">-0.20%</td>
+            <td><strong>0.0%</strong></td>
+            <td><strong>0.0:1</strong></td>
+            <td class="neg">0.41%</td>
+            <td>3 笔</td>
+            <td>¥0.00</td>
+            <td>¥660.64</td>
+            <td>-5.01</td>
+        </tr>
+        
+        <tr>
+            <td><strong>纯碱</strong> (SA_IDX)</td>
+            <td><span class="badge">化工高波</span></td>
+            <td>2026-07-31 ~ 2026-08-07</td>
+            <td class="neg">-0.20%</td>
+            <td><strong>0.0%</strong></td>
+            <td><strong>0.0:1</strong></td>
+            <td class="neg">0.25%</td>
+            <td>2 笔</td>
+            <td>¥0.00</td>
+            <td>¥988.90</td>
+            <td>-14.32</td>
+        </tr>
+        
+        <tr>
+            <td><strong>原油</strong> (SC_IDX)</td>
+            <td><span class="badge">能源化工</span></td>
+            <td>2026-08-05 ~ 2026-08-08</td>
+            <td class="pos">+0.00%</td>
+            <td><strong>0.0%</strong></td>
+            <td><strong>0.0:1</strong></td>
+            <td class="neg">0.03%</td>
+            <td>0 笔</td>
+            <td>¥0.00</td>
+            <td>¥1.00</td>
+            <td>-5.75</td>
+        </tr>
+        
+        <tr>
+            <td><strong>甲醇</strong> (MA_IDX)</td>
+            <td><span class="badge">化工原料</span></td>
+            <td>2026-07-31 ~ 2026-08-07</td>
+            <td class="pos">+0.32%</td>
+            <td><strong>100.0%</strong></td>
+            <td><strong>3204.53:1</strong></td>
+            <td class="neg">0.10%</td>
+            <td>1 笔</td>
+            <td>¥3,204.53</td>
+            <td>¥1.00</td>
+            <td>9.1</td>
+        </tr>
+        
+        <tr>
+            <td><strong>PTA</strong> (TA_IDX)</td>
+            <td><span class="badge">纺织化工</span></td>
+            <td>2026-07-31 ~ 2026-08-07</td>
+            <td class="pos">+0.93%</td>
+            <td><strong>66.7%</strong></td>
+            <td><strong>1.32:1</strong></td>
+            <td class="neg">1.76%</td>
+            <td>3 笔</td>
+            <td>¥7,516.63</td>
+            <td>¥5,705.61</td>
+            <td>3.72</td>
+        </tr>
+        
+        <tr>
+            <td><strong>豆粕</strong> (M_IDX)</td>
+            <td><span class="badge">农产品</span></td>
+            <td>2026-07-31 ~ 2026-08-07</td>
+            <td class="neg">-0.14%</td>
+            <td><strong>0.0%</strong></td>
+            <td><strong>0.0:1</strong></td>
+            <td class="neg">0.93%</td>
+            <td>1 笔</td>
+            <td>¥0.00</td>
+            <td>¥1,403.81</td>
+            <td>-1.09</td>
+        </tr>
+        
+        <tr>
+            <td><strong>沪锡</strong> (SN_IDX)</td>
+            <td><span class="badge">有色稀缺</span></td>
+            <td>2026-08-04 ~ 2026-08-08</td>
+            <td class="neg">-0.32%</td>
+            <td><strong>25.0%</strong></td>
+            <td><strong>2.82:1</strong></td>
+            <td class="neg">8.15%</td>
+            <td>4 笔</td>
+            <td>¥49,854.63</td>
+            <td>¥17,687.05</td>
+            <td>0.01</td>
+        </tr>
+        
+        <tr>
+            <td><strong>碳酸锂</strong> (LC_IDX)</td>
+            <td><span class="badge">新能源电池</span></td>
+            <td>2026-07-28 ~ 2026-08-07</td>
+            <td class="neg">-3.91%</td>
+            <td><strong>0.0%</strong></td>
+            <td><strong>0.0:1</strong></td>
+            <td class="neg">4.60%</td>
+            <td>2 笔</td>
+            <td>¥0.00</td>
+            <td>¥19,558.33</td>
+            <td>-14.02</td>
+        </tr>
+        
+        <tr>
+            <td><strong>焦炭</strong> (J_IDX)</td>
+            <td><span class="badge">双焦能源</span></td>
+            <td>2026-07-31 ~ 2026-08-07</td>
+            <td class="pos">-0.00%</td>
+            <td><strong>0.0%</strong></td>
+            <td><strong>0.0:1</strong></td>
+            <td class="neg">0.13%</td>
+            <td>1 笔</td>
+            <td>¥0.00</td>
+            <td>¥20.48</td>
+            <td>7.63</td>
+        </tr>
+        
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('equityChart').getContext('2d');
+        const eqData = [1216383.49, 1216483.49, 1216520.99, 1216558.49, 1215758.49, 1216362.39, 1216406.14, 1216443.64, 1216418.64, 1216393.64, 1216598.48, 1216560.98, 1216635.98, 1216435.98, 1216560.98, 1216748.48, 1216702.05, 1216956.92, 1217163.17, 1217750.67, 1217028.61, 1217016.11, 1217066.11, 1216970.66, 1216958.16, 1216983.16, 1216995.66, 1217026.91, 1217144.04, 1216623.5, 1216962.76, 1217106.51, 1217591.22, 1217197.39, 1219234.89, 1220778.64, 1220422.39, 1220159.89, 1221691.14, 1220847.39, 1220697.39, 1220766.14, 1221178.64, 1221217.67, 1221067.67, 1220155.79, 1220412.04, 1220674.54, 1222423.66, 1222560.75, 1221948.25, 1221685.75, 1218723.25, 1220673.34, 1220673.34, 1220673.34, 1220673.34, 1220673.34, 1220673.34, 1220763.8, 1221063.8, 1220913.8, 1221188.8, 1221388.8, 1221670.34, 1221999.51, 1222078.67, 1221841.17, 1221053.67, 1221352.88, 1221045.24, 1221045.24, 1221045.24, 1221045.24, 1221204.25, 1221287.58, 1221516.75, 1221058.42, 1221106.04, 1221106.04, 1221106.04, 1221106.04, 1221106.04, 1221106.04, 1221106.04, 1221106.04, 1221106.04, 1221106.04, 1221106.04, 1221106.04, 1221994.14, 1222394.14, 1222756.64, 1222606.64, 1221511.11, 1221411.5, 1220511.5, 1221436.49, 1221773.99, 1221462.75, 1220400.25, 1219475.25, 1219338.89, 1219561.5, 1217611.5, 1217710.0, 1217691.25, 1214472.37, 1215317.05, 1215319.9, 1215312.4, 1215288.65, 1215109.02, 1215155.63, 1215226.88, 1215261.88, 1215278.13, 1215295.63, 1215281.88, 1215279.68];
+        const labels = eqData.map((_, i) => i);
+        
+        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, 'rgba(59, 130, 246, 0.4)');
+        gradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '组合资金权益 (RMB)',
+                    data: eqData,
+                    borderColor: '#3b82f6',
+                    borderWidth: 2,
+                    backgroundColor: gradient,
+                    fill: true,
+                    tension: 0.1,
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: { display: false },
+                    y: {
+                        grid: { color: '#1e293b' },
+                        ticks: { color: '#94a3b8' }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
