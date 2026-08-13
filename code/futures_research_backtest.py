@@ -39,7 +39,7 @@ class ResearchConfig:
     holdout_fraction: float = 0.20
     embargo_bars: int = 6
     thresholds: tuple = (0.52, 0.55, 0.58)
-    costs_bps: tuple = (0, 2, 5, 10, 20)
+    costs_bps: tuple = (0, 2, 5, 10, 15, 20)
     seed: int = 42
 
 
@@ -998,10 +998,13 @@ def predictive_metrics(labels, probability, threshold):
 
 
 def moving_block_return_interval(daily_returns, config=ResearchConfig()):
-    returns = np.asarray(daily_returns, dtype=float)
+    try:
+        returns = np.asarray(daily_returns, dtype=float)
+        rng = np.random.default_rng(config.seed)
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise ResearchRejected("invalid moving-block interval input") from exc
     if returns.ndim != 1 or len(returns) < 5 or not np.isfinite(returns).all():
         raise ResearchRejected("moving-block interval requires five finite daily returns")
-    rng = np.random.default_rng(config.seed)
     totals = []
     for _ in range(1000):
         sample = []
@@ -1057,6 +1060,51 @@ def _model_identity(candidate, model, train):
     digest.update(row_hash.tobytes())
     digest.update(target_hash.tobytes())
     return digest.hexdigest()[:16], parameters
+
+
+def _evaluation_identity(candidate, fold_result, evaluation, config):
+    if (
+        not isinstance(candidate, Candidate)
+        or not isinstance(fold_result, dict)
+        or "model_identity" not in fold_result
+        or "model_parameters" not in fold_result
+        or not isinstance(evaluation, pd.DataFrame)
+        or evaluation.empty
+        or "decision_time" not in evaluation
+    ):
+        raise ResearchRejected("invalid evaluation identity input")
+    try:
+        times = pd.DatetimeIndex(evaluation["decision_time"].unique()).sort_values()
+        costs = [
+            int(cost) if float(cost).is_integer() else float(cost)
+            for cost in config.costs_bps
+        ]
+        seed = int(config.seed)
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise ResearchRejected("invalid evaluation identity input") from exc
+    if times.empty or not costs:
+        raise ResearchRejected("invalid evaluation identity input")
+    row_hash = hashlib.sha256(
+        pd.util.hash_pandas_object(evaluation, index=True)
+        .to_numpy(dtype=np.uint64)
+        .tobytes()
+    ).hexdigest()
+    payload = {
+        "scope": "single_build_base_evaluation",
+        "candidate": {
+            "model_name": candidate.model_name,
+            "model_identity": str(fold_result["model_identity"]),
+            "model_parameters": _stable_parameter(fold_result["model_parameters"]),
+            "threshold": float(candidate.threshold),
+        },
+        "evaluation_times": [pd.Timestamp(time).isoformat() for time in times],
+        "evaluation_rows": int(len(evaluation)),
+        "evaluation_row_hash": row_hash,
+        "costs_bps": costs,
+        "seed": seed,
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    return {"id": hashlib.sha256(encoded).hexdigest()[:16], **payload}
 
 
 def _evaluation_market(evaluation, market):
@@ -1163,6 +1211,15 @@ def evaluate_fold(dataset, market, fold, candidate, config=ResearchConfig()):
                 "symbol": symbol,
                 "cost_bps": cost,
                 "rows": len(symbol_scored),
+                "evaluation_start": pd.Timestamp(
+                    symbol_scored["decision_time"].min()
+                ),
+                "evaluation_end": pd.Timestamp(
+                    symbol_scored["decision_time"].max()
+                ),
+                "evaluation_dates": int(
+                    symbol_scored["decision_time"].dt.normalize().nunique()
+                ),
                 **symbol_predictive,
                 **strategy,
             })
@@ -1230,12 +1287,6 @@ def evaluate_fold(dataset, market, fold, candidate, config=ResearchConfig()):
         "trades": trades_by_cost,
         "daily": daily_by_cost,
     }
-    if fold.name == "holdout":
-        if 5 not in daily_by_cost:
-            raise ResearchRejected("locked holdout requires the 5 bp ledger")
-        result["bootstrap"] = moving_block_return_interval(
-            daily_by_cost[5]["portfolio_return"], config
-        )
     return result
 
 
@@ -1315,20 +1366,60 @@ def _validate_inner_domains(folds, allowed_times):
         raise ResearchRejected("invalid evaluation partition")
 
 
+def _parent_selection_view(dataset, parent, inner_folds, config):
+    safe = purged_training_rows(
+        dataset,
+        parent.train_times,
+        parent.evaluation_times[0],
+        config.embargo_bars,
+    )
+    safe_times = pd.DatetimeIndex(safe["decision_time"].unique()).sort_values()
+    restricted = []
+    for fold in inner_folds:
+        train_times = pd.DatetimeIndex(fold.train_times)
+        evaluation_times = pd.DatetimeIndex(fold.evaluation_times)
+        restricted.append(TemporalFold(
+            fold.name,
+            train_times[train_times.isin(safe_times)],
+            evaluation_times[evaluation_times.isin(safe_times)],
+        ))
+    _validate_inner_domains(tuple(restricted), safe_times)
+    return safe, tuple(restricted)
+
+
 def build_base_evaluation(dataset, market, partitions, config=ResearchConfig()):
     _validate_evaluation_partitions(partitions)
     outer_results = []
     for fold in partitions["outer_folds"]:
-        inner = partitions["inner_by_outer"][fold.name]
-        chosen, inner_scores = select_candidate(dataset, market, inner, config)
+        selection_dataset, inner = _parent_selection_view(
+            dataset, fold, partitions["inner_by_outer"][fold.name], config
+        )
+        chosen, inner_scores = select_candidate(
+            selection_dataset, market, inner, config
+        )
         outer_result = evaluate_fold(dataset, market, fold, chosen, config)
         outer_result["inner_scores"] = inner_scores
         outer_results.append(outer_result)
+    holdout_fold = partitions["holdout_fold"]
+    selection_dataset, development_inner = _parent_selection_view(
+        dataset, holdout_fold, partitions["development_inner_folds"], config
+    )
     final_candidate, final_inner_scores = select_candidate(
-        dataset, market, partitions["development_inner_folds"], config
+        selection_dataset, market, development_inner, config
     )
     holdout_result = evaluate_fold(
-        dataset, market, partitions["holdout_fold"], final_candidate, config
+        dataset, market, holdout_fold, final_candidate, config
+    )
+    if 5 not in holdout_result["daily"]:
+        raise ResearchRejected("locked holdout requires the 5 bp ledger")
+    holdout_result["bootstrap"] = moving_block_return_interval(
+        holdout_result["daily"][5]["portfolio_return"], config
+    )
+    holdout_evaluation = dataset[
+        dataset["decision_time"].isin(holdout_fold.evaluation_times)
+    ].copy()
+    holdout_result["evaluation_identity"] = _evaluation_identity(
+        final_candidate, holdout_result, holdout_evaluation, config
     )
     return {
         "outer_results": outer_results,

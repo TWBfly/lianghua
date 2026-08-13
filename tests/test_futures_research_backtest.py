@@ -172,7 +172,7 @@ def make_segmented_bars(rows=120, symbol="AG_IDX", segment_id=None, start="2026-
     return bars
 
 
-def make_causal_evaluation_fixture(days=160):
+def make_causal_evaluation_fixture(days=161):
     frames = []
     for symbol_number, symbol in enumerate(("AG_IDX", "CU_IDX")):
         for day_number, day in enumerate(pd.bdate_range("2025-01-02", periods=days)):
@@ -624,7 +624,7 @@ def test_select_candidate_scores_fixed_search_and_reports_dummy_prior():
 
 
 class HoldoutGuardFrame(pd.DataFrame):
-    _metadata = ["holdout_start", "holdout_unlocked"]
+    _metadata = ["lock_start", "labels_unlocked"]
 
     @property
     def _constructor(self):
@@ -634,13 +634,13 @@ class HoldoutGuardFrame(pd.DataFrame):
         if (
             isinstance(key, str)
             and key in {"label", "future_return"}
-            and not self.holdout_unlocked
+            and not self.labels_unlocked
             and (
-                pd.DataFrame.__getitem__(self, "decision_time")
-                >= self.holdout_start
+                pd.DataFrame.__getitem__(self, "label_end_time")
+                >= self.lock_start
             ).any()
         ):
-            raise AssertionError("locked holdout value accessed during selection")
+            raise AssertionError("parent-test label accessed during selection")
         return super().__getitem__(key)
 
 
@@ -650,35 +650,79 @@ def test_outer_and_holdout_base_evaluation_is_temporally_isolated(monkeypatch):
     partitions = make_temporal_partitions(dataset, config)
     holdout = partitions["holdout_fold"]
     guarded = HoldoutGuardFrame(dataset)
-    guarded.holdout_start = holdout.evaluation_times[0]
-    guarded.holdout_unlocked = False
+    guarded.lock_start = partitions["outer_folds"][0].evaluation_times[0]
+    guarded.labels_unlocked = False
     selection_calls = []
-    holdout_fits = []
+    parent_fits = []
+    bootstrap_calls = 0
+    active_parent = None
+    parents = [*partitions["outer_folds"], holdout]
     real_select = research.select_candidate
     real_evaluate = research.evaluate_fold
     real_fit = research.fit_predict
+    real_bootstrap = research.moving_block_return_interval
 
     def tracked_select(rows, marks, folds, supplied_config):
+        parent = parents[len(selection_calls)]
+        rows.lock_start = parent.evaluation_times[0]
+        rows.labels_unlocked = False
+        assert not (
+            pd.DataFrame.__getitem__(rows, "label_end_time")
+            >= parent.evaluation_times[0]
+        ).any()
+        expected = purged_training_rows(
+            dataset,
+            parent.train_times,
+            parent.evaluation_times[0],
+            supplied_config.embargo_bars,
+        )
+        assert rows.index.tolist() == expected.index.tolist()
+        safe_times = pd.DatetimeIndex(rows["decision_time"].unique())
+        for inner_fold in folds:
+            assert pd.DatetimeIndex(inner_fold.train_times).isin(safe_times).all()
+            assert pd.DatetimeIndex(inner_fold.evaluation_times).isin(safe_times).all()
         chosen, scores = real_select(rows, marks, folds, supplied_config)
         selection_calls.append((tuple(fold.name for fold in folds), chosen, scores))
         return chosen, scores
 
-    def unlock_only_for_final_evaluation(rows, marks, fold, candidate, supplied_config):
-        if fold.name == "holdout":
-            rows.holdout_unlocked = True
-        return real_evaluate(rows, marks, fold, candidate, supplied_config)
+    def unlock_only_for_parent_evaluation(rows, marks, fold, candidate, supplied_config):
+        nonlocal active_parent
+        rows.lock_start = fold.evaluation_times[0]
+        rows.labels_unlocked = True
+        active_parent = fold
+        try:
+            return real_evaluate(rows, marks, fold, candidate, supplied_config)
+        finally:
+            active_parent = None
+            rows.labels_unlocked = False
 
     def tracked_fit(candidate, train, evaluation, supplied_config=ResearchConfig()):
-        if evaluation["decision_time"].min() == holdout.evaluation_times[0]:
-            holdout_fits.append(train.copy())
+        if active_parent is not None:
+            parent_fits.append((active_parent.evaluation_times[0], train.copy()))
         return real_fit(candidate, train, evaluation, supplied_config)
 
+    def tracked_bootstrap(returns, supplied_config=ResearchConfig()):
+        nonlocal bootstrap_calls
+        assert len(selection_calls) == 4
+        assert active_parent is None
+        bootstrap_calls += 1
+        return real_bootstrap(returns, supplied_config)
+
     monkeypatch.setattr(research, "select_candidate", tracked_select)
-    monkeypatch.setattr(research, "evaluate_fold", unlock_only_for_final_evaluation)
+    monkeypatch.setattr(research, "evaluate_fold", unlock_only_for_parent_evaluation)
     monkeypatch.setattr(research, "fit_predict", tracked_fit)
+    monkeypatch.setattr(research, "moving_block_return_interval", tracked_bootstrap)
 
     result = research.build_base_evaluation(guarded, market, partitions, config)
 
+    crossing_counts = [
+        len(dataset[
+            dataset["decision_time"].isin(parent.train_times)
+            & (dataset["label_end_time"] >= parent.evaluation_times[0])
+        ])
+        for parent in (parents[0], parents[1], parents[-1])
+    ]
+    assert crossing_counts == [8, 4, 14]
     assert len(result["outer_results"]) == 3
     expected_selection_folds = [
         tuple(fold.name for fold in partitions["inner_by_outer"][outer.name])
@@ -693,10 +737,37 @@ def test_outer_and_holdout_base_evaluation_is_temporally_isolated(monkeypatch):
         assert chosen == choose_from_scores(candidate_scores)
     assert result["final_candidate"] == selection_calls[-1][1]
     pd.testing.assert_frame_equal(result["final_inner_scores"], selection_calls[-1][2])
+    assert bootstrap_calls == 1
+    assert "bootstrap" in result["holdout"]
+    identity = result["holdout"]["evaluation_identity"]
+    assert identity["scope"] == "single_build_base_evaluation"
+    assert identity["candidate"] == {
+        "model_name": result["final_candidate"].model_name,
+        "model_identity": result["holdout"]["model_identity"],
+        "model_parameters": result["holdout"]["model_parameters"],
+        "threshold": result["final_candidate"].threshold,
+    }
+    assert identity["evaluation_rows"] == result["holdout"]["sample_counts"][
+        "evaluation_rows"
+    ]
+    assert identity["evaluation_times"] == [
+        pd.Timestamp(time).isoformat() for time in holdout.evaluation_times
+    ]
+    assert identity["costs_bps"] == list(config.costs_bps)
+    assert identity["seed"] == config.seed
 
-    assert len(holdout_fits) == 1
-    final_train = holdout_fits[0]
-    assert (final_train["label_end_time"] < holdout.evaluation_times[0]).all()
+    assert len(parent_fits) == 4
+    for parent, (evaluation_start, fitted_train) in zip(parents, parent_fits):
+        assert evaluation_start == parent.evaluation_times[0]
+        expected = purged_training_rows(
+            dataset,
+            parent.train_times,
+            parent.evaluation_times[0],
+            config.embargo_bars,
+        )
+        assert fitted_train.index.tolist() == expected.index.tolist()
+        assert (fitted_train["label_end_time"] < parent.evaluation_times[0]).all()
+    final_train = parent_fits[-1][1]
     eligible = dataset[
         dataset["decision_time"].isin(holdout.train_times)
         & (dataset["label_end_time"] < holdout.evaluation_times[0])
@@ -724,6 +795,14 @@ def test_outer_and_holdout_base_evaluation_is_temporally_isolated(monkeypatch):
             counts = fold_result["trades"][cost].groupby("symbol").size()
             rows = fold_result["symbol_metrics"]
             rows = rows[rows["cost_bps"].eq(cost)].set_index("symbol")
+            numeric = rows.select_dtypes(include=[np.number])
+            assert np.isfinite(numeric.to_numpy(dtype=float)).all()
+            assert set(rows["evaluation_start"]) == {
+                fold_result["split_cutoffs"]["evaluation_start"]
+            }
+            assert set(rows["evaluation_end"]) == {
+                fold_result["split_cutoffs"]["evaluation_end"]
+            }
             assert rows["trades"].to_dict() == {
                 symbol: int(counts.get(symbol, 0)) for symbol in rows.index
             }
@@ -758,6 +837,76 @@ def test_outer_evaluation_ignores_future_only_symbol_statistics():
     assert actual["model_identity"] == expected["model_identity"]
     assert actual["predictive_metrics"] == pytest.approx(expected["predictive_metrics"])
     assert actual["cost_metrics"][5] == pytest.approx(expected["cost_metrics"][5])
+
+
+def test_generic_fold_named_holdout_has_no_locked_evaluation_side_effects():
+    dataset = make_model_dataset()
+    market = make_model_market(dataset)
+    times = pd.DatetimeIndex(dataset["decision_time"].unique())
+    renamed_outer = research.TemporalFold("holdout", times[:240], times[240:340])
+    config = ResearchConfig(costs_bps=(5,))
+
+    first = research.evaluate_fold(
+        dataset, market, renamed_outer, Candidate("logistic_c0.1", 0.55), config
+    )
+    second = research.evaluate_fold(
+        dataset, market, renamed_outer, Candidate("logistic_c0.1", 0.55), config
+    )
+
+    assert "bootstrap" not in first
+    assert "evaluation_identity" not in first
+    assert "bootstrap" not in second
+    assert "evaluation_identity" not in second
+    assert first["model_identity"] == second["model_identity"]
+
+
+def test_evaluation_identity_hashes_candidate_domain_costs_and_seed():
+    dataset = make_model_dataset(80)
+    evaluation = dataset.iloc[120:].copy()
+    candidate = Candidate("logistic_c0.1", 0.55)
+    fold_result = {"model_identity": "model-a", "model_parameters": {"C": 0.1}}
+    config = ResearchConfig()
+
+    baseline = research._evaluation_identity(
+        candidate, fold_result, evaluation, config
+    )
+    identities = {baseline["id"]}
+    identities.add(research._evaluation_identity(
+        Candidate("logistic_c1.0", candidate.threshold),
+        fold_result,
+        evaluation,
+        config,
+    )["id"])
+    identities.add(research._evaluation_identity(
+        Candidate(candidate.model_name, 0.58), fold_result, evaluation, config
+    )["id"])
+    identities.add(research._evaluation_identity(
+        candidate,
+        {"model_identity": "model-a", "model_parameters": {"C": 1.0}},
+        evaluation,
+        config,
+    )["id"])
+    identities.add(research._evaluation_identity(
+        candidate,
+        {"model_identity": "model-b", "model_parameters": {"C": 0.1}},
+        evaluation,
+        config,
+    )["id"])
+    changed_domain = evaluation.iloc[:-1].copy()
+    identities.add(research._evaluation_identity(
+        candidate, fold_result, changed_domain, config
+    )["id"])
+    identities.add(research._evaluation_identity(
+        candidate, fold_result, evaluation, ResearchConfig(costs_bps=(0, 5, 15))
+    )["id"])
+    identities.add(research._evaluation_identity(
+        candidate, fold_result, evaluation, ResearchConfig(seed=43)
+    )["id"])
+
+    assert baseline["scope"] == "single_build_base_evaluation"
+    assert baseline["evaluation_rows"] == len(evaluation)
+    assert len(baseline["evaluation_times"]) == evaluation["decision_time"].nunique()
+    assert len(identities) == 8
 
 
 def test_model_identity_hashes_every_audit_input(monkeypatch):
@@ -905,8 +1054,24 @@ def test_bootstrap_uses_1000_deterministic_five_day_moving_blocks():
     assert first["samples"] == 1000
     assert first["block_days"] == 5
     assert [first["p05"], first["p50"], first["p95"]] == pytest.approx(expected)
+    assert first["p05"] <= first["p50"] <= first["p95"]
+    constant = research.moving_block_return_interval(
+        np.full(8, 0.01), ResearchConfig(seed=42)
+    )
+    compounded = (1.01 ** 8) - 1.0
+    assert [constant["p05"], constant["p50"], constant["p95"]] == pytest.approx(
+        [compounded] * 3
+    )
     with pytest.raises(ResearchRejected):
         research.moving_block_return_interval(returns[:4], ResearchConfig(seed=42))
+    with pytest.raises(ResearchRejected):
+        research.moving_block_return_interval(["bad"] * 5, ResearchConfig(seed=42))
+    with pytest.raises(ResearchRejected):
+        research.moving_block_return_interval(returns, ResearchConfig(seed=-1))
+
+
+def test_default_cost_grid_includes_15_bps():
+    assert ResearchConfig().costs_bps == (0, 2, 5, 10, 15, 20)
 
 
 @pytest.mark.parametrize(
