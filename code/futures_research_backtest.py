@@ -1451,3 +1451,722 @@ def build_base_evaluation(dataset, market, partitions, config=ResearchConfig()):
         "final_inner_scores": final_inner_scores,
         "holdout": holdout_result,
     }
+
+
+def _attack_domain(context):
+    try:
+        dataset = context["dataset"]
+        market = context["segmented"]
+        fold = context["partitions"]["holdout_fold"]
+        base = context.get("base", context)
+        candidate = base["final_candidate"]
+        config = context.get("config", ResearchConfig())
+        evaluation_times = pd.DatetimeIndex(fold.evaluation_times)
+        train = purged_training_rows(
+            dataset, fold.train_times, evaluation_times[0], config.embargo_bars
+        )
+        evaluation = dataset[dataset["decision_time"].isin(evaluation_times)].copy()
+    except (AttributeError, IndexError, KeyError, TypeError, ValueError) as exc:
+        raise ResearchRejected("invalid adversarial context") from exc
+    if (
+        not isinstance(dataset, pd.DataFrame)
+        or not isinstance(candidate, Candidate)
+        or train.empty
+        or evaluation.empty
+    ):
+        raise ResearchRejected("invalid adversarial context")
+    return train, evaluation, _evaluation_market(evaluation, market), candidate, config
+
+
+def _append_future_bars(bars, config):
+    future = []
+    for _, rows in bars.groupby("symbol", sort=False):
+        last = rows.iloc[-1]
+        for number in range(1, int(config.horizon) + 2):
+            row = last.copy()
+            row["trade_time"] = pd.Timestamp(last["trade_time"]) + pd.Timedelta(
+                minutes=5 * number
+            )
+            future.append(row)
+    if not future:
+        raise ResearchRejected("prefix attack requires source bars")
+    return pd.DataFrame(future, columns=bars.columns)
+
+
+def _same_numeric(left, right):
+    return (
+        left.shape == right.shape
+        and np.allclose(
+            left.to_numpy(dtype=float), right.to_numpy(dtype=float),
+            rtol=0.0, atol=1e-12,
+        )
+    )
+
+
+def run_prefix_attack(context):
+    try:
+        bars = context["bars"]
+        partitions = context["partitions"]
+        base = context.get("base", context)
+        config = context.get("config", ResearchConfig())
+        appended = context.get("future_bars")
+    except (AttributeError, KeyError, TypeError) as exc:
+        raise ResearchRejected("invalid prefix attack context") from exc
+    if not isinstance(bars, pd.DataFrame) or bars.empty:
+        raise ResearchRejected("prefix attack requires source bars")
+    if appended is None:
+        appended = _append_future_bars(bars, config)
+    if not isinstance(appended, pd.DataFrame) or appended.empty:
+        raise ResearchRejected("prefix attack requires future bars")
+
+    original_segmented, _ = validate_and_segment(bars, config)
+    extended_segmented, _ = validate_and_segment(
+        pd.concat([bars, appended], ignore_index=True), config
+    )
+    original = build_causal_dataset(original_segmented, config)
+    extended = build_causal_dataset(extended_segmented, config)
+    if original.empty:
+        raise ResearchRejected("prefix attack has no matured labels")
+    cutoff = pd.Timestamp(original["decision_time"].max())
+    keys = ["symbol", "segment_id", "decision_time"]
+    original = original[original["decision_time"] <= cutoff].sort_values(
+        keys, kind="stable"
+    ).reset_index(drop=True)
+    extended = extended[extended["decision_time"] <= cutoff].sort_values(
+        keys, kind="stable"
+    ).reset_index(drop=True)
+    same_keys = original.loc[:, keys].equals(extended.loc[:, keys])
+    features_equal = same_keys and _same_numeric(
+        original.loc[:, FEATURE_COLUMNS], extended.loc[:, FEATURE_COLUMNS]
+    )
+    time_columns = ["entry_time", "exit_time", "label_end_time"]
+    numeric_label_columns = ["entry_open", "exit_open", "future_return", "label"]
+    labels_equal = (
+        same_keys
+        and original.loc[:, time_columns].equals(extended.loc[:, time_columns])
+        and _same_numeric(
+            original.loc[:, numeric_label_columns],
+            extended.loc[:, numeric_label_columns],
+        )
+    )
+
+    folds = [*partitions.get("outer_folds", ()), partitions["holdout_fold"]]
+    outer_results = tuple(base.get("outer_results", ()))
+    candidates = [row.get("candidate") for row in outer_results]
+    candidates.append(base.get("final_candidate"))
+    if len(candidates) != len(folds) or any(
+        not isinstance(candidate, Candidate) for candidate in candidates
+    ):
+        raise ResearchRejected("prefix attack requires frozen candidates")
+
+    membership_equal = True
+    probabilities_equal = True
+    maximum_difference = 0.0
+    for fold, candidate in zip(folds, candidates):
+        try:
+            evaluation_start = pd.DatetimeIndex(fold.evaluation_times)[0]
+        except (AttributeError, IndexError, TypeError, ValueError) as exc:
+            raise ResearchRejected("invalid prefix attack partition") from exc
+        before_train = purged_training_rows(
+            original, fold.train_times, evaluation_start, config.embargo_bars
+        )
+        after_train = purged_training_rows(
+            extended, fold.train_times, evaluation_start, config.embargo_bars
+        )
+        before_evaluation = original[
+            original["decision_time"].isin(fold.evaluation_times)
+        ].copy()
+        after_evaluation = extended[
+            extended["decision_time"].isin(fold.evaluation_times)
+        ].copy()
+        membership_equal &= (
+            before_train.loc[:, keys].reset_index(drop=True).equals(
+                after_train.loc[:, keys].reset_index(drop=True)
+            )
+            and before_evaluation.loc[:, keys].reset_index(drop=True).equals(
+                after_evaluation.loc[:, keys].reset_index(drop=True)
+            )
+        )
+        before_probability, _ = fit_predict(
+            candidate, before_train, before_evaluation, config
+        )
+        after_probability, _ = fit_predict(
+            candidate, after_train, after_evaluation, config
+        )
+        if before_probability.shape != after_probability.shape:
+            probabilities_equal = False
+            maximum_difference = float("inf")
+        else:
+            difference = float(np.max(np.abs(before_probability - after_probability)))
+            maximum_difference = max(maximum_difference, difference)
+            probabilities_equal &= bool(np.allclose(
+                before_probability, after_probability, rtol=0.0, atol=1e-12
+            ))
+
+    checks = {
+        "features": bool(features_equal),
+        "matured_labels": bool(labels_equal),
+        "split_membership": bool(membership_equal),
+        "probabilities": bool(probabilities_equal),
+    }
+    passed = all(checks.values())
+    return {
+        "id": "prefix_invariance",
+        "passed": passed,
+        "reason": "all frozen prefixes match" if passed else "future bars changed frozen evidence",
+        "checks": checks,
+        "cutoff": cutoff,
+        "compared_rows": int(len(original)),
+        "max_probability_difference": maximum_difference,
+    }
+
+
+def _attack_strategy_metrics(evaluation, probability, market, candidate):
+    scored = evaluation.copy()
+    scored["probability"] = probability
+    trades, daily = simulate_standardized_ledger(
+        scored, market, candidate.threshold, 5, int(evaluation["symbol"].nunique())
+    )
+    return predictive_metrics(
+        evaluation["label"], probability, candidate.threshold
+    ), strategy_metrics(trades, daily)
+
+
+def run_label_shuffle_attack(context):
+    train, evaluation, market, candidate, config = _attack_domain(context)
+    metrics = []
+    for number in range(20):
+        shuffled = train.copy()
+        rng = np.random.default_rng(42 + number)
+        for _, rows in train.groupby("symbol", sort=False):
+            shuffled.loc[rows.index, "label"] = rng.permutation(
+                rows["label"].to_numpy()
+            )
+        probability, _ = fit_predict(candidate, shuffled, evaluation, config)
+        predictive, strategy = _attack_strategy_metrics(
+            evaluation, probability, market, candidate
+        )
+        metrics.append({
+            "permutation": number,
+            "seed": 42 + number,
+            "roc_auc": predictive["roc_auc"],
+            "return_5bps": strategy["total_return"],
+        })
+    aucs = np.asarray([row["roc_auc"] for row in metrics], dtype=float)
+    returns = np.asarray([row["return_5bps"] for row in metrics], dtype=float)
+    if not np.isfinite(aucs).all() or not np.isfinite(returns).all():
+        raise ResearchRejected("non-finite label shuffle result")
+    return {
+        "id": "label_shuffle",
+        "passed": True,
+        "reason": "20 deterministic within-symbol permutations completed",
+        "candidate": candidate,
+        "threshold": candidate.threshold,
+        "metrics": metrics,
+        "max_auc": float(aucs.max()),
+        "median_return_5bps": float(np.median(returns)),
+    }
+
+
+def _hash_noise(symbol, decision_time, column, seed=42):
+    token = f"{seed}|{symbol}|{pd.Timestamp(decision_time).isoformat()}|{column}"
+    integer = int(hashlib.sha256(token.encode()).hexdigest()[:16], 16)
+    return integer / float(0xFFFFFFFFFFFFFFFF) * 2.0 - 1.0
+
+
+def _feature_attack_columns(frame, kind):
+    if kind == "noise":
+        columns = tuple(f"noise_{number}" for number in range(1, 6))
+        values = {
+            name: [
+                _hash_noise(symbol, decision_time, number, 42)
+                for symbol, decision_time in zip(
+                    frame["symbol"], frame["decision_time"]
+                )
+            ]
+            for number, name in enumerate(columns, start=1)
+        }
+    elif kind == "calendar":
+        columns = (
+            "time_of_day_sin", "time_of_day_cos",
+            "day_of_week_sin", "day_of_week_cos",
+        )
+        times = pd.to_datetime(frame["decision_time"])
+        time_angle = 2.0 * np.pi * (
+            times.dt.hour * 3600 + times.dt.minute * 60 + times.dt.second
+        ) / 86_400.0
+        day_angle = 2.0 * np.pi * times.dt.dayofweek / 7.0
+        values = {
+            columns[0]: np.sin(time_angle),
+            columns[1]: np.cos(time_angle),
+            columns[2]: np.sin(day_angle),
+            columns[3]: np.cos(day_angle),
+        }
+    else:
+        raise ResearchRejected("feature attack kind must be noise or calendar")
+    return pd.DataFrame(values, index=frame.index), columns
+
+
+def run_feature_attack(context, kind):
+    train, evaluation, market, candidate, config = _attack_domain(context)
+    train_attack, columns = _feature_attack_columns(train, kind)
+    evaluation_attack, _ = _feature_attack_columns(evaluation, kind)
+    x_train = pd.concat([train.loc[:, FEATURE_COLUMNS], train_attack], axis=1)
+    x_evaluation = pd.concat([
+        evaluation.loc[:, FEATURE_COLUMNS], evaluation_attack
+    ], axis=1)
+    probability, _ = _fit_matrix(
+        candidate,
+        x_train,
+        train["label"],
+        inverse_symbol_class_weights(train),
+        x_evaluation,
+        config,
+    )
+    predictive, strategy = _attack_strategy_metrics(
+        evaluation, probability, market, candidate
+    )
+    return {
+        "id": f"{kind}_features",
+        "passed": True,
+        "reason": f"{kind} attack completed on the locked holdout",
+        "candidate": candidate,
+        "threshold": candidate.threshold,
+        "columns": columns,
+        "roc_auc": predictive["roc_auc"],
+        "return_5bps": strategy["total_return"],
+    }
+
+
+def run_adversarial_checks(context):
+    matrix = pd.DataFrame({name: [0.0] for name in FEATURE_COLUMNS})
+    rejected = []
+    for extra in ("future_return", "unknown"):
+        try:
+            assert_feature_columns(matrix.assign(**{extra: 0.0}))
+        except ResearchRejected:
+            rejected.append(extra)
+    whitelist_passed = rejected == ["future_return", "unknown"]
+    return [
+        run_prefix_attack(context),
+        {
+            "id": "feature_whitelist",
+            "passed": whitelist_passed,
+            "reason": (
+                "future and unknown columns rejected"
+                if whitelist_passed else "feature whitelist accepted an attack column"
+            ),
+            "rejected_columns": rejected,
+        },
+        run_label_shuffle_attack(context),
+        run_feature_attack(context, "noise"),
+        run_feature_attack(context, "calendar"),
+    ]
+
+
+def _gate_record(gate_id, passed, observed, required, affected_fold, reason):
+    return {
+        "id": gate_id,
+        "passed": passed is True,
+        "observed": observed,
+        "required": required,
+        "affected_fold": affected_fold,
+        "reason": reason,
+    }
+
+
+def _failed_gate(gate_id, required, reason, observed=None, affected_fold=None):
+    return _gate_record(
+        gate_id, False, observed, required, affected_fold, reason
+    )
+
+
+def _gate_inputs(context):
+    base = context.get("base", context)
+    outer = list(base["outer_results"])
+    holdout = base["holdout"]
+    attacks = context["attacks"]
+    attack_map = {
+        row["id"]: row for row in attacks
+        if isinstance(row, dict) and isinstance(row.get("id"), str)
+    }
+    return base, outer, holdout, attacks, attack_map
+
+
+def _fold_results(outer, holdout):
+    if len(outer) != 3:
+        raise ValueError("exactly three outer folds are required")
+    return [*outer, holdout]
+
+
+def _temporal_integrity(context, base):
+    if "dataset" not in context or "partitions" not in context:
+        return {}
+    dataset = context["dataset"]
+    partitions = context["partitions"]
+    config = context.get("config", ResearchConfig())
+    folds = [*partitions.get("outer_folds", ()), partitions["holdout_fold"]]
+    results = [*base.get("outer_results", ()), base["holdout"]]
+    if len(folds) != len(results):
+        return {"frozen_partitions": False}
+    observed = {}
+    for fold, result in zip(folds, results):
+        train_times, evaluation_times = _partition_times(fold)
+        start = evaluation_times[0]
+        purged = purged_training_rows(
+            dataset, train_times, start, config.embargo_bars
+        )
+        label_safe = (
+            not purged.empty and (purged["label_end_time"] < start).all()
+        )
+        embargo_safe = True
+        eligible = dataset[
+            dataset["decision_time"].isin(train_times)
+            & (dataset["label_end_time"] < start)
+        ]
+        for _, rows in eligible.groupby("symbol", sort=False):
+            embargoed = rows.sort_values("decision_time").tail(config.embargo_bars)
+            embargo_safe &= set(embargoed.index).isdisjoint(purged.index)
+        cutoffs = result.get("split_cutoffs", {})
+        cutoff_safe = (
+            not cutoffs
+            or (
+                pd.Timestamp(cutoffs["label_cutoff"]) < start
+                and pd.Timestamp(cutoffs["evaluation_start"]) == start
+            )
+        )
+        observed[f"purge_{fold.name}"] = bool(label_safe and cutoff_safe)
+        observed[f"embargo_{fold.name}"] = bool(embargo_safe)
+    return observed
+
+
+def evaluate_acceptance_gates(context):
+    gates = []
+    try:
+        base, outer, holdout, attacks, attack_map = _gate_inputs(context)
+    except (AttributeError, KeyError, TypeError, ValueError) as exc:
+        reason = f"missing acceptance evidence: {exc}"
+        return [
+            _failed_gate(gate_id, required, reason)
+            for gate_id, required in (
+                ("integrity_checks", "all checks true"),
+                ("auc_above_chance_each_fold", "> 0.50 each fold"),
+                ("positive_5bps_each_fold", "> 0 each fold"),
+                ("positive_bootstrap_lower_bound", "p05 > 0"),
+                ("label_shuffle", "20 hostile permutations rejected"),
+                ("feature_attacks", "AUC <= +0.01 and return <= +0.05"),
+                ("positive_symbol_fraction", ">= 0.50"),
+                ("positive_symbol_concentration", "top five <= 0.50"),
+                ("ten_bps_resilience", "return > -0.10 and drawdown < 0.20"),
+                ("cost_monotonicity", "0/2/5/10/20 bp non-increasing"),
+            )
+        ]
+
+    try:
+        checks = context["checks"]
+        required_checks = {"structural", "causal", "ledger"}
+        temporal_checks = _temporal_integrity(context, base)
+        integrity = (
+            isinstance(checks, dict)
+            and required_checks.issubset(checks)
+            and all(value is True for value in checks.values())
+            and all(value is True for value in temporal_checks.values())
+            and attack_map["prefix_invariance"].get("passed") is True
+            and attack_map["feature_whitelist"].get("passed") is True
+            and len(attack_map) == len(attacks)
+        )
+        observed = {
+            **checks,
+            **temporal_checks,
+            "prefix_invariance": attack_map["prefix_invariance"].get("passed"),
+            "feature_whitelist": attack_map["feature_whitelist"].get("passed"),
+        }
+        affected = next((name for name, passed in observed.items() if passed is not True), None)
+        gates.append(_gate_record(
+            "integrity_checks", integrity, observed, "all checks true", affected,
+            "all integrity checks passed" if integrity else f"integrity check failed: {affected or 'invalid evidence'}",
+        ))
+    except (AttributeError, KeyError, TypeError, ValueError) as exc:
+        gates.append(_failed_gate(
+            "integrity_checks", "all checks true", f"invalid integrity evidence: {exc}"
+        ))
+
+    try:
+        folds = _fold_results(outer, holdout)
+        observed = {
+            row["fold"]: row["predictive_metrics"]["roc_auc"] for row in folds
+        }
+        affected = next((
+            name for name, value in observed.items()
+            if not _finite_number(value) or float(value) <= 0.50
+        ), None)
+        passed = affected is None
+        gates.append(_gate_record(
+            "auc_above_chance_each_fold", passed, observed, "> 0.50 each fold",
+            affected, "every fold AUC exceeds chance" if passed else f"AUC did not exceed chance: {affected}",
+        ))
+    except (AttributeError, KeyError, TypeError, ValueError) as exc:
+        gates.append(_failed_gate(
+            "auc_above_chance_each_fold", "> 0.50 each fold", f"invalid fold AUC evidence: {exc}"
+        ))
+
+    try:
+        folds = _fold_results(outer, holdout)
+        observed = {
+            row["fold"]: row["cost_metrics"][5]["total_return"] for row in folds
+        }
+        affected = next((
+            name for name, value in observed.items()
+            if not _finite_number(value) or float(value) <= 0.0
+        ), None)
+        passed = affected is None
+        gates.append(_gate_record(
+            "positive_5bps_each_fold", passed, observed, "> 0 each fold", affected,
+            "every fold is profitable at 5 bp" if passed else f"non-positive 5 bp return: {affected}",
+        ))
+    except (AttributeError, KeyError, TypeError, ValueError) as exc:
+        gates.append(_failed_gate(
+            "positive_5bps_each_fold", "> 0 each fold", f"invalid 5 bp evidence: {exc}"
+        ))
+
+    try:
+        bootstrap = holdout["bootstrap"]
+        p05 = bootstrap["p05"]
+        passed = (
+            bootstrap.get("samples") == 1000
+            and bootstrap.get("block_days") == 5
+            and _finite_number(p05)
+            and float(p05) > 0.0
+        )
+        gates.append(_gate_record(
+            "positive_bootstrap_lower_bound", passed, bootstrap,
+            {"samples": 1000, "block_days": 5, "p05": "> 0"},
+            None if passed else "holdout",
+            "bootstrap lower bound is positive" if passed else "invalid or non-positive holdout bootstrap lower bound",
+        ))
+    except (AttributeError, KeyError, TypeError, ValueError) as exc:
+        gates.append(_failed_gate(
+            "positive_bootstrap_lower_bound", "1000 five-day samples and p05 > 0",
+            f"invalid bootstrap evidence: {exc}", affected_fold="holdout",
+        ))
+
+    try:
+        shuffled = attack_map["label_shuffle"]
+        rows = shuffled["metrics"]
+        aucs = np.asarray([row["roc_auc"] for row in rows], dtype=float)
+        returns = np.asarray([row["return_5bps"] for row in rows], dtype=float)
+        seeds = [row["seed"] for row in rows]
+        maximum = float(aucs.max()) if len(aucs) else float("nan")
+        median = float(np.median(returns)) if len(returns) else float("nan")
+        holdout_auc = holdout["predictive_metrics"]["roc_auc"]
+        summary_matches = (
+            _finite_number(shuffled.get("max_auc"))
+            and _finite_number(shuffled.get("median_return_5bps"))
+            and np.isclose(shuffled["max_auc"], maximum, rtol=0.0, atol=1e-12)
+            and np.isclose(shuffled["median_return_5bps"], median, rtol=0.0, atol=1e-12)
+        )
+        passed = (
+            len(rows) == 20
+            and seeds == list(range(42, 62))
+            and np.isfinite(aucs).all()
+            and np.isfinite(returns).all()
+            and _finite_number(holdout_auc)
+            and summary_matches
+            and shuffled.get("passed") is True
+            and float(holdout_auc) > maximum
+            and median <= 0.0
+        )
+        observed = {
+            "permutations": len(rows), "seeds": seeds,
+            "holdout_auc": holdout_auc, "max_shuffled_auc": maximum,
+            "median_shuffled_return_5bps": median,
+        }
+        gates.append(_gate_record(
+            "label_shuffle", passed, observed,
+            "20 seeds 42..61; holdout AUC > max shuffled AUC; median shuffled return <= 0",
+            None if passed else "holdout",
+            "shuffled labels failed to reproduce the baseline" if passed else "label shuffle remained profitable, predictive, incomplete, or invalid",
+        ))
+    except (AttributeError, KeyError, TypeError, ValueError) as exc:
+        gates.append(_failed_gate(
+            "label_shuffle", "20 hostile permutations rejected",
+            f"invalid label shuffle evidence: {exc}", affected_fold="holdout",
+        ))
+
+    try:
+        baseline_auc = holdout["predictive_metrics"]["roc_auc"]
+        baseline_return = holdout["cost_metrics"][5]["total_return"]
+        observed = {}
+        passed = all(
+            _finite_number(value) for value in (baseline_auc, baseline_return)
+        )
+        for attack_id in ("noise_features", "calendar_features"):
+            attack = attack_map[attack_id]
+            auc_gain = attack["roc_auc"] - baseline_auc
+            return_gain = attack["return_5bps"] - baseline_return
+            observed[attack_id] = {
+                "auc_gain": auc_gain,
+                "return_5bps_gain": return_gain,
+            }
+            passed &= bool(
+                attack.get("passed") is True
+                and _finite_number(attack["roc_auc"])
+                and _finite_number(attack["return_5bps"])
+                and auc_gain <= 0.01
+                and return_gain <= 0.05
+            )
+        gates.append(_gate_record(
+            "feature_attacks", passed, observed,
+            "AUC gain <= 0.01 and 5 bp return gain <= 0.05",
+            None if passed else "holdout",
+            "feature attacks stayed below suspicion limits" if passed else "noise/calendar attack exceeded limits or changed the candidate",
+        ))
+    except (AttributeError, KeyError, TypeError, ValueError) as exc:
+        gates.append(_failed_gate(
+            "feature_attacks", "AUC gain <= 0.01 and return gain <= 0.05",
+            f"invalid feature attack evidence: {exc}", affected_fold="holdout",
+        ))
+
+    symbol_rows = None
+    symbol_evidence_valid = False
+    try:
+        eligible_source = context.get("eligible_symbols")
+        if eligible_source is None:
+            eligible_source = context["partitions"]["eligible_symbols"]
+        eligible = tuple(eligible_source)
+    except (AttributeError, KeyError, TypeError):
+        eligible = tuple(context.get("eligible_symbols", ())) if isinstance(context, dict) else ()
+    try:
+        symbol_rows = holdout["symbol_metrics"]
+        symbol_rows = symbol_rows[symbol_rows["cost_bps"].eq(5)]
+        symbol_rows = symbol_rows[symbol_rows["symbol"].isin(eligible)]
+        symbol_evidence_valid = (
+            bool(eligible)
+            and len(set(eligible)) == len(eligible)
+            and len(symbol_rows) == len(eligible)
+            and not symbol_rows["symbol"].duplicated().any()
+            and set(symbol_rows["symbol"]) == set(eligible)
+            and symbol_rows["total_return"].map(_finite_number).all()
+        )
+        fraction = float(symbol_rows["total_return"].gt(0.0).mean()) if symbol_evidence_valid else float("nan")
+        passed = symbol_evidence_valid and fraction >= 0.50
+        gates.append(_gate_record(
+            "positive_symbol_fraction", passed,
+            {"eligible_symbols": len(eligible), "positive_fraction": fraction},
+            ">= 0.50", None if passed else "holdout",
+            "at least half of eligible symbols are positive" if passed else "too few eligible symbols have positive 5 bp return",
+        ))
+    except (AttributeError, KeyError, TypeError, ValueError) as exc:
+        gates.append(_failed_gate(
+            "positive_symbol_fraction", ">= 0.50", f"invalid symbol evidence: {exc}", affected_fold="holdout",
+        ))
+
+    try:
+        positive = symbol_rows.loc[symbol_rows["total_return"] > 0.0, "total_return"]
+        total = float(positive.sum())
+        concentration = float(positive.nlargest(5).sum() / total) if total > 0.0 else float("nan")
+        passed = (
+            symbol_evidence_valid
+            and len(symbol_rows) == len(eligible)
+            and np.isfinite(concentration)
+            and concentration <= 0.50 + 1e-12
+        )
+        gates.append(_gate_record(
+            "positive_symbol_concentration", passed,
+            {"positive_symbols": int(len(positive)), "top_five_fraction": concentration},
+            "top five <= 0.50", None if passed else "holdout",
+            "positive contribution is not top-five dominated" if passed else "top five symbols dominate positive contribution",
+        ))
+    except (AttributeError, KeyError, TypeError, ValueError) as exc:
+        gates.append(_failed_gate(
+            "positive_symbol_concentration", "top five <= 0.50",
+            f"invalid concentration evidence: {exc}", affected_fold="holdout",
+        ))
+
+    try:
+        folds = _fold_results(outer, holdout)
+        observed = {
+            row["fold"]: {
+                "total_return": row["cost_metrics"][10]["total_return"],
+                "max_drawdown": row["cost_metrics"][10]["max_drawdown"],
+            }
+            for row in folds
+        }
+        affected = next((
+            name for name, values in observed.items()
+            if not all(_finite_number(value) for value in values.values())
+            or values["total_return"] <= -0.10
+            or values["max_drawdown"] >= 0.20
+        ), None)
+        passed = affected is None
+        gates.append(_gate_record(
+            "ten_bps_resilience", passed, observed,
+            "return > -0.10 and drawdown < 0.20 each fold", affected,
+            "all folds withstand 10 bp costs" if passed else f"10 bp resilience failed: {affected}",
+        ))
+    except (AttributeError, KeyError, TypeError, ValueError) as exc:
+        gates.append(_failed_gate(
+            "ten_bps_resilience", "return > -0.10 and drawdown < 0.20 each fold",
+            f"invalid 10 bp evidence: {exc}",
+        ))
+
+    try:
+        folds = _fold_results(outer, holdout)
+        costs = (0, 2, 5, 10, 20)
+        observed = {
+            row["fold"]: [row["cost_metrics"][cost]["total_return"] for cost in costs]
+            for row in folds
+        }
+        identity_columns = [
+            "symbol", "decision_time", "entry_time", "exit_time", "direction",
+            "entry_open", "exit_open",
+        ]
+        trade_evidence_present = any("trades" in row for row in folds)
+        identical_trades = True
+        if trade_evidence_present:
+            for row in folds:
+                signatures = [
+                    row["trades"][cost].loc[:, identity_columns].reset_index(drop=True)
+                    for cost in costs
+                ]
+                identical_trades &= all(
+                    signature.equals(signatures[0]) for signature in signatures[1:]
+                )
+        affected = next((
+            name for name, values in observed.items()
+            if not all(_finite_number(value) for value in values)
+            or any(left < right for left, right in zip(values, values[1:]))
+        ), None)
+        if affected is None and not identical_trades:
+            affected = "trade_identity"
+        passed = affected is None
+        observed = {"returns": observed, "identical_trades": identical_trades}
+        gates.append(_gate_record(
+            "cost_monotonicity", passed, observed,
+            "0/2/5/10/20 bp returns monotonically non-increasing", affected,
+            "identical-trade returns decline with costs" if passed else f"cost monotonicity failed: {affected}",
+        ))
+    except (AttributeError, KeyError, TypeError, ValueError) as exc:
+        gates.append(_failed_gate(
+            "cost_monotonicity", "0/2/5/10/20 bp non-increasing",
+            f"invalid cost evidence: {exc}",
+        ))
+    return gates
+
+
+def research_status(gates):
+    required = {
+        "integrity_checks", "auc_above_chance_each_fold",
+        "positive_5bps_each_fold", "positive_bootstrap_lower_bound",
+        "label_shuffle", "feature_attacks", "positive_symbol_fraction",
+        "positive_symbol_concentration", "ten_bps_resilience",
+        "cost_monotonicity",
+    }
+    return (
+        "RESEARCH_ACCEPTED"
+        if isinstance(gates, (list, tuple))
+        and len(gates) == len(required)
+        and {gate.get("id") for gate in gates if isinstance(gate, dict)} == required
+        and all(isinstance(gate, dict) and gate.get("passed") is True for gate in gates)
+        else "RESEARCH_REJECTED"
+    )

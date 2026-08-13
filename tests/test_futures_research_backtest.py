@@ -1632,3 +1632,304 @@ def test_decision_to_entry_gap_is_rejected_even_when_entry_is_next_row():
 
     with pytest.raises(ResearchRejected, match="continuous|missing"):
         simulate_standardized_ledger(pd.DataFrame([row]), market, 0.55, 5, 1)
+
+
+def make_attack_context(rows=80):
+    dataset = make_model_dataset(rows)
+    times = pd.DatetimeIndex(dataset["decision_time"].unique())
+    holdout_fold = research.TemporalFold("holdout", times[:50], times[50:70])
+    candidate = Candidate("logistic_c0.1", 0.55)
+    return {
+        "dataset": dataset,
+        "segmented": make_model_market(dataset),
+        "partitions": {"holdout_fold": holdout_fold},
+        "base": {
+            "final_candidate": candidate,
+            "holdout": {
+                "predictive_metrics": {"roc_auc": 0.60},
+                "cost_metrics": {5: {"total_return": 0.10}},
+            },
+        },
+        "config": ResearchConfig(embargo_bars=0),
+    }
+
+
+def test_prefix_attack_rebuilds_and_preserves_frozen_prefix():
+    _, bars = make_causal_evaluation_fixture(days=6)
+    bars = bars.drop(columns="segment_id")
+    segmented, _ = validate_and_segment(bars)
+    dataset = build_causal_dataset(segmented)
+    times = pd.DatetimeIndex(dataset["decision_time"].unique()).sort_values()
+    split = len(times) // 2
+    fold = research.TemporalFold("holdout", times[:split], times[split:])
+    context = {
+        "bars": bars,
+        "partitions": {"outer_folds": (), "holdout_fold": fold},
+        "base": {
+            "outer_results": [],
+            "final_candidate": Candidate("logistic_c0.1", 0.55),
+            "holdout": {"candidate": Candidate("logistic_c0.1", 0.55)},
+        },
+        "config": ResearchConfig(embargo_bars=0),
+    }
+
+    result = research.run_prefix_attack(context)
+
+    assert result["id"] == "prefix_invariance"
+    assert result["passed"] is True
+    assert result["checks"] == {
+        "features": True,
+        "matured_labels": True,
+        "split_membership": True,
+        "probabilities": True,
+    }
+    assert result["max_probability_difference"] <= 1e-12
+
+
+def test_whitelist_attack_rejects_future_and_unknown_columns():
+    matrix = pd.DataFrame({name: [0.0] for name in FEATURE_COLUMNS})
+
+    with pytest.raises(ResearchRejected, match="feature whitelist"):
+        assert_feature_columns(matrix.assign(future_return=1.0))
+    with pytest.raises(ResearchRejected, match="feature whitelist"):
+        assert_feature_columns(matrix.assign(unknown=1.0))
+
+
+def test_label_shuffle_attack_uses_twenty_within_symbol_seeded_permutations(
+    monkeypatch,
+):
+    context = make_attack_context()
+    source = context["dataset"].copy(deep=True)
+    captured = []
+
+    def capture_fit(candidate, x_train, y_train, weights, x_evaluation, config):
+        captured.append(np.asarray(y_train).copy())
+        return np.linspace(0.1, 0.9, len(x_evaluation)), object()
+
+    monkeypatch.setattr(research, "_fit_matrix", capture_fit)
+
+    result = research.run_label_shuffle_attack(context)
+
+    pd.testing.assert_frame_equal(context["dataset"], source)
+    assert len(captured) == len(result["metrics"]) == 20
+    train = purged_training_rows(
+        source,
+        context["partitions"]["holdout_fold"].train_times,
+        context["partitions"]["holdout_fold"].evaluation_times[0],
+        0,
+    )
+    for number, observed in enumerate(captured):
+        expected = train["label"].copy()
+        rng = np.random.default_rng(42 + number)
+        for _, rows in train.groupby("symbol", sort=False):
+            expected.loc[rows.index] = rng.permutation(rows["label"].to_numpy())
+        np.testing.assert_array_equal(observed, expected)
+        for symbol, rows in train.groupby("symbol"):
+            assert sorted(observed[train["symbol"].eq(symbol)]) == sorted(rows["label"])
+    assert [row["seed"] for row in result["metrics"]] == list(range(42, 62))
+    assert np.isfinite(result["max_auc"])
+    assert np.isfinite(result["median_return_5bps"])
+
+
+@pytest.mark.parametrize(
+    "kind,expected_columns",
+    [
+        ("noise", tuple(f"noise_{number}" for number in range(1, 6))),
+        (
+            "calendar",
+            (
+                "time_of_day_sin", "time_of_day_cos",
+                "day_of_week_sin", "day_of_week_cos",
+            ),
+        ),
+    ],
+)
+def test_feature_attack_is_local_deterministic_and_keeps_baseline_candidate(
+    monkeypatch, kind, expected_columns,
+):
+    context = make_attack_context()
+    source = context["dataset"].copy(deep=True)
+    original_features = FEATURE_COLUMNS
+    captured = []
+
+    def capture_fit(candidate, x_train, y_train, weights, x_evaluation, config):
+        captured.append((candidate, x_train.copy(), x_evaluation.copy()))
+        return np.linspace(0.1, 0.9, len(x_evaluation)), object()
+
+    monkeypatch.setattr(research, "_fit_matrix", capture_fit)
+
+    first = research.run_feature_attack(context, kind)
+    second = research.run_feature_attack(context, kind)
+
+    assert first == second
+    assert first["candidate"] == context["base"]["final_candidate"]
+    assert first["threshold"] == context["base"]["final_candidate"].threshold
+    assert first["columns"] == expected_columns
+    assert FEATURE_COLUMNS == original_features
+    pd.testing.assert_frame_equal(context["dataset"], source)
+    assert len(captured) == 2
+    for candidate, train, evaluation in captured:
+        assert candidate == context["base"]["final_candidate"]
+        assert tuple(train.columns) == FEATURE_COLUMNS + expected_columns
+        assert tuple(evaluation.columns) == FEATURE_COLUMNS + expected_columns
+        assert np.isfinite(train.to_numpy(dtype=float)).all()
+        assert np.isfinite(evaluation.to_numpy(dtype=float)).all()
+    pd.testing.assert_frame_equal(captured[0][1], captured[1][1])
+    pd.testing.assert_frame_equal(captured[0][2], captured[1][2])
+
+
+def passing_gate_context():
+    def fold(name):
+        return {
+            "fold": name,
+            "predictive_metrics": {"roc_auc": 0.60},
+            "cost_metrics": {
+                0: {"total_return": 0.12, "max_drawdown": 0.08},
+                2: {"total_return": 0.11, "max_drawdown": 0.08},
+                5: {"total_return": 0.10, "max_drawdown": 0.09},
+                10: {"total_return": 0.08, "max_drawdown": 0.10},
+                20: {"total_return": 0.04, "max_drawdown": 0.12},
+            },
+        }
+
+    symbols = pd.DataFrame([
+        {"symbol": f"S{number:02d}", "cost_bps": 5, "total_return": 0.01}
+        for number in range(10)
+    ])
+    holdout = fold("holdout")
+    holdout["bootstrap"] = {
+        "samples": 1000, "block_days": 5, "p05": 0.01, "p50": 0.10,
+        "p95": 0.20,
+    }
+    holdout["symbol_metrics"] = symbols
+    return {
+        "checks": {"structural": True, "causal": True, "ledger": True},
+        "outer_results": [fold(f"outer_{number}") for number in range(1, 4)],
+        "holdout": holdout,
+        "eligible_symbols": tuple(symbols["symbol"]),
+        "attacks": [
+            {"id": "prefix_invariance", "passed": True},
+            {"id": "feature_whitelist", "passed": True},
+            {
+                "id": "label_shuffle", "passed": True,
+                "candidate": Candidate("logistic_c0.1", 0.55),
+                "threshold": 0.55,
+                "metrics": [
+                    {"seed": seed, "roc_auc": 0.49, "return_5bps": -0.01}
+                    for seed in range(42, 62)
+                ],
+                "max_auc": 0.49,
+                "median_return_5bps": -0.01,
+            },
+            {
+                "id": "noise_features", "passed": True,
+                "candidate": Candidate("logistic_c0.1", 0.55),
+                "threshold": 0.55,
+                "roc_auc": 0.605, "return_5bps": 0.12,
+            },
+            {
+                "id": "calendar_features", "passed": True,
+                "candidate": Candidate("logistic_c0.1", 0.55),
+                "threshold": 0.55,
+                "roc_auc": 0.605, "return_5bps": 0.12,
+            },
+        ],
+        "final_candidate": Candidate("logistic_c0.1", 0.55),
+    }
+
+
+def _attack(context, attack_id):
+    return next(row for row in context["attacks"] if row["id"] == attack_id)
+
+
+@pytest.mark.parametrize(
+    "gate_id,mutate",
+    [
+        ("integrity_checks", lambda c: c["checks"].__setitem__("ledger", False)),
+        ("auc_above_chance_each_fold", lambda c: c["holdout"]["predictive_metrics"].__setitem__("roc_auc", 0.50)),
+        ("positive_5bps_each_fold", lambda c: c["outer_results"][1]["cost_metrics"][5].__setitem__("total_return", -0.001)),
+        ("positive_bootstrap_lower_bound", lambda c: c["holdout"]["bootstrap"].__setitem__("p05", 0.0)),
+        ("label_shuffle", lambda c: _attack(c, "label_shuffle").__setitem__("median_return_5bps", 0.001)),
+        ("feature_attacks", lambda c: _attack(c, "noise_features").__setitem__("roc_auc", 0.62)),
+        ("positive_symbol_fraction", lambda c: c["holdout"].__setitem__("symbol_metrics", c["holdout"]["symbol_metrics"].assign(total_return=[-0.01] * 6 + [0.01] * 4))),
+        ("positive_symbol_concentration", lambda c: c["holdout"].__setitem__("symbol_metrics", c["holdout"]["symbol_metrics"].assign(total_return=[1.0] + [0.01] * 9))),
+        ("ten_bps_resilience", lambda c: c["outer_results"][0]["cost_metrics"][10].__setitem__("max_drawdown", 0.20)),
+        ("cost_monotonicity", lambda c: c["holdout"]["cost_metrics"][20].__setitem__("total_return", 0.09)),
+    ],
+)
+def test_each_acceptance_gate_is_non_negotiable(gate_id, mutate):
+    context = passing_gate_context()
+    mutate(context)
+
+    gates = research.evaluate_acceptance_gates(context)
+    failed = next(gate for gate in gates if gate["id"] == gate_id)
+
+    assert len(gates) == 10
+    assert failed["passed"] is False
+    assert failed["reason"]
+    assert research.research_status(gates) == "RESEARCH_REJECTED"
+
+
+def test_all_acceptance_gates_pass_only_with_complete_finite_evidence():
+    gates = research.evaluate_acceptance_gates(passing_gate_context())
+
+    assert len(gates) == 10
+    assert all(gate["passed"] is True and gate["reason"] for gate in gates)
+    assert research.research_status(gates) == "RESEARCH_ACCEPTED"
+
+
+@pytest.mark.parametrize("case", ["short_shuffle", "non_finite", "profitable_shuffle"])
+def test_statistical_gates_fail_closed_on_incomplete_or_hostile_results(case):
+    context = passing_gate_context()
+    shuffled = _attack(context, "label_shuffle")
+    if case == "short_shuffle":
+        shuffled["metrics"] = shuffled["metrics"][:-1]
+    elif case == "non_finite":
+        shuffled["max_auc"] = np.nan
+    else:
+        shuffled["median_return_5bps"] = 0.001
+
+    gate = next(
+        row for row in research.evaluate_acceptance_gates(context)
+        if row["id"] == "label_shuffle"
+    )
+
+    assert gate["passed"] is False
+    assert research.research_status([gate]) == "RESEARCH_REJECTED"
+
+
+def test_deliberately_leaking_feature_attack_fails_gate():
+    context = passing_gate_context()
+    _attack(context, "calendar_features")["return_5bps"] = 0.151
+
+    gate = next(
+        row for row in research.evaluate_acceptance_gates(context)
+        if row["id"] == "feature_attacks"
+    )
+
+    assert gate["passed"] is False
+
+
+def test_integrity_gate_executes_purge_and_embargo_evidence():
+    context = passing_gate_context()
+    dataset = make_partition_dataset()
+    config = ResearchConfig(min_symbols=2, min_fold_rows=50, embargo_bars=6)
+    partitions = make_temporal_partitions(dataset, config)
+    context.update({"dataset": dataset, "partitions": partitions, "config": config})
+    folds = [*partitions["outer_folds"], partitions["holdout_fold"]]
+    results = [*context["outer_results"], context["holdout"]]
+    for fold, result in zip(folds, results):
+        result["split_cutoffs"] = {
+            "label_cutoff": fold.evaluation_times[0] - pd.Timedelta(days=1),
+            "evaluation_start": fold.evaluation_times[0],
+        }
+    results[1]["split_cutoffs"]["label_cutoff"] = folds[1].evaluation_times[0]
+
+    gate = next(
+        row for row in research.evaluate_acceptance_gates(context)
+        if row["id"] == "integrity_checks"
+    )
+
+    assert gate["passed"] is False
+    assert gate["observed"]["purge_outer_2"] is False
+    assert gate["affected_fold"] == "purge_outer_2"
