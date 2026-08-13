@@ -3,7 +3,7 @@ import sqlite3
 
 import pytest
 
-from import_futures_5m import import_exports
+from import_futures_5m import import_exports, read_export
 
 
 VALID_EXPORT = """AGL9 白银加权 5分钟线 不复权
@@ -76,6 +76,53 @@ def test_import_accepts_tongdaxin_source_footer(tmp_path):
 
 
 @pytest.mark.parametrize(
+    "times,expected",
+    [
+        (
+            ("2355", "0000", "0005", "0905"),
+            (
+                "2026-08-12 23:55:00", "2026-08-13 00:00:00",
+                "2026-08-13 00:05:00", "2026-08-13 09:05:00",
+            ),
+        ),
+        (
+            ("0905", "0910"),
+            ("2026-08-12 09:05:00", "2026-08-12 09:10:00"),
+        ),
+        (
+            ("2355", "0000", "0000", "0905"),
+            (
+                "2026-08-12 23:55:00", "2026-08-13 00:00:00",
+                "2026-08-14 00:00:00", "2026-08-14 09:05:00",
+            ),
+        ),
+    ],
+    ids=["night_then_day", "day_only", "repeated_candidate"],
+)
+def test_export_normalizes_trade_times_by_source_order(tmp_path, times, expected):
+    export_dir = tmp_path / "export"
+    export_dir.mkdir()
+    text = (
+        "AGL9 白银加权 5分钟线 不复权\n"
+        "日期\t时间\t开盘\t最高\t最低\t收盘\t成交量\t持仓量\t结算价\n"
+        + "".join(
+            f"2026/08/12\t{time}\t10\t12\t9\t11\t5\t100\t10.5\n"
+            for time in times
+        )
+        + "#数据来源:通达信\n"
+    )
+    source = _write_export(export_dir, text)
+
+    rows, _, metadata = read_export(source)
+
+    observed = tuple(row[2] for row in rows)
+    assert observed == expected
+    assert all(left < right for left, right in zip(observed, observed[1:]))
+    assert metadata["start_time"] == expected[0]
+    assert metadata["end_time"] == expected[-1]
+
+
+@pytest.mark.parametrize(
     "suffix",
     [
         "#数据来源:通达信\n2026/08/12\t0915\t12\t14\t11\t13\t7\t102\t12.5\n",
@@ -98,12 +145,10 @@ def test_import_rejects_non_exact_or_non_final_source_footer(tmp_path, suffix):
     "text",
     [
         VALID_EXPORT.replace("\t12\t9\t11\t5", "\t9\t8\t11\t5", 1),
-        VALID_EXPORT.replace(
-            "2026/08/12\t0910", "2026/08/12\t0905", 1
-        ),
+        VALID_EXPORT.replace("\t6\t101\t11.5", "\tinf\t101\t11.5", 1),
         VALID_EXPORT.replace("白银加权", "白银主连"),
     ],
-    ids=["invalid_ohlc", "duplicate_timestamp", "unknown_title"],
+    ids=["invalid_ohlc", "non_finite", "unknown_title"],
 )
 def test_invalid_export_rolls_back_bars_and_metadata(tmp_path, text):
     export_dir = tmp_path / "export"

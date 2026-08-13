@@ -5,7 +5,7 @@ import csv
 import hashlib
 import math
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
@@ -75,7 +75,7 @@ def read_export(path):
     path = Path(path)
     symbol = symbol_from_path(path)
     rows = []
-    seen_times = set()
+    previous_when = None
     with path.open(encoding="gb18030", newline="") as stream:
         reader = csv.reader(stream, delimiter="\t")
         try:
@@ -96,7 +96,9 @@ def read_export(path):
                 when = datetime.strptime(
                     fields[0].strip() + fields[1].strip().zfill(4),
                     "%Y/%m/%d%H%M",
-                ).strftime("%Y-%m-%d %H:%M:%S")
+                )
+                while previous_when is not None and when <= previous_when:
+                    when += timedelta(days=1)
                 open_, high, low, close, volume, open_interest, settlement = map(
                     float, fields[2:9]
                 )
@@ -111,9 +113,8 @@ def read_export(path):
                 or low > min(open_, high, close)
             ):
                 raise ValueError(f"invalid OHLC row {line_number} in {path.name}")
-            if when in seen_times:
-                raise ValueError(f"duplicate timestamp {when} in {path.name}")
-            seen_times.add(when)
+            previous_when = when
+            when = when.strftime("%Y-%m-%d %H:%M:%S")
             rows.append((
                 symbol, "5m", when, open_, high, low, close,
                 volume, None, open_interest, settlement,

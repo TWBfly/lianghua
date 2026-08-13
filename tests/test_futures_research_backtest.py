@@ -1710,10 +1710,15 @@ def test_prefix_attack_rebuilds_and_preserves_frozen_prefix():
         },
         "config": ResearchConfig(embargo_bars=0),
     }
+    eligible_dataset = dataset[
+        dataset["symbol"].eq(context["partitions"]["eligible_symbols"][0])
+    ].copy()
     train = purged_training_rows(
-        dataset, fold.train_times, fold.evaluation_times[0], 0
+        eligible_dataset, fold.train_times, fold.evaluation_times[0], 0
     )
-    evaluation = dataset[dataset["decision_time"].isin(fold.evaluation_times)]
+    evaluation = eligible_dataset[
+        eligible_dataset["decision_time"].isin(fold.evaluation_times)
+    ]
     context["base"]["holdout"]["attack_execution_identity"] = (
         research._attack_execution_identity(
             train,
@@ -1743,6 +1748,22 @@ def test_prefix_attack_rebuilds_and_preserves_frozen_prefix():
     ]
     assert len(result["consistency_sha256"]) == 64
     assert "evidence_sha256" not in result
+
+    foreign_train = purged_training_rows(
+        dataset, fold.train_times, fold.evaluation_times[0], 0
+    )
+    foreign_evaluation = dataset[
+        dataset["decision_time"].isin(fold.evaluation_times)
+    ]
+    context["base"]["holdout"]["attack_execution_identity"] = (
+        research._attack_execution_identity(
+            foreign_train,
+            foreign_evaluation,
+            research._evaluation_market(foreign_evaluation, segmented),
+        )
+    )
+    with pytest.raises(ResearchRejected, match="locked baseline identity"):
+        research.run_prefix_attack(context)
 
 
 def test_whitelist_attack_rejects_future_and_unknown_columns():
@@ -2860,6 +2881,22 @@ def test_run_research_rejects_impossible_segments_before_causal_build(
     assert "required_bars=56" in reason
     assert "eligible_symbols=0/1" in reason
     assert 'observed={"AG_IDX": 0}' in reason
+    assert len(result["data_quality"]) == 1
+    quality = result["data_quality"][0]
+    assert quality["symbol"] == "AG_IDX"
+    assert quality["status"] == "INCLUDED"
+    assert quality["segment_count"] == 100
+    assert quality["zero_volume_fraction"] == 0.0
+    assert quality["reason"] == ""
+    report = json.loads(
+        (tmp_path / "rejected-report" / "report.json").read_text()
+    )
+    assert report["data_quality"] == [{"run_id": result["run_id"], **quality}]
+    csv_quality = pd.read_csv(tmp_path / "rejected-report" / "data_quality.csv")
+    assert csv_quality.loc[0, "symbol"] == "AG_IDX"
+    assert "AG_IDX: INCLUDED" in (
+        tmp_path / "rejected-report" / "report.md"
+    ).read_text()
 
 
 def test_report_cli_returns_two_for_a_complete_rejection(tmp_path, monkeypatch, capsys):

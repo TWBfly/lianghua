@@ -1784,11 +1784,11 @@ def run_prefix_attack(context):
     }
     passed = all(checks.values())
     holdout_fold = partitions["holdout_fold"]
-    holdout_evaluation = full_original[
-        full_original["decision_time"].isin(holdout_fold.evaluation_times)
+    holdout_evaluation = original[
+        original["decision_time"].isin(holdout_fold.evaluation_times)
     ].copy()
     holdout_train = purged_training_rows(
-        full_original,
+        original,
         holdout_fold.train_times,
         holdout_fold.evaluation_times[0],
         config.embargo_bars,
@@ -2908,7 +2908,10 @@ def build_result(context, gates, status):
     })
 
 
-def rejected_result(run_id, config, reason):
+def rejected_result(run_id, config, reason, quality=None):
+    quality_rows = (
+        [] if quality is None else _records(quality.reset_index())
+    )
     return _json_safe({
         "run_id": run_id,
         "status": "RESEARCH_REJECTED",
@@ -2927,7 +2930,7 @@ def rejected_result(run_id, config, reason):
             "required": "all run preconditions satisfied", "affected_fold": None,
             "reason": reason,
         }],
-        "data_quality": [], "fold_metrics": [], "symbol_metrics": [],
+        "data_quality": quality_rows, "fold_metrics": [], "symbol_metrics": [],
         "trades": [], "limitations": LIMITATIONS,
     })
 
@@ -3151,6 +3154,7 @@ def run_research(db_path, output_dir, config=ResearchConfig()):
         "command_argv": command_argv,
         "command": command,
     }
+    quality = None
     try:
         bars = load_futures_bars(db_path)
         segmented, quality = validate_and_segment(bars, config)
@@ -3204,7 +3208,7 @@ def run_research(db_path, output_dir, config=ResearchConfig()):
         status = official["status"]
         result = build_result(context, gates, status)
     except ResearchRejected as exc:
-        result = rejected_result(run_id, config, str(exc))
+        result = rejected_result(run_id, config, str(exc), quality)
         result["provenance"].update(provenance)
     result["artifacts"] = write_report(result, output_dir)
     return result
