@@ -1634,14 +1634,27 @@ def test_decision_to_entry_gap_is_rejected_even_when_entry_is_next_row():
         simulate_standardized_ledger(pd.DataFrame([row]), market, 0.55, 5, 1)
 
 
-def make_attack_context(rows=80):
+def make_attack_context(rows=80, holdout_start=50, holdout_end=70):
     dataset = make_model_dataset(rows)
     times = pd.DatetimeIndex(dataset["decision_time"].unique())
-    holdout_fold = research.TemporalFold("holdout", times[:50], times[50:70])
+    holdout_fold = research.TemporalFold(
+        "holdout", times[:holdout_start], times[holdout_start:holdout_end]
+    )
     candidate = Candidate("logistic_c0.1", 0.55)
-    return {
+    config = ResearchConfig(embargo_bars=0)
+    market = make_model_market(dataset)
+    train = purged_training_rows(
+        dataset, holdout_fold.train_times, holdout_fold.evaluation_times[0], 0
+    )
+    evaluation = dataset[
+        dataset["decision_time"].isin(holdout_fold.evaluation_times)
+    ]
+    execution_identity = research._attack_execution_identity(
+        train, evaluation, research._evaluation_market(evaluation, market)
+    )
+    context = {
         "dataset": dataset,
-        "segmented": make_model_market(dataset),
+        "segmented": market,
         "partitions": {"holdout_fold": holdout_fold},
         "base": {
             "final_candidate": candidate,
@@ -1649,10 +1662,12 @@ def make_attack_context(rows=80):
                 "predictive_metrics": {"roc_auc": 0.60},
                 "cost_metrics": {5: {"total_return": 0.10}},
                 "evaluation_identity": {"id": "locked-holdout"},
+                "attack_execution_identity": execution_identity,
             },
         },
-        "config": ResearchConfig(embargo_bars=0),
+        "config": config,
     }
+    return context
 
 
 def test_prefix_attack_rebuilds_and_preserves_frozen_prefix():
@@ -1676,6 +1691,17 @@ def test_prefix_attack_rebuilds_and_preserves_frozen_prefix():
         },
         "config": ResearchConfig(embargo_bars=0),
     }
+    train = purged_training_rows(
+        dataset, fold.train_times, fold.evaluation_times[0], 0
+    )
+    evaluation = dataset[dataset["decision_time"].isin(fold.evaluation_times)]
+    context["base"]["holdout"]["attack_execution_identity"] = (
+        research._attack_execution_identity(
+            train,
+            evaluation,
+            research._evaluation_market(evaluation, segmented),
+        )
+    )
 
     result = research.run_prefix_attack(context)
 
@@ -1693,6 +1719,10 @@ def test_prefix_attack_rebuilds_and_preserves_frozen_prefix():
     assert result["kind"] == "prefix"
     assert result["columns"] == FEATURE_COLUMNS
     assert result["baseline_evaluation_identity"] == {"id": "locked-holdout"}
+    assert result["attack_execution_identity"] == context["base"]["holdout"][
+        "attack_execution_identity"
+    ]
+    assert len(result["evidence_sha256"]) == 64
 
 
 def test_whitelist_attack_rejects_future_and_unknown_columns():
@@ -1741,6 +1771,9 @@ def test_label_shuffle_attack_uses_twenty_within_symbol_seeded_permutations(
     assert result["kind"] == "label_shuffle"
     assert result["columns"] == FEATURE_COLUMNS
     assert result["baseline_evaluation_identity"] == {"id": "locked-holdout"}
+    assert result["attack_execution_identity"] == context["base"]["holdout"][
+        "attack_execution_identity"
+    ]
 
 
 @pytest.mark.parametrize(
@@ -1790,6 +1823,9 @@ def test_feature_attack_is_local_deterministic_and_keeps_baseline_candidate(
     pd.testing.assert_frame_equal(captured[0][2], captured[1][2])
     assert first["kind"] == kind
     assert first["baseline_evaluation_identity"] == {"id": "locked-holdout"}
+    assert first["attack_execution_identity"] == context["base"]["holdout"][
+        "attack_execution_identity"
+    ]
 
 
 def test_attack_identity_evidence_does_not_alias_the_locked_baseline(monkeypatch):
@@ -1807,7 +1843,66 @@ def test_attack_identity_evidence_does_not_alias_the_locked_baseline(monkeypatch
     }
 
 
+def test_feature_attack_from_another_real_holdout_cannot_be_mixed(monkeypatch):
+    original = passing_gate_context()
+    other = make_attack_context(80, holdout_start=55, holdout_end=75)
+
+    def capture_fit(candidate, x_train, y_train, weights, x_evaluation, config):
+        return np.linspace(0.1, 0.9, len(x_evaluation)), object()
+
+    monkeypatch.setattr(research, "_fit_matrix", capture_fit)
+    foreign = research.run_feature_attack(other, "noise")
+    original["attacks"] = [
+        foreign if row["id"] == "noise_features" else row
+        for row in original["attacks"]
+    ]
+
+    gates = research.evaluate_acceptance_gates(original)
+
+    assert foreign["attack_execution_identity"] != original["holdout"][
+        "attack_execution_identity"
+    ]
+    assert all(gate["passed"] is False for gate in gates)
+    assert research.research_status(gates) == "RESEARCH_REJECTED"
+
+
+def test_coordinated_identity_alias_cannot_relabel_a_foreign_attack(monkeypatch):
+    original = passing_gate_context()
+    other = make_attack_context(80, holdout_start=55, holdout_end=75)
+
+    def capture_fit(candidate, x_train, y_train, weights, x_evaluation, config):
+        return np.linspace(0.1, 0.9, len(x_evaluation)), object()
+
+    monkeypatch.setattr(research, "_fit_matrix", capture_fit)
+    foreign = research.run_feature_attack(other, "noise")
+    foreign["baseline_evaluation_identity"] = original["holdout"][
+        "evaluation_identity"
+    ]
+    foreign["attack_execution_identity"] = original["holdout"][
+        "attack_execution_identity"
+    ]
+    original["attacks"] = [
+        foreign if row["id"] == "noise_features" else row
+        for row in original["attacks"]
+    ]
+
+    gates = research.evaluate_acceptance_gates(original)
+
+    assert all(gate["passed"] is False for gate in gates)
+    assert research.research_status(gates) == "RESEARCH_REJECTED"
+
+
 def passing_gate_context():
+    dataset = make_model_dataset(80)
+    market = make_model_market(dataset)
+    times = pd.DatetimeIndex(dataset["decision_time"].unique())
+    temporal = {
+        "outer_1": research.TemporalFold("outer_1", times[:20], times[20:30]),
+        "outer_2": research.TemporalFold("outer_2", times[:30], times[30:40]),
+        "outer_3": research.TemporalFold("outer_3", times[:40], times[40:50]),
+        "holdout": research.TemporalFold("holdout", times[:50], times[50:70]),
+    }
+    config = ResearchConfig(embargo_bars=0)
     trade = pd.DataFrame([{
         "symbol": "S00",
         "decision_time": pd.Timestamp("2026-01-01 09:00"),
@@ -1819,6 +1914,16 @@ def passing_gate_context():
     }])
 
     def fold(name):
+        temporal_fold = temporal[name]
+        train = purged_training_rows(
+            dataset,
+            temporal_fold.train_times,
+            temporal_fold.evaluation_times[0],
+            config.embargo_bars,
+        )
+        evaluation = dataset[
+            dataset["decision_time"].isin(temporal_fold.evaluation_times)
+        ]
         return {
             "fold": name,
             "predictive_metrics": {"roc_auc": 0.60},
@@ -1832,6 +1937,13 @@ def passing_gate_context():
             "trades": {
                 cost: trade.copy() for cost in (0, 2, 5, 10, 20)
             },
+            "split_cutoffs": {
+                "training_start": train["decision_time"].min(),
+                "training_cutoff": train["decision_time"].max(),
+                "label_cutoff": train["label_end_time"].max(),
+                "evaluation_start": evaluation["decision_time"].min(),
+                "evaluation_end": evaluation["decision_time"].max(),
+            },
         }
 
     symbols = pd.DataFrame([
@@ -1844,18 +1956,46 @@ def passing_gate_context():
         "p95": 0.20,
     }
     holdout["symbol_metrics"] = symbols
-    holdout["evaluation_identity"] = {"id": "locked-holdout"}
     candidate = Candidate("logistic_c0.1", 0.55)
+    holdout_evaluation = dataset[
+        dataset["decision_time"].isin(temporal["holdout"].evaluation_times)
+    ]
+    holdout["evaluation_identity"] = research._evaluation_identity(
+        candidate,
+        {"model_identity": "fixture", "model_parameters": {}},
+        holdout_evaluation,
+        market,
+        config,
+    )
+    holdout_train = purged_training_rows(
+        dataset,
+        temporal["holdout"].train_times,
+        temporal["holdout"].evaluation_times[0],
+        config.embargo_bars,
+    )
+    holdout["attack_execution_identity"] = research._attack_execution_identity(
+        holdout_train,
+        holdout_evaluation,
+        research._evaluation_market(holdout_evaluation, market),
+    )
     def frozen():
         return {
             "candidate": candidate,
             "threshold": candidate.threshold,
             "baseline_evaluation_identity": dict(holdout["evaluation_identity"]),
         }
-    return {
+    context = {
         "checks": {"structural": True, "causal": True, "ledger": True},
         "outer_results": [fold(f"outer_{number}") for number in range(1, 4)],
         "holdout": holdout,
+        "dataset": dataset,
+        "segmented": market,
+        "partitions": {
+            "outer_folds": [temporal[f"outer_{number}"] for number in range(1, 4)],
+            "holdout_fold": temporal["holdout"],
+            "eligible_symbols": ("AG_IDX", "CU_IDX"),
+        },
+        "config": config,
         "eligible_symbols": tuple(symbols["symbol"]),
         "attacks": [
             {
@@ -1906,10 +2046,37 @@ def passing_gate_context():
         ],
         "final_candidate": candidate,
     }
+    for attack in context["attacks"]:
+        attack["attack_execution_identity"] = dict(
+            holdout["attack_execution_identity"]
+        )
+        attack["evidence_sha256"] = research._attack_evidence_sha256(attack)
+    return context
 
 
 def _attack(context, attack_id):
     return next(row for row in context["attacks"] if row["id"] == attack_id)
+
+
+def _refresh_attack_execution_evidence(context):
+    train, evaluation, market, _, _ = research._attack_domain(context)
+    identity = research._attack_execution_identity(train, evaluation, market)
+    context["holdout"]["attack_execution_identity"] = identity
+    for attack in context["attacks"]:
+        attack["attack_execution_identity"] = dict(identity)
+        attack["evidence_sha256"] = research._attack_evidence_sha256(attack)
+
+
+def _attack_ready_partition_dataset():
+    dataset = make_partition_dataset().assign(
+        segment_id=lambda rows: rows["symbol"] + ":1",
+        exit_time=lambda rows: rows["label_end_time"],
+    )
+    market = dataset.loc[:, ["symbol", "segment_id", "decision_time"]].rename(
+        columns={"decision_time": "trade_time"}
+    )
+    market = market.assign(open=100.0, close=100.0)
+    return dataset, market
 
 
 @pytest.mark.parametrize(
@@ -1982,10 +2149,13 @@ def test_deliberately_leaking_feature_attack_fails_gate():
 
 def test_integrity_gate_executes_purge_and_embargo_evidence():
     context = passing_gate_context()
-    dataset = make_partition_dataset()
+    dataset, market = _attack_ready_partition_dataset()
     config = ResearchConfig(min_symbols=2, min_fold_rows=50, embargo_bars=6)
     partitions = make_temporal_partitions(dataset, config)
-    context.update({"dataset": dataset, "partitions": partitions, "config": config})
+    context.update({
+        "dataset": dataset, "segmented": market,
+        "partitions": partitions, "config": config,
+    })
     folds = [*partitions["outer_folds"], partitions["holdout_fold"]]
     results = [*context["outer_results"], context["holdout"]]
     for fold, result in zip(folds, results):
@@ -2000,6 +2170,7 @@ def test_integrity_gate_executes_purge_and_embargo_evidence():
             "evaluation_start": evaluation["decision_time"].min(),
             "evaluation_end": evaluation["decision_time"].max(),
         }
+    _refresh_attack_execution_evidence(context)
     results[1]["split_cutoffs"]["label_cutoff"] = folds[1].evaluation_times[0]
 
     gate = next(
@@ -2021,6 +2192,21 @@ def test_duplicate_fold_identity_cannot_hide_a_failed_outer_fold():
 
     assert all(gate["passed"] is False for gate in gates)
     assert all("fold" in gate["reason"] for gate in gates)
+    assert research.research_status(gates) == "RESEARCH_REJECTED"
+
+
+def test_raw_partition_names_are_validated_before_fold_observations():
+    context = passing_gate_context()
+    folds = context["partitions"]["outer_folds"]
+    context["partitions"]["outer_folds"] = [
+        research.TemporalFold("outer_3", fold.train_times, fold.evaluation_times)
+        for fold in folds
+    ]
+
+    gates = research.evaluate_acceptance_gates(context)
+
+    assert all(gate["passed"] is False for gate in gates)
+    assert all("partition" in gate["reason"] for gate in gates)
     assert research.research_status(gates) == "RESEARCH_REJECTED"
 
 
@@ -2085,10 +2271,13 @@ def test_prefix_attack_summary_is_executable_evidence(mutate):
 @pytest.mark.parametrize("case", ["missing", "extra", "mismatch"])
 def test_split_cutoff_evidence_must_be_complete_and_exact(case):
     context = passing_gate_context()
-    dataset = make_partition_dataset()
+    dataset, market = _attack_ready_partition_dataset()
     config = ResearchConfig(min_symbols=2, min_fold_rows=50, embargo_bars=6)
     partitions = make_temporal_partitions(dataset, config)
-    context.update({"dataset": dataset, "partitions": partitions, "config": config})
+    context.update({
+        "dataset": dataset, "segmented": market,
+        "partitions": partitions, "config": config,
+    })
     folds = [*partitions["outer_folds"], partitions["holdout_fold"]]
     results = [*context["outer_results"], context["holdout"]]
     for fold, result in zip(folds, results):
@@ -2103,6 +2292,7 @@ def test_split_cutoff_evidence_must_be_complete_and_exact(case):
             "evaluation_start": evaluation["decision_time"].min(),
             "evaluation_end": evaluation["decision_time"].max(),
         }
+    _refresh_attack_execution_evidence(context)
     if case == "missing":
         results[0]["split_cutoffs"].pop("training_start")
     elif case == "extra":
@@ -2149,6 +2339,7 @@ def test_feature_attack_gain_boundary_has_only_roundoff_tolerance(metric, limit)
     )
     attack = _attack(context, "noise_features")
     attack[metric] = baseline + limit + 0.5e-12
+    attack["evidence_sha256"] = research._attack_evidence_sha256(attack)
 
     boundary = next(
         row for row in research.evaluate_acceptance_gates(context)
@@ -2157,6 +2348,7 @@ def test_feature_attack_gain_boundary_has_only_roundoff_tolerance(metric, limit)
     assert boundary["passed"] is True
 
     attack[metric] = baseline + limit + 2e-12
+    attack["evidence_sha256"] = research._attack_evidence_sha256(attack)
     exceeded = next(
         row for row in research.evaluate_acceptance_gates(context)
         if row["id"] == "feature_attacks"

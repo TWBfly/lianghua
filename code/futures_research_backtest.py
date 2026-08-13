@@ -1459,6 +1459,17 @@ def build_base_evaluation(dataset, market, partitions, config=ResearchConfig()):
     holdout_result["evaluation_identity"] = _evaluation_identity(
         final_candidate, holdout_result, holdout_evaluation, market, config
     )
+    holdout_train = purged_training_rows(
+        dataset,
+        holdout_fold.train_times,
+        holdout_fold.evaluation_times[0],
+        config.embargo_bars,
+    )
+    holdout_result["attack_execution_identity"] = _attack_execution_identity(
+        holdout_train,
+        holdout_evaluation,
+        _evaluation_market(holdout_evaluation, market),
+    )
     return {
         "outer_results": outer_results,
         "final_candidate": final_candidate,
@@ -1517,15 +1528,111 @@ def _same_numeric(left, right):
     )
 
 
-def _frozen_attack_evidence(context, attack_id):
+def _canonical_attack_frame(frame):
+    if not isinstance(frame, pd.DataFrame) or frame.empty or not frame.columns.is_unique:
+        raise ResearchRejected("attack execution domain must be a non-empty data frame")
+    # Drop DataFrame subclasses used to guard target access: hashing the frozen
+    # rows is an audit operation and must not re-enter selection-time accessors.
+    canonical = pd.DataFrame(frame).copy(deep=True)
+    for column in canonical.columns:
+        if pd.api.types.is_datetime64_any_dtype(canonical[column]):
+            canonical[column] = pd.to_datetime(canonical[column]).astype("datetime64[ns]")
+    for column in ("symbol", "segment_id"):
+        if column in canonical:
+            canonical[column] = canonical[column].astype("string")
+    columns = sorted(canonical.columns)
+    sort_columns = [
+        column for column in ("decision_time", "symbol", "segment_id", "trade_time")
+        if column in canonical
+    ]
+    canonical = canonical.loc[:, columns].sort_values(
+        sort_columns or columns, kind="stable"
+    ).reset_index(drop=True)
+    header = json.dumps({
+        "columns": columns,
+        "dtypes": [str(canonical[column].dtype) for column in columns],
+    }, sort_keys=True, separators=(",", ":")).encode()
+    hashes = pd.util.hash_pandas_object(
+        canonical, index=False, categorize=True
+    ).to_numpy(dtype="<u8")
+    digest = hashlib.sha256(header)
+    digest.update(hashes.tobytes())
+    return {"rows": int(len(canonical)), "sha256": digest.hexdigest()}
+
+
+def _attack_execution_identity(train, evaluation, market):
+    required_train = {"decision_time", "label_end_time"}
+    required_evaluation = {"decision_time", "label_end_time"}
+    if (
+        not isinstance(train, pd.DataFrame)
+        or not isinstance(evaluation, pd.DataFrame)
+        or required_train.difference(train.columns)
+        or required_evaluation.difference(evaluation.columns)
+        or train.empty
+        or evaluation.empty
+    ):
+        raise ResearchRejected("invalid attack execution domain")
+    marks, market_hash = _canonical_evaluation_marks(evaluation, market)
+    times = pd.DatetimeIndex(evaluation["decision_time"].unique()).sort_values()
+    time_hashes = pd.util.hash_pandas_object(
+        pd.Series(times, dtype="datetime64[ns]"), index=False
+    ).to_numpy(dtype="<u8")
+    payload = {
+        "training": {
+            **_canonical_attack_frame(train),
+            "start": pd.Timestamp(train["decision_time"].min()).isoformat(),
+            "cutoff": pd.Timestamp(train["decision_time"].max()).isoformat(),
+            "label_cutoff": pd.Timestamp(train["label_end_time"].max()).isoformat(),
+        },
+        "evaluation": {
+            **_canonical_attack_frame(evaluation),
+            "time_count": int(len(times)),
+            "time_sha256": hashlib.sha256(time_hashes.tobytes()).hexdigest(),
+            "start": pd.Timestamp(times[0]).isoformat(),
+            "end": pd.Timestamp(times[-1]).isoformat(),
+        },
+        "market": {"rows": int(len(marks)), "sha256": market_hash},
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    return {"id": hashlib.sha256(encoded).hexdigest(), **payload}
+
+
+def _attack_evidence_sha256(attack):
+    if not isinstance(attack, dict):
+        raise ResearchRejected("invalid attack evidence")
+    payload = {key: value for key, value in attack.items() if key != "evidence_sha256"}
+    candidate = payload.get("candidate")
+    if isinstance(candidate, Candidate):
+        payload["candidate"] = {
+            "model_name": candidate.model_name,
+            "threshold": candidate.threshold,
+        }
+    encoded = json.dumps(
+        _stable_parameter(payload), sort_keys=True, separators=(",", ":")
+    ).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _seal_attack_evidence(attack):
+    attack["evidence_sha256"] = _attack_evidence_sha256(attack)
+    return attack
+
+
+def _frozen_attack_evidence(context, attack_id, execution_identity):
     try:
         base = context.get("base", context)
         candidate = base["final_candidate"]
         identity = base["holdout"]["evaluation_identity"]
+        expected_execution = base["holdout"]["attack_execution_identity"]
         kind, columns = ATTACK_EVIDENCE[attack_id]
     except (AttributeError, KeyError, TypeError) as exc:
         raise ResearchRejected("attack requires locked baseline identity") from exc
-    if not isinstance(candidate, Candidate) or not isinstance(identity, dict) or not identity:
+    if (
+        not isinstance(candidate, Candidate)
+        or not isinstance(identity, dict)
+        or not identity
+        or execution_identity != expected_execution
+    ):
         raise ResearchRejected("attack requires locked baseline identity")
     return {
         "candidate": candidate,
@@ -1533,6 +1640,7 @@ def _frozen_attack_evidence(context, attack_id):
         "kind": kind,
         "columns": columns,
         "baseline_evaluation_identity": copy.deepcopy(identity),
+        "attack_execution_identity": copy.deepcopy(execution_identity),
     }
 
 
@@ -1558,6 +1666,10 @@ def run_prefix_attack(context):
     )
     original = build_causal_dataset(original_segmented, config)
     extended = build_causal_dataset(extended_segmented, config)
+    eligible = partitions.get("eligible_symbols")
+    if eligible is not None:
+        original = original[original["symbol"].isin(eligible)].copy()
+        extended = extended[extended["symbol"].isin(eligible)].copy()
     if original.empty:
         raise ResearchRejected("prefix attack has no matured labels")
     cutoff = pd.Timestamp(original["decision_time"].max())
@@ -1643,16 +1755,33 @@ def run_prefix_attack(context):
         "probabilities": bool(probabilities_equal),
     }
     passed = all(checks.values())
-    return {
+    holdout_fold = partitions["holdout_fold"]
+    holdout_evaluation = original[
+        original["decision_time"].isin(holdout_fold.evaluation_times)
+    ].copy()
+    holdout_train = purged_training_rows(
+        original,
+        holdout_fold.train_times,
+        holdout_fold.evaluation_times[0],
+        config.embargo_bars,
+    )
+    execution_identity = _attack_execution_identity(
+        holdout_train,
+        holdout_evaluation,
+        _evaluation_market(holdout_evaluation, original_segmented),
+    )
+    return _seal_attack_evidence({
         "id": "prefix_invariance",
-        **_frozen_attack_evidence(context, "prefix_invariance"),
+        **_frozen_attack_evidence(
+            context, "prefix_invariance", execution_identity
+        ),
         "passed": passed,
         "reason": "all frozen prefixes match" if passed else "future bars changed frozen evidence",
         "checks": checks,
         "cutoff": cutoff,
         "compared_rows": int(len(original)),
         "max_probability_difference": maximum_difference,
-    }
+    })
 
 
 def _attack_strategy_metrics(evaluation, probability, market, candidate):
@@ -1668,6 +1797,7 @@ def _attack_strategy_metrics(evaluation, probability, market, candidate):
 
 def run_label_shuffle_attack(context):
     train, evaluation, market, candidate, config = _attack_domain(context)
+    execution_identity = _attack_execution_identity(train, evaluation, market)
     metrics = []
     for number in range(20):
         shuffled = train.copy()
@@ -1690,15 +1820,17 @@ def run_label_shuffle_attack(context):
     returns = np.asarray([row["return_5bps"] for row in metrics], dtype=float)
     if not np.isfinite(aucs).all() or not np.isfinite(returns).all():
         raise ResearchRejected("non-finite label shuffle result")
-    return {
+    return _seal_attack_evidence({
         "id": "label_shuffle",
-        **_frozen_attack_evidence(context, "label_shuffle"),
+        **_frozen_attack_evidence(
+            context, "label_shuffle", execution_identity
+        ),
         "passed": True,
         "reason": "20 deterministic within-symbol permutations completed",
         "metrics": metrics,
         "max_auc": float(aucs.max()),
         "median_return_5bps": float(np.median(returns)),
-    }
+    })
 
 
 def _hash_noise(symbol, decision_time, column, seed=42):
@@ -1742,6 +1874,7 @@ def _feature_attack_columns(frame, kind):
 
 def run_feature_attack(context, kind):
     train, evaluation, market, candidate, config = _attack_domain(context)
+    execution_identity = _attack_execution_identity(train, evaluation, market)
     train_attack, columns = _feature_attack_columns(train, kind)
     evaluation_attack, _ = _feature_attack_columns(evaluation, kind)
     x_train = pd.concat([train.loc[:, FEATURE_COLUMNS], train_attack], axis=1)
@@ -1759,14 +1892,16 @@ def run_feature_attack(context, kind):
     predictive, strategy = _attack_strategy_metrics(
         evaluation, probability, market, candidate
     )
-    return {
+    return _seal_attack_evidence({
         "id": f"{kind}_features",
-        **_frozen_attack_evidence(context, f"{kind}_features"),
+        **_frozen_attack_evidence(
+            context, f"{kind}_features", execution_identity
+        ),
         "passed": True,
         "reason": f"{kind} attack completed on the locked holdout",
         "roc_auc": predictive["roc_auc"],
         "return_5bps": strategy["total_return"],
-    }
+    })
 
 
 def run_adversarial_checks(context):
@@ -1778,18 +1913,22 @@ def run_adversarial_checks(context):
         except ResearchRejected:
             rejected.append(extra)
     whitelist_passed = rejected == ["future_return", "unknown"]
+    train, evaluation, market, _, _ = _attack_domain(context)
+    execution_identity = _attack_execution_identity(train, evaluation, market)
     return [
         run_prefix_attack(context),
-        {
+        _seal_attack_evidence({
             "id": "feature_whitelist",
-            **_frozen_attack_evidence(context, "feature_whitelist"),
+            **_frozen_attack_evidence(
+                context, "feature_whitelist", execution_identity
+            ),
             "passed": whitelist_passed,
             "reason": (
                 "future and unknown columns rejected"
                 if whitelist_passed else "feature whitelist accepted an attack column"
             ),
             "rejected_columns": rejected,
-        },
+        }),
         run_label_shuffle_attack(context),
         run_feature_attack(context, "noise"),
         run_feature_attack(context, "calendar"),
@@ -1814,6 +1953,19 @@ def _failed_gate(gate_id, required, reason, observed=None, affected_fold=None):
 
 
 def _gate_inputs(context):
+    try:
+        raw_outer = tuple(context["partitions"]["outer_folds"])
+        raw_holdout = context["partitions"]["holdout_fold"]
+        raw_names = [fold.name for fold in raw_outer]
+    except (AttributeError, KeyError, TypeError) as exc:
+        raise ValueError("invalid raw evaluation partition identity") from exc
+    if (
+        len(raw_outer) != 3
+        or len(set(raw_names)) != 3
+        or set(raw_names) != {"outer_1", "outer_2", "outer_3"}
+        or raw_holdout.name != "holdout"
+    ):
+        raise ValueError("raw partition identities must be unique outer_1/outer_2/outer_3/holdout")
     base = context.get("base", context)
     outer = list(base["outer_results"])
     holdout = base["holdout"]
@@ -1829,13 +1981,23 @@ def _gate_inputs(context):
     }
     candidate = base["final_candidate"]
     identity = holdout["evaluation_identity"]
-    if not isinstance(candidate, Candidate) or not isinstance(identity, dict) or not identity:
+    train, evaluation, market, domain_candidate, _ = _attack_domain(context)
+    expected_execution = _attack_execution_identity(train, evaluation, market)
+    baseline_execution = holdout.get("attack_execution_identity")
+    if (
+        not isinstance(candidate, Candidate)
+        or candidate != domain_candidate
+        or not isinstance(identity, dict)
+        or not identity
+        or baseline_execution != expected_execution
+    ):
         raise ValueError("invalid frozen baseline identity")
     for attack_id, attack in attack_map.items():
         kind, columns = ATTACK_EVIDENCE[attack_id]
         required = {
             "candidate", "threshold", "kind", "columns",
-            "baseline_evaluation_identity",
+            "baseline_evaluation_identity", "attack_execution_identity",
+            "evidence_sha256",
         }
         if (
             required.difference(attack)
@@ -1845,6 +2007,8 @@ def _gate_inputs(context):
             or tuple(attack["columns"]) != columns
             or "future_return" in attack["columns"]
             or attack["baseline_evaluation_identity"] != identity
+            or attack["attack_execution_identity"] != expected_execution
+            or attack["evidence_sha256"] != _attack_evidence_sha256(attack)
         ):
             raise ValueError(f"attack evidence is not frozen: {attack_id}")
     whitelist = attack_map["feature_whitelist"]
