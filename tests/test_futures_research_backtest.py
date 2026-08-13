@@ -755,6 +755,13 @@ def test_outer_and_holdout_base_evaluation_is_temporally_isolated(monkeypatch):
     ]
     assert identity["costs_bps"] == list(config.costs_bps)
     assert identity["seed"] == config.seed
+    holdout_rows = dataset[
+        dataset["decision_time"].isin(holdout.evaluation_times)
+    ]
+    holdout_marks = research._evaluation_market(holdout_rows, market)
+    assert identity["market_mark_rows"] == len(holdout_marks)
+    assert len(identity["market_mark_hash"]) == 64
+    assert int(identity["market_mark_hash"], 16) >= 0
 
     assert len(parent_fits) == 4
     for parent, (evaluation_start, fitted_train) in zip(parents, parent_fits):
@@ -863,50 +870,126 @@ def test_generic_fold_named_holdout_has_no_locked_evaluation_side_effects():
 def test_evaluation_identity_hashes_candidate_domain_costs_and_seed():
     dataset = make_model_dataset(80)
     evaluation = dataset.iloc[120:].copy()
+    market = make_model_market(dataset)
     candidate = Candidate("logistic_c0.1", 0.55)
     fold_result = {"model_identity": "model-a", "model_parameters": {"C": 0.1}}
     config = ResearchConfig()
 
     baseline = research._evaluation_identity(
-        candidate, fold_result, evaluation, config
+        candidate, fold_result, evaluation, market, config
     )
     identities = {baseline["id"]}
     identities.add(research._evaluation_identity(
         Candidate("logistic_c1.0", candidate.threshold),
         fold_result,
         evaluation,
+        market,
         config,
     )["id"])
     identities.add(research._evaluation_identity(
-        Candidate(candidate.model_name, 0.58), fold_result, evaluation, config
+        Candidate(candidate.model_name, 0.58), fold_result, evaluation, market, config
     )["id"])
     identities.add(research._evaluation_identity(
         candidate,
         {"model_identity": "model-a", "model_parameters": {"C": 1.0}},
         evaluation,
+        market,
         config,
     )["id"])
     identities.add(research._evaluation_identity(
         candidate,
         {"model_identity": "model-b", "model_parameters": {"C": 0.1}},
         evaluation,
+        market,
         config,
     )["id"])
     changed_domain = evaluation.iloc[:-1].copy()
     identities.add(research._evaluation_identity(
-        candidate, fold_result, changed_domain, config
+        candidate, fold_result, changed_domain, market, config
     )["id"])
     identities.add(research._evaluation_identity(
-        candidate, fold_result, evaluation, ResearchConfig(costs_bps=(0, 5, 15))
+        candidate,
+        fold_result,
+        evaluation,
+        market,
+        ResearchConfig(costs_bps=(0, 5, 15)),
     )["id"])
     identities.add(research._evaluation_identity(
-        candidate, fold_result, evaluation, ResearchConfig(seed=43)
+        candidate, fold_result, evaluation, market, ResearchConfig(seed=43)
     )["id"])
 
     assert baseline["scope"] == "single_build_base_evaluation"
     assert baseline["evaluation_rows"] == len(evaluation)
     assert len(baseline["evaluation_times"]) == evaluation["decision_time"].nunique()
     assert len(identities) == 8
+
+
+def test_evaluation_identity_hashes_only_canonical_evaluation_market_marks():
+    dataset = make_model_dataset(80)
+    evaluation = dataset.iloc[120:].copy()
+    market = make_model_market(dataset)
+    candidate = Candidate("logistic_c0.1", 0.55)
+    fold_result = {"model_identity": "model-a", "model_parameters": {"C": 0.1}}
+    config = ResearchConfig()
+
+    baseline = research._evaluation_identity(
+        candidate, fold_result, evaluation, market, config
+    )
+    relevant = research._evaluation_market(evaluation, market)
+    trade = evaluation.iloc[0]
+    middle = relevant[
+        relevant["symbol"].eq(trade.symbol)
+        & relevant["segment_id"].eq(trade.segment_id)
+        & relevant["trade_time"].eq(trade.entry_time + pd.Timedelta(minutes=5))
+    ].index.item()
+    assert trade.entry_time < relevant.loc[middle, "trade_time"] < trade.exit_time
+    changed_mark = market.copy()
+    changed_mark.loc[middle, "close"] *= 0.9
+    changed = research._evaluation_identity(
+        candidate, fold_result, evaluation, changed_mark, config
+    )
+    unrelated = pd.DataFrame([
+        {
+            "symbol": "UNRELATED",
+            "segment_id": "UNRELATED:1",
+            "trade_time": evaluation["decision_time"].min(),
+            "open": 1.0,
+            "close": 999.0,
+        },
+        {
+            "symbol": evaluation["symbol"].iloc[0],
+            "segment_id": evaluation["segment_id"].iloc[0],
+            "trade_time": evaluation["decision_time"].min() - pd.Timedelta(days=1),
+            "open": 1.0,
+            "close": 999.0,
+        },
+    ])
+    outside = research._evaluation_identity(
+        candidate,
+        fold_result,
+        evaluation,
+        pd.concat([market, unrelated], ignore_index=True),
+        config,
+    )
+    shuffled = research._evaluation_identity(
+        candidate,
+        fold_result,
+        evaluation,
+        market.sample(frac=1, random_state=42).reset_index(drop=True),
+        config,
+    )
+    microseconds = market.copy()
+    microseconds["trade_time"] = microseconds["trade_time"].astype("datetime64[us]")
+    equivalent_dtype = research._evaluation_identity(
+        candidate, fold_result, evaluation, microseconds, config
+    )
+
+    assert changed["id"] != baseline["id"]
+    assert changed["market_mark_hash"] != baseline["market_mark_hash"]
+    assert outside == baseline
+    assert shuffled == baseline
+    assert equivalent_dtype == baseline
+    assert baseline["market_mark_rows"] == len(relevant)
 
 
 def test_model_identity_hashes_every_audit_input(monkeypatch):

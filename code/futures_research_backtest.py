@@ -1062,7 +1062,28 @@ def _model_identity(candidate, model, train):
     return digest.hexdigest()[:16], parameters
 
 
-def _evaluation_identity(candidate, fold_result, evaluation, config):
+def _canonical_evaluation_marks(evaluation, market):
+    columns = ["symbol", "segment_id", "trade_time", "open", "close"]
+    frame = _evaluation_market(evaluation, market).loc[:, columns].copy()
+    if frame.empty or frame[["symbol", "segment_id"]].isna().any().any():
+        raise ResearchRejected("invalid evaluation market identity input")
+    frame["symbol"] = frame["symbol"].astype("string")
+    frame["segment_id"] = frame["segment_id"].astype("string")
+    frame["trade_time"] = _parse_trade_time(frame["trade_time"]).astype(
+        "datetime64[ns]"
+    )
+    for column in ("open", "close"):
+        frame[column] = pd.to_numeric(frame[column], errors="coerce").astype("float64")
+        if not np.isfinite(frame[column]).all() or frame[column].le(0.0).any():
+            raise ResearchRejected("invalid evaluation market identity input")
+    frame = frame.sort_values(columns, kind="stable").reset_index(drop=True)
+    hashes = pd.util.hash_pandas_object(
+        frame, index=False, categorize=True
+    ).to_numpy(dtype="<u8")
+    return frame, hashlib.sha256(hashes.tobytes()).hexdigest()
+
+
+def _evaluation_identity(candidate, fold_result, evaluation, market, config):
     if (
         not isinstance(candidate, Candidate)
         or not isinstance(fold_result, dict)
@@ -1089,6 +1110,7 @@ def _evaluation_identity(candidate, fold_result, evaluation, config):
         .to_numpy(dtype=np.uint64)
         .tobytes()
     ).hexdigest()
+    marks, mark_hash = _canonical_evaluation_marks(evaluation, market)
     payload = {
         "scope": "single_build_base_evaluation",
         "candidate": {
@@ -1100,6 +1122,8 @@ def _evaluation_identity(candidate, fold_result, evaluation, config):
         "evaluation_times": [pd.Timestamp(time).isoformat() for time in times],
         "evaluation_rows": int(len(evaluation)),
         "evaluation_row_hash": row_hash,
+        "market_mark_rows": int(len(marks)),
+        "market_mark_hash": mark_hash,
         "costs_bps": costs,
         "seed": seed,
     }
@@ -1419,7 +1443,7 @@ def build_base_evaluation(dataset, market, partitions, config=ResearchConfig()):
         dataset["decision_time"].isin(holdout_fold.evaluation_times)
     ].copy()
     holdout_result["evaluation_identity"] = _evaluation_identity(
-        final_candidate, holdout_result, holdout_evaluation, config
+        final_candidate, holdout_result, holdout_evaluation, market, config
     )
     return {
         "outer_results": outer_results,
