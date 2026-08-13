@@ -1,6 +1,9 @@
+import hashlib
 import inspect
 import json
+import shlex
 import sqlite3
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -44,7 +47,9 @@ def make_bars(rows, symbol="AG_IDX"):
     })
 
 
-def _write_source(db_path, bars, series_type="WEIGHTED_INDEX", metadata=True):
+def _write_source(
+        db_path, bars, series_type="WEIGHTED_INDEX", metadata=True,
+        source_sha256="a" * 64):
     with sqlite3.connect(db_path) as conn:
         ensure_schema(conn)
         conn.executemany(
@@ -62,8 +67,8 @@ def _write_source(db_path, bars, series_type="WEIGHTED_INDEX", metadata=True):
             for symbol in bars["symbol"].unique():
                 conn.execute(
                     "INSERT INTO futures_series_metadata VALUES (?, '5m', 'source.txt', 'weighted', ?, "
-                    "'gb18030', 'hash', 1, '2026-01-02 09:00:00', '2026-01-02 09:00:00', 'now')",
-                    (symbol, series_type),
+                    "'gb18030', ?, 1, '2026-01-02 09:00:00', '2026-01-02 09:00:00', 'now')",
+                    (symbol, series_type, source_sha256),
                 )
 
 
@@ -93,6 +98,14 @@ def test_load_rejects_offset_aware_timestamp(tmp_path):
         conn.execute("UPDATE futures_min_bars SET trade_time=trade_time || '+00:00'")
 
     with pytest.raises(ResearchRejected, match="timezone-aware"):
+        load_futures_bars(db_path)
+
+
+def test_load_rejects_noncanonical_source_hash(tmp_path):
+    db_path = tmp_path / "futures.db"
+    _write_source(db_path, make_bars(2), source_sha256="hash")
+
+    with pytest.raises(ResearchRejected, match="source SHA256"):
         load_futures_bars(db_path)
 
 
@@ -2462,6 +2475,24 @@ EXPECTED_REPORT_FILES = {
     "report.md", "report.json", "data_quality.csv",
     "fold_metrics.csv", "symbol_metrics.csv", "trades.csv",
 }
+EXPECTED_GATE_IDS = (
+    "integrity_checks", "auc_above_chance_each_fold",
+    "positive_5bps_each_fold", "positive_bootstrap_lower_bound",
+    "label_shuffle", "feature_attacks", "positive_symbol_fraction",
+    "positive_symbol_concentration", "ten_bps_resilience",
+    "cost_monotonicity",
+)
+
+
+def official_gate_fixture(failed_id="positive_5bps_each_fold"):
+    return [{
+        "id": gate_id,
+        "passed": gate_id != failed_id,
+        "observed": 0.0 if gate_id == failed_id else 1.0,
+        "required": "fixture requirement",
+        "affected_fold": "outer_1" if gate_id == failed_id else None,
+        "reason": "fixture gate rejection" if gate_id == failed_id else "passed",
+    } for gate_id in EXPECTED_GATE_IDS]
 
 
 def rejected_result_fixture():
@@ -2493,11 +2524,8 @@ def rejected_result_fixture():
             "entry_time": "2026-01-02T09:05:00",
             "exit_time": "2026-01-02T09:10:00", "sleeve_pnl": -0.01,
         }],
-        "gates": [{
-            "id": "positive_5bps_each_fold", "passed": False,
-            "observed": {"outer_1": np.nan}, "required": "> 0 each fold",
-            "affected_fold": "outer_1", "reason": "fixture gate rejection",
-        }],
+        "metrics": [{"optional_non_finite": np.nan}],
+        "gates": official_gate_fixture(),
     })
     return result
 
@@ -2514,7 +2542,7 @@ def test_report_artifacts_reconcile_and_preserve_rejection(tmp_path):
     )
     assert payload["status"] == "RESEARCH_REJECTED"
     assert payload["run_id"] == result["run_id"]
-    assert payload["gates"][0]["observed"]["outer_1"] is None
+    assert payload["metrics"][0]["optional_non_finite"] is None
     markdown = (tmp_path / "report.md").read_text(encoding="utf-8")
     assert markdown.startswith("# RESEARCH_REJECTED\n")
     assert "加权指数研究回测，不代表可成交合约或实盘收益" in markdown
@@ -2557,6 +2585,81 @@ def test_report_writer_rejects_unreconciled_trade_summary_atomically(tmp_path):
     assert not list(tmp_path.glob(".bad-report.*"))
 
 
+@pytest.mark.parametrize(
+    "case",
+    [
+        "accepted_with_failed_gate", "rejected_with_all_gates_passed",
+        "missing_gate", "duplicate_gate", "extra_gate", "non_finite_gate",
+    ],
+)
+def test_report_writer_rejects_contradictory_official_gate_bundle(
+        tmp_path, case):
+    result = rejected_result_fixture()
+    if case == "accepted_with_failed_gate":
+        result["status"] = "RESEARCH_ACCEPTED"
+    elif case == "rejected_with_all_gates_passed":
+        result["gates"] = official_gate_fixture(failed_id=None)
+    elif case == "missing_gate":
+        result["gates"].pop()
+    elif case == "duplicate_gate":
+        result["gates"][-1] = dict(result["gates"][0])
+    elif case == "extra_gate":
+        result["gates"].append({
+            **result["gates"][0], "id": "not_a_gate",
+        })
+    else:
+        result["gates"][0]["observed"] = np.inf
+    output = tmp_path / "contradictory"
+
+    with pytest.raises(RuntimeError, match="gate bundle"):
+        research.write_report(result, output)
+
+    assert not output.exists()
+    assert not list(tmp_path.glob(".contradictory.*"))
+
+
+def test_report_writer_rejects_precondition_gate_mixed_with_official_gates(tmp_path):
+    result = research.rejected_result("precondition", ResearchConfig(), "reason")
+    result["gates"].extend(official_gate_fixture())
+    output = tmp_path / "mixed"
+
+    with pytest.raises(RuntimeError, match="gate bundle"):
+        research.write_report(result, output)
+
+    assert not output.exists()
+
+
+def test_report_writer_rejects_existing_ancestor_symlink(tmp_path):
+    real_parent = tmp_path / "real"
+    real_parent.mkdir()
+    symlink_parent = tmp_path / "linked"
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="symlink"):
+        research.write_report(rejected_result_fixture(), symlink_parent / "report")
+
+    assert not (real_parent / "report").exists()
+    assert not list(real_parent.glob(".report.*"))
+
+
+def test_report_csv_strings_are_spreadsheet_safe_without_changing_json(tmp_path):
+    result = rejected_result_fixture()
+    result["data_quality"] = [{
+        "symbol": "=2+2", "status": "EXCLUDED", "reason": "\t@formula",
+    }]
+
+    research.write_report(result, tmp_path)
+
+    csv_row = pd.read_csv(
+        tmp_path / "data_quality.csv", dtype=str, keep_default_na=False
+    ).iloc[0]
+    payload = json.loads((tmp_path / "report.json").read_text(encoding="utf-8"))
+    assert csv_row["symbol"] == "'=2+2"
+    assert csv_row["reason"] == "'\t@formula"
+    assert payload["data_quality"][0]["symbol"] == "=2+2"
+    assert payload["data_quality"][0]["reason"] == "\t@formula"
+
+
 def test_run_research_consumes_only_official_adversarial_result(
         tmp_path, monkeypatch):
     db_path = tmp_path / "futures.db"
@@ -2572,11 +2675,7 @@ def test_run_research_consumes_only_official_adversarial_result(
     }
     official = {
         "attacks": [{"id": "fixture_attack", "passed": False}],
-        "gates": [{
-            "id": "positive_5bps_each_fold", "passed": False,
-            "observed": -0.01, "required": "> 0 each fold",
-            "affected_fold": "holdout", "reason": "official gate rejection",
-        }],
+        "gates": official_gate_fixture(),
         "status": "RESEARCH_REJECTED",
     }
     monkeypatch.setattr(research, "build_causal_dataset", lambda *_: dataset)
@@ -2602,11 +2701,74 @@ def test_run_research_consumes_only_official_adversarial_result(
     assert result["status"] == "RESEARCH_REJECTED"
     assert result["gates"] == official["gates"]
     assert result["attacks"] == official["attacks"]
-    assert result["provenance"]["source_sha256"] == {"AG_IDX": "hash"}
+    provenance = result["provenance"]
+    assert provenance["source_sha256"] == {"AG_IDX": "a" * 64}
+    assert provenance["source_manifest"] == [{
+        "symbol": "AG_IDX", "source_path": "source.txt",
+        "source_sha256": "a" * 64,
+    }]
+    assert len(provenance["source_manifest_sha256"]) == 64
+    assert provenance["database_path"] == str(db_path.resolve())
+    assert provenance["cwd"] == str(Path.cwd().resolve())
+    assert len(provenance["module_sha256"]) == 64
+    assert provenance["module_sha256"] == hashlib.sha256(
+        Path(research.__file__).read_bytes()
+    ).hexdigest()
+    assert len(provenance["git_head"]) == 40
+    assert isinstance(provenance["git_dirty"], bool)
+    assert isinstance(provenance["git_status"], list)
+    command = shlex.split(provenance["command"])
+    replayed_config = json.loads(command[command.index("--config-json") + 1])
+    assert replayed_config == result["config"]
+    assert replayed_config["min_symbols"] == 1
+    assert replayed_config["min_symbol_rows"] == 1
+    assert command[command.index("--db-path") + 1] == str(db_path.resolve())
     assert result["config"]["min_symbols"] == 1
     assert set(result["artifacts"]) == EXPECTED_REPORT_FILES
     report = json.loads((tmp_path / "report" / "report.json").read_text())
-    assert report["gates"][0]["reason"] == "official gate rejection"
+    failed = next(gate for gate in report["gates"] if not gate["passed"])
+    assert failed["reason"] == "fixture gate rejection"
+
+
+@pytest.mark.parametrize(
+    "official",
+    [
+        {},
+        {"attacks": [], "gates": official_gate_fixture(), "status": "INVALID"},
+        {"attacks": [], "gates": {}, "status": "RESEARCH_REJECTED"},
+    ],
+    ids=["missing_keys", "invalid_status", "wrong_gate_type"],
+)
+def test_run_research_exposes_malformed_official_bundle_as_internal_error(
+        tmp_path, monkeypatch, official):
+    db_path = tmp_path / "futures.db"
+    _write_source(db_path, make_bars(2))
+    dataset = pd.DataFrame([{
+        "symbol": "AG_IDX", "decision_time": pd.Timestamp("2026-01-02 09:00"),
+    }])
+    monkeypatch.setattr(research, "build_causal_dataset", lambda *_: dataset)
+    monkeypatch.setattr(
+        research, "make_temporal_partitions",
+        lambda *_: {"eligible_symbols": ("AG_IDX",)},
+    )
+    monkeypatch.setattr(research, "build_base_evaluation", lambda *_: {
+        "outer_results": [], "holdout": {},
+        "final_candidate": Candidate("logistic_c0.1", 0.55),
+        "final_inner_scores": pd.DataFrame(),
+    })
+    monkeypatch.setattr(
+        research, "run_adversarial_checks", lambda *args, **kwargs: official
+    )
+    output = tmp_path / "must-not-exist"
+
+    with pytest.raises((RuntimeError, TypeError), match="official adversarial"):
+        research.run_research(
+            db_path, output,
+            ResearchConfig(min_symbol_rows=1, min_symbols=1, min_fold_rows=1),
+        )
+
+    assert not output.exists()
+    assert not list(tmp_path.glob(".must-not-exist.*"))
 
 
 @pytest.mark.parametrize("existing", [False, True], ids=["missing", "empty"])
@@ -2629,12 +2791,40 @@ def test_run_research_invalid_database_is_evidence_complete_rejection(
 def test_report_cli_returns_two_for_a_complete_rejection(tmp_path, monkeypatch, capsys):
     result = rejected_result_fixture()
     result["artifacts"] = {name: str(tmp_path / name) for name in EXPECTED_REPORT_FILES}
-    monkeypatch.setattr(research, "run_research", lambda *_args, **_kwargs: result)
+    captured = {}
+
+    def fake_run(db_path, output_dir, config):
+        captured.update({
+            "db_path": db_path, "output_dir": output_dir, "config": config,
+        })
+        return result
+
+    monkeypatch.setattr(research, "run_research", fake_run)
+
+    exit_code = research.main([
+        "--db-path", str(tmp_path / "source.db"),
+        "--output-dir", str(tmp_path / "report"),
+        "--config-json", '{"min_symbols": 3, "min_symbol_rows": 17}',
+    ])
+
+    assert exit_code == 2
+    assert json.loads(capsys.readouterr().out)["status"] == "RESEARCH_REJECTED"
+    assert captured["config"].min_symbols == 3
+    assert captured["config"].min_symbol_rows == 17
+
+
+def test_report_cli_returns_one_for_internal_contract_error(
+        tmp_path, monkeypatch, capsys):
+    def broken_run(*_args, **_kwargs):
+        raise RuntimeError("official adversarial result has invalid fields")
+
+    monkeypatch.setattr(research, "run_research", broken_run)
 
     exit_code = research.main([
         "--db-path", str(tmp_path / "source.db"),
         "--output-dir", str(tmp_path / "report"),
     ])
 
-    assert exit_code == 2
-    assert json.loads(capsys.readouterr().out)["status"] == "RESEARCH_REJECTED"
+    assert exit_code == 1
+    assert "official adversarial" in capsys.readouterr().err
+    assert not (tmp_path / "report").exists()

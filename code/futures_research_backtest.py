@@ -5,9 +5,11 @@ import copy
 import hashlib
 import json
 import os
+import shlex
 import shutil
 import sqlite3
 import subprocess
+import sys
 import tempfile
 import uuid
 from dataclasses import asdict, dataclass, is_dataclass
@@ -112,7 +114,7 @@ def load_futures_bars(db_path, timeframe="5m") -> pd.DataFrame:
                 params=(timeframe,),
             )
             metadata = pd.read_sql_query(
-                "SELECT symbol, timeframe, series_type, source_sha256 "
+                "SELECT symbol, timeframe, series_type, source_file, source_sha256 "
                 "FROM futures_series_metadata "
                 "WHERE timeframe=?",
                 conn,
@@ -138,11 +140,18 @@ def load_futures_bars(db_path, timeframe="5m") -> pd.DataFrame:
         raise ResearchRejected("no approved futures bars")
     if not frame["series_type"].isin(SERIES_TYPES).all():
         raise ResearchRejected("unsupported futures series type")
+    if not metadata["source_sha256"].map(_is_sha256).all():
+        raise ResearchRejected("source SHA256 must be canonical lowercase hex")
     frame["trade_time"] = _parse_trade_time(frame["trade_time"])
     result = frame.loc[:, BAR_COLUMNS]
     result.attrs["source_sha256"] = dict(sorted(zip(
         metadata["symbol"].astype(str), metadata["source_sha256"].astype(str)
     )))
+    result.attrs["source_manifest"] = _source_manifest(
+        metadata.loc[:, ["symbol", "source_file", "source_sha256"]]
+        .rename(columns={"source_file": "source_path"})
+        .to_dict("records")
+    )[0]
     return result
 
 
@@ -2482,14 +2491,20 @@ def evaluate_acceptance_gates(context):
     return gates
 
 
+ACCEPTANCE_GATE_IDS = (
+    "integrity_checks", "auc_above_chance_each_fold",
+    "positive_5bps_each_fold", "positive_bootstrap_lower_bound",
+    "label_shuffle", "feature_attacks", "positive_symbol_fraction",
+    "positive_symbol_concentration", "ten_bps_resilience",
+    "cost_monotonicity",
+)
+GATE_FIELDS = {
+    "id", "passed", "observed", "required", "affected_fold", "reason",
+}
+
+
 def research_status(gates):
-    required = {
-        "integrity_checks", "auc_above_chance_each_fold",
-        "positive_5bps_each_fold", "positive_bootstrap_lower_bound",
-        "label_shuffle", "feature_attacks", "positive_symbol_fraction",
-        "positive_symbol_concentration", "ten_bps_resilience",
-        "cost_monotonicity",
-    }
+    required = set(ACCEPTANCE_GATE_IDS)
     return (
         "RESEARCH_ACCEPTED"
         if isinstance(gates, (list, tuple))
@@ -2497,6 +2512,105 @@ def research_status(gates):
         and {gate.get("id") for gate in gates if isinstance(gate, dict)} == required
         and all(isinstance(gate, dict) and gate.get("passed") is True for gate in gates)
         else "RESEARCH_REJECTED"
+    )
+
+
+def _is_sha256(value):
+    return (
+        isinstance(value, str)
+        and len(value) == 64
+        and value == value.lower()
+        and all(character in "0123456789abcdef" for character in value)
+    )
+
+
+def _source_manifest(rows):
+    manifest = sorted(
+        ({
+            "symbol": str(row["symbol"]),
+            "source_path": str(row["source_path"]),
+            "source_sha256": str(row["source_sha256"]),
+        } for row in rows),
+        key=lambda row: (row["symbol"], row["source_path"], row["source_sha256"]),
+    )
+    if (
+        not manifest
+        or any(
+            not row["symbol"]
+            or not row["source_path"]
+            or not _is_sha256(row["source_sha256"])
+            for row in manifest
+        )
+    ):
+        raise ResearchRejected("invalid canonical source manifest")
+    encoded = json.dumps(
+        manifest, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode()
+    return manifest, hashlib.sha256(encoded).hexdigest()
+
+
+def _finite_evidence(value):
+    if isinstance(value, dict):
+        return all(_finite_evidence(item) for item in value.values())
+    if isinstance(value, (list, tuple)):
+        return all(_finite_evidence(item) for item in value)
+    if isinstance(value, Real) and not isinstance(value, (bool, np.bool_)):
+        return bool(np.isfinite(value))
+    return True
+
+
+def _validate_gate_bundle(status, gates, label):
+    if status not in {"RESEARCH_ACCEPTED", "RESEARCH_REJECTED"}:
+        raise RuntimeError(f"{label} gate bundle has invalid status")
+    if not isinstance(gates, (list, tuple)) or not gates:
+        raise RuntimeError(f"{label} gate bundle must be a non-empty sequence")
+    if any(not isinstance(gate, dict) or set(gate) != GATE_FIELDS for gate in gates):
+        raise RuntimeError(f"{label} gate bundle has invalid fields")
+    for gate in gates:
+        if (
+            type(gate["passed"]) is not bool
+            or not isinstance(gate["id"], str)
+            or not isinstance(gate["reason"], str)
+            or not gate["reason"]
+            or gate["required"] is None
+            or (gate["affected_fold"] is not None and not isinstance(
+                gate["affected_fold"], str
+            ))
+            or not _finite_evidence(gate["observed"])
+            or not _finite_evidence(gate["required"])
+        ):
+            raise RuntimeError(f"{label} gate bundle has invalid evidence")
+    ids = [gate["id"] for gate in gates]
+    if "RUN_PRECONDITION" in ids:
+        if (
+            ids != ["RUN_PRECONDITION"]
+            or status != "RESEARCH_REJECTED"
+            or gates[0]["passed"] is not False
+        ):
+            raise RuntimeError(f"{label} gate bundle mixes run preconditions")
+        return
+    if len(ids) != len(ACCEPTANCE_GATE_IDS) or set(ids) != set(ACCEPTANCE_GATE_IDS):
+        raise RuntimeError(f"{label} gate bundle must contain ten exact unique gates")
+    expected = (
+        "RESEARCH_ACCEPTED"
+        if all(gate["passed"] is True for gate in gates)
+        else "RESEARCH_REJECTED"
+    )
+    if status != expected:
+        raise RuntimeError(f"{label} gate bundle contradicts status")
+
+
+def _validate_official_bundle(official):
+    if not isinstance(official, dict):
+        raise TypeError("official adversarial result must be a dictionary")
+    if set(official) != {"attacks", "gates", "status"}:
+        raise RuntimeError("official adversarial result has invalid fields")
+    if not isinstance(official["attacks"], (list, tuple)) or any(
+        not isinstance(attack, dict) for attack in official["attacks"]
+    ):
+        raise TypeError("official adversarial attacks must be records")
+    _validate_gate_bundle(
+        official["status"], official["gates"], "official adversarial"
     )
 
 
@@ -2572,15 +2686,61 @@ def _file_sha256(path):
     return digest.hexdigest()
 
 
-def _code_revision():
+def _git_provenance():
     try:
-        return subprocess.run(
+        head = subprocess.run(
             ["git", "rev-parse", "HEAD"],
             cwd=Path(__file__).resolve().parents[1],
             check=True, capture_output=True, text=True,
-        ).stdout.strip() or None
+        ).stdout.strip()
+        status = subprocess.run(
+            ["git", "status", "--short"],
+            cwd=Path(__file__).resolve().parents[1],
+            check=True, capture_output=True, text=True,
+        ).stdout.splitlines()
+        return {
+            "git_head": head or None,
+            "git_dirty": bool(status),
+            "git_status": status,
+        }
     except (OSError, subprocess.CalledProcessError):
-        return None
+        return {"git_head": None, "git_dirty": None, "git_status": []}
+
+
+def _config_json(config):
+    return json.dumps(
+        asdict(config), ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        allow_nan=False,
+    )
+
+
+def _parse_config_json(value):
+    def reject_constant(constant):
+        raise ValueError(f"non-standard JSON constant: {constant}")
+
+    data = json.loads(value, parse_constant=reject_constant)
+    if not isinstance(data, dict):
+        raise TypeError("--config-json must contain one JSON object")
+    for name in ("thresholds", "costs_bps"):
+        if name in data:
+            if not isinstance(data[name], (list, tuple)):
+                raise TypeError(f"{name} must be a JSON array")
+            data[name] = tuple(data[name])
+    try:
+        return ResearchConfig(**data)
+    except TypeError as exc:
+        raise TypeError(f"invalid research config: {exc}") from exc
+
+
+def _replay_command(db_path, output_dir, config):
+    argv = [
+        sys.executable,
+        str(Path(__file__).resolve()),
+        "--db-path", str(Path(db_path).resolve()),
+        "--output-dir", str(Path(output_dir).resolve()),
+        "--config-json", _config_json(config),
+    ]
+    return argv, shlex.join(argv)
 
 
 def _fold_rows(base):
@@ -2671,6 +2831,9 @@ def build_adversarial_context(
     config=ResearchConfig(),
 ):
     """Collect immutable run evidence; the official attack entry remains trusted."""
+    manifest, manifest_hash = _source_manifest(
+        bars.attrs.get("source_manifest", ())
+    )
     return {
         "run_id": run_id,
         "bars": bars,
@@ -2683,6 +2846,8 @@ def build_adversarial_context(
         "checks": {"structural": True, "causal": True, "ledger": True},
         "provenance": {
             "source_sha256": dict(bars.attrs.get("source_sha256", {})),
+            "source_manifest": manifest,
+            "source_manifest_sha256": manifest_hash,
             "bar_data_sha256": _canonical_attack_frame(bars)["sha256"],
         },
     }
@@ -2706,8 +2871,7 @@ def _metric_summary(base):
 
 
 def build_result(context, gates, status):
-    if status not in {"RESEARCH_ACCEPTED", "RESEARCH_REJECTED"}:
-        raise ResearchRejected("invalid official research status")
+    _validate_gate_bundle(status, gates, "official result")
     base = context["base"]
     candidate = base.get("final_candidate")
     tables = _report_tables(context)
@@ -2765,6 +2929,29 @@ def _table_frame(result, key, filename):
         return pd.DataFrame(columns=CSV_COLUMNS[filename])
     columns = ["run_id", *[column for column in frame if column != "run_id"]]
     return frame.loc[:, columns]
+
+
+def _spreadsheet_safe(value):
+    if isinstance(value, str):
+        candidate = value.lstrip(" ")
+        if candidate and candidate[0] in "=+-@\t\r":
+            return "'" + value
+    return value
+
+
+def _canonical_output_path(output_dir):
+    supplied = Path(output_dir).expanduser()
+    if ".." in supplied.parts:
+        raise ValueError("output directory cannot contain parent traversal")
+    output = Path(os.path.abspath(supplied))
+    current = Path(output.anchor)
+    for part in output.parts[1:]:
+        current /= part
+        if current.is_symlink():
+            raise ValueError(f"output directory ancestor is a symlink: {current}")
+    if output.name in {"", ".", ".."}:
+        raise ValueError("output directory must be explicit")
+    return output
 
 
 def _markdown_report(payload):
@@ -2837,6 +3024,7 @@ def _reconcile_report(directory):
         (directory / "report.json").read_text(encoding="utf-8"),
         parse_constant=reject_constant,
     )
+    _validate_gate_bundle(payload.get("status"), payload.get("gates"), "report")
     run_id = str(payload["run_id"])
     for filename, key in (
         ("data_quality.csv", "data_quality"),
@@ -2855,7 +3043,9 @@ def _reconcile_report(directory):
         directory / "trades.csv", dtype=str, keep_default_na=False
     )
     identity = ("run_id", "fold", "symbol", "cost_bps", "decision_time")
-    expected = [tuple(str(row.get(name, "")) for name in identity) for row in payload["trades"]]
+    expected = [tuple(
+        str(_spreadsheet_safe(row.get(name, ""))) for name in identity
+    ) for row in payload["trades"]]
     observed = [tuple(row[name] for name in identity) for _, row in trade_frame.iterrows()]
     if expected != observed:
         raise ResearchRejected("trade JSON/CSV identity mismatch")
@@ -2889,9 +3079,8 @@ def _reconcile_report(directory):
 
 
 def write_report(result, output_dir):
-    output = Path(output_dir)
-    if output.name in {"", ".", ".."} or output.is_symlink():
-        raise ValueError("output directory must be an explicit non-symlink path")
+    _validate_gate_bundle(result.get("status"), result.get("gates"), "report")
+    output = _canonical_output_path(output_dir)
     if output.exists() and (not output.is_dir() or any(output.iterdir())):
         raise FileExistsError(f"refusing to overwrite report evidence: {output}")
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -2906,7 +3095,8 @@ def write_report(result, output_dir):
             ("trades.csv", "trades"),
         ):
             frame = _table_frame(payload, key, filename)
-            frame.to_csv(temporary / filename, index=False)
+            csv_frame = frame.apply(lambda column: column.map(_spreadsheet_safe))
+            csv_frame.to_csv(temporary / filename, index=False)
             records = _json_safe(frame.to_dict("records"))
             payload[key] = records
             tables[filename] = len(records)
@@ -2933,13 +3123,18 @@ def write_report(result, output_dir):
 
 def run_research(db_path, output_dir, config=ResearchConfig()):
     run_id = uuid.uuid4().hex
+    command_argv, command = _replay_command(db_path, output_dir, config)
+    git = _git_provenance()
     provenance = {
         "database_sha256": _file_sha256(db_path),
-        "code_revision": _code_revision(),
-        "command": [
-            "python3", "code/futures_research_backtest.py",
-            "--db-path", str(Path(db_path)), "--output-dir", str(Path(output_dir)),
-        ],
+        "database_path": str(Path(db_path).resolve()),
+        "output_path": str(Path(output_dir).resolve()),
+        "cwd": str(Path.cwd().resolve()),
+        "module_sha256": _file_sha256(Path(__file__).resolve()),
+        "code_revision": git["git_head"],
+        **git,
+        "command_argv": command_argv,
+        "command": command,
     }
     try:
         bars = load_futures_bars(db_path)
@@ -2963,12 +3158,10 @@ def run_research(db_path, output_dir, config=ResearchConfig()):
         official = run_adversarial_checks(
             base, bars, dataset, segmented, partitions, context["checks"], config
         )
-        try:
-            context["attacks"] = official["attacks"]
-            gates = official["gates"]
-            status = official["status"]
-        except (KeyError, TypeError) as exc:
-            raise ResearchRejected("invalid official adversarial result") from exc
+        _validate_official_bundle(official)
+        context["attacks"] = official["attacks"]
+        gates = official["gates"]
+        status = official["status"]
         result = build_result(context, gates, status)
     except ResearchRejected as exc:
         result = rejected_result(run_id, config, str(exc))
@@ -2981,8 +3174,17 @@ def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--db-path", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--config-json", default="{}")
     args = parser.parse_args(argv)
-    result = run_research(args.db_path, args.output_dir)
+    try:
+        result = run_research(
+            args.db_path, args.output_dir, _parse_config_json(args.config_json)
+        )
+    except (RuntimeError, TypeError) as exc:
+        print(json.dumps({
+            "status": "INTERNAL_ERROR", "error": str(exc),
+        }, ensure_ascii=False, allow_nan=False), file=sys.stderr)
+        return 1
     print(json.dumps({
         "status": result["status"],
         "run_id": result["run_id"],
