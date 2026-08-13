@@ -101,6 +101,99 @@ def test_walk_forward_predictions_report_training_cutoff():
     ).all()
 
 
+def test_walk_forward_routes_each_prediction_row_by_its_own_regime(
+        monkeypatch):
+    import ml_ensemble
+
+    routed = []
+    probability_by_regime = {
+        "LOW_VOL_BULL": 0.8,
+        "HIGH_VOL_BEAR": 0.2,
+        "RANGE": 0.5,
+    }
+
+    class IdentityModel:
+        def get_params(self, deep=False):
+            return {}
+
+    class RecordingEnsemble:
+        def __init__(self, base_factory=None):
+            self.global_model = IdentityModel()
+
+        def fit(self, features, target, regimes):
+            return self
+
+        def predict_proba(self, features, current_regime=None):
+            routed.append((current_regime, len(features)))
+            value = probability_by_regime[current_regime]
+            return np.column_stack([
+                np.full(len(features), 1.0 - value),
+                np.full(len(features), value),
+            ])
+
+    monkeypatch.setattr(
+        ml_ensemble, "RegimeConditionedMLEnsemble", RecordingEnsemble
+    )
+    monkeypatch.setattr(
+        ml_ensemble, "build_model_identity", lambda *_args, **_kwargs: "v"
+    )
+    frame = market_frame(180)
+    result = walk_forward_predict(
+        frame,
+        factor_frame(frame),
+        "000001",
+        min_train_size=40,
+        max_train_size=40,
+        retrain_every=21,
+    )
+
+    close = frame["close"]
+    vol20 = close.pct_change().rolling(20).std()
+    ma60 = close.rolling(60).mean()
+    median = vol20.expanding(min_periods=20).median().fillna(0.02)
+    expected_regime = np.where(
+        (close >= ma60) & (vol20 < median),
+        "LOW_VOL_BULL",
+        np.where(close < ma60, "HIGH_VOL_BEAR", "RANGE"),
+    )
+    covered = result["model_version"].eq("v")
+    expected = pd.Series(expected_regime, index=result.index).map(
+        probability_by_regime
+    )
+
+    assert covered.any()
+    assert len({state for state, _ in routed}) > 1
+    pd.testing.assert_series_equal(
+        result.loc[covered, "probability"],
+        expected.loc[covered],
+        check_names=False,
+    )
+
+
+def test_walk_forward_probabilities_are_prefix_invariant():
+    short = market_frame(160)
+    long = market_frame(180)
+    kwargs = {
+        "min_train_size": 40,
+        "max_train_size": 40,
+        "retrain_every": 21,
+    }
+
+    short_result = walk_forward_predict(
+        short, factor_frame(short), "000001", **kwargs
+    )
+    long_result = walk_forward_predict(
+        long, factor_frame(long), "000001", **kwargs
+    )
+    covered = short_result["probability"].notna()
+
+    assert covered.any()
+    pd.testing.assert_series_equal(
+        short_result.loc[covered, "probability"],
+        long_result.loc[short_result.index[covered], "probability"],
+    )
+
+
 def test_default_walk_forward_uses_latest_fixed_training_window():
     labels = build_label_frame(market_frame(800))
 
@@ -201,3 +294,66 @@ def test_model_identity_changes_with_data_parameters_and_policy():
 
     assert len(base) == 16
     assert len({base, changed_data, changed_model, changed_policy}) == 4
+
+
+def test_regime_conditioned_ml_ensemble_training_and_routing():
+    from ml_ensemble import RegimeConditionedMLEnsemble
+
+    np.random.seed(42)
+    X = np.random.randn(150, 4)
+    y = (X[:, 0] > 0).astype(int)
+
+    # 50 bull, 50 bear, 50 range
+    regimes = np.array(["LOW_VOL_BULL"] * 50 + ["HIGH_VOL_BEAR"] * 50 + ["RANGE"] * 50)
+
+    ensemble = RegimeConditionedMLEnsemble()
+    ensemble.fit(X, y, regimes)
+
+    # Assert sub-models exist for regimes with sufficient samples
+    assert set(ensemble.regime_models.keys()) == {"LOW_VOL_BULL", "HIGH_VOL_BEAR", "RANGE"}
+
+    # Test prediction routing
+    prob_bull = ensemble.predict_proba(X[:5], current_regime="LOW_VOL_BULL")
+    prob_bear = ensemble.predict_proba(X[:5], current_regime="HIGH_VOL_BEAR")
+    prob_fallback = ensemble.predict_proba(X[:5], current_regime="UNKNOWN_REGIME")
+
+    assert prob_bull.shape == (5, 2)
+    assert prob_bear.shape == (5, 2)
+    assert prob_fallback.shape == (5, 2)
+    np.testing.assert_allclose(
+        prob_fallback,
+        ensemble.global_model.predict_proba(X[:5]),
+    )
+
+
+def test_triple_barrier_labeling():
+    from ml_ensemble import build_triple_barrier_labels
+
+    df = market_frame(100)
+    tb_labels = build_triple_barrier_labels(df, forward_days=5, pt_mult=1.5, sl_mult=1.0)
+
+    assert "label" in tb_labels.columns
+    assert "label_end_time" in tb_labels.columns
+    assert set(tb_labels["label"].dropna().unique()).issubset({0.0, 1.0})
+    assert tb_labels["label"].tail(5).isna().all()
+
+
+def test_cross_sectional_quantile_ranking_engine():
+    from ml_ensemble import cross_sectional_walk_forward_rank
+
+    df1 = market_frame(160)
+    df2 = market_frame(160)
+    df2["close"] = df2["close"] * 1.5
+
+    market_data = {"000001": df1, "000002": df2}
+    ranked = cross_sectional_walk_forward_rank(
+        market_data,
+        top_quantile=0.50,
+        min_train_size=40,
+        retrain_every=10,
+    )
+
+    assert "000001" in ranked
+    assert "000002" in ranked
+    assert "cross_sectional_rank_pct" in ranked["000001"].columns
+    assert "quantile_signal" in ranked["000001"].columns

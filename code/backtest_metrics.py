@@ -111,3 +111,77 @@ def calculate_performance(daily_results, initial_capital, annual_days=252):
         )
         for key, value in result.items()
     }
+
+
+def run_monte_carlo_analysis(daily_results, n_simulations: int = 1000,
+                              block_size: int = 5, annual_days: int = 252) -> dict:
+    """Stationary block bootstrapping Monte Carlo stress testing for strategy returns."""
+    if not daily_results or len(daily_results) < 5:
+        return {
+            "p_value_sharpe": 1.0,
+            "is_statistically_significant": False,
+            "sharpe_ci_95": [0.0, 0.0],
+            "win_rate_ci_95": [0.0, 0.0],
+            "max_drawdown_ci_95": [0.0, 0.0],
+        }
+
+    frame = pd.DataFrame(daily_results)
+    returns = frame["daily_return"].astype(float).to_numpy()
+    n_days = len(returns)
+    if n_days < 5:
+        return {
+            "p_value_sharpe": 1.0,
+            "is_statistically_significant": False,
+            "sharpe_ci_95": [0.0, 0.0],
+            "win_rate_ci_95": [0.0, 0.0],
+            "max_drawdown_ci_95": [0.0, 0.0],
+        }
+
+    actual_std = np.std(returns, ddof=1) if n_days > 1 else 0.0
+    actual_sharpe = (np.mean(returns) / actual_std * np.sqrt(annual_days)) if actual_std > 0 else 0.0
+
+    sim_sharpes = []
+    sim_win_rates = []
+    sim_max_drawdowns = []
+
+    np.random.seed(42)
+    max_block_start = max(1, n_days - block_size + 1)
+
+    for _ in range(n_simulations):
+        sampled_returns = []
+        while len(sampled_returns) < n_days:
+            start_idx = np.random.randint(0, max_block_start)
+            sampled_returns.extend(returns[start_idx:start_idx + block_size])
+        sampled = np.array(sampled_returns[:n_days])
+
+        std = np.std(sampled, ddof=1) if n_days > 1 else 0.0
+        sharpe = (np.mean(sampled) / std * np.sqrt(annual_days)) if std > 0 else 0.0
+        win_rate = float(np.mean(sampled > 0))
+
+        cum_equity = np.cumprod(1.0 + sampled)
+        peak = np.maximum.accumulate(cum_equity)
+        drawdown = (peak - cum_equity) / peak
+        max_dd = float(np.max(drawdown)) if len(drawdown) > 0 else 0.0
+
+        sim_sharpes.append(sharpe)
+        sim_win_rates.append(win_rate)
+        sim_max_drawdowns.append(max_dd)
+
+    p_value = float(np.mean(np.array(sim_sharpes) <= 0)) if actual_sharpe > 0 else 1.0
+
+    return {
+        "p_value_sharpe": p_value,
+        "is_statistically_significant": bool(p_value < 0.05),
+        "sharpe_ci_95": [
+            float(np.percentile(sim_sharpes, 2.5)),
+            float(np.percentile(sim_sharpes, 97.5)),
+        ],
+        "win_rate_ci_95": [
+            float(np.percentile(sim_win_rates, 2.5)),
+            float(np.percentile(sim_win_rates, 97.5)),
+        ],
+        "max_drawdown_ci_95": [
+            float(np.percentile(sim_max_drawdowns, 2.5)),
+            float(np.percentile(sim_max_drawdowns, 97.5)),
+        ],
+    }

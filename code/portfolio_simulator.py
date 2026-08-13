@@ -18,6 +18,9 @@ class FeeSchedule:
     beijing_transfer_fee_rate_before_cutover: float = 0.000025
     transfer_fee_cutover: str = "2022-04-29"
     slippage_rate: float = 0.001
+    network_latency_slippage: float = 0.0
+    swap_rate_per_day: float = 1.50
+    max_bar_volume_fraction: float = 0.01
 
 
 @dataclass(frozen=True)
@@ -33,10 +36,12 @@ class Position:
     shares: int
     average_cost: float
     entry_time: pd.Timestamp
+    entry_price: float
     peak_price: float
     entry_value: float
     buy_fees: float
     decision_id: str
+    risk_exit: dict | None = None
 
 
 @dataclass
@@ -68,8 +73,15 @@ def _transfer_fee_rate(fees, symbol, date):
 
 
 def _buy_cost(shares, raw_price, fees, max_price=None,
-              symbol="", date=None):
-    fill_price = raw_price * (1.0 + fees.slippage_rate)
+              symbol="", date=None, daily_volume=None):
+    base_slippage = fees.slippage_rate + getattr(fees, "network_latency_slippage", 0.0)
+    if daily_volume is not None and daily_volume > 0:
+        market_impact = 0.1 * math.sqrt(max(0.0, float(shares) / float(daily_volume)))
+        effective_slippage = base_slippage + market_impact
+    else:
+        effective_slippage = base_slippage
+
+    fill_price = raw_price * (1.0 + effective_slippage)
     if max_price is not None:
         fill_price = min(fill_price, max_price)
     gross = shares * fill_price
@@ -86,8 +98,15 @@ def _stamp_duty_rate(fees, date):
     )
 
 
-def _sell_proceeds(shares, raw_price, fees, date, min_price=None, symbol=""):
-    fill_price = raw_price * (1.0 - fees.slippage_rate)
+def _sell_proceeds(shares, raw_price, fees, date, min_price=None, symbol="", daily_volume=None):
+    base_slippage = fees.slippage_rate + getattr(fees, "network_latency_slippage", 0.0)
+    if daily_volume is not None and daily_volume > 0:
+        market_impact = 0.1 * math.sqrt(max(0.0, float(shares) / float(daily_volume)))
+        effective_slippage = base_slippage + market_impact
+    else:
+        effective_slippage = base_slippage
+
+    fill_price = raw_price * (1.0 - effective_slippage)
     if min_price is not None:
         fill_price = max(fill_price, min_price)
     gross = shares * fill_price
@@ -133,6 +152,110 @@ def _buy_quantity(symbol, budget, estimated_fill):
     if _is_beijing_symbol(symbol):
         return (shares if shares >= 100 else 0), 100, 1
     return shares // 100 * 100, 100, 100
+
+
+def _share_limit(symbol, executable_volume, fraction):
+    _, minimum_shares, share_step = _buy_quantity(symbol, 0, 1)
+    shares = max(0, int(float(executable_volume) * float(fraction)))
+    shares = shares // share_step * share_step
+    return (
+        shares if shares >= minimum_shares else 0,
+        minimum_shares,
+    )
+
+
+def _atr_exit(position, bar):
+    policy = position.risk_exit
+    if not policy:
+        return None
+    try:
+        atr = float(policy["entry_atr"])
+        stop_multiple = float(policy["stop_atr_multiple"])
+        stop_floor = float(policy["stop_floor_fraction"])
+        take_multiple = float(policy["take_profit_atr_multiple"])
+        activation = float(policy["trailing_activation_fraction"])
+        trailing_multiple = float(policy["trailing_atr_multiple"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    if not math.isfinite(atr) or atr <= 0:
+        return None
+
+    entry = position.entry_price
+    base_stop = max(
+        entry - stop_multiple * atr,
+        entry * stop_floor,
+    )
+    trailing_stop = None
+    if position.peak_price >= entry * activation:
+        trailing_stop = position.peak_price - trailing_multiple * atr
+    stop = max(
+        level for level in (base_stop, trailing_stop)
+        if level is not None
+    )
+    if float(bar["low"]) <= stop:
+        reason = (
+            "ATR_TRAILING_STOP"
+            if trailing_stop is not None and stop == trailing_stop
+            else "ATR_STOP"
+        )
+        return reason, min(float(bar["open"]), stop)
+    take = entry + take_multiple * atr
+    if float(bar["high"]) >= take:
+        return "ATR_TAKE_PROFIT", take
+    return None
+
+
+def _close_position(symbol, position, order, date, raw_price,
+                    limit_down, exec_volume, fee_schedule):
+    fill_price, gross, sell_fees, net_proceeds = _sell_proceeds(
+        position.shares,
+        raw_price,
+        fee_schedule,
+        date,
+        limit_down,
+        symbol,
+        daily_volume=exec_volume,
+    )
+    transfer_fee = gross * _transfer_fee_rate(
+        fee_schedule, symbol, date
+    )
+    stamp_duty = gross * _stamp_duty_rate(fee_schedule, date)
+    pnl = net_proceeds - (position.entry_value + position.buy_fees)
+    fill = {
+        "decision_id": order["decision_id"],
+        "symbol": symbol,
+        "side": "SELL",
+        "decision_time": order["decision_time"],
+        "fill_time": date,
+        "raw_price": raw_price,
+        "fill_price": fill_price,
+        "shares": position.shares,
+        "gross_value": gross,
+        "fees": sell_fees,
+        "commission": sell_fees - transfer_fee - stamp_duty,
+        "transfer_fee": transfer_fee,
+        "stamp_duty": stamp_duty,
+        "slippage": abs(fill_price - raw_price) * position.shares,
+        "status": "FILLED",
+        "model_version": order.get("model_version", ""),
+    }
+    trade = {
+        "decision_id": position.decision_id,
+        "symbol": symbol,
+        "buy_date": position.entry_time,
+        "buy_price": position.average_cost,
+        "sell_date": date,
+        "sell_price": fill_price,
+        "shares": position.shares,
+        "pnl_amount": pnl,
+        "pnl_pct": (
+            pnl / (position.entry_value + position.buy_fees) * 100
+        ),
+        "buy_fees": position.buy_fees,
+        "sell_fees": sell_fees,
+        "exit_reason": order.get("reason", "SIGNAL"),
+    }
+    return net_proceeds, fill, trade
 
 
 def _position_snapshots(positions, market, date):
@@ -230,20 +353,39 @@ def simulate_portfolio(market, decisions, initial_cash,
         )
         risk_locked = previous_drawdown >= limits.max_drawdown
 
-        for order in sorted(
-                pending.pop(date, []),
-                key=lambda item: (
-                    item["decision_time"], item["symbol"], item["action"]
-                )):
+        def _order_sort_key(item):
+            sym = item["symbol"]
+            act = item["action"]
+            if act == "SELL" and sym in positions:
+                rank = 0
+            elif act == "BUY":
+                rank = 1
+            else:
+                rank = 2
+            return (item["decision_time"], rank, sym)
+
+        for order in sorted(pending.pop(date, []), key=_order_sort_key):
             symbol = order["symbol"]
             frame = market.get(symbol)
             if frame is None or date not in frame.index:
                 rejected.append(_reject(order, date, "SUSPENDED"))
                 continue
             bar = frame.loc[date]
-            if float(bar.get("volume", 0) or 0) <= 0:
+            daily_vol = float(bar.get("volume", 0) or 0)
+            if daily_vol <= 0:
                 rejected.append(_reject(order, date, "SUSPENDED"))
                 continue
+
+            hist_vol_s = frame.loc[frame.index < date, "volume"]
+            exec_volume = (
+                float(hist_vol_s.tail(20).mean())
+                if not hist_vol_s.empty else 0.0
+            )
+            volume_limit, volume_minimum = _share_limit(
+                symbol,
+                exec_volume,
+                fee_schedule.max_bar_volume_fraction,
+            )
 
             raw_price = float(bar["open"])
             previous_close = _previous_close(frame, date)
@@ -252,19 +394,20 @@ def simulate_portfolio(market, decisions, initial_cash,
             if previous_close is not None:
                 limit_up = round(previous_close * (1 + limit_fraction), 2)
                 limit_down = round(previous_close * (1 - limit_fraction), 2)
+                is_one_word_up = float(bar["high"]) == float(bar["low"]) and float(bar["high"]) >= limit_up
+                is_one_word_down = float(bar["high"]) == float(bar["low"]) and float(bar["low"]) <= limit_down
+
                 if (
                     order["action"] == "BUY"
-                    and raw_price >= limit_up
-                    and float(bar["low"]) >= limit_up
+                    and (raw_price >= limit_up or is_one_word_up)
                 ):
-                    rejected.append(_reject(order, date, "LIMIT_UP"))
+                    rejected.append(_reject(order, date, "LIMIT_UP_LOCKED" if is_one_word_up else "LIMIT_UP"))
                     continue
                 if (
                     order["action"] == "SELL"
-                    and raw_price <= limit_down
-                    and float(bar["high"]) <= limit_down
+                    and (raw_price <= limit_down or is_one_word_down)
                 ):
-                    rejected.append(_reject(order, date, "LIMIT_DOWN"))
+                    rejected.append(_reject(order, date, "LIMIT_DOWN_LOCKED" if is_one_word_down else "LIMIT_DOWN"))
                     continue
 
             if order["action"] == "BUY":
@@ -299,6 +442,12 @@ def simulate_portfolio(market, decisions, initial_cash,
                 shares, minimum_shares, share_step = _buy_quantity(
                     symbol, budget, estimated_fill
                 )
+                if volume_limit < volume_minimum:
+                    rejected.append(_reject(
+                        order, date, "LIQUIDITY_LIMIT"
+                    ))
+                    continue
+                shares = min(shares, volume_limit)
                 while shares >= minimum_shares:
                     fill_price, gross, buy_fees = _buy_cost(
                         shares,
@@ -307,6 +456,7 @@ def simulate_portfolio(market, decisions, initial_cash,
                         limit_up,
                         symbol,
                         date,
+                        daily_volume=exec_volume,
                     )
                     if gross + buy_fees <= cash:
                         break
@@ -326,10 +476,12 @@ def simulate_portfolio(market, decisions, initial_cash,
                     shares=shares,
                     average_cost=total_cost / shares,
                     entry_time=date,
+                    entry_price=fill_price,
                     peak_price=fill_price,
                     entry_value=gross,
                     buy_fees=buy_fees,
                     decision_id=order["decision_id"],
+                    risk_exit=order.get("risk_exit"),
                 )
                 fills.append({
                     "decision_id": order["decision_id"],
@@ -359,63 +511,111 @@ def simulate_portfolio(market, decisions, initial_cash,
                 ):
                     rejected.append(_reject(order, date, "T_PLUS_ONE"))
                     continue
-                fill_price, gross, sell_fees, net_proceeds = _sell_proceeds(
-                    position.shares,
-                    raw_price,
-                    fee_schedule,
-                    date,
-                    limit_down,
+                if position.shares > volume_limit:
+                    rejected.append(_reject(
+                        order, date, "LIQUIDITY_LIMIT"
+                    ))
+                    continue
+                net_proceeds, fill, trade = _close_position(
                     symbol,
+                    position,
+                    order,
+                    date,
+                    raw_price,
+                    limit_down,
+                    exec_volume,
+                    fee_schedule,
                 )
                 cash += net_proceeds
-                transfer_fee = gross * _transfer_fee_rate(
-                    fee_schedule, symbol, date
-                )
-                stamp_duty = (
-                    gross * _stamp_duty_rate(fee_schedule, date)
-                )
-                pnl = net_proceeds - (
-                    position.entry_value + position.buy_fees
-                )
-                fills.append({
-                    "decision_id": order["decision_id"],
-                    "symbol": symbol,
-                    "side": "SELL",
-                    "decision_time": order["decision_time"],
-                    "fill_time": date,
-                    "raw_price": raw_price,
-                    "fill_price": fill_price,
-                    "shares": position.shares,
-                    "gross_value": gross,
-                    "fees": sell_fees,
-                    "commission": (
-                        sell_fees - transfer_fee - stamp_duty
-                    ),
-                    "transfer_fee": transfer_fee,
-                    "stamp_duty": stamp_duty,
-                    "slippage": (
-                        abs(fill_price - raw_price) * position.shares
-                    ),
-                    "status": "FILLED",
-                    "model_version": order.get("model_version", ""),
-                })
-                trades.append({
-                    "decision_id": position.decision_id,
-                    "symbol": symbol,
-                    "buy_date": position.entry_time,
-                    "buy_price": position.average_cost,
-                    "sell_date": date,
-                    "sell_price": fill_price,
-                    "shares": position.shares,
-                    "pnl_amount": pnl,
-                    "pnl_pct": (
-                        pnl / (position.entry_value + position.buy_fees) * 100
-                    ),
-                    "buy_fees": position.buy_fees,
-                    "sell_fees": sell_fees,
-                    "exit_reason": order.get("reason", "SIGNAL"),
-                })
+                fills.append(fill)
+                trades.append(trade)
                 del positions[symbol]
+
+        for symbol, position in list(positions.items()):
+            if pd.Timestamp(date).normalize() <= (
+                pd.Timestamp(position.entry_time).normalize()
+            ):
+                continue
+            frame = market[symbol]
+            if date not in frame.index:
+                continue
+            bar = frame.loc[date]
+            trigger = _atr_exit(position, bar)
+            if trigger is None:
+                continue
+            reason, risk_price = trigger
+            risk_order = {
+                "decision_id": (
+                    f"{position.decision_id}:risk:{date.date()}"
+                ),
+                "decision_time": date,
+                "symbol": symbol,
+                "action": "SELL",
+                "reason": reason,
+                "model_version": "terminal",
+            }
+            daily_vol = float(bar.get("volume", 0) or 0)
+            if daily_vol <= 0:
+                rejected.append(_reject(risk_order, date, "SUSPENDED"))
+                continue
+            hist_vol_s = frame.loc[frame.index < date, "volume"]
+            exec_volume = (
+                float(hist_vol_s.tail(20).mean())
+                if not hist_vol_s.empty else 0.0
+            )
+            volume_limit, _ = _share_limit(
+                symbol,
+                exec_volume,
+                fee_schedule.max_bar_volume_fraction,
+            )
+            if position.shares > volume_limit:
+                rejected.append(_reject(
+                    risk_order, date, "LIQUIDITY_LIMIT"
+                ))
+                continue
+            previous_close = _previous_close(frame, date)
+            limit_down = None
+            if previous_close is not None:
+                limit_fraction = _limit_fraction(
+                    symbol, names.get(symbol, "")
+                )
+                limit_down = round(
+                    previous_close * (1 - limit_fraction), 2
+                )
+                is_one_word_down = (
+                    float(bar["high"]) == float(bar["low"])
+                    and float(bar["low"]) <= limit_down
+                )
+                if risk_price <= limit_down or is_one_word_down:
+                    rejected.append(_reject(
+                        risk_order,
+                        date,
+                        "LIMIT_DOWN_LOCKED"
+                        if is_one_word_down else "LIMIT_DOWN",
+                    ))
+                    continue
+            net_proceeds, fill, trade = _close_position(
+                symbol,
+                position,
+                risk_order,
+                date,
+                risk_price,
+                limit_down,
+                exec_volume,
+                fee_schedule,
+            )
+            cash += net_proceeds
+            fills.append(fill)
+            trades.append(trade)
+            del positions[symbol]
+
+        for symbol, position in positions.items():
+            frame = market[symbol]
+            if date in frame.index:
+                position.peak_price = max(
+                    position.peak_price,
+                    float(frame.loc[date, "high"]),
+                )
 
         close_value = _market_value(positions, market, date)
         equity = cash + close_value

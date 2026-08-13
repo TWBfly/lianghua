@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 import backtest_kline_engine
 from backtest_kline_engine import KLineBacktestEngine
@@ -287,3 +288,32 @@ def test_regime_filter_and_evolution_are_rejected(tmp_path):
     )
 
     assert result["error_code"] == "REGIME_EVOLUTION_UNSUPPORTED"
+
+
+def test_real_hmm_regime_detection_on_synthetic_market_data():
+    """Verify real GaussianHMM fits on synthetic bull/bear regime series with label stability."""
+    pytest.importorskip("hmmlearn")
+    from market_regime import _default_model
+
+    # Synthetic series: 200 days bull (+0.2% daily), 200 days bear (-0.2% daily)
+    np.random.seed(42)
+    bull_returns = np.random.normal(loc=0.002, scale=0.005, size=200)
+    bear_returns = np.random.normal(loc=-0.002, scale=0.015, size=200)
+    all_returns = np.concatenate([bull_returns, bear_returns])
+
+    dates = pd.bdate_range("2024-01-01", periods=len(all_returns))
+    close = 100.0 * np.exp(np.cumsum(all_returns))
+    frame = pd.DataFrame({"trade_date": dates, "close": close})
+
+    # Run walk_forward_regimes with real GaussianHMM
+    result = walk_forward_regimes(
+        frame,
+        model_factory=_default_model,
+        training_window=100,
+        retrain_every=20,
+    )
+
+    available = result[result["status"] == "AVAILABLE"]
+    assert not available.empty
+    assert set(available["state"].dropna()).issubset({"LOW_VOL_BULL", "RANGE", "HIGH_VOL_BEAR"})
+

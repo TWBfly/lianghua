@@ -1,0 +1,129 @@
+{
+  "symbol": "AG_IDX",
+  "contract_spec": "沪银 AG (V12 ML4T Ultimate Edition 动态风控)",
+  "timeframe_results": [
+    {
+      "timeframe": "5m",
+      "total_bars": 1022,
+      "eval_bars": 626,
+      "final_equity": 926329.65,
+      "net_profit_rmb": -73670.35,
+      "total_return_pct": -7.37,
+      "sharpe_ratio": -7.34,
+      "max_drawdown_pct": 10.55,
+      "win_rate_pct": 13.8,
+      "profit_loss_ratio": 2.8,
+      "total_trades": 29,
+      "is_bankrupt": false
+    },
+    {
+      "timeframe": "15m",
+      "total_bars": 44807,
+      "eval_bars": 43548,
+      "final_equity": 8484.3,
+      "net_profit_rmb": -991515.7,
+      "total_return_pct": -99.15,
+      "sharpe_ratio": -4.43,
+      "max_drawdown_pct": 99.18,
+      "win_rate_pct": 7.9,
+      "profit_loss_ratio": 4.0,
+      "total_trades": 770,
+      "is_bankrupt": false
+    },
+    {
+      "timeframe": "30m",
+      "total_bars": 21798,
+      "eval_bars": 20539,
+      "final_equity": 10590.03,
+      "net_profit_rmb": -989409.97,
+      "total_return_pct": -98.94,
+      "sharpe_ratio": -3.38,
+      "max_drawdown_pct": 98.95,
+      "win_rate_pct": 12.4,
+      "profit_loss_ratio": 3.43,
+      "total_trades": 781,
+      "is_bankrupt": false
+    },
+    {
+      "timeframe": "1h",
+      "total_bars": 10899,
+      "eval_bars": 9640,
+      "final_equity": 19889.44,
+      "net_profit_rmb": -980110.56,
+      "total_return_pct": -98.01,
+      "sharpe_ratio": -1.58,
+      "max_drawdown_pct": 98.16,
+      "win_rate_pct": 15.7,
+      "profit_loss_ratio": 3.18,
+      "total_trades": 629,
+      "is_bankrupt": false
+    },
+    {
+      "timeframe": "2h",
+      "total_bars": 7266,
+      "eval_bars": 6007,
+      "final_equity": 19162.04,
+      "net_profit_rmb": -980837.96,
+      "total_return_pct": -98.08,
+      "sharpe_ratio": -0.81,
+      "max_drawdown_pct": 98.09,
+      "win_rate_pct": 11.5,
+      "profit_loss_ratio": 3.14,
+      "total_trades": 364,
+      "is_bankrupt": false
+    },
+    {
+      "timeframe": "3h",
+      "total_bars": 4844,
+      "eval_bars": 3585,
+      "final_equity": 24956.69,
+      "net_profit_rmb": -975043.31,
+      "total_return_pct": -97.5,
+      "sharpe_ratio": -1.04,
+      "max_drawdown_pct": 97.57,
+      "win_rate_pct": 13.1,
+      "profit_loss_ratio": 2.96,
+      "total_trades": 291,
+      "is_bankrupt": false
+    },
+    {
+      "timeframe": "4h",
+      "total_bars": 2422,
+      "eval_bars": 1536,
+      "final_equity": 764861.37,
+      "net_profit_rmb": -235138.63,
+      "total_return_pct": -23.51,
+      "sharpe_ratio": -0.69,
+      "max_drawdown_pct": 30.83,
+      "win_rate_pct": 19.0,
+      "profit_loss_ratio": 3.02,
+      "total_trades": 100,
+      "is_bankrupt": false
+    },
+    {
+      "timeframe": "1d",
+      "total_bars": 1211,
+      "eval_bars": 749,
+      "final_equity": 1096848.9,
+      "net_profit_rmb": 96848.9,
+      "total_return_pct": 9.68,
+      "sharpe_ratio": 0.36,
+      "max_drawdown_pct": 19.06,
+      "win_rate_pct": 29.6,
+      "profit_loss_ratio": 2.87,
+      "total_trades": 54,
+      "is_bankrupt": false
+    }
+  ],
+  "scorecard": {
+    "total_score": 29.3,
+    "grade": "C",
+    "summary_metrics": {
+      "avg_return_pct": -64.11,
+      "avg_sharpe_ratio": -2.36,
+      "avg_max_drawdown_pct": 69.05,
+      "avg_win_rate_pct": 15.4,
+      "avg_profit_loss_ratio": 3.17
+    }
+  }
+}

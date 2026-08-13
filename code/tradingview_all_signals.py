@@ -4,6 +4,12 @@ import numpy as np
 import pandas as pd
 import os
 
+from technical_indicators import (
+    calculate_atr,
+    calculate_ema,
+    calculate_rsi,
+)
+
 class TradingViewAllSignalsEngine:
     def __init__(self, tv_dir='/Users/tang/PycharmProjects/pythonProject/lianghua/tradingview'):
         self.tv_dir = tv_dir
@@ -14,21 +20,17 @@ class TradingViewAllSignalsEngine:
         )
 
     def _ema(self, series, span):
-        return series.ewm(span=span, adjust=False).mean()
+        return calculate_ema(series, span)
 
     def _sma(self, series, window):
         return series.rolling(window=window).mean()
 
     def _atr(self, high, low, close, window=14):
-        tr = np.maximum(high - low, np.maximum(np.abs(high - close.shift(1)), np.abs(low - close.shift(1))))
-        return pd.Series(tr, index=close.index).rolling(window=window).mean()
+        df = pd.DataFrame({"high": high, "low": low, "close": close})
+        return calculate_atr(df, window)
 
     def _rsi(self, close, window=14):
-        delta = close.diff()
-        gain = delta.clip(lower=0).ewm(alpha=1/window, adjust=False).mean()
-        loss = (-delta).clip(lower=0).ewm(alpha=1/window, adjust=False).mean()
-        rs = gain / loss.replace(0, np.nan)
-        return 100 - (100 / (1 + rs))
+        return calculate_rsi(close, window)
 
     def generate_all_signals(self, df):
         """

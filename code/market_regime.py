@@ -49,11 +49,15 @@ def build_regime_observations(frame: pd.DataFrame) -> pd.DataFrame:
 
 
 def state_names_from_means(means: np.ndarray) -> dict[int, str]:
-    """Assign stable economic names to permutation-invariant state ids."""
+    """Assign stable economic names to permutation-invariant state ids using multi-attribute scoring."""
     values = np.asarray(means, dtype=float)
     if values.shape != (N_STATES, 3):
         raise ValueError("expected three HMM states and three observations")
-    order = np.argsort(values[:, 2])
+    # Multi-attribute score to ensure stable state labeling:
+    # col 0: log_return, col 1: realized_volatility_20, col 2: trend_strength_20
+    # Composite score combines trend strength, mean return, and volatility penalty
+    scores = values[:, 2] + 2.0 * values[:, 0] - values[:, 1]
+    order = np.argsort(scores)
     return {
         int(order[0]): "HIGH_VOL_BEAR",
         int(order[1]): "RANGE",

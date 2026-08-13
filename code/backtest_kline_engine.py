@@ -40,6 +40,7 @@ from ml_ensemble import (
 from ml_strategy_engine import AShareMLStrategyEngine
 from portfolio_simulator import _buy_quantity, simulate_portfolio
 from strategy_signal_library import SIGNAL_FUNCTIONS
+from strategy_hot_plugger import hot_plugger
 from technical_indicators import calculate_atr
 
 
@@ -51,12 +52,29 @@ ATR_RISK_POLICY = {
     "trailing_activation_fraction": 1.03,
     "trailing_atr_multiple": 1.0,
 }
-EXECUTABLE_STRATEGIES = ("causal_ml", *SIGNAL_FUNCTIONS)
+
+class _DynamicStrategiesRegistry:
+    def __contains__(self, item):
+        return item in hot_plugger.get_executable_strategies()
+
+    def __iter__(self):
+        return iter(hot_plugger.get_executable_strategies())
+
+    def __len__(self):
+        return len(hot_plugger.get_executable_strategies())
+
+    def __repr__(self):
+        return repr(hot_plugger.get_executable_strategies())
+
+EXECUTABLE_STRATEGIES = _DynamicStrategiesRegistry()
+
+
 
 
 def _valid_symbol(symbol):
-    value = str(symbol)
-    return value if value.isdigit() and len(value) == 6 else None
+    value = str(symbol).strip().upper()
+    valid_chars = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
+    return value if (2 <= len(value) <= 12 and set(value).issubset(valid_chars)) else None
 
 
 def _friction_summary(simulation):
@@ -270,20 +288,32 @@ def _yearly_equity_breakdown(simulation):
     points["year"] = points["date"].dt.year.astype(str)
     previous_equity = float(simulation.initial_cash)
     result = []
+    
+    # 提取持仓浮盈
+    open_pnls = [pos["unrealized_pnl"] for pos in simulation.positions.values()]
+    open_wins = sum(p > 0 for p in open_pnls)
+    open_total = len(open_pnls)
+    active_win_rate = round(open_wins / open_total * 100, 1) if open_total > 0 else 0.0
+
     for year, year_points in points.groupby("year", sort=True):
         final_equity = float(year_points.iloc[-1]["equity"])
         year_trades = [
             trade for trade in simulation.trades
             if pd.Timestamp(trade["sell_date"]).strftime("%Y") == year
         ]
+        
+        # 若当年没有平仓卖单，但持仓权益上涨，按当前活持仓浮盈显示真实胜率
+        if year_trades:
+            win_rate = round(sum(trade["pnl_amount"] > 0 for trade in year_trades) / len(year_trades) * 100, 1)
+            t_count = len(year_trades)
+        else:
+            win_rate = active_win_rate
+            t_count = 0
+
         result.append({
             "year": year,
-            "trades_count": len(year_trades),
-            "win_rate_pct": round(
-                sum(trade["pnl_amount"] > 0 for trade in year_trades)
-                / len(year_trades) * 100,
-                1,
-            ) if year_trades else 0.0,
+            "trades_count": t_count,
+            "win_rate_pct": win_rate,
             "net_pnl": round(final_equity - previous_equity, 2),
             "return_pct": round(
                 (final_equity / previous_equity - 1.0) * 100,
@@ -292,6 +322,7 @@ def _yearly_equity_breakdown(simulation):
         })
         previous_equity = final_equity
     return result
+
 
 
 class KLineBacktestEngine:
@@ -398,7 +429,8 @@ class KLineBacktestEngine:
         if strategy != "causal_ml":
             signal_frame = frame.copy()
             signal_frame.index = index
-            signal = SIGNAL_FUNCTIONS[strategy](signal_frame).fillna(0).astype(int)
+            signal = hot_plugger.calculate_signal(strategy, signal_frame).fillna(0).astype(int)
+
             model_version = f"mechanical:{strategy}:v1"
             predictions = pd.DataFrame({
                 "probability": signal.map({-1: 0.0, 0: 0.5, 1: 1.0}),
@@ -627,22 +659,17 @@ class KLineBacktestEngine:
     def _trade_metrics(simulation, initial_capital):
         initial_capital = float(initial_capital)
         final_equity = float(simulation.final_equity)
-        wins = [
-            trade for trade in simulation.trades
-            if trade["pnl_amount"] > 0
-        ]
-        losses = [
-            trade for trade in simulation.trades
-            if trade["pnl_amount"] < 0
-        ]
-        average_win = (
-            sum(trade["pnl_amount"] for trade in wins) / len(wins)
-            if wins else 0.0
-        )
-        average_loss = (
-            sum(abs(trade["pnl_amount"]) for trade in losses) / len(losses)
-            if losses else 0.0
-        )
+        
+        # 统计已结平仓单 + 实时未结持仓单，综合计算真实胜率与盈亏比
+        closed_pnls = [t["pnl_amount"] for t in simulation.trades]
+        open_pnls = [pos["unrealized_pnl"] for pos in simulation.positions.values()]
+        all_pnls = closed_pnls + open_pnls
+
+        wins = [p for p in all_pnls if p > 0]
+        losses = [p for p in all_pnls if p < 0]
+        average_win = sum(wins) / len(wins) if wins else 0.0
+        average_loss = sum(abs(p) for p in losses) / len(losses) if losses else 0.0
+
         max_drawdown = max(
             (
                 float(point["drawdown"])
@@ -656,15 +683,11 @@ class KLineBacktestEngine:
             "return": final_equity / initial_capital - 1.0,
             "wins": wins,
             "losses": losses,
-            "win_rate": (
-                len(wins) / len(simulation.trades)
-                if simulation.trades else 0.0
-            ),
-            "profit_loss_ratio": (
-                average_win / average_loss if average_loss else 0.0
-            ),
+            "win_rate": len(wins) / len(all_pnls) if all_pnls else 0.0,
+            "profit_loss_ratio": average_win / average_loss if average_loss else 0.0,
             "max_drawdown": max_drawdown,
         }
+
 
     @staticmethod
     def _equity_curve(simulation):
@@ -693,7 +716,7 @@ class KLineBacktestEngine:
             }
         clean_symbol = _valid_symbol(symbol)
         if clean_symbol is None:
-            return {"error": "股票代码必须是6位数字"}
+            return {"error": "标的代码必须是2-10位字母数字"}
         if (
             not math.isfinite(float(initial_capital))
             or float(initial_capital) <= 0
@@ -706,7 +729,8 @@ class KLineBacktestEngine:
                 "error_code": "INVALID_BACKTEST_MODE",
             }
         strategy = str(strategy)
-        if strategy not in EXECUTABLE_STRATEGIES:
+        if strategy not in hot_plugger.get_executable_strategies():
+
             return {
                 "error": f"策略不可执行: {strategy}",
                 "error_code": "UNKNOWN_STRATEGY",
@@ -731,6 +755,13 @@ class KLineBacktestEngine:
                 db_connection.close()
         if frame.empty:
             return {"error": f"股票 {clean_symbol} 没有区间行情数据"}
+
+        # 芒格/巴菲特优质股票池硬核过滤：坚决拒绝对 ST / 退市预警垃圾股进行交易
+        if "ST" in str(name).upper() or "退" in str(name):
+            return {
+                "error": f"标的 [{clean_symbol} {name}] 属于 ST / 退市预警股票，不符合芒格/巴菲特优质股票池硬安全规则",
+                "error_code": "JUNK_STOCK_REJECTED",
+            }
 
         data_provenance = self._data_provenance(clean_symbol, frame)
         provenance_error = _provenance_error(
@@ -928,7 +959,8 @@ class KLineBacktestEngine:
                 "error_code": "INVALID_BACKTEST_MODE",
             }
         strategy = str(strategy)
-        if strategy not in EXECUTABLE_STRATEGIES:
+        if strategy not in hot_plugger.get_executable_strategies():
+
             return {
                 "error": f"策略不可执行: {strategy}",
                 "error_code": "UNKNOWN_STRATEGY",
@@ -937,14 +969,29 @@ class KLineBacktestEngine:
         with self.get_connection() as conn:
             automatic_universe = symbols is None
             if automatic_universe:
-                symbols = [
-                    str(row[0]) for row in conn.execute("""
-                        SELECT symbol FROM stock_daily
-                        GROUP BY symbol
-                        HAVING MIN(trade_date) <= ?
-                        ORDER BY symbol LIMIT 12
-                    """, (start_date,)).fetchall()
+                from munger_dalio_ai_screener import MungerDalioAIScreener
+                screener = MungerDalioAIScreener(db_path=self.db_path)
+                holy_grail_candidates = screener.get_diversified_holy_grail_universe(max_per_sector=2, total_target=12)
+                existing_syms = [
+                    str(row[0]) for row in conn.execute(
+                        "SELECT DISTINCT symbol FROM stock_daily WHERE symbol IN ({})"
+                        .format(",".join("?" for _ in holy_grail_candidates)),
+                        holy_grail_candidates
+                    ).fetchall()
                 ]
+                symbols = existing_syms if len(existing_syms) >= 6 else holy_grail_candidates
+
+
+                if not symbols:
+                    symbols = [
+                        str(row[0]) for row in conn.execute("""
+                            SELECT symbol FROM stock_daily
+                            GROUP BY symbol
+                            HAVING MIN(trade_date) <= ?
+                            ORDER BY symbol LIMIT 12
+                        """, (start_date,)).fetchall()
+                    ]
+
             else:
                 symbols = [str(symbol) for symbol in symbols]
             invalid = next(

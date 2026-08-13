@@ -43,13 +43,17 @@
         <div class="input-group">
           <label for="strategySelect">策略:</label>
           <select id="strategySelect">
-            <option value="causal_ml">causal_ml</option>
+            <option value="causal_ml" selected>causal_ml</option>
+            <option value="supertrend">supertrend</option>
           </select>
+
+
         </div>
         <label class="input-group" for="researchProxyMode">
-          <input type="checkbox" id="researchProxyMode">
-          研究代理
+          <input type="checkbox" id="researchProxyMode" checked>
+          研究代理 (前复权跟投)
         </label>
+
         <button id="runBtn" class="btn-primary">
           <span class="icon">🚀</span> 运行单股与组合回测
         </button>

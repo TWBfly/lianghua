@@ -19,12 +19,15 @@ from backtest_kline_engine import (
     EXECUTABLE_STRATEGIES,
     KLineBacktestEngine,
 )
+from munger_dalio_ai_screener import MungerDalioAIScreener
 
 WEB_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "web")
 
 app = Flask(__name__, static_folder=WEB_DIR, static_url_path="")
 kline_engine = KLineBacktestEngine(db_path=DB_PATH)
+md_screener = MungerDalioAIScreener(db_path=DB_PATH)
 SYMBOL_RE = re.compile(r"^\d{6}$")
+
 
 
 def validate_backtest_request(data, portfolio=False):
@@ -59,6 +62,8 @@ def validate_backtest_request(data, portfolio=False):
         raise ValueError("回测模式必须是 STRICT 或 RESEARCH_PROXY")
     result["backtest_mode"] = backtest_mode
     strategy = str(data.get("strategy", "causal_ml"))
+
+
     if strategy not in EXECUTABLE_STRATEGIES:
         raise ValueError(f"策略不可执行: {strategy}")
     result["strategy"] = strategy
@@ -75,7 +80,8 @@ def validate_backtest_request(data, portfolio=False):
                 raise ValueError("股票代码必须是6位数字")
         result["symbols"] = symbols
     else:
-        symbol = str(data.get("symbol", "603986"))
+        symbol = str(data.get("symbol", "600519"))
+
         if not SYMBOL_RE.fullmatch(symbol):
             raise ValueError("股票代码必须是6位数字")
         result["symbol"] = symbol
@@ -88,9 +94,35 @@ def index():
     return send_from_directory(WEB_DIR, "index.html")
 
 
+from strategy_hot_plugger import hot_plugger
+
 @app.route("/api/strategies", methods=["GET"])
 def strategies():
-    return jsonify(list(EXECUTABLE_STRATEGIES))
+    """返回全量内置与热插拔策略清单及元数据"""
+    return jsonify(hot_plugger.list_strategies())
+
+
+@app.route("/api/register_strategy", methods=["POST"])
+def register_strategy():
+    """在线提交或热注册新的 Python 策略代码脚本"""
+    data = request.json or {}
+    strategy_name = str(data.get("strategy_name", "")).strip()
+    code_content = str(data.get("code_content", "")).strip()
+    description = str(data.get("description", "动态热插拔因果策略")).strip()
+
+    if not strategy_name or not code_content:
+        return jsonify({"error": "策略名称 (strategy_name) 与 代码 (code_content) 不能为空"}), 400
+
+    try:
+        filepath = hot_plugger.save_custom_strategy_code(strategy_name, code_content, description)
+        return jsonify({
+            "status": "SUCCESS",
+            "message": f"🚀 策略 [{strategy_name}] 已成功注册并生效！",
+            "filepath": filepath
+        })
+    except Exception as e:
+        return jsonify({"error": f"注册策略失败: {str(e)}"}), 500
+
 
 
 @app.route("/<path:path>")
@@ -248,10 +280,22 @@ def sync_data():
         return jsonify({"error": f"同步失败: {str(e)}"}), 500
 
 
+@app.route("/api/ai_financial_audit", methods=["GET"])
+def get_ai_financial_audit():
+    symbol = request.args.get("symbol", "600519").strip()
+    name = request.args.get("name", "贵州茅台").strip()
+    try:
+        res = md_screener.audit_financial_with_ai(symbol=symbol, name=name)
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route(
     "/api/<path:unused>",
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 )
+
 def api_not_found(unused):
     return jsonify({"error": "API endpoint not found"}), 404
 

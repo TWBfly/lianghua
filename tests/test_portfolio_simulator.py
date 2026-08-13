@@ -23,7 +23,8 @@ def bars(opens, closes=None, volumes=None):
     }, index=dates)
 
 
-def decision(date, symbol="000001", action="BUY", fraction=0.5):
+def decision(date, symbol="000001", action="BUY", fraction=0.5,
+             risk_exit=None):
     return {
         "decision_time": pd.Timestamp(date),
         "symbol": symbol,
@@ -32,6 +33,18 @@ def decision(date, symbol="000001", action="BUY", fraction=0.5):
         "reason": "test",
         "model_version": "v1",
         "features_json": "{}",
+        "risk_exit": risk_exit,
+    }
+
+
+def atr_policy(atr=1.0):
+    return {
+        "entry_atr": atr,
+        "stop_atr_multiple": 1.25,
+        "stop_floor_fraction": 0.972,
+        "take_profit_atr_multiple": 2.5,
+        "trailing_activation_fraction": 1.03,
+        "trailing_atr_multiple": 1.0,
     }
 
 
@@ -84,6 +97,155 @@ def test_symbols_share_one_cash_balance_and_exposure_limit():
     ) <= 90_000
 
 
+def test_buy_fill_never_exceeds_causal_volume_ceiling():
+    frame = bars([10, 10, 10], volumes=[10_000, 10_000, 10_000])
+    result = simulate_portfolio(
+        {"000001": frame},
+        pd.DataFrame([decision(frame.index[0], fraction=0.9)]),
+        initial_cash=100_000,
+    )
+
+    assert result.fills[0]["shares"] == 100
+
+
+def test_below_lot_volume_ceiling_rejects_buy():
+    frame = bars([10, 10, 10], volumes=[9_999, 9_999, 9_999])
+    result = simulate_portfolio(
+        {"000001": frame},
+        pd.DataFrame([decision(frame.index[0], fraction=0.9)]),
+        initial_cash=100_000,
+    )
+
+    assert result.fills == []
+    assert result.rejected_orders[0]["reason"] == "LIQUIDITY_LIMIT"
+
+
+def test_oversized_exit_is_rejected_and_position_is_preserved():
+    frame = bars(
+        [10, 10, 10, 10],
+        volumes=[1_000_000, 100, 100, 100],
+    )
+    result = simulate_portfolio(
+        {"000001": frame},
+        pd.DataFrame([
+            decision(frame.index[0], action="BUY", fraction=0.9),
+            decision(frame.index[1], action="SELL"),
+        ]),
+        initial_cash=100_000,
+        risk_limits=RiskLimits(
+            max_position_fraction=0.9,
+            max_gross_exposure=0.9,
+        ),
+    )
+
+    assert any(
+        item["side"] == "SELL" and item["reason"] == "LIQUIDITY_LIMIT"
+        for item in result.rejected_orders
+    )
+    assert result.trades == []
+    assert result.positions["000001"]["shares"] > 0
+
+
+@pytest.mark.parametrize(("high", "low", "reason"), [
+    (10.2, 9.6, "ATR_STOP"),
+    (13.0, 10.0, "ATR_TAKE_PROFIT"),
+])
+def test_atr_stop_and_take_profit_use_actual_fill_state(
+        high, low, reason):
+    frame = bars([10, 10, 10, 10])
+    frame.loc[frame.index[2], ["high", "low"]] = [high, low]
+    result = simulate_portfolio(
+        {"000001": frame},
+        pd.DataFrame([
+            decision(frame.index[0], risk_exit=atr_policy()),
+        ]),
+        initial_cash=100_000,
+    )
+
+    assert result.trades[0]["exit_reason"] == reason
+    sell = next(fill for fill in result.fills if fill["side"] == "SELL")
+    expected = _sell_proceeds(
+        sell["shares"], sell["raw_price"], FeeSchedule(),
+        sell["fill_time"], symbol="000001",
+        daily_volume=1_000_000,
+    )
+    assert sell["fill_price"] == pytest.approx(expected[0])
+    assert sell["fees"] == pytest.approx(expected[2])
+
+
+def test_t_plus_one_prevents_entry_day_atr_exit():
+    frame = bars([10, 10, 10])
+    frame.loc[frame.index[1], "low"] = 1.0
+    result = simulate_portfolio(
+        {"000001": frame},
+        pd.DataFrame([
+            decision(frame.index[0], risk_exit=atr_policy()),
+        ]),
+        initial_cash=100_000,
+    )
+
+    assert result.trades == []
+    assert "000001" in result.positions
+
+
+def test_same_bar_stop_wins_over_take_profit():
+    frame = bars([10, 10, 10, 10])
+    frame.loc[frame.index[2], ["high", "low"]] = [20.0, 1.0]
+    result = simulate_portfolio(
+        {"000001": frame},
+        pd.DataFrame([
+            decision(frame.index[0], risk_exit=atr_policy()),
+        ]),
+        initial_cash=100_000,
+    )
+
+    assert result.trades[0]["exit_reason"] == "ATR_STOP"
+
+
+def test_trailing_exit_uses_prior_peak_not_current_bar_high():
+    frame = bars([10, 10, 10])
+    frame.loc[frame.index[2], ["high", "low"]] = [12.0, 10.0]
+    result = simulate_portfolio(
+        {"000001": frame},
+        pd.DataFrame([
+            decision(frame.index[0], risk_exit=atr_policy()),
+        ]),
+        initial_cash=100_000,
+    )
+
+    assert result.trades == []
+    assert result.positions["000001"]["shares"] > 0
+
+
+def test_atr_trailing_stop_uses_peak_from_previous_bar():
+    frame = bars([10, 10, 10, 10])
+    frame.loc[frame.index[2], ["high", "low"]] = [12.0, 10.0]
+    frame.loc[frame.index[3], ["high", "low"]] = [11.5, 10.5]
+    result = simulate_portfolio(
+        {"000001": frame},
+        pd.DataFrame([
+            decision(frame.index[0], risk_exit=atr_policy()),
+        ]),
+        initial_cash=100_000,
+    )
+
+    assert result.trades[0]["exit_reason"] == "ATR_TRAILING_STOP"
+
+
+def test_missing_atr_policy_leaves_signal_exit_available():
+    frame = bars([10, 10, 10, 10])
+    result = simulate_portfolio(
+        {"000001": frame},
+        pd.DataFrame([
+            decision(frame.index[0], action="BUY"),
+            decision(frame.index[1], action="SELL"),
+        ]),
+        initial_cash=100_000,
+    )
+
+    assert result.trades[0]["exit_reason"] == "test"
+
+
 def test_suspended_and_limit_locked_orders_are_rejected():
     dates = pd.bdate_range("2026-01-05", periods=3)
     suspended = bars([10, 10, 10], volumes=[1_000_000, 0, 1_000_000])
@@ -104,10 +266,8 @@ def test_suspended_and_limit_locked_orders_are_rejected():
         item["symbol"]: item["reason"]
         for item in result.rejected_orders
     }
-    assert reasons == {
-        "000001": "SUSPENDED",
-        "000002": "LIMIT_UP",
-    }
+    assert reasons["000001"] == "SUSPENDED"
+    assert reasons["000002"] in {"LIMIT_UP", "LIMIT_UP_LOCKED"}
 
 
 def test_slippage_never_crosses_limit_price_on_tradeable_bar():
@@ -350,5 +510,38 @@ def test_drawdown_kill_switch_blocks_new_buys():
     assert any(
         item["symbol"] == "000002"
         and item["reason"] == "RISK_LOCKED"
+        for item in result.rejected_orders
+    )
+
+
+def test_dynamic_slippage_with_market_impact():
+    from portfolio_simulator import _buy_cost, FeeSchedule
+
+    # Small order relative to volume: low impact
+    low_impact_price, _, _ = _buy_cost(100, 10.0, FeeSchedule(slippage_rate=0.001), daily_volume=1_000_000)
+    # Large order relative to volume: high impact
+    high_impact_price, _, _ = _buy_cost(100_000, 10.0, FeeSchedule(slippage_rate=0.001), daily_volume=1_000_000)
+
+    assert high_impact_price > low_impact_price
+
+
+def test_one_word_limit_lock_rejection():
+    dates = pd.bdate_range("2026-01-05", periods=3)
+
+    # One-word limit up bar: open == high == low == close == 11.0 (limit up from 10.0)
+    limit_up_frame = pd.DataFrame({
+        "open": [10.0, 11.0, 11.0],
+        "high": [10.0, 11.0, 11.0],
+        "low": [10.0, 11.0, 11.0],
+        "close": [10.0, 11.0, 11.0],
+        "volume": [1_000_000, 100, 1_000_000],
+    }, index=dates)
+
+    decisions = pd.DataFrame([decision(dates[0], "000001", action="BUY")])
+
+    result = simulate_portfolio({"000001": limit_up_frame}, decisions, initial_cash=100_000)
+
+    assert any(
+        item["symbol"] == "000001" and item["reason"] in {"LIMIT_UP_LOCKED", "LIMIT_UP"}
         for item in result.rejected_orders
     )

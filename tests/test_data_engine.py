@@ -82,7 +82,12 @@ def test_empty_qfq_refresh_preserves_existing_rows(tmp_path, monkeypatch):
     monkeypatch.setattr(
         ashare_data_engine.ak,
         "stock_zh_a_hist",
-        lambda **_: pd.DataFrame(),
+        lambda *_, **__: pd.DataFrame(),
+    )
+    monkeypatch.setattr(
+        ashare_data_engine.ak,
+        "stock_zh_a_daily",
+        lambda *_, **__: pd.DataFrame(),
     )
     monkeypatch.setattr(ashare_data_engine.time, "sleep", lambda _: None)
 
@@ -256,6 +261,7 @@ def test_qfq_provider_error_is_reported_not_counted(tmp_path, monkeypatch):
         raise RuntimeError("provider unavailable")
 
     monkeypatch.setattr(ashare_data_engine.ak, "stock_zh_a_hist", fail)
+    monkeypatch.setattr(ashare_data_engine.ak, "stock_zh_a_daily", fail)
     monkeypatch.setattr(ashare_data_engine.time, "sleep", lambda _: None)
 
     result = engine.sync_stock_daily(

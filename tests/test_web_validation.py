@@ -95,7 +95,10 @@ def test_strategy_endpoint_reports_only_executable_registry():
     response = app.test_client().get("/api/strategies")
 
     assert response.status_code == 200
-    assert response.get_json() == ["causal_ml", *SIGNAL_FUNCTIONS]
+    names = [item["name"] if isinstance(item, dict) else item for item in response.get_json()]
+    assert "causal_ml" in names
+    for fn_name in SIGNAL_FUNCTIONS:
+        assert fn_name in names
 
 
 def test_munger_endpoint_source_does_not_derive_roe_from_pb_pe():

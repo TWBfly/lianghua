@@ -18,35 +18,13 @@ import numpy as np
 import pandas as pd
 
 
-# ─── 工具函数 ──────────────────────────────────────────────────────────────────
-
-def _ema(series: pd.Series, n: int) -> pd.Series:
-    return series.ewm(span=n, adjust=False).mean()
-
-def _rma(series: pd.Series, n: int) -> pd.Series:
-    """Pine Script ta.rma() = Wilder's Smoothing = EMA with alpha=1/n"""
-    return series.ewm(alpha=1/n, adjust=False).mean()
-
-def _atr(df: pd.DataFrame, n: int = 14) -> pd.Series:
-    tr = pd.concat([
-        df['high'] - df['low'],
-        (df['high'] - df['close'].shift(1)).abs(),
-        (df['low'] - df['close'].shift(1)).abs()
-    ], axis=1).max(axis=1)
-    return _rma(tr, n)
-
-def _rsi(series: pd.Series, n: int = 14) -> pd.Series:
-    delta = series.diff()
-    gain = _rma(delta.clip(lower=0), n)
-    loss = _rma((-delta).clip(lower=0), n)
-    rs = gain / loss.replace(0, np.nan)
-    return 100 - 100 / (1 + rs)
-
-def _macd(series: pd.Series, fast=12, slow=26, signal=9):
-    macd_line = _ema(series, fast) - _ema(series, slow)
-    signal_line = _ema(macd_line, signal)
-    hist = macd_line - signal_line
-    return macd_line, signal_line, hist
+from technical_indicators import (
+    calculate_atr as _atr,
+    calculate_ema as _ema,
+    calculate_macd as _macd,
+    calculate_rma as _rma,
+    calculate_rsi as _rsi,
+)
 
 def crossover(a: pd.Series, b) -> pd.Series:
     """a 从下方穿越 b"""
@@ -113,31 +91,30 @@ def supertrend_crossover(df: pd.DataFrame, period: int = 10, multiplier: float =
 
 
 # ─── 2. AlphaTrend ───────────────────────────────────────────────────────────
-# 来源: AlphaTrend.md — 结合 MFI（量价）或 RSI 动量确认
+# 来源: AlphaTrend.md — 结合 RSI 动量确认
 
 def alphatrend_signal(df: pd.DataFrame, period: int = 14, coeff: float = 1.0) -> pd.Series:
     """AlphaTrend 买卖信号: +1=BUY, -1=SELL, 0=持有"""
     atr_val = _atr(df, period)
-    hlc3 = (df['high'] + df['low'] + df['close']) / 3
-    # 用 RSI 替代 MFI（无 volume tick 精度）
     rsi_val = _rsi(df['close'], period)
     condition = rsi_val >= 50
 
     upT = df['low'] - atr_val * coeff
     downT = df['high'] + atr_val * coeff
 
-    at = pd.Series(np.nan, index=df.index)
-    at.iloc[0] = upT.iloc[0] if condition.iloc[0] else downT.iloc[0]
+    at = np.zeros(len(df))
+    at[0] = upT.iloc[0] if condition.iloc[0] else downT.iloc[0]
 
     for i in range(1, len(df)):
-        prev = at.iloc[i-1]
+        prev = at[i-1]
         if condition.iloc[i]:
-            at.iloc[i] = max(upT.iloc[i], prev) if not np.isnan(prev) else upT.iloc[i]
+            at[i] = max(upT.iloc[i], prev)
         else:
-            at.iloc[i] = min(downT.iloc[i], prev) if not np.isnan(prev) else downT.iloc[i]
+            at[i] = min(downT.iloc[i], prev)
 
-    buy = crossover(at, at.shift(2))
-    sell = crossunder(at, at.shift(2))
+    at_series = pd.Series(at, index=df.index)
+    buy = crossover(at_series, at_series.shift(2))
+    sell = crossunder(at_series, at_series.shift(2))
     signal = pd.Series(0, index=df.index)
     signal[buy] = 1
     signal[sell] = -1
@@ -150,42 +127,47 @@ def alphatrend_signal(df: pd.DataFrame, period: int = 14, coeff: float = 1.0) ->
 def chandelier_exit_signal(df: pd.DataFrame, period: int = 22, multiplier: float = 3.0) -> pd.Series:
     """Chandelier Exit 方向: +1=多, -1=空, 变化=信号"""
     atr = _atr(df, period) * multiplier
-    long_stop = df['close'].rolling(period).max() - atr
-    short_stop = df['close'].rolling(period).min() + atr
+    long_stop = (df['high'].rolling(period).max() - atr).to_numpy()
+    short_stop = (df['low'].rolling(period).min() + atr).to_numpy()
+    close = df['close'].to_numpy()
 
-    # ratchet
-    long_stop = long_stop.where(
-        (long_stop > long_stop.shift(1)) | (df['close'].shift(1) > long_stop.shift(1)),
-        long_stop.shift(1)
-    )
-    short_stop = short_stop.where(
-        (short_stop < short_stop.shift(1)) | (df['close'].shift(1) < short_stop.shift(1)),
-        short_stop.shift(1)
-    )
-
-    direction = pd.Series(1, index=df.index)
     for i in range(1, len(df)):
-        if df['close'].iloc[i] > short_stop.iloc[i-1]:
-            direction.iloc[i] = 1
-        elif df['close'].iloc[i] < long_stop.iloc[i-1]:
-            direction.iloc[i] = -1
-        else:
-            direction.iloc[i] = direction.iloc[i-1]
+        if close[i-1] > long_stop[i-1]:
+            long_stop[i] = max(long_stop[i], long_stop[i-1])
+        if close[i-1] < short_stop[i-1]:
+            short_stop[i] = min(short_stop[i], short_stop[i-1])
 
+    direction = np.ones(len(df), dtype=int)
+    for i in range(1, len(df)):
+        if close[i] > short_stop[i-1]:
+            direction[i] = 1
+        elif close[i] < long_stop[i-1]:
+            direction[i] = -1
+        else:
+            direction[i] = direction[i-1]
+
+    direction_s = pd.Series(direction, index=df.index)
     signal = pd.Series(0, index=df.index)
-    signal[(direction == 1) & (direction.shift(1) == -1)] = 1
-    signal[(direction == -1) & (direction.shift(1) == 1)] = -1
+    signal[(direction_s == 1) & (direction_s.shift(1) == -1)] = 1
+    signal[(direction_s == -1) & (direction_s.shift(1) == 1)] = -1
     return signal
 
 
 # ─── 4. Hull Suite ────────────────────────────────────────────────────────────
-# 来源: Hull Suite Strategy.md
+def _wma(series: pd.Series, period: int) -> pd.Series:
+    """加权移动平均线 (Weighted Moving Average)"""
+    weights = np.arange(1, period + 1)
+    sum_weights = weights.sum()
+    return series.rolling(period).apply(lambda x: np.dot(x, weights) / sum_weights, raw=True)
+
 
 def hull_signal(df: pd.DataFrame, period: int = 55) -> pd.Series:
-    """Hull Moving Average 趋势信号"""
+    """Hull Moving Average 趋势信号 (符合 Alan Hull 原始 WMA 标准定义)"""
     src = df['close']
-    half = period // 2
-    hma = _ema(2 * _ema(src, half) - _ema(src, period), int(np.sqrt(period)))
+    half = max(1, period // 2)
+    sqrt_p = max(1, int(np.sqrt(period)))
+    raw_hma = 2 * _wma(src, half) - _wma(src, period)
+    hma = _wma(raw_hma, sqrt_p)
     signal = pd.Series(0, index=df.index)
     signal[crossover(hma, hma.shift(2))] = 1
     signal[crossunder(hma, hma.shift(2))] = -1
@@ -211,13 +193,19 @@ def squeeze_momentum_signal(df: pd.DataFrame, bb_len: int = 20, kc_mult: float =
 
     squeeze = (bb_upper < kc_upper) & (bb_lower > kc_lower)  # True=压缩中
 
-    # Delta from linear regression midpoint
+    # Delta from linear regression midpoint (LazyBear formula)
     highest = df['high'].rolling(bb_len).max()
     lowest = df['low'].rolling(bb_len).min()
-    delta = src - (highest + lowest) / 2 - bb_mid
+    delta = src - ((highest + lowest) / 2 + bb_mid) / 2
 
-    # 动量柱状值
-    momentum = delta.rolling(bb_len).apply(lambda x: np.polyfit(range(len(x)), x, 1)[0], raw=True)
+    # 动量柱状值 — LazyBear 原版: 线性回归拟合值 (端点值, 非斜率)
+    def _linreg_value(x):
+        n = len(x)
+        idx = np.arange(n)
+        slope, intercept = np.polyfit(idx, x, 1)
+        return slope * (n - 1) + intercept  # 拟合值在最后一个位置
+
+    momentum = delta.rolling(bb_len).apply(_linreg_value, raw=True)
 
     signal = pd.Series(0, index=df.index)
     signal[(momentum > 0) & (momentum.shift(1) <= 0) & ~squeeze] = 1

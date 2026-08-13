@@ -34,9 +34,36 @@ class AShareMLStrategyEngine:
 
     def build_dataset(self, symbols=None, start_date="2022-01-01", end_date="2026-07-29"):
         """构建全市场 panel 多因子数据集"""
+    def get_pit_universe(self, conn, target_date=None, limit=100):
+        """点位时间 (Point-In-Time) 无生存者偏差股票池提取"""
+        try:
+            if target_date is None:
+                max_date_row = conn.execute("SELECT MAX(trade_date) FROM stock_daily;").fetchone()
+                target_date = max_date_row[0] if max_date_row and max_date_row[0] else None
+            if target_date:
+                target_date = pd.Timestamp(target_date).strftime("%Y-%m-%d")
+                query = """
+                    SELECT DISTINCT d.symbol 
+                    FROM stock_daily d
+                    JOIN stock_basic b ON d.symbol = b.symbol
+                    WHERE d.trade_date <= ? AND d.volume > 0
+                    GROUP BY d.symbol
+                    HAVING MAX(d.trade_date) >= date(?, '-30 days')
+                    ORDER BY b.total_mv DESC
+                    LIMIT ?
+                """
+                rows = conn.execute(query, (target_date, target_date, limit)).fetchall()
+                if rows:
+                    return [r[0] for r in rows]
+        except (sqlite3.OperationalError, sqlite3.DatabaseError):
+            pass
+        return pd.read_sql_query("SELECT symbol FROM stock_basic ORDER BY total_mv DESC LIMIT ?", conn, params=(limit,))['symbol'].tolist()
+
+    def build_dataset(self, symbols=None, start_date="2022-01-01", end_date="2026-07-29"):
+        """构建全市场 panel 多因子数据集 (支持 PIT 无生存者偏差池)"""
         if symbols is None:
             with sqlite3.connect(self.db_path) as conn:
-                symbols = pd.read_sql_query("SELECT symbol FROM stock_basic ORDER BY total_mv DESC LIMIT 100", conn)['symbol'].tolist()
+                symbols = self.get_pit_universe(conn, target_date=end_date, limit=100)
 
         print(f"[ML Engine] 正在为 {len(symbols)} 只核心 A 股提取因子特征...")
         all_dfs = []
@@ -85,7 +112,7 @@ class AShareMLStrategyEngine:
         )
 
     def predict_top_stocks(self, target_date=None, top_k=10):
-        """预测指定日期截面下的前 K 只潜力反弹/领涨股票"""
+        """预测指定日期截面下的前 K 只潜力反弹/领涨股票 (Point-In-Time 选股)"""
         if not self.is_trained:
             print("[Error] 模型尚未训练，请先调用 fit_current_model()")
             return None
@@ -97,11 +124,7 @@ class AShareMLStrategyEngine:
                 target_date = cursor.fetchone()[0]
             target_date = pd.Timestamp(target_date).strftime("%Y-%m-%d")
 
-            symbols = pd.read_sql_query(
-                "SELECT symbol FROM stock_basic "
-                "ORDER BY total_mv DESC LIMIT 100",
-                conn,
-            )["symbol"].tolist()
+            symbols = self.get_pit_universe(conn, target_date=target_date, limit=100)
 
             print(f"\n[ML Predict] 正在对截面日期 {target_date} 的股票进行 Alpha 得分预测...")
             predict_records = []

@@ -6,12 +6,16 @@ let chartInstance = null;
 let currentBacktestData = null;
 let mungerStocksData = [];
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   initChart();
   bindEvents();
-  loadStrategies();
-  fetchMungerStocks('');
+  await loadStrategies();
+  await fetchMungerStocks('');
+  // 页面初次加载时自动执行默认股票 (贵州茅台 600519) 与大组合配仓回测
+  fetchAndRenderBacktest();
+  fetchPortfolioBacktest();
 });
+
 
 function initChart() {
   const chartDom = document.getElementById('klineChart');
@@ -78,22 +82,32 @@ function bindEvents() {
 let latestPortfolioData = null;
 
 function selectedBacktestOptions() {
+  const proxyCheckbox = document.getElementById('researchProxyMode');
+  const isProxy = proxyCheckbox ? proxyCheckbox.checked : true;
   return {
     strategy: document.getElementById('strategySelect')?.value || 'causal_ml',
-    backtest_mode: document.getElementById('researchProxyMode')?.checked
-      ? 'RESEARCH_PROXY'
-      : 'STRICT'
+    backtest_mode: isProxy ? 'RESEARCH_PROXY' : 'STRICT'
   };
 }
+
 
 async function loadStrategies() {
   const response = await fetch('/api/strategies');
   const strategies = await response.json();
   const select = document.getElementById('strategySelect');
   select.innerHTML = strategies
-    .map(name => `<option value="${name}">${name}</option>`)
+    .map(s => {
+      const name = typeof s === 'string' ? s : s.name;
+      const desc = s.description ? ` - ${s.description}` : '';
+      const customBadge = s.is_custom ? '🔥 [热插拔] ' : '';
+      const isSelected = name === 'causal_ml' ? 'selected' : '';
+      return `<option value="${name}" ${isSelected}>${customBadge}${name}${desc}</option>`;
+    })
     .join('');
 }
+
+
+
 
 /**
  * 调取【全组合多股总体战报 + 固定风险资金分配】
@@ -283,7 +297,10 @@ function selectMungerCard(symbol, name) {
   document.getElementById('stockSearchInput').value = `${symbol} - ${name}`;
 
   renderMungerStockList(mungerStocksData);
+  // 点击股票卡片时，立即自动调取并渲染该股票的 K 线图、买卖点与交易记录
+  fetchAndRenderBacktest();
 }
+
 
 async function fetchStockSuggestions(query) {
   const suggestList = document.getElementById('stockSuggestList');

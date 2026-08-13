@@ -280,18 +280,73 @@ class AShareDataEngine:
                     if latest_date else requested_end,
                 )
 
-                # ponytail: qfq history is mutable; refresh the symbol until
-                # adjustment factors are stored separately.
-                df_hist = ak.stock_zh_a_hist(
-                    symbol=sym,
-                    period="daily",
-                    start_date=refresh_start,
-                    end_date=refresh_end,
-                    adjust="qfq"
-                )
+                # ponytail: try EM API first with retry; fallback to Sina API (ak.stock_zh_a_daily) if EM fails
+                df_hist = None
+                last_err = None
+                for attempt in range(2):
+                    try:
+                        df_hist = ak.stock_zh_a_hist(
+                            symbol=sym,
+                            period="daily",
+                            start_date=refresh_start,
+                            end_date=refresh_end,
+                            adjust="qfq"
+                        )
+                        if df_hist is not None and not df_hist.empty:
+                            break
+                    except Exception as err:
+                        last_err = err
+                        if attempt == 0:
+                            time.sleep(0.2)
 
                 if df_hist is None or df_hist.empty:
-                    result["empty"].append(sym)
+                    try:
+                        formatted_sym = f"sh{sym}" if sym.startswith("6") or sym.startswith("9") else f"sz{sym}"
+                        df_sina = ak.stock_zh_a_daily(
+                            symbol=formatted_sym,
+                            start_date=refresh_start,
+                            end_date=refresh_end,
+                            adjust="qfq"
+                        )
+                        if df_sina is not None and not df_sina.empty:
+                            df_sina['date'] = df_sina['date'].astype(str)
+                            close_s = df_sina['close'].astype(float)
+                            high_s = df_sina['high'].astype(float)
+                            low_s = df_sina['low'].astype(float)
+                            to_s = df_sina['turnover'].astype(float)
+                            prev_close = close_s.shift(1)
+                            
+                            amp_s = ((high_s - low_s) / prev_close.replace(0, 1.0) * 100.0).round(2).fillna(0.0)
+                            pct_s = (close_s.pct_change() * 100.0).round(2).fillna(0.0)
+                            chg_s = (close_s - close_s.shift(1)).round(2).fillna(0.0)
+                            turn_s = (to_s * 100.0 if (to_s.max() <= 1.0) else to_s).round(2)
+                            
+                            df_hist = pd.DataFrame({
+                                '股票代码': sym,
+                                '日期': df_sina['date'],
+                                '开盘': df_sina['open'].astype(float),
+                                '收盘': close_s,
+                                '最高': high_s,
+                                '最低': low_s,
+                                '成交量': df_sina['volume'].astype(float),
+                                '成交额': df_sina['amount'].astype(float),
+                                '振幅': amp_s,
+                                '涨跌幅': pct_s,
+                                '涨跌额': chg_s,
+                                '换手率': turn_s
+                            })
+                    except Exception as err:
+                        if last_err is None:
+                            last_err = err
+
+                if df_hist is None or df_hist.empty:
+                    if last_err is not None:
+                        result["failed"].append({
+                            "symbol": sym,
+                            "error": str(last_err),
+                        })
+                    else:
+                        result["empty"].append(sym)
                 else:
                     rename_map = {
                         '股票代码': 'symbol',
@@ -381,6 +436,9 @@ class AShareDataEngine:
                 # 避免频繁请求 API 限制
                 time.sleep(0.05)
 
+
+
+
             except Exception as e:
                 print(f"   └─ 股票 {sym} 同步失败: {e}")
                 result["failed"].append({
@@ -428,6 +486,9 @@ class AShareDataEngine:
 
     def get_latest_date(self, table_name, date_col, condition=None):
         """查询指定表记录的最新日期"""
+        import re
+        if not re.fullmatch(r"[a-zA-Z0-9_]+", str(table_name)) or not re.fullmatch(r"[a-zA-Z0-9_]+", str(date_col)):
+            raise ValueError("Invalid table or column identifier")
         where_clause = f"WHERE {condition}" if condition else ""
         query = f"SELECT MAX({date_col}) FROM {table_name} {where_clause};"
         with self.get_connection() as conn:
@@ -438,17 +499,27 @@ class AShareDataEngine:
 
     def load_stock_data(self, symbol, start_date=None, end_date=None):
         """为 ML / DL / DRL 模型导出清洗好的 Pandas DataFrame"""
-        where_clauses = [f"symbol = '{symbol}'"]
+        clauses = ["symbol = ?"]
+        params = [str(symbol)]
         if start_date:
-            where_clauses.append(f"trade_date >= '{start_date}'")
+            clauses.append("trade_date >= ?")
+            params.append(str(start_date))
         if end_date:
-            where_clauses.append(f"trade_date <= '{end_date}'")
+            clauses.append("trade_date <= ?")
+            params.append(str(end_date))
             
-        where_str = " AND ".join(where_clauses)
+        where_str = " AND ".join(clauses)
         query = f"SELECT * FROM stock_daily WHERE {where_str} ORDER BY trade_date ASC;"
         
         with self.get_connection() as conn:
-            df = pd.read_sql_query(query, conn)
+            df = pd.read_sql_query(query, conn, params=params)
+            
+        if df.empty:
+            return df
+
+        df['trade_date'] = pd.to_datetime(df['trade_date'])
+        df.set_index('trade_date', inplace=True)
+        return df
             
         if df.empty:
             return df
