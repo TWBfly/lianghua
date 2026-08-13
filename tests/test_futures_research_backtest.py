@@ -1,4 +1,5 @@
 import inspect
+import json
 import sqlite3
 
 import numpy as np
@@ -2455,3 +2456,185 @@ def test_feature_attack_gain_boundary_has_only_roundoff_tolerance(metric, limit)
         if row["id"] == "feature_attacks"
     )
     assert exceeded["passed"] is False
+
+
+EXPECTED_REPORT_FILES = {
+    "report.md", "report.json", "data_quality.csv",
+    "fold_metrics.csv", "symbol_metrics.csv", "trades.csv",
+}
+
+
+def rejected_result_fixture():
+    result = research.rejected_result(
+        "rejected-fixture", ResearchConfig(min_symbols=1), "fixture rejection"
+    )
+    result.update({
+        "cutoffs": {
+            "outer_1": {
+                "evaluation_start": "2026-01-02T09:00:00",
+                "evaluation_end": "2026-01-02T09:10:00",
+            },
+        },
+        "data_quality": [{
+            "symbol": "AG_IDX", "status": "INCLUDED", "reason": "",
+        }],
+        "fold_metrics": [{
+            "evaluation_kind": "base", "fold": "outer_1", "cost_bps": 5,
+            "total_return": -0.01, "trade_count": 1,
+            "trade_sleeve_pnl": -0.01,
+        }],
+        "symbol_metrics": [{
+            "fold": "outer_1", "symbol": "AG_IDX", "cost_bps": 5,
+            "total_return": -0.01,
+        }],
+        "trades": [{
+            "fold": "outer_1", "symbol": "AG_IDX", "cost_bps": 5,
+            "decision_time": "2026-01-02T09:00:00",
+            "entry_time": "2026-01-02T09:05:00",
+            "exit_time": "2026-01-02T09:10:00", "sleeve_pnl": -0.01,
+        }],
+        "gates": [{
+            "id": "positive_5bps_each_fold", "passed": False,
+            "observed": {"outer_1": np.nan}, "required": "> 0 each fold",
+            "affected_fold": "outer_1", "reason": "fixture gate rejection",
+        }],
+    })
+    return result
+
+
+def test_report_artifacts_reconcile_and_preserve_rejection(tmp_path):
+    result = rejected_result_fixture()
+
+    paths = research.write_report(result, tmp_path)
+
+    assert set(paths) == EXPECTED_REPORT_FILES
+    payload = json.loads(
+        (tmp_path / "report.json").read_text(encoding="utf-8"),
+        parse_constant=lambda value: pytest.fail(f"non-standard JSON: {value}"),
+    )
+    assert payload["status"] == "RESEARCH_REJECTED"
+    assert payload["run_id"] == result["run_id"]
+    assert payload["gates"][0]["observed"]["outer_1"] is None
+    markdown = (tmp_path / "report.md").read_text(encoding="utf-8")
+    assert markdown.startswith("# RESEARCH_REJECTED\n")
+    assert "加权指数研究回测，不代表可成交合约或实盘收益" in markdown
+    assert "positive_5bps_each_fold" in markdown
+    assert "fixture gate rejection" in markdown
+    for name in EXPECTED_REPORT_FILES - {"report.md", "report.json"}:
+        rows = pd.read_csv(tmp_path / name)
+        assert set(rows["run_id"].astype(str)) <= {result["run_id"]}
+        assert len(rows) == payload["row_counts"][name]
+    trades = pd.read_csv(tmp_path / "trades.csv")
+    assert len(trades) == len(result["trades"])
+    assert trades.loc[0, "symbol"] == payload["trades"][0]["symbol"]
+    assert pd.Timestamp(trades.loc[0, "decision_time"]).isoformat() == payload[
+        "trades"
+    ][0]["decision_time"]
+
+
+def test_report_writer_is_atomic_and_refuses_existing_evidence(tmp_path):
+    output = tmp_path / "evidence"
+    output.mkdir()
+    marker = output / "keep.txt"
+    marker.write_text("original", encoding="utf-8")
+
+    with pytest.raises(FileExistsError):
+        research.write_report(rejected_result_fixture(), output)
+
+    assert marker.read_text(encoding="utf-8") == "original"
+    assert {path.name for path in output.iterdir()} == {"keep.txt"}
+
+
+def test_report_writer_rejects_unreconciled_trade_summary_atomically(tmp_path):
+    result = rejected_result_fixture()
+    result["fold_metrics"][0]["trade_sleeve_pnl"] = 1.0
+    output = tmp_path / "bad-report"
+
+    with pytest.raises(ResearchRejected, match="trade summary mismatch"):
+        research.write_report(result, output)
+
+    assert not output.exists()
+    assert not list(tmp_path.glob(".bad-report.*"))
+
+
+def test_run_research_consumes_only_official_adversarial_result(
+        tmp_path, monkeypatch):
+    db_path = tmp_path / "futures.db"
+    _write_source(db_path, make_bars(2))
+    dataset = pd.DataFrame([{
+        "symbol": "AG_IDX", "decision_time": pd.Timestamp("2026-01-02 09:00"),
+    }])
+    partitions = {"eligible_symbols": ("AG_IDX",)}
+    base = {
+        "outer_results": [], "holdout": {},
+        "final_candidate": Candidate("logistic_c0.1", 0.55),
+        "final_inner_scores": pd.DataFrame(),
+    }
+    official = {
+        "attacks": [{"id": "fixture_attack", "passed": False}],
+        "gates": [{
+            "id": "positive_5bps_each_fold", "passed": False,
+            "observed": -0.01, "required": "> 0 each fold",
+            "affected_fold": "holdout", "reason": "official gate rejection",
+        }],
+        "status": "RESEARCH_REJECTED",
+    }
+    monkeypatch.setattr(research, "build_causal_dataset", lambda *_: dataset)
+    monkeypatch.setattr(research, "make_temporal_partitions", lambda *_: partitions)
+    monkeypatch.setattr(research, "build_base_evaluation", lambda *_: base)
+    monkeypatch.setattr(
+        research, "run_adversarial_checks", lambda *args, **kwargs: official
+    )
+    monkeypatch.setattr(
+        research, "evaluate_acceptance_gates",
+        lambda *_: pytest.fail("run_research bypassed the official result"),
+    )
+    monkeypatch.setattr(
+        research, "research_status",
+        lambda *_: pytest.fail("run_research recomputed official status"),
+    )
+
+    result = research.run_research(
+        db_path, tmp_path / "report",
+        ResearchConfig(min_symbol_rows=1, min_symbols=1, min_fold_rows=1),
+    )
+
+    assert result["status"] == "RESEARCH_REJECTED"
+    assert result["gates"] == official["gates"]
+    assert result["attacks"] == official["attacks"]
+    assert result["provenance"]["source_sha256"] == {"AG_IDX": "hash"}
+    assert result["config"]["min_symbols"] == 1
+    assert set(result["artifacts"]) == EXPECTED_REPORT_FILES
+    report = json.loads((tmp_path / "report" / "report.json").read_text())
+    assert report["gates"][0]["reason"] == "official gate rejection"
+
+
+@pytest.mark.parametrize("existing", [False, True], ids=["missing", "empty"])
+def test_run_research_invalid_database_is_evidence_complete_rejection(
+        tmp_path, existing):
+    db_path = tmp_path / "invalid.db"
+    if existing:
+        db_path.touch()
+
+    result = research.run_research(db_path, tmp_path / "rejected-report")
+
+    assert result["status"] == "RESEARCH_REJECTED"
+    assert result["gates"][0]["id"] == "RUN_PRECONDITION"
+    assert "unable to load futures bars" in result["gates"][0]["reason"]
+    assert set(result["artifacts"]) == EXPECTED_REPORT_FILES
+    if not existing:
+        assert not db_path.exists()
+
+
+def test_report_cli_returns_two_for_a_complete_rejection(tmp_path, monkeypatch, capsys):
+    result = rejected_result_fixture()
+    result["artifacts"] = {name: str(tmp_path / name) for name in EXPECTED_REPORT_FILES}
+    monkeypatch.setattr(research, "run_research", lambda *_args, **_kwargs: result)
+
+    exit_code = research.main([
+        "--db-path", str(tmp_path / "source.db"),
+        "--output-dir", str(tmp_path / "report"),
+    ])
+
+    assert exit_code == 2
+    assert json.loads(capsys.readouterr().out)["status"] == "RESEARCH_REJECTED"

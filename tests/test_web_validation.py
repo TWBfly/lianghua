@@ -267,3 +267,6 @@ def test_invalidated_ml_engines_are_documented_and_not_executable():
         assert f"`{module}` — `RESEARCH_ONLY_INVALIDATED`" in status
         assert module not in executable
         assert module not in exposed
+    assert "futures_research_backtest" not in executable
+    assert "futures_research_backtest" not in exposed
+    assert "`futures_research_backtest` — `AUDITED_RESEARCH_PROXY`" in status

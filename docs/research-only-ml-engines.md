@@ -18,3 +18,12 @@ offered by `hot_plugger.get_executable_strategies()` or `/api/strategies`.
 Re-entry requires timestamp-aligned real market data, the shared execution
 contract, causal validation, and reconciled fills, positions, cash, and PnL.
 Historical JSON output is not evidence of validity.
+
+## Audited offline research proxy
+
+- `futures_research_backtest` — `AUDITED_RESEARCH_PROXY`
+
+This module may run only as an offline weighted-index research backtest. It is
+not an executable strategy, contract simulator, live-trading path, or evidence
+of realizable futures PnL. Its own adversarial gates determine
+`RESEARCH_ACCEPTED` or `RESEARCH_REJECTED` for each run.

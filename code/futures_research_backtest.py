@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import argparse
 import copy
 import hashlib
 import json
+import os
+import shutil
 import sqlite3
-from dataclasses import dataclass
+import subprocess
+import tempfile
+import uuid
+from dataclasses import asdict, dataclass, is_dataclass
 from numbers import Real
 from pathlib import Path
 
@@ -94,8 +100,11 @@ def _parse_trade_time(values: pd.Series) -> pd.Series:
 
 def load_futures_bars(db_path, timeframe="5m") -> pd.DataFrame:
     """Load only provenance-approved futures index bars from SQLite."""
+    db_path = Path(db_path)
+    if not db_path.is_file():
+        raise ResearchRejected(f"unable to load futures bars: missing database {db_path}")
     try:
-        with sqlite3.connect(Path(db_path)) as conn:
+        with sqlite3.connect(db_path) as conn:
             bars = pd.read_sql_query(
                 "SELECT symbol, timeframe FROM futures_min_bars WHERE timeframe=? "
                 "GROUP BY symbol, timeframe",
@@ -103,7 +112,8 @@ def load_futures_bars(db_path, timeframe="5m") -> pd.DataFrame:
                 params=(timeframe,),
             )
             metadata = pd.read_sql_query(
-                "SELECT symbol, timeframe, series_type FROM futures_series_metadata "
+                "SELECT symbol, timeframe, series_type, source_sha256 "
+                "FROM futures_series_metadata "
                 "WHERE timeframe=?",
                 conn,
                 params=(timeframe,),
@@ -117,7 +127,7 @@ def load_futures_bars(db_path, timeframe="5m") -> pd.DataFrame:
                 conn,
                 params=(timeframe,),
             )
-    except (sqlite3.Error, ValueError) as exc:
+    except (sqlite3.Error, pd.errors.DatabaseError, ValueError) as exc:
         raise ResearchRejected(f"unable to load futures bars: {exc}") from exc
 
     counts = metadata.groupby(["symbol", "timeframe"]).size()
@@ -129,7 +139,11 @@ def load_futures_bars(db_path, timeframe="5m") -> pd.DataFrame:
     if not frame["series_type"].isin(SERIES_TYPES).all():
         raise ResearchRejected("unsupported futures series type")
     frame["trade_time"] = _parse_trade_time(frame["trade_time"])
-    return frame.loc[:, BAR_COLUMNS]
+    result = frame.loc[:, BAR_COLUMNS]
+    result.attrs["source_sha256"] = dict(sorted(zip(
+        metadata["symbol"].astype(str), metadata["source_sha256"].astype(str)
+    )))
+    return result
 
 
 def _reject_if_invalid(bars: pd.DataFrame) -> pd.DataFrame:
@@ -2484,3 +2498,498 @@ def research_status(gates):
         and all(isinstance(gate, dict) and gate.get("passed") is True for gate in gates)
         else "RESEARCH_REJECTED"
     )
+
+
+REPORT_FILES = (
+    "report.md", "report.json", "data_quality.csv", "fold_metrics.csv",
+    "symbol_metrics.csv", "trades.csv",
+)
+CSV_COLUMNS = {
+    "data_quality.csv": ("run_id", "symbol", "status", "reason"),
+    "fold_metrics.csv": (
+        "run_id", "evaluation_kind", "fold", "cost_bps", "total_return",
+        "trade_count", "trade_sleeve_pnl",
+    ),
+    "symbol_metrics.csv": (
+        "run_id", "fold", "symbol", "cost_bps", "total_return",
+    ),
+    "trades.csv": (
+        "run_id", "fold", "symbol", "cost_bps", "decision_time",
+        "entry_time", "exit_time", "sleeve_pnl",
+    ),
+}
+DISCLAIMER = "加权指数研究回测，不代表可成交合约或实盘收益"
+LIMITATIONS = (
+    DISCLAIMER,
+    "仅用于离线研究；不是可执行策略、合约仿真或实盘收益证据。",
+)
+
+
+def _json_safe(value):
+    if is_dataclass(value):
+        return _json_safe(asdict(value))
+    if isinstance(value, pd.DataFrame):
+        return _json_safe(value.to_dict("records"))
+    if isinstance(value, pd.Series):
+        return _json_safe(value.tolist())
+    if isinstance(value, dict):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set, pd.Index, np.ndarray)):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, np.generic):
+        return _json_safe(value.item())
+    if value is pd.NA or value is pd.NaT:
+        return None
+    if isinstance(value, pd.Timestamp):
+        return value.isoformat()
+    if isinstance(value, pd.Timedelta):
+        return value.isoformat()
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, float) and not np.isfinite(value):
+        return None
+    return value
+
+
+def _records(frame):
+    if frame is None:
+        return []
+    if isinstance(frame, pd.DataFrame):
+        return _json_safe(frame.to_dict("records"))
+    if isinstance(frame, (list, tuple)):
+        return _json_safe(list(frame))
+    raise ResearchRejected("report table must be records or a data frame")
+
+
+def _file_sha256(path):
+    digest = hashlib.sha256()
+    try:
+        with Path(path).open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+    except OSError:
+        return None
+    return digest.hexdigest()
+
+
+def _code_revision():
+    try:
+        return subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=Path(__file__).resolve().parents[1],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip() or None
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+
+def _fold_rows(base):
+    return [*base.get("outer_results", ()), base.get("holdout", {})]
+
+
+def _report_tables(context):
+    base = context["base"]
+    fold_metrics = []
+    trades = []
+    cutoffs = {}
+    for fold_result in _fold_rows(base):
+        if not fold_result:
+            continue
+        fold = fold_result["fold"]
+        cutoffs[fold] = _json_safe(fold_result.get("split_cutoffs", {}))
+        candidate = fold_result.get("candidate")
+        common = {
+            "evaluation_kind": "base", "fold": fold,
+            "model_name": getattr(candidate, "model_name", fold_result.get("model_name")),
+            "threshold": getattr(candidate, "threshold", fold_result.get("threshold")),
+            **fold_result.get("sample_counts", {}),
+            **fold_result.get("predictive_metrics", {}),
+        }
+        for cost, metrics in fold_result.get("cost_metrics", {}).items():
+            ledger = fold_result.get("trades", {}).get(cost, pd.DataFrame())
+            fold_metrics.append({
+                **common, "cost_bps": cost, **metrics,
+                "trade_count": int(len(ledger)),
+                "trade_sleeve_pnl": (
+                    float(ledger["sleeve_pnl"].sum())
+                    if "sleeve_pnl" in ledger else 0.0
+                ),
+            })
+            for row in _records(ledger):
+                trades.append({**row, "fold": fold, "cost_bps": cost})
+        for name, benchmark in fold_result.get("benchmarks", {}).items():
+            for cost, metrics in benchmark.get("cost_metrics", {}).items():
+                ledger = benchmark.get("trades", {}).get(cost, pd.DataFrame())
+                fold_metrics.append({
+                    "evaluation_kind": "benchmark", "benchmark": name,
+                    "fold": fold, "cost_bps": cost,
+                    **benchmark.get("predictive_metrics", {}), **metrics,
+                    "trade_count": int(len(ledger)),
+                    "trade_sleeve_pnl": (
+                        float(ledger["sleeve_pnl"].sum())
+                        if "sleeve_pnl" in ledger else 0.0
+                    ),
+                })
+        inner = fold_result.get("inner_scores")
+        for row in _records(inner):
+            fold_metrics.append({
+                "evaluation_kind": "inner", "selection_scope": fold, **row,
+                "cost_bps": 5,
+            })
+    for row in _records(base.get("final_inner_scores")):
+        fold_metrics.append({
+            "evaluation_kind": "inner", "selection_scope": "holdout", **row,
+            "cost_bps": 5,
+        })
+    for attack in context.get("attacks", ()):
+        if attack.get("id") == "label_shuffle":
+            for row in attack.get("metrics", ()):
+                fold_metrics.append({
+                    "evaluation_kind": "adversarial", "fold": "holdout",
+                    "attack": attack["id"], "cost_bps": 5, **row,
+                })
+        else:
+            fold_metrics.append({
+                "evaluation_kind": "adversarial", "fold": "holdout",
+                "attack": attack.get("id"), "passed": attack.get("passed"),
+                "roc_auc": attack.get("roc_auc"), "cost_bps": 5,
+                "total_return": attack.get("return_5bps"),
+                "reason": attack.get("reason"),
+            })
+    holdout = base.get("holdout", {})
+    return {
+        "cutoffs": cutoffs,
+        "data_quality": _records(context.get("quality", pd.DataFrame()).reset_index()),
+        "fold_metrics": _json_safe(fold_metrics),
+        "symbol_metrics": _records(holdout.get("symbol_metrics")),
+        "trades": _json_safe(trades),
+    }
+
+
+def build_adversarial_context(
+    run_id, bars, segmented, quality, dataset, partitions, base,
+    config=ResearchConfig(),
+):
+    """Collect immutable run evidence; the official attack entry remains trusted."""
+    return {
+        "run_id": run_id,
+        "bars": bars,
+        "segmented": segmented,
+        "quality": quality,
+        "dataset": dataset,
+        "partitions": partitions,
+        "base": base,
+        "config": config,
+        "checks": {"structural": True, "causal": True, "ledger": True},
+        "provenance": {
+            "source_sha256": dict(bars.attrs.get("source_sha256", {})),
+            "bar_data_sha256": _canonical_attack_frame(bars)["sha256"],
+        },
+    }
+
+
+def _metric_summary(base):
+    rows = []
+    for fold in _fold_rows(base):
+        if not fold:
+            continue
+        rows.append({
+            "fold": fold.get("fold"),
+            "sample_counts": fold.get("sample_counts", {}),
+            "predictive_metrics": fold.get("predictive_metrics", {}),
+            "cost_metrics": fold.get("cost_metrics", {}),
+            "bootstrap": fold.get("bootstrap"),
+            "model_identity": fold.get("model_identity"),
+            "model_parameters": fold.get("model_parameters", {}),
+        })
+    return _json_safe(rows)
+
+
+def build_result(context, gates, status):
+    if status not in {"RESEARCH_ACCEPTED", "RESEARCH_REJECTED"}:
+        raise ResearchRejected("invalid official research status")
+    base = context["base"]
+    candidate = base.get("final_candidate")
+    tables = _report_tables(context)
+    return _json_safe({
+        "run_id": context["run_id"],
+        "status": status,
+        "provenance": context.get("provenance", {}),
+        "config": asdict(context.get("config", ResearchConfig())),
+        "features": FEATURE_COLUMNS,
+        "candidates": candidate_names(),
+        "seed": context.get("config", ResearchConfig()).seed,
+        "selected_candidate": candidate,
+        "selection_scores": base.get("final_inner_scores", pd.DataFrame()),
+        "metrics": _metric_summary(base),
+        "attacks": context.get("attacks", ()),
+        "gates": gates,
+        "limitations": LIMITATIONS,
+        **tables,
+    })
+
+
+def rejected_result(run_id, config, reason):
+    return _json_safe({
+        "run_id": run_id,
+        "status": "RESEARCH_REJECTED",
+        "provenance": {},
+        "config": asdict(config),
+        "features": FEATURE_COLUMNS,
+        "candidates": candidate_names(),
+        "seed": config.seed,
+        "selected_candidate": None,
+        "selection_scores": [],
+        "cutoffs": {},
+        "metrics": [],
+        "attacks": [],
+        "gates": [{
+            "id": "RUN_PRECONDITION", "passed": False, "observed": reason,
+            "required": "all run preconditions satisfied", "affected_fold": None,
+            "reason": reason,
+        }],
+        "data_quality": [], "fold_metrics": [], "symbol_metrics": [],
+        "trades": [], "limitations": LIMITATIONS,
+    })
+
+
+def _table_frame(result, key, filename):
+    rows = _records(result.get(key, ()))
+    run_id = str(result["run_id"])
+    for row in rows:
+        if "run_id" in row and str(row["run_id"]) != run_id:
+            raise ResearchRejected(f"{filename} contains another run ID")
+        row["run_id"] = run_id
+    frame = pd.DataFrame(rows)
+    if frame.empty:
+        return pd.DataFrame(columns=CSV_COLUMNS[filename])
+    columns = ["run_id", *[column for column in frame if column != "run_id"]]
+    return frame.loc[:, columns]
+
+
+def _markdown_report(payload):
+    lines = [
+        f"# {payload['status']}", "", DISCLAIMER, "",
+        f"Run ID: `{payload['run_id']}`", "", "## Data exclusions", "",
+    ]
+    quality = payload.get("data_quality", ())
+    lines.extend(
+        f"- {row.get('symbol')}: {row.get('status')} {row.get('reason') or ''}".rstrip()
+        for row in quality
+    )
+    if not quality:
+        lines.append("- None recorded")
+    lines.extend(["", "## Split cutoffs", ""])
+    lines.extend(
+        f"- {fold}: `{json.dumps(values, ensure_ascii=False, sort_keys=True)}`"
+        for fold, values in payload.get("cutoffs", {}).items()
+    )
+    if not payload.get("cutoffs"):
+        lines.append("- Not reached")
+    lines.extend([
+        "", "## Selected candidate", "",
+        f"`{json.dumps(payload.get('selected_candidate'), ensure_ascii=False, sort_keys=True)}`",
+        "", "## Cost tables", "",
+    ])
+    cost_rows = [
+        row for row in payload.get("fold_metrics", ())
+        if row.get("cost_bps") is not None
+    ]
+    lines.extend(
+        "- {evaluation_kind}/{fold}/{cost_bps} bp: return={total_return}".format(
+            evaluation_kind=row.get("evaluation_kind"), fold=row.get("fold"),
+            cost_bps=row.get("cost_bps"), total_return=row.get("total_return"),
+        )
+        for row in cost_rows
+    )
+    if not cost_rows:
+        lines.append("- Not reached")
+    concentration = next((
+        gate for gate in payload.get("gates", ())
+        if gate.get("id") == "positive_symbol_concentration"
+    ), None)
+    lines.extend([
+        "", "## Per-symbol concentration", "",
+        f"`{json.dumps(concentration, ensure_ascii=False, sort_keys=True)}`",
+        "", "## Adversarial checks", "",
+    ])
+    lines.extend(
+        f"- {row.get('id')}: {row.get('reason') or row.get('passed')}"
+        for row in payload.get("attacks", ())
+    )
+    if not payload.get("attacks"):
+        lines.append("- Not reached")
+    lines.extend(["", "## Gates", ""])
+    lines.extend(
+        f"- {row.get('id')}: passed={row.get('passed')}; reason={row.get('reason')}"
+        for row in payload.get("gates", ())
+    )
+    lines.extend(["", "## Limitations", ""])
+    lines.extend(f"- {item}" for item in payload.get("limitations", LIMITATIONS))
+    return "\n".join(lines) + "\n"
+
+
+def _reconcile_report(directory):
+    def reject_constant(value):
+        raise ValueError(f"non-standard JSON constant: {value}")
+
+    payload = json.loads(
+        (directory / "report.json").read_text(encoding="utf-8"),
+        parse_constant=reject_constant,
+    )
+    run_id = str(payload["run_id"])
+    for filename, key in (
+        ("data_quality.csv", "data_quality"),
+        ("fold_metrics.csv", "fold_metrics"),
+        ("symbol_metrics.csv", "symbol_metrics"),
+        ("trades.csv", "trades"),
+    ):
+        frame = pd.read_csv(directory / filename, dtype=str, keep_default_na=False)
+        if len(frame) != payload["row_counts"][filename]:
+            raise ResearchRejected(f"{filename} row count mismatch")
+        if len(frame) and set(frame["run_id"]) != {run_id}:
+            raise ResearchRejected(f"{filename} run ID mismatch")
+        if len(frame) != len(payload[key]):
+            raise ResearchRejected(f"{filename} JSON row count mismatch")
+    trade_frame = pd.read_csv(
+        directory / "trades.csv", dtype=str, keep_default_na=False
+    )
+    identity = ("run_id", "fold", "symbol", "cost_bps", "decision_time")
+    expected = [tuple(str(row.get(name, "")) for name in identity) for row in payload["trades"]]
+    observed = [tuple(row[name] for name in identity) for _, row in trade_frame.iterrows()]
+    if expected != observed:
+        raise ResearchRejected("trade JSON/CSV identity mismatch")
+    for metric in payload["fold_metrics"]:
+        if metric.get("evaluation_kind") != "base":
+            continue
+        matching = [
+            trade for trade in payload["trades"]
+            if str(trade.get("fold")) == str(metric.get("fold"))
+            and float(trade.get("cost_bps")) == float(metric.get("cost_bps"))
+        ]
+        pnl = sum(float(trade["sleeve_pnl"]) for trade in matching)
+        if (
+            len(matching) != int(metric["trade_count"])
+            or abs(pnl - float(metric["trade_sleeve_pnl"])) > 1e-12
+            or abs(pnl - float(metric["total_return"])) > 1e-12
+        ):
+            raise ResearchRejected("trade summary mismatch")
+    for trade in payload["trades"]:
+        cutoff = payload.get("cutoffs", {}).get(str(trade.get("fold")))
+        if not cutoff:
+            raise ResearchRejected("trade has no fold cutoff")
+        decision = pd.Timestamp(trade["decision_time"])
+        if not pd.Timestamp(cutoff["evaluation_start"]) <= decision <= pd.Timestamp(
+            cutoff["evaluation_end"]
+        ):
+            raise ResearchRejected("trade falls outside its evaluation domain")
+    markdown = (directory / "report.md").read_text(encoding="utf-8")
+    if not markdown.startswith(f"# {payload['status']}\n") or DISCLAIMER not in markdown:
+        raise ResearchRejected("Markdown status mismatch")
+
+
+def write_report(result, output_dir):
+    output = Path(output_dir)
+    if output.name in {"", ".", ".."} or output.is_symlink():
+        raise ValueError("output directory must be an explicit non-symlink path")
+    if output.exists() and (not output.is_dir() or any(output.iterdir())):
+        raise FileExistsError(f"refusing to overwrite report evidence: {output}")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    temporary = Path(tempfile.mkdtemp(prefix=f".{output.name}.", dir=output.parent))
+    try:
+        payload = _json_safe(dict(result))
+        tables = {}
+        for filename, key in (
+            ("data_quality.csv", "data_quality"),
+            ("fold_metrics.csv", "fold_metrics"),
+            ("symbol_metrics.csv", "symbol_metrics"),
+            ("trades.csv", "trades"),
+        ):
+            frame = _table_frame(payload, key, filename)
+            frame.to_csv(temporary / filename, index=False)
+            records = _json_safe(frame.to_dict("records"))
+            payload[key] = records
+            tables[filename] = len(records)
+        payload["row_counts"] = tables
+        (temporary / "report.json").write_text(
+            json.dumps(
+                payload, ensure_ascii=False, indent=2, sort_keys=True,
+                allow_nan=False,
+            ) + "\n",
+            encoding="utf-8",
+        )
+        (temporary / "report.md").write_text(
+            _markdown_report(payload), encoding="utf-8"
+        )
+        _reconcile_report(temporary)
+        if output.exists():
+            output.rmdir()
+        os.replace(temporary, output)
+    finally:
+        if temporary.exists():
+            shutil.rmtree(temporary)
+    return {name: str(output / name) for name in REPORT_FILES}
+
+
+def run_research(db_path, output_dir, config=ResearchConfig()):
+    run_id = uuid.uuid4().hex
+    provenance = {
+        "database_sha256": _file_sha256(db_path),
+        "code_revision": _code_revision(),
+        "command": [
+            "python3", "code/futures_research_backtest.py",
+            "--db-path", str(Path(db_path)), "--output-dir", str(Path(output_dir)),
+        ],
+    }
+    try:
+        bars = load_futures_bars(db_path)
+        segmented, quality = validate_and_segment(bars, config)
+        dataset = build_causal_dataset(segmented, config)
+        eligible = dataset.groupby("symbol").size()
+        eligible = eligible[eligible >= config.min_symbol_rows].index
+        dataset = dataset[dataset["symbol"].isin(eligible)].copy()
+        if len(eligible) < config.min_symbols:
+            raise ResearchRejected("too few eligible symbols")
+        partitions = make_temporal_partitions(dataset, config)
+        eligible = pd.Index(partitions["eligible_symbols"])
+        dataset = dataset[dataset["symbol"].isin(eligible)].copy()
+        if len(eligible) < config.min_symbols:
+            raise ResearchRejected("too few fold-eligible symbols")
+        base = build_base_evaluation(dataset, segmented, partitions, config)
+        context = build_adversarial_context(
+            run_id, bars, segmented, quality, dataset, partitions, base, config
+        )
+        context["provenance"].update(provenance)
+        official = run_adversarial_checks(
+            base, bars, dataset, segmented, partitions, context["checks"], config
+        )
+        try:
+            context["attacks"] = official["attacks"]
+            gates = official["gates"]
+            status = official["status"]
+        except (KeyError, TypeError) as exc:
+            raise ResearchRejected("invalid official adversarial result") from exc
+        result = build_result(context, gates, status)
+    except ResearchRejected as exc:
+        result = rejected_result(run_id, config, str(exc))
+        result["provenance"].update(provenance)
+    result["artifacts"] = write_report(result, output_dir)
+    return result
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--db-path", type=Path, required=True)
+    parser.add_argument("--output-dir", type=Path, required=True)
+    args = parser.parse_args(argv)
+    result = run_research(args.db_path, args.output_dir)
+    print(json.dumps({
+        "status": result["status"],
+        "run_id": result["run_id"],
+        "artifacts": result["artifacts"],
+    }, ensure_ascii=False, indent=2, allow_nan=False))
+    return 0 if result["status"] == "RESEARCH_ACCEPTED" else 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
