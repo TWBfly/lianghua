@@ -2482,6 +2482,11 @@ EXPECTED_GATE_IDS = (
     "positive_symbol_concentration", "ten_bps_resilience",
     "cost_monotonicity",
 )
+EXPECTED_ATTACK_IDS = tuple(research.ATTACK_EVIDENCE)
+
+
+def official_attack_fixture():
+    return [{"id": attack_id, "passed": True} for attack_id in EXPECTED_ATTACK_IDS]
 
 
 def official_gate_fixture(failed_id="positive_5bps_each_fold"):
@@ -2645,7 +2650,7 @@ def test_report_writer_rejects_existing_ancestor_symlink(tmp_path):
 def test_report_csv_strings_are_spreadsheet_safe_without_changing_json(tmp_path):
     result = rejected_result_fixture()
     result["data_quality"] = [{
-        "symbol": "=2+2", "status": "EXCLUDED", "reason": "\t@formula",
+        "symbol": "=2+2", "status": "\n@status", "reason": "\t@formula",
     }]
 
     research.write_report(result, tmp_path)
@@ -2655,8 +2660,10 @@ def test_report_csv_strings_are_spreadsheet_safe_without_changing_json(tmp_path)
     ).iloc[0]
     payload = json.loads((tmp_path / "report.json").read_text(encoding="utf-8"))
     assert csv_row["symbol"] == "'=2+2"
+    assert csv_row["status"] == "'\n@status"
     assert csv_row["reason"] == "'\t@formula"
     assert payload["data_quality"][0]["symbol"] == "=2+2"
+    assert payload["data_quality"][0]["status"] == "\n@status"
     assert payload["data_quality"][0]["reason"] == "\t@formula"
 
 
@@ -2674,7 +2681,7 @@ def test_run_research_consumes_only_official_adversarial_result(
         "final_inner_scores": pd.DataFrame(),
     }
     official = {
-        "attacks": [{"id": "fixture_attack", "passed": False}],
+        "attacks": official_attack_fixture(),
         "gates": official_gate_fixture(),
         "status": "RESEARCH_REJECTED",
     }
@@ -2734,8 +2741,8 @@ def test_run_research_consumes_only_official_adversarial_result(
     "official",
     [
         {},
-        {"attacks": [], "gates": official_gate_fixture(), "status": "INVALID"},
-        {"attacks": [], "gates": {}, "status": "RESEARCH_REJECTED"},
+        {"attacks": official_attack_fixture(), "gates": official_gate_fixture(), "status": "INVALID"},
+        {"attacks": official_attack_fixture(), "gates": {}, "status": "RESEARCH_REJECTED"},
     ],
     ids=["missing_keys", "invalid_status", "wrong_gate_type"],
 )
@@ -2769,6 +2776,47 @@ def test_run_research_exposes_malformed_official_bundle_as_internal_error(
 
     assert not output.exists()
     assert not list(tmp_path.glob(".must-not-exist.*"))
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda attacks: attacks.clear(),
+        lambda attacks: attacks.pop(),
+        lambda attacks: attacks.__setitem__(-1, dict(attacks[0])),
+        lambda attacks: attacks.append({"id": "extra", "passed": True}),
+    ],
+    ids=["empty", "missing", "duplicate", "extra"],
+)
+def test_official_bundle_requires_exact_unique_attack_ids(mutate):
+    bundle = {
+        "attacks": official_attack_fixture(),
+        "gates": official_gate_fixture(),
+        "status": "RESEARCH_REJECTED",
+    }
+    mutate(bundle["attacks"])
+
+    with pytest.raises(RuntimeError, match="official adversarial attacks"):
+        research._validate_official_bundle(bundle)
+
+
+@pytest.mark.parametrize(
+    "evidence",
+    [None, np.inf, np.array([1.0]), np.array([np.inf]), np.float64(1.0),
+     {"nested": [1.0, {"bad": np.nan}]}, pd.Series([1.0])],
+    ids=["null", "inf", "numpy_array", "numpy_array_inf", "numpy_scalar",
+         "nested_nan", "pandas_series"],
+)
+def test_formal_gate_evidence_is_strict_native_finite_json(evidence):
+    bundle = {
+        "attacks": official_attack_fixture(),
+        "gates": official_gate_fixture(),
+        "status": "RESEARCH_REJECTED",
+    }
+    bundle["gates"][0]["observed"] = evidence
+
+    with pytest.raises(RuntimeError, match="gate bundle"):
+        research._validate_official_bundle(bundle)
 
 
 @pytest.mark.parametrize("existing", [False, True], ids=["missing", "empty"])

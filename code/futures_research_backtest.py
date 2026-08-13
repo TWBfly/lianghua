@@ -2550,13 +2550,18 @@ def _source_manifest(rows):
 
 
 def _finite_evidence(value):
-    if isinstance(value, dict):
-        return all(_finite_evidence(item) for item in value.values())
-    if isinstance(value, (list, tuple)):
+    if type(value) is dict:
+        return all(
+            type(key) is str and _finite_evidence(item)
+            for key, item in value.items()
+        )
+    if type(value) is list:
         return all(_finite_evidence(item) for item in value)
-    if isinstance(value, Real) and not isinstance(value, (bool, np.bool_)):
+    if type(value) in {str, bool}:
+        return True
+    if type(value) in {int, float}:
         return bool(np.isfinite(value))
-    return True
+    return False
 
 
 def _validate_gate_bundle(status, gates, label):
@@ -2605,10 +2610,20 @@ def _validate_official_bundle(official):
         raise TypeError("official adversarial result must be a dictionary")
     if set(official) != {"attacks", "gates", "status"}:
         raise RuntimeError("official adversarial result has invalid fields")
-    if not isinstance(official["attacks"], (list, tuple)) or any(
-        not isinstance(attack, dict) for attack in official["attacks"]
+    attacks = official["attacks"]
+    if not isinstance(attacks, (list, tuple)) or any(
+        not isinstance(attack, dict) or not isinstance(attack.get("id"), str)
+        for attack in attacks
     ):
         raise TypeError("official adversarial attacks must be records")
+    attack_ids = [attack["id"] for attack in attacks]
+    if (
+        len(attack_ids) != len(ATTACK_EVIDENCE)
+        or set(attack_ids) != set(ATTACK_EVIDENCE)
+    ):
+        raise RuntimeError(
+            "official adversarial attacks must contain five exact unique IDs"
+        )
     _validate_gate_bundle(
         official["status"], official["gates"], "official adversarial"
     )
@@ -2934,7 +2949,7 @@ def _table_frame(result, key, filename):
 def _spreadsheet_safe(value):
     if isinstance(value, str):
         candidate = value.lstrip(" ")
-        if candidate and candidate[0] in "=+-@\t\r":
+        if candidate and candidate[0] in "=+-@\t\r\n":
             return "'" + value
     return value
 
