@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import sqlite3
@@ -21,6 +22,19 @@ FEATURE_COLUMNS = (
     "ret_1", "ret_3", "ret_6", "ret_12", "vol_12", "vol_48",
     "range_pct", "body_pct", "close_pos", "ema_gap_12_48", "volume_z48",
 )
+ATTACK_EVIDENCE = {
+    "prefix_invariance": ("prefix", FEATURE_COLUMNS),
+    "feature_whitelist": ("whitelist", FEATURE_COLUMNS),
+    "label_shuffle": ("label_shuffle", FEATURE_COLUMNS),
+    "noise_features": ("noise", tuple(f"noise_{number}" for number in range(1, 6))),
+    "calendar_features": (
+        "calendar",
+        (
+            "time_of_day_sin", "time_of_day_cos",
+            "day_of_week_sin", "day_of_week_cos",
+        ),
+    ),
+}
 SERIES_TYPES = ("WEIGHTED_INDEX", "MONTHLY_AVERAGE_WEIGHTED_INDEX")
 BAR_COLUMNS = (
     "symbol", "timeframe", "trade_time", "open", "high", "low", "close",
@@ -1503,6 +1517,25 @@ def _same_numeric(left, right):
     )
 
 
+def _frozen_attack_evidence(context, attack_id):
+    try:
+        base = context.get("base", context)
+        candidate = base["final_candidate"]
+        identity = base["holdout"]["evaluation_identity"]
+        kind, columns = ATTACK_EVIDENCE[attack_id]
+    except (AttributeError, KeyError, TypeError) as exc:
+        raise ResearchRejected("attack requires locked baseline identity") from exc
+    if not isinstance(candidate, Candidate) or not isinstance(identity, dict) or not identity:
+        raise ResearchRejected("attack requires locked baseline identity")
+    return {
+        "candidate": candidate,
+        "threshold": candidate.threshold,
+        "kind": kind,
+        "columns": columns,
+        "baseline_evaluation_identity": copy.deepcopy(identity),
+    }
+
+
 def run_prefix_attack(context):
     try:
         bars = context["bars"]
@@ -1612,6 +1645,7 @@ def run_prefix_attack(context):
     passed = all(checks.values())
     return {
         "id": "prefix_invariance",
+        **_frozen_attack_evidence(context, "prefix_invariance"),
         "passed": passed,
         "reason": "all frozen prefixes match" if passed else "future bars changed frozen evidence",
         "checks": checks,
@@ -1658,10 +1692,9 @@ def run_label_shuffle_attack(context):
         raise ResearchRejected("non-finite label shuffle result")
     return {
         "id": "label_shuffle",
+        **_frozen_attack_evidence(context, "label_shuffle"),
         "passed": True,
         "reason": "20 deterministic within-symbol permutations completed",
-        "candidate": candidate,
-        "threshold": candidate.threshold,
         "metrics": metrics,
         "max_auc": float(aucs.max()),
         "median_return_5bps": float(np.median(returns)),
@@ -1728,11 +1761,9 @@ def run_feature_attack(context, kind):
     )
     return {
         "id": f"{kind}_features",
+        **_frozen_attack_evidence(context, f"{kind}_features"),
         "passed": True,
         "reason": f"{kind} attack completed on the locked holdout",
-        "candidate": candidate,
-        "threshold": candidate.threshold,
-        "columns": columns,
         "roc_auc": predictive["roc_auc"],
         "return_5bps": strategy["total_return"],
     }
@@ -1751,6 +1782,7 @@ def run_adversarial_checks(context):
         run_prefix_attack(context),
         {
             "id": "feature_whitelist",
+            **_frozen_attack_evidence(context, "feature_whitelist"),
             "passed": whitelist_passed,
             "reason": (
                 "future and unknown columns rejected"
@@ -1785,17 +1817,52 @@ def _gate_inputs(context):
     base = context.get("base", context)
     outer = list(base["outer_results"])
     holdout = base["holdout"]
+    _fold_results(outer, holdout)
     attacks = context["attacks"]
+    if not isinstance(attacks, (list, tuple)):
+        raise ValueError("attacks must be a sequence")
+    attack_ids = [row.get("id") if isinstance(row, dict) else None for row in attacks]
+    if len(attack_ids) != len(ATTACK_EVIDENCE) or set(attack_ids) != set(ATTACK_EVIDENCE):
+        raise ValueError("attack IDs must be complete, exact, and unique")
     attack_map = {
         row["id"]: row for row in attacks
-        if isinstance(row, dict) and isinstance(row.get("id"), str)
     }
+    candidate = base["final_candidate"]
+    identity = holdout["evaluation_identity"]
+    if not isinstance(candidate, Candidate) or not isinstance(identity, dict) or not identity:
+        raise ValueError("invalid frozen baseline identity")
+    for attack_id, attack in attack_map.items():
+        kind, columns = ATTACK_EVIDENCE[attack_id]
+        required = {
+            "candidate", "threshold", "kind", "columns",
+            "baseline_evaluation_identity",
+        }
+        if (
+            required.difference(attack)
+            or attack["candidate"] != candidate
+            or attack["threshold"] != candidate.threshold
+            or attack["kind"] != kind
+            or tuple(attack["columns"]) != columns
+            or "future_return" in attack["columns"]
+            or attack["baseline_evaluation_identity"] != identity
+        ):
+            raise ValueError(f"attack evidence is not frozen: {attack_id}")
+    whitelist = attack_map["feature_whitelist"]
+    if tuple(whitelist.get("rejected_columns", ())) != ("future_return", "unknown"):
+        raise ValueError("feature whitelist evidence is incomplete")
     return base, outer, holdout, attacks, attack_map
 
 
 def _fold_results(outer, holdout):
-    if len(outer) != 3:
-        raise ValueError("exactly three outer folds are required")
+    expected = {"outer_1", "outer_2", "outer_3"}
+    if (
+        len(outer) != 3
+        or not all(isinstance(row, dict) for row in [*outer, holdout])
+        or {row.get("fold") for row in outer} != expected
+        or len({row.get("fold") for row in outer}) != 3
+        or holdout.get("fold") != "holdout"
+    ):
+        raise ValueError("fold identities must be unique outer_1/outer_2/outer_3/holdout")
     return [*outer, holdout]
 
 
@@ -1810,6 +1877,10 @@ def _temporal_integrity(context, base):
     if len(folds) != len(results):
         return {"frozen_partitions": False}
     observed = {}
+    required_cutoffs = {
+        "training_start", "training_cutoff", "label_cutoff",
+        "evaluation_start", "evaluation_end",
+    }
     for fold, result in zip(folds, results):
         train_times, evaluation_times = _partition_times(fold)
         start = evaluation_times[0]
@@ -1827,13 +1898,23 @@ def _temporal_integrity(context, base):
         for _, rows in eligible.groupby("symbol", sort=False):
             embargoed = rows.sort_values("decision_time").tail(config.embargo_bars)
             embargo_safe &= set(embargoed.index).isdisjoint(purged.index)
-        cutoffs = result.get("split_cutoffs", {})
+        evaluation = dataset[dataset["decision_time"].isin(evaluation_times)]
+        expected_cutoffs = {
+            "training_start": pd.Timestamp(purged["decision_time"].min()),
+            "training_cutoff": pd.Timestamp(purged["decision_time"].max()),
+            "label_cutoff": pd.Timestamp(purged["label_end_time"].max()),
+            "evaluation_start": pd.Timestamp(evaluation["decision_time"].min()),
+            "evaluation_end": pd.Timestamp(evaluation["decision_time"].max()),
+        }
+        cutoffs = result.get("split_cutoffs")
         cutoff_safe = (
-            not cutoffs
-            or (
-                pd.Timestamp(cutoffs["label_cutoff"]) < start
-                and pd.Timestamp(cutoffs["evaluation_start"]) == start
+            isinstance(cutoffs, dict)
+            and set(cutoffs) == required_cutoffs
+            and all(
+                pd.Timestamp(cutoffs[name]) == expected_cutoffs[name]
+                for name in required_cutoffs
             )
+            and result.get("fold") == fold.name
         )
         observed[f"purge_{fold.name}"] = bool(label_safe and cutoff_safe)
         observed[f"embargo_{fold.name}"] = bool(embargo_safe)
@@ -2012,8 +2093,8 @@ def evaluate_acceptance_gates(context):
                 attack.get("passed") is True
                 and _finite_number(attack["roc_auc"])
                 and _finite_number(attack["return_5bps"])
-                and auc_gain <= 0.01
-                and return_gain <= 0.05
+                and auc_gain <= 0.01 + 1e-12
+                and return_gain <= 0.05 + 1e-12
             )
         gates.append(_gate_record(
             "feature_attacks", passed, observed,
@@ -2121,17 +2202,39 @@ def evaluate_acceptance_gates(context):
             "symbol", "decision_time", "entry_time", "exit_time", "direction",
             "entry_open", "exit_open",
         ]
-        trade_evidence_present = any("trades" in row for row in folds)
+        trade_signatures = {}
         identical_trades = True
-        if trade_evidence_present:
-            for row in folds:
-                signatures = [
-                    row["trades"][cost].loc[:, identity_columns].reset_index(drop=True)
-                    for cost in costs
-                ]
-                identical_trades &= all(
-                    signature.equals(signatures[0]) for signature in signatures[1:]
-                )
+        for row in folds:
+            fold_signatures = {}
+            for cost in costs:
+                trades = row["trades"][cost]
+                if not isinstance(trades, pd.DataFrame) or trades.empty:
+                    raise ValueError("trade identity must be a non-empty data frame")
+                identity = trades.loc[:, identity_columns].copy()
+                if identity.isna().any().any():
+                    raise ValueError("trade identity contains nulls")
+                for column in ("decision_time", "entry_time", "exit_time"):
+                    identity[column] = _parse_trade_time(identity[column])
+                for column in ("direction", "entry_open", "exit_open"):
+                    identity[column] = pd.to_numeric(identity[column], errors="coerce")
+                    if not np.isfinite(identity[column]).all():
+                        raise ValueError("trade identity contains non-finite values")
+                identity["symbol"] = identity["symbol"].astype("string")
+                identity = identity.sort_values(
+                    identity_columns, kind="stable"
+                ).reset_index(drop=True)
+                hashes = pd.util.hash_pandas_object(
+                    identity, index=False, categorize=True
+                ).to_numpy(dtype="<u8")
+                fold_signatures[cost] = {
+                    "count": int(len(identity)),
+                    "sha256": hashlib.sha256(hashes.tobytes()).hexdigest(),
+                }
+            reference = fold_signatures[costs[0]]
+            identical_trades &= all(
+                signature == reference for signature in fold_signatures.values()
+            )
+            trade_signatures[row["fold"]] = fold_signatures
         affected = next((
             name for name, values in observed.items()
             if not all(_finite_number(value) for value in values)
@@ -2140,7 +2243,11 @@ def evaluate_acceptance_gates(context):
         if affected is None and not identical_trades:
             affected = "trade_identity"
         passed = affected is None
-        observed = {"returns": observed, "identical_trades": identical_trades}
+        observed = {
+            "returns": observed,
+            "trade_signatures": trade_signatures,
+            "identical_trades": identical_trades,
+        }
         gates.append(_gate_record(
             "cost_monotonicity", passed, observed,
             "0/2/5/10/20 bp returns monotonically non-increasing", affected,
