@@ -1860,7 +1860,16 @@ def passing_gate_context():
         "attacks": [
             {
                 "id": "prefix_invariance", "kind": "prefix",
-                "columns": FEATURE_COLUMNS, "passed": True, **frozen(),
+                "columns": FEATURE_COLUMNS, "passed": True,
+                "checks": {
+                    "features": True,
+                    "matured_labels": True,
+                    "split_membership": True,
+                    "probabilities": True,
+                },
+                "compared_rows": 100,
+                "max_probability_difference": 0.0,
+                **frozen(),
             },
             {
                 "id": "feature_whitelist", "kind": "whitelist",
@@ -2045,6 +2054,27 @@ def test_duplicate_fold_identity_cannot_hide_a_failed_outer_fold():
 def test_attack_evidence_is_exactly_bound_to_the_frozen_baseline(mutate):
     context = passing_gate_context()
     mutate(context)
+
+    gates = research.evaluate_acceptance_gates(context)
+
+    assert all(gate["passed"] is False for gate in gates)
+    assert research.research_status(gates) == "RESEARCH_REJECTED"
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda row: row.pop("checks"),
+        lambda row: row["checks"].__setitem__("probabilities", False),
+        lambda row: row.__setitem__("compared_rows", 0),
+        lambda row: row.__setitem__("max_probability_difference", np.nan),
+        lambda row: row.__setitem__("max_probability_difference", 2e-12),
+    ],
+    ids=["missing_checks", "failed_check", "no_rows", "non_finite", "too_different"],
+)
+def test_prefix_attack_summary_is_executable_evidence(mutate):
+    context = passing_gate_context()
+    mutate(_attack(context, "prefix_invariance"))
 
     gates = research.evaluate_acceptance_gates(context)
 

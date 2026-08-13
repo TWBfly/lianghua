@@ -1850,6 +1850,23 @@ def _gate_inputs(context):
     whitelist = attack_map["feature_whitelist"]
     if tuple(whitelist.get("rejected_columns", ())) != ("future_return", "unknown"):
         raise ValueError("feature whitelist evidence is incomplete")
+    prefix = attack_map["prefix_invariance"]
+    prefix_checks = prefix.get("checks")
+    compared_rows = prefix.get("compared_rows")
+    probability_difference = prefix.get("max_probability_difference")
+    if (
+        not isinstance(prefix_checks, dict)
+        or set(prefix_checks) != {
+            "features", "matured_labels", "split_membership", "probabilities",
+        }
+        or not all(value is True for value in prefix_checks.values())
+        or isinstance(compared_rows, (bool, np.bool_))
+        or not isinstance(compared_rows, (int, np.integer))
+        or compared_rows < 1
+        or not _finite_number(probability_difference)
+        or not 0.0 <= float(probability_difference) <= 1e-12
+    ):
+        raise ValueError("prefix evidence is incomplete or failed")
     return base, outer, holdout, attacks, attack_map
 
 
