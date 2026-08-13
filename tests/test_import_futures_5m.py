@@ -65,6 +65,16 @@ def test_import_preserves_source_fields_and_provenance(tmp_path):
     )
 
 
+def test_import_accepts_tongdaxin_source_footer(tmp_path):
+    export_dir = tmp_path / "export"
+    export_dir.mkdir()
+    _write_export(export_dir, VALID_EXPORT + "#数据来源:通达信\n")
+
+    result = import_exports(export_dir, tmp_path / "quant.db")
+
+    assert result["rows"] == 2
+
+
 @pytest.mark.parametrize(
     "text",
     [

@@ -86,6 +86,10 @@ def read_export(path):
         if header != HEADER:
             raise ValueError(f"unsupported export header: {path.name}")
         for line_number, fields in enumerate(reader, start=3):
+            if fields == ["#数据来源:通达信"]:
+                if next(reader, None) is not None:
+                    raise ValueError(f"malformed row {line_number} in {path.name}")
+                break
             if len(fields) != 9:
                 raise ValueError(f"malformed row {line_number} in {path.name}")
             try:
