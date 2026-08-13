@@ -76,6 +76,25 @@ def test_import_accepts_tongdaxin_source_footer(tmp_path):
 
 
 @pytest.mark.parametrize(
+    "suffix",
+    [
+        "#数据来源:通达信\n2026/08/12\t0915\t12\t14\t11\t13\t7\t102\t12.5\n",
+        "#数据来源:通达信\n\n",
+        "#数据来源:通达信\t\n",
+        " #数据来源:通达信\n",
+    ],
+    ids=["valid_row_after_footer", "blank_after_footer", "trailing_tab", "leading_space"],
+)
+def test_import_rejects_non_exact_or_non_final_source_footer(tmp_path, suffix):
+    export_dir = tmp_path / "export"
+    export_dir.mkdir()
+    _write_export(export_dir, VALID_EXPORT + suffix)
+
+    with pytest.raises(ValueError, match="malformed row"):
+        import_exports(export_dir, tmp_path / "quant.db")
+
+
+@pytest.mark.parametrize(
     "text",
     [
         VALID_EXPORT.replace("\t12\t9\t11\t5", "\t9\t8\t11\t5", 1),

@@ -2670,7 +2670,7 @@ def test_report_csv_strings_are_spreadsheet_safe_without_changing_json(tmp_path)
 def test_run_research_consumes_only_official_adversarial_result(
         tmp_path, monkeypatch):
     db_path = tmp_path / "futures.db"
-    _write_source(db_path, make_bars(2))
+    _write_source(db_path, make_bars(56))
     dataset = pd.DataFrame([{
         "symbol": "AG_IDX", "decision_time": pd.Timestamp("2026-01-02 09:00"),
     }])
@@ -2749,7 +2749,7 @@ def test_run_research_consumes_only_official_adversarial_result(
 def test_run_research_exposes_malformed_official_bundle_as_internal_error(
         tmp_path, monkeypatch, official):
     db_path = tmp_path / "futures.db"
-    _write_source(db_path, make_bars(2))
+    _write_source(db_path, make_bars(56))
     dataset = pd.DataFrame([{
         "symbol": "AG_IDX", "decision_time": pd.Timestamp("2026-01-02 09:00"),
     }])
@@ -2834,6 +2834,32 @@ def test_run_research_invalid_database_is_evidence_complete_rejection(
     assert set(result["artifacts"]) == EXPECTED_REPORT_FILES
     if not existing:
         assert not db_path.exists()
+
+
+def test_run_research_rejects_impossible_segments_before_causal_build(
+        tmp_path, monkeypatch):
+    bars = make_bars(5_500)
+    bars["trade_time"] = pd.DatetimeIndex(np.concatenate([
+        pd.date_range(day + pd.Timedelta(hours=9), periods=55, freq="5min")
+        for day in pd.date_range("2025-01-02", periods=100, freq="D")
+    ]))
+    db_path = tmp_path / "short-segments.db"
+    _write_source(db_path, bars)
+    monkeypatch.setattr(
+        research, "build_causal_dataset",
+        lambda *_: pytest.fail("impossible segments reached causal build"),
+    )
+
+    result = research.run_research(
+        db_path, tmp_path / "rejected-report",
+        ResearchConfig(min_symbol_rows=1, min_symbols=1, min_fold_rows=1),
+    )
+
+    assert result["status"] == "RESEARCH_REJECTED"
+    reason = result["gates"][0]["reason"]
+    assert "required_bars=56" in reason
+    assert "eligible_symbols=0/1" in reason
+    assert 'observed={"AG_IDX": 0}' in reason
 
 
 def test_report_cli_returns_two_for_a_complete_rejection(tmp_path, monkeypatch, capsys):

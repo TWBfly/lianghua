@@ -3154,6 +3154,31 @@ def run_research(db_path, output_dir, config=ResearchConfig()):
     try:
         bars = load_futures_bars(db_path)
         segmented, quality = validate_and_segment(bars, config)
+        if (
+            isinstance(config.horizon, (bool, np.bool_))
+            or not isinstance(config.horizon, (int, np.integer))
+            or config.horizon < 1
+        ):
+            raise ResearchRejected("horizon must be an integer greater than or equal to one")
+        required_bars = 48 + int(config.horizon) + 2
+        potential_rows = (
+            segmented.groupby(["symbol", "segment_id"]).size()
+            .sub(required_bars - 1).clip(lower=0)
+            .groupby(level="symbol").sum()
+        )
+        observed = {
+            str(symbol): int(rows)
+            for symbol, rows in potential_rows.sort_index().items()
+        }
+        eligible_count = int((potential_rows >= config.min_symbol_rows).sum())
+        if eligible_count < config.min_symbols:
+            raise ResearchRejected(
+                "insufficient potential causal rows: "
+                f"required_bars={required_bars}; "
+                f"eligible_symbols={eligible_count}/{config.min_symbols}; "
+                f"min_symbol_rows={config.min_symbol_rows}; "
+                f"observed={json.dumps(observed, sort_keys=True)}"
+            )
         dataset = build_causal_dataset(segmented, config)
         eligible = dataset.groupby("symbol").size()
         eligible = eligible[eligible >= config.min_symbol_rows].index
