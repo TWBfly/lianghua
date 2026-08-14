@@ -6,3 +6,8 @@ __pycache__/
 *.pyc
 *.db
 .pytest_cache/
+data/logs/
+data/export/
+data/*.xls
+data/futures_live_state.json
+scratch/
