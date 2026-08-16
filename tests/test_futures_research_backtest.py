@@ -1220,6 +1220,30 @@ def test_prepare_segmented_bars_resamples_5m_without_crossing_gaps():
     assert segmented.attrs["source_manifest"] == manifest
 
 
+def test_causal_features_cross_session_gaps_but_trade_paths_do_not():
+    first = make_bars(30)
+    second = make_bars(30)
+    second["trade_time"] = pd.date_range(
+        "2026-01-03 09:00", periods=30, freq="15min"
+    )
+    bars = pd.concat([first, second], ignore_index=True)
+    bars["trade_time"] = pd.concat([
+        pd.Series(pd.date_range("2026-01-02 09:00", periods=30, freq="15min")),
+        pd.Series(pd.date_range("2026-01-03 09:00", periods=30, freq="15min")),
+    ], ignore_index=True)
+    bars["segment_id"] = ["AG_IDX:1"] * 30 + ["AG_IDX:2"] * 30
+    bars["feature_segment_id"] = "AG_IDX:1"
+    bars["volume"] = np.arange(1.0, 61.0)
+
+    dataset = build_causal_dataset(
+        bars, ResearchConfig(timeframe="15m", horizon=2)
+    )
+
+    assert not dataset.empty
+    assert set(dataset["segment_id"]) == {"AG_IDX:2"}
+    assert dataset["entry_time"].dt.date.eq(dataset["exit_time"].dt.date).all()
+
+
 def make_scored(symbol, decision_time, probability, entry_open, exit_open):
     decision_time = pd.Timestamp(decision_time)
     return {
@@ -2541,7 +2565,7 @@ def test_feature_attack_gain_boundary_has_only_roundoff_tolerance(metric, limit)
 
 
 EXPECTED_REPORT_FILES = {
-    "report.md", "report.json", "data_quality.csv",
+    "report.html", "report.md", "report.json", "data_quality.csv",
     "fold_metrics.csv", "symbol_metrics.csv", "trades.csv",
 }
 EXPECTED_GATE_IDS = (
@@ -2622,7 +2646,7 @@ def test_report_artifacts_reconcile_and_preserve_rejection(tmp_path):
     assert "加权指数研究回测，不代表可成交合约或实盘收益" in markdown
     assert "positive_5bps_each_fold" in markdown
     assert "fixture gate rejection" in markdown
-    for name in EXPECTED_REPORT_FILES - {"report.md", "report.json"}:
+    for name in EXPECTED_REPORT_FILES - {"report.html", "report.md", "report.json"}:
         rows = pd.read_csv(tmp_path / name)
         assert set(rows["run_id"].astype(str)) <= {result["run_id"]}
         assert len(rows) == payload["row_counts"][name]

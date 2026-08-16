@@ -31,3 +31,21 @@ def test_qlib_backend_returns_finite_probabilities_and_audit_identity():
 
 def test_qlib_candidate_domain_contains_only_qlib_model():
     assert research.candidate_names("qlib") == ("qlib_lightgbm_constrained",)
+
+
+def test_report_bundle_contains_self_contained_qlib_html_for_rejection(tmp_path):
+    result = research.rejected_result(
+        "run",
+        research.ResearchConfig(timeframe="15m", model_backend="qlib"),
+        "fixture rejection",
+    )
+
+    paths = research.write_report(result, tmp_path / "report")
+
+    html = Path(paths["report.html"]).read_text(encoding="utf-8")
+    assert "RESEARCH_REJECTED" in html
+    assert research.DISCLAIMER in html
+    assert "fixture rejection" in html
+    assert "Qlib" in html
+    assert "15m" in html
+    assert "https://" not in html and "http://" not in html

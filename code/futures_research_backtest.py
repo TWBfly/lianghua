@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import copy
 import hashlib
+import html as html_module
 import json
 import os
 import shlex
@@ -213,7 +214,8 @@ def validate_and_segment(bars: pd.DataFrame, config=ResearchConfig()) -> tuple[p
     for symbol, group in frame.groupby("symbol", sort=False):
         group = group.copy()
         zero = group["volume"].eq(0)
-        gap = group["trade_time"].diff().ne(pd.Timedelta(minutes=5))
+        interval = 15 if config.timeframe == "15m" else 5
+        gap = group["trade_time"].diff().ne(pd.Timedelta(minutes=interval))
         zero_neighbor = zero | zero.shift(fill_value=False)
         open_gap = group["open"].div(group["close"].shift()).sub(1).abs().gt(
             config.discontinuity
@@ -222,6 +224,11 @@ def validate_and_segment(bars: pd.DataFrame, config=ResearchConfig()) -> tuple[p
         boundary = gap | zero_neighbor | open_gap | close_jump
         boundary.iloc[0] = True
         group["segment_id"] = group["symbol"] + ":" + boundary.cumsum().astype(str)
+        feature_boundary = open_gap | close_jump
+        feature_boundary.iloc[0] = True
+        group["feature_segment_id"] = (
+            group["symbol"] + ":" + feature_boundary.cumsum().astype(str)
+        )
         zero_fraction = float(zero.mean())
         excluded = zero_fraction > config.max_zero_volume_fraction
         quality_rows.append({
@@ -242,53 +249,49 @@ def validate_and_segment(bars: pd.DataFrame, config=ResearchConfig()) -> tuple[p
 
 
 def _prepare_segmented_bars(bars, config=ResearchConfig()):
-    segmented, quality = validate_and_segment(bars, config)
+    source_attrs = dict(bars.attrs)
     if config.timeframe == "5m":
-        segmented.attrs = dict(bars.attrs)
+        segmented, quality = validate_and_segment(bars, config)
+        segmented.attrs = source_attrs
         return segmented, quality
     if config.timeframe != "15m":
         raise ResearchRejected("timeframe must be 5m or 15m")
 
-    rows = []
-    for (_, segment_id), group in segmented.groupby(
-        ["symbol", "segment_id"], sort=False
-    ):
-        group = group.sort_values("trade_time", kind="stable")
-        for start in range(0, len(group) - 2, 3):
-            window = group.iloc[start:start + 3]
-            if not window["trade_time"].diff().dropna().eq(
-                pd.Timedelta(minutes=5)
-            ).all():
-                continue
-            row = {
-                "symbol": window["symbol"].iloc[0],
-                "timeframe": "15m",
-                "trade_time": window["trade_time"].iloc[-1],
-                "open": float(window["open"].iloc[0]),
-                "high": float(window["high"].max()),
-                "low": float(window["low"].min()),
-                "close": float(window["close"].iloc[-1]),
-                "volume": float(window["volume"].sum()),
-                "segment_id": segment_id,
-            }
-            for column, method in (
-                ("amount", "sum"), ("open_interest", "last"),
-                ("settlement", "last"), ("series_type", "first"),
-            ):
-                if column in window:
-                    values = window[column].dropna()
-                    row[column] = (
-                        float(values.sum()) if method == "sum" and not values.empty
-                        else values.iloc[-1] if method == "last" and not values.empty
-                        else values.iloc[0] if method == "first" and not values.empty
-                        else np.nan
-                    )
-            rows.append(row)
-    result = pd.DataFrame(rows)
+    source = _reject_if_invalid(bars)
+    source.attrs = {}
+    source["_source_segment"] = source.groupby("symbol", sort=False)[
+        "trade_time"
+    ].diff().ne(pd.Timedelta(minutes=5)).groupby(source["symbol"]).cumsum()
+    keys = ["symbol", "_source_segment"]
+    source = source.sort_values(
+        [*keys, "trade_time"], kind="stable"
+    ).reset_index(drop=True)
+    source["_bucket"] = source.groupby(keys, sort=False).cumcount() // 3
+    grouped_keys = [*keys, "_bucket"]
+    complete = source.groupby(grouped_keys, sort=False)["trade_time"].transform(
+        "size"
+    ).eq(3)
+    source = source.loc[complete]
+    aggregations = {
+        "trade_time": "last", "open": "first", "high": "max", "low": "min",
+        "close": "last", "volume": "sum",
+    }
+    aggregations.update({
+        column: method for column, method in (
+            ("amount", "sum"), ("open_interest", "last"),
+            ("settlement", "last"), ("series_type", "first"),
+        ) if column in source
+    })
+    result = source.groupby(grouped_keys, sort=False, as_index=False).agg(
+        aggregations
+    ).drop(columns=["_source_segment", "_bucket"])
+    result["timeframe"] = "15m"
     if result.empty:
         raise ResearchRejected("no complete 15m bars after causal resampling")
-    result.attrs = dict(bars.attrs)
-    return result.reset_index(drop=True), quality
+    result.attrs = source_attrs
+    segmented, quality = validate_and_segment(result, config)
+    segmented.attrs = source_attrs
+    return segmented, quality
 
 
 def assert_feature_columns(matrix):
@@ -595,43 +598,49 @@ def build_causal_dataset(segmented, config=ResearchConfig()) -> pd.DataFrame:
     missing = required.difference(segmented.columns)
     if missing:
         raise ResearchRejected(f"missing segmented columns: {', '.join(sorted(missing))}")
-    rows = []
-    for _, group in segmented.groupby(["symbol", "segment_id"], sort=False):
-        group = group.sort_values("trade_time", kind="stable").copy()
-        features = _segment_features(group)
-        assert_feature_columns(features)
-        entry_time = group["trade_time"].shift(-1)
-        entry_open = group["open"].shift(-1)
-        exit_time = group["trade_time"].shift(-(config.horizon + 1))
-        exit_open = group["open"].shift(-(config.horizon + 1))
-        same_segment = (
-            group["segment_id"].eq(group["segment_id"].shift(-1))
-            & group["segment_id"].eq(group["segment_id"].shift(-(config.horizon + 1)))
-        )
-        frame = pd.DataFrame({
-            "symbol": group["symbol"],
-            "segment_id": group["segment_id"],
-            "decision_time": group["trade_time"],
-            "entry_time": entry_time,
-            "entry_open": entry_open,
-            "exit_time": exit_time,
-            "exit_open": exit_open,
-            "label_end_time": exit_time,
-        }, index=group.index).join(features)
-        frame["future_return"] = frame["exit_open"] / frame["entry_open"] - 1.0
-        finite = np.isfinite(frame.loc[:, FEATURE_COLUMNS]).all(axis=1)
-        valid = same_segment & frame[["entry_time", "entry_open", "exit_time", "exit_open"]].notna().all(axis=1) & finite
-        frame = frame.loc[valid].copy()
-        frame["label"] = (frame["future_return"] > 0.0).astype(int)
-        rows.append(frame)
+    ordered = segmented.sort_values(
+        ["symbol", "segment_id", "trade_time"], kind="stable"
+    ).copy()
+    feature_group = (
+        "feature_segment_id" if "feature_segment_id" in segmented else "segment_id"
+    )
+    feature_frames = [
+        _segment_features(group.sort_values("trade_time", kind="stable"))
+        for _, group in ordered.groupby(["symbol", feature_group], sort=False)
+    ]
+    all_features = pd.concat(feature_frames).sort_index()
+    features = all_features.loc[ordered.index]
+    assert_feature_columns(features)
+    groups = ordered.groupby(["symbol", "segment_id"], sort=False)
+    entry_time = groups["trade_time"].shift(-1)
+    entry_open = groups["open"].shift(-1)
+    exit_time = groups["trade_time"].shift(-(config.horizon + 1))
+    exit_open = groups["open"].shift(-(config.horizon + 1))
+    frame = pd.DataFrame({
+        "symbol": ordered["symbol"],
+        "segment_id": ordered["segment_id"],
+        "decision_time": ordered["trade_time"],
+        "entry_time": entry_time,
+        "entry_open": entry_open,
+        "exit_time": exit_time,
+        "exit_open": exit_open,
+        "label_end_time": exit_time,
+    }, index=ordered.index).join(features)
+    frame["future_return"] = frame["exit_open"] / frame["entry_open"] - 1.0
+    finite = np.isfinite(frame.loc[:, FEATURE_COLUMNS]).all(axis=1)
+    valid = frame[["entry_time", "entry_open", "exit_time", "exit_open"]].notna().all(axis=1) & finite
+    frame = frame.loc[valid].copy()
+    frame["label"] = (frame["future_return"] > 0.0).astype(int)
     columns = (
         "symbol", "segment_id", "decision_time", *FEATURE_COLUMNS,
         "entry_time", "entry_open", "exit_time", "exit_open", "label_end_time",
         "future_return", "label",
     )
-    if not rows:
+    if frame.empty:
         return pd.DataFrame(columns=columns)
-    return pd.concat(rows).loc[:, columns].sort_values(["decision_time", "symbol"], kind="stable").reset_index(drop=True)
+    return frame.loc[:, columns].sort_values(
+        ["decision_time", "symbol"], kind="stable"
+    ).reset_index(drop=True)
 
 
 def _contiguous_windows(times, count):
@@ -2695,7 +2704,7 @@ def _validate_official_bundle(official):
 
 
 REPORT_FILES = (
-    "report.md", "report.json", "data_quality.csv", "fold_metrics.csv",
+    "report.html", "report.md", "report.json", "data_quality.csv", "fold_metrics.csv",
     "symbol_metrics.csv", "trades.csv",
 )
 CSV_COLUMNS = {
@@ -2897,12 +2906,14 @@ def _report_tables(context):
                 "reason": attack.get("reason"),
             })
     holdout = base.get("holdout", {})
+    holdout_daily = holdout.get("daily", {}).get(5, pd.DataFrame())
     return {
         "cutoffs": cutoffs,
         "data_quality": _records(context.get("quality", pd.DataFrame()).reset_index()),
         "fold_metrics": _json_safe(fold_metrics),
         "symbol_metrics": _records(holdout.get("symbol_metrics")),
         "trades": _json_safe(trades),
+        "equity_curve": _records(holdout_daily),
     }
 
 
@@ -3101,6 +3112,97 @@ def _markdown_report(payload):
     return "\n".join(lines) + "\n"
 
 
+def _html_value(value):
+    if isinstance(value, (dict, list)):
+        value = json.dumps(value, ensure_ascii=False, sort_keys=True)
+    return html_module.escape("" if value is None else str(value))
+
+
+def _html_table(rows, columns):
+    if not rows:
+        return '<p class="muted">无数据</p>'
+    header = "".join(f"<th>{_html_value(column)}</th>" for column in columns)
+    body = "".join(
+        "<tr>" + "".join(
+            f"<td>{_html_value(row.get(column))}</td>" for column in columns
+        ) + "</tr>"
+        for row in rows
+    )
+    return f'<div class="table-wrap"><table><thead><tr>{header}</tr></thead><tbody>{body}</tbody></table></div>'
+
+
+def _svg_chart(values, color):
+    values = np.asarray(values, dtype=float)
+    if len(values) < 2 or not np.isfinite(values).all():
+        return '<p class="muted">数据点不足</p>'
+    width, height, pad = 1000, 240, 20
+    low, high = float(values.min()), float(values.max())
+    span = high - low or 1.0
+    points = " ".join(
+        f"{pad + index * (width - 2 * pad) / (len(values) - 1):.1f},"
+        f"{height - pad - (value - low) * (height - 2 * pad) / span:.1f}"
+        for index, value in enumerate(values)
+    )
+    return (
+        f'<svg viewBox="0 0 {width} {height}" role="img" aria-label="回测曲线">'
+        f'<polyline fill="none" stroke="{color}" stroke-width="3" points="{points}"/>'
+        f'<text x="20" y="18" fill="#94a3b8">高 {high:.4f}</text>'
+        f'<text x="20" y="232" fill="#94a3b8">低 {low:.4f}</text></svg>'
+    )
+
+
+def _html_report(payload):
+    config = payload.get("config", {})
+    gates = payload.get("gates", [])
+    quality = payload.get("data_quality", [])
+    fold_metrics = payload.get("fold_metrics", [])
+    symbol_metrics = payload.get("symbol_metrics", [])
+    trades = payload.get("trades", [])
+    equity_rows = payload.get("equity_curve", [])
+    holdout = next((
+        row for row in fold_metrics
+        if row.get("evaluation_kind") == "base"
+        and row.get("fold") == "holdout"
+        and float(row.get("cost_bps", -1)) == 5.0
+    ), {})
+    cards = (
+        ("累计收益", holdout.get("total_return")),
+        ("最大回撤", holdout.get("max_drawdown")),
+        ("夏普", holdout.get("sharpe")),
+        ("胜率", holdout.get("win_rate")),
+        ("盈亏比", holdout.get("profit_factor")),
+        ("交易数", holdout.get("trade_count", len(trades))),
+    )
+    equity = [row.get("equity") for row in equity_rows if row.get("equity") is not None]
+    drawdown = []
+    if equity:
+        array = np.asarray(equity, dtype=float)
+        drawdown = (array / np.maximum.accumulate(array) - 1.0).tolist()
+    status = _html_value(payload["status"])
+    backend = "Qlib" if config.get("model_backend") == "qlib" else _html_value(config.get("model_backend"))
+    return f"""<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{status} · Qlib 15m 期货机器学习回测</title><style>
+:root{{--bg:#07111f;--card:#101d30;--line:#263a55;--text:#e7eef8;--muted:#94a3b8;--blue:#60a5fa;--red:#fb7185;--green:#34d399}}
+*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}}
+main{{max-width:1440px;margin:auto;padding:28px}}h1{{margin:0 0 8px;font-size:28px}}h2{{margin:0 0 16px}}section{{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin:18px 0}}
+.status{{color:{'#34d399' if payload['status']=='RESEARCH_ACCEPTED' else '#fb7185'};font-weight:800}}.muted{{color:var(--muted)}}.warning{{border-left:4px solid #f59e0b;padding:12px;background:#2a2110}}
+.cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}}.card{{background:#0a1627;border:1px solid var(--line);padding:14px;border-radius:10px}}.card b{{display:block;font-size:20px;margin-top:6px}}
+.table-wrap{{overflow:auto;max-height:560px}}table{{border-collapse:collapse;width:100%;font-size:12px}}th,td{{border-bottom:1px solid var(--line);padding:8px;text-align:left;white-space:nowrap}}th{{position:sticky;top:0;background:#16243a}}svg{{width:100%;height:auto;background:#0a1627;border-radius:8px}}pre{{white-space:pre-wrap;word-break:break-word;color:#cbd5e1}}
+</style></head><body><main>
+<header><h1>Qlib 15m 期货机器学习回测</h1><div class="status">{status}</div><div class="muted">Run ID: {_html_value(payload['run_id'])} · 模型层: {backend} · 执行层: 审计期货研究账本</div></header>
+<p class="warning">{_html_value(DISCLAIMER)}。仅用于离线研究，不是实盘或可成交合约收益证明。</p>
+<section><h2>核心指标（Holdout，5 bps）</h2><div class="cards">{''.join(f'<div class="card"><span class="muted">{_html_value(name)}</span><b>{_html_value(value)}</b></div>' for name, value in cards)}</div></section>
+<section><h2>权益曲线</h2>{_svg_chart(equity, '#60a5fa')}<h2>回撤曲线</h2>{_svg_chart(drawdown, '#fb7185')}</section>
+<section><h2>验收门</h2>{_html_table(gates, ('id','passed','affected_fold','observed','required','reason'))}</section>
+<section><h2>数据质量</h2>{_html_table(quality, ('symbol','status','raw_rows','start_time','end_time','zero_volume_fraction','segment_count','reason'))}</section>
+<section><h2>折叠与成本指标</h2>{_html_table(fold_metrics, ('evaluation_kind','fold','model_name','cost_bps','roc_auc','total_return','annualized_return','sharpe','max_drawdown','win_rate','profit_factor','trade_count','turnover'))}</section>
+<section><h2>品种明细</h2>{_html_table(symbol_metrics, ('fold','symbol','cost_bps','total_return','sharpe','max_drawdown','win_rate','profit_factor','trades'))}</section>
+<section><h2>交易明细</h2>{_html_table(trades, ('fold','symbol','cost_bps','decision_time','entry_time','exit_time','direction','entry_open','exit_open','net_sleeve_return','sleeve_pnl','exit_reason'))}</section>
+<section><h2>配置与来源</h2><pre>{_html_value({'config': config, 'provenance': payload.get('provenance', {}), 'selected_candidate': payload.get('selected_candidate'), 'features': payload.get('features', []), 'limitations': payload.get('limitations', [])})}</pre></section>
+</main></body></html>"""
+
+
 def _reconcile_report(directory):
     def reject_constant(value):
         raise ValueError(f"non-standard JSON constant: {value}")
@@ -3161,6 +3263,9 @@ def _reconcile_report(directory):
     markdown = (directory / "report.md").read_text(encoding="utf-8")
     if not markdown.startswith(f"# {payload['status']}\n") or DISCLAIMER not in markdown:
         raise ResearchRejected("Markdown status mismatch")
+    html = (directory / "report.html").read_text(encoding="utf-8")
+    if payload["status"] not in html or DISCLAIMER not in html:
+        raise ResearchRejected("HTML status mismatch")
 
 
 def write_report(result, output_dir):
@@ -3195,6 +3300,9 @@ def write_report(result, output_dir):
         )
         (temporary / "report.md").write_text(
             _markdown_report(payload), encoding="utf-8"
+        )
+        (temporary / "report.html").write_text(
+            _html_report(payload), encoding="utf-8"
         )
         _reconcile_report(temporary)
         if output.exists():
@@ -3231,25 +3339,26 @@ def run_research(db_path, output_dir, config=ResearchConfig()):
             or config.horizon < 1
         ):
             raise ResearchRejected("horizon must be an integer greater than or equal to one")
-        required_bars = 48 + int(config.horizon) + 2
-        potential_rows = (
-            segmented.groupby(["symbol", "segment_id"]).size()
-            .sub(required_bars - 1).clip(lower=0)
-            .groupby(level="symbol").sum()
-        )
-        observed = {
-            str(symbol): int(rows)
-            for symbol, rows in potential_rows.sort_index().items()
-        }
-        eligible_count = int((potential_rows >= config.min_symbol_rows).sum())
-        if eligible_count < config.min_symbols:
-            raise ResearchRejected(
-                "insufficient potential causal rows: "
-                f"required_bars={required_bars}; "
-                f"eligible_symbols={eligible_count}/{config.min_symbols}; "
-                f"min_symbol_rows={config.min_symbol_rows}; "
-                f"observed={json.dumps(observed, sort_keys=True)}"
+        if config.timeframe == "5m":
+            required_bars = 48 + int(config.horizon) + 2
+            potential_rows = (
+                segmented.groupby(["symbol", "segment_id"]).size()
+                .sub(required_bars - 1).clip(lower=0)
+                .groupby(level="symbol").sum()
             )
+            observed = {
+                str(symbol): int(rows)
+                for symbol, rows in potential_rows.sort_index().items()
+            }
+            eligible_count = int((potential_rows >= config.min_symbol_rows).sum())
+            if eligible_count < config.min_symbols:
+                raise ResearchRejected(
+                    "insufficient potential causal rows: "
+                    f"required_bars={required_bars}; "
+                    f"eligible_symbols={eligible_count}/{config.min_symbols}; "
+                    f"min_symbol_rows={config.min_symbol_rows}; "
+                    f"observed={json.dumps(observed, sort_keys=True)}"
+                )
         dataset = build_causal_dataset(segmented, config)
         eligible = dataset.groupby("symbol").size()
         eligible = eligible[eligible >= config.min_symbol_rows].index
