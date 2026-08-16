@@ -53,6 +53,7 @@ BAR_COLUMNS = (
 @dataclass(frozen=True)
 class ResearchConfig:
     timeframe: str = "5m"
+    model_backend: str = "native"
     horizon: int = 6
     discontinuity: float = 0.03
     max_zero_volume_fraction: float = 0.50
@@ -298,7 +299,11 @@ def assert_feature_columns(matrix):
         )
 
 
-def candidate_names():
+def candidate_names(model_backend="native"):
+    if model_backend == "qlib":
+        return ("qlib_lightgbm_constrained",)
+    if model_backend != "native":
+        raise ResearchRejected("model_backend must be native or qlib")
     return ("logistic_c0.1", "logistic_c1.0", "lightgbm_constrained")
 
 
@@ -316,12 +321,18 @@ def inverse_symbol_class_weights(frame):
 
 
 def _fit_matrix(candidate, x_train, y_train, sample_weight, x_evaluation, config):
-    if candidate.model_name not in candidate_names():
+    if candidate.model_name not in candidate_names(config.model_backend):
         raise ResearchRejected(f"unknown model candidate: {candidate.model_name}")
     arrays = (x_train, y_train, sample_weight, x_evaluation)
     if any(not np.isfinite(np.asarray(array, dtype=float)).all() for array in arrays):
         raise ResearchRejected("model inputs must be finite")
-    if candidate.model_name.startswith("logistic_c"):
+    if config.model_backend == "qlib":
+        from qlib_model_adapter import fit_qlib_lightgbm
+
+        probability, model = fit_qlib_lightgbm(
+            x_train, y_train, sample_weight, x_evaluation, config.seed
+        )
+    elif candidate.model_name.startswith("logistic_c"):
         c_value = float(candidate.model_name.removeprefix("logistic_c"))
         model = make_pipeline(
             StandardScaler(),
@@ -343,7 +354,8 @@ def _fit_matrix(candidate, x_train, y_train, sample_weight, x_evaluation, config
             n_jobs=1, random_state=config.seed,
         )
         model.fit(x_train, y_train, sample_weight=sample_weight)
-    probability = model.predict_proba(x_evaluation)[:, 1]
+    if config.model_backend != "qlib":
+        probability = model.predict_proba(x_evaluation)[:, 1]
     if not np.isfinite(probability).all() or ((probability < 0.0) | (probability > 1.0)).any():
         raise ResearchRejected("model probabilities must be finite and in [0, 1]")
     return probability, model
@@ -375,7 +387,8 @@ def _probability_metrics(labels, probability, threshold):
     return predictive_metrics(labels, probability, threshold)
 
 
-def choose_from_scores(scores):
+def choose_from_scores(scores, model_backend="native"):
+    domain = candidate_names(model_backend)
     required = {"model_name", "threshold", "fold", "return_5bps", "turnover"}
     if (
         not isinstance(scores, pd.DataFrame)
@@ -386,7 +399,7 @@ def choose_from_scores(scores):
         raise ResearchRejected("invalid candidate score frame")
     if (
         not scores["model_name"].map(lambda value: isinstance(value, str)).all()
-        or not scores["model_name"].isin(candidate_names()).all()
+        or not scores["model_name"].isin(domain).all()
         or not scores["fold"].map(
             lambda value: isinstance(value, str) and bool(value)
         ).all()
@@ -427,7 +440,7 @@ def choose_from_scores(scores):
         row["turnover"],
         row["candidate"].model_name == "lightgbm_constrained",
         -row["candidate"].threshold,
-        candidate_names().index(row["candidate"].model_name),
+        domain.index(row["candidate"].model_name),
     ))
     return near[0]["candidate"]
 
@@ -499,7 +512,7 @@ def select_candidate(dataset, market, folds, config=ResearchConfig()):
                 evaluation["decision_time"].min(), evaluation["exit_time"].max()
             )
         ]
-        for model_name in candidate_names():
+        for model_name in candidate_names(config.model_backend):
             probability, _ = fit_predict(
                 Candidate(model_name, float(thresholds[0])), train, evaluation, config
             )
@@ -544,7 +557,9 @@ def select_candidate(dataset, market, folds, config=ResearchConfig()):
             "return_5bps": np.nan,
             "turnover": np.nan,
         })
-    return choose_from_scores(pd.DataFrame(selectable_rows)), pd.DataFrame(score_rows)
+    return choose_from_scores(
+        pd.DataFrame(selectable_rows), config.model_backend
+    ), pd.DataFrame(score_rows)
 
 
 def _segment_features(group):
@@ -2946,7 +2961,9 @@ def build_result(context, gates, status):
         "provenance": context.get("provenance", {}),
         "config": asdict(context.get("config", ResearchConfig())),
         "features": FEATURE_COLUMNS,
-        "candidates": candidate_names(),
+        "candidates": candidate_names(
+            context.get("config", ResearchConfig()).model_backend
+        ),
         "seed": context.get("config", ResearchConfig()).seed,
         "selected_candidate": candidate,
         "selection_scores": base.get("final_inner_scores", pd.DataFrame()),
@@ -2968,7 +2985,7 @@ def rejected_result(run_id, config, reason, quality=None):
         "provenance": {},
         "config": asdict(config),
         "features": FEATURE_COLUMNS,
-        "candidates": candidate_names(),
+        "candidates": candidate_names(config.model_backend),
         "seed": config.seed,
         "selected_candidate": None,
         "selection_scores": [],
