@@ -27,12 +27,17 @@ class AShareDataEngine:
         self._init_db()
 
     def get_connection(self):
-        return sqlite3.connect(self.db_path)
+        return sqlite3.connect(self.db_path, timeout=30.0)
 
     def _init_db(self):
         """初始化数据库表结构与索引"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
+            try:
+                cursor.execute("PRAGMA journal_mode=WAL;")
+                cursor.execute("PRAGMA busy_timeout=30000;")
+            except Exception:
+                pass
             
             # 1. 股票元数据表
             cursor.execute("""

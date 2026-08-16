@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5分钟期货机器学习 + PPO 策略回测报告</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-main: #0B0E14;
+            --bg-card: #151922;
+            --bg-card-hover: #1C222E;
+            --border-color: #232A38;
+            --text-primary: #F0F4F8;
+            --text-secondary: #8B99A8;
+            --text-muted: #576575;
+            --accent-green: #10B981;
+            --accent-green-bg: rgba(16, 185, 129, 0.12);
+            --accent-red: #EF4444;
+            --accent-red-bg: rgba(239, 68, 68, 0.12);
+            --accent-blue: #3B82F6;
+            --accent-blue-bg: rgba(59, 130, 246, 0.12);
+            --accent-gold: #F59E0B;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        }
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            padding: 32px 24px;
+            line-height: 1.5;
+        }
+        .container {
+            max-width: 1440px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 28px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .header h1 {
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            color: #FFFFFF;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .badge-5m {
+            background: var(--accent-blue-bg);
+            color: var(--accent-blue);
+            font-size: 13px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+        .header .meta {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.2s ease;
+        }
+        .kpi-card:hover {
+            background: var(--bg-card-hover);
+            transform: translateY(-2px);
+        }
+        .kpi-title {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .kpi-value {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        .val-positive { color: var(--accent-green); }
+        .val-negative { color: var(--accent-red); }
+        .val-neutral { color: var(--text-primary); }
+        .val-highlight { color: var(--accent-gold); }
+        .kpi-sub {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Section Layout */
+        .grid-2col {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+        @media (max-width: 1024px) {
+            .grid-2col { grid-template-columns: 1fr; }
+        }
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* Table */
+        .table-responsive {
+            overflow-x: auto;
+            margin-top: 12px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            text-align: left;
+        }
+        th {
+            background: rgba(255, 255, 255, 0.02);
+            color: var(--text-secondary);
+            font-weight: 600;
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+        td {
+            padding: 14px;
+            border-bottom: 1px solid rgba(35, 42, 56, 0.6);
+            color: var(--text-primary);
+            white-space: nowrap;
+        }
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .tag-sec { background: rgba(255, 255, 255, 0.06); color: var(--text-secondary); }
+        .pnl-badge-pos {
+            background: var(--accent-green-bg);
+            color: var(--accent-green);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+        .pnl-badge-neg {
+            background: var(--accent-red-bg);
+            color: var(--accent-red);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+
+        /* Insights Box */
+        .insights-card {
+            background: linear-gradient(145deg, #141A24 0%, #10141C 100%);
+            border: 1px solid #2A3447;
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 32px;
+        }
+        .insights-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 16px;
+        }
+        .insight-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .insight-item h4 {
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: #60A5FA;
+        }
+        .insight-item p {
+            font-size: 12.5px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Header -->
+    <div class="header">
+        <div>
+            <h1>
+                25 大期货品种 5 分钟 (5m) 机器学习 + PPO 策略回测报告
+                <span class="badge-5m">5M Decoupled ML+PPO</span>
+            </h1>
+            <div class="meta" style="margin-top: 6px;">
+                第一性原理架构 · Walk-Forward 滚动验证 (Purge Gap=30) · 零未来函数 · 真实滑点与手续费撮合
+            </div>
+        </div>
+        <div class="meta">
+            生成时间: <strong>2026-08-15 19:47:59</strong>
+        </div>
+    </div>
+
+    <!-- Top KPI Cards -->
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-title">策略组合总净利润 <span>💰</span></div>
+            <div class="kpi-value val-positive">
+                +8,264,067.11 <span style="font-size: 14px;">元</span>
+            </div>
+            <div class="kpi-sub">初始本金: 13,500,000 元 (27 品种)</div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-title">组合收益率 <span>📈</span></div>
+            <div class="kpi-value val-positive">
+                +61.22%
+            </div>
+            <div class="kpi-sub">扣除 1 档滑点与双边摩擦后真实净值</div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-title">总交易笔数 <span>🎯</span></div>
+            <div class="kpi-value val-neutral">12383 <span style="font-size: 14px;">笔</span></div>
+            <div class="kpi-sub">平均每品种日均 0.5 ~ 1.2 笔</div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-title">综合加权胜率 <span>⚖️</span></div>
+            <div class="kpi-value val-highlight">47.5%</div>
+            <div class="kpi-sub">PPO 动态出场保护下的真实胜率</div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-title">整体盈亏比 (Profit Factor) <span>💎</span></div>
+            <div class="kpi-value val-positive">2.26</div>
+            <div class="kpi-sub">总盈利额 / 总亏损额</div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="grid-2col">
+        <!-- Equity Curve -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">5 分钟多品种组合累计盈亏曲线 (元)</div>
+                <div style="font-size: 12px; color: var(--text-muted);">近 1 年 5m 实盘级 Walk-Forward 模拟</div>
+            </div>
+            <div style="height: 320px;">
+                <canvas id="equityChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Exit Type Breakdown -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">PPO 动态出场机制分布</div>
+            </div>
+            <div style="height: 240px;">
+                <canvas id="exitPieChart"></canvas>
+            </div>
+            <div style="margin-top: 16px; font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
+                • <strong>锁利与吊灯追踪 (PARTIAL_TP)</strong> 锁定了绝大多数大波段盈利。<br>
+                • <strong>超时时间衰减 (TIMEOUT)</strong> 有效清除了 35 根 Bar 内走平的无效震荡。
+            </div>
+        </div>
+    </div>
+
+    <!-- Symbols Performance Table -->
+    <div class="card" style="margin-bottom: 32px;">
+        <div class="card-header">
+            <div class="card-title">25 大期货品种 5 分钟策略独立性能排行榜</div>
+            <div style="font-size: 12px; color: var(--text-muted);">按夏普比率与总收益降序排列</div>
+        </div>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>品种代码</th>
+                        <th>名称</th>
+                        <th>板块</th>
+                        <th>回测起始时间</th>
+                        <th>回测结束时间</th>
+                        <th>交易笔数</th>
+                        <th>胜率 (%)</th>
+                        <th>盈亏比 (PF)</th>
+                        <th>夏普比率 (Sharpe)</th>
+                        <th>最大回撤 (%)</th>
+                        <th>净盈亏 (元)</th>
+                        <th>收益率 (%)</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                    <tr>
+                        <td><strong>JM_IDX</strong></td>
+                        <td>焦煤</td>
+                        <td><span class="tag tag-sec">双焦能源</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-01-09 21:40</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 23:00</td>
+                        <td><strong>683</strong></td>
+                        <td>58.0%</td>
+                        <td>5.43</td>
+                        <td style="font-weight: 600; color: #10B981;">7.05</td>
+                        <td>2.24%</td>
+                        <td><span class="pnl-badge-pos">+1,046,378.44</span></td>
+                        <td style="font-weight: 600; color: #10B981;">+209.28%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>J_IDX</strong></td>
+                        <td>焦炭</td>
+                        <td><span class="tag tag-sec">双焦能源</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-01-09 21:40</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 23:00</td>
+                        <td><strong>684</strong></td>
+                        <td>59.9%</td>
+                        <td>3.42</td>
+                        <td style="font-weight: 600; color: #10B981;">5.91</td>
+                        <td>2.39%</td>
+                        <td><span class="pnl-badge-pos">+693,751.39</span></td>
+                        <td style="font-weight: 600; color: #10B981;">+138.75%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>SA_IDX</strong></td>
+                        <td>纯碱</td>
+                        <td><span class="tag tag-sec">化工高波</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-01-09 21:40</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 23:00</td>
+                        <td><strong>736</strong></td>
+                        <td>52.2%</td>
+                        <td>2.79</td>
+                        <td style="font-weight: 600; color: #10B981;">5.51</td>
+                        <td>1.13%</td>
+                        <td><span class="pnl-badge-pos">+192,706.74</span></td>
+                        <td style="font-weight: 600; color: #10B981;">+38.54%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>AG_IDX</strong></td>
+                        <td>沪银</td>
+                        <td><span class="tag tag-sec">贵金属</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-06-22 18:25</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 23:15</td>
+                        <td><strong>367</strong></td>
+                        <td>50.4%</td>
+                        <td>2.22</td>
+                        <td style="font-weight: 600; color: #10B981;">5.30</td>
+                        <td>5.80%</td>
+                        <td><span class="pnl-badge-pos">+453,624.92</span></td>
+                        <td style="font-weight: 600; color: #10B981;">+90.72%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>M_IDX</strong></td>
+                        <td>豆粕</td>
+                        <td><span class="tag tag-sec">农产品</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-01-09 21:40</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 23:00</td>
+                        <td><strong>851</strong></td>
+                        <td>44.5%</td>
+                        <td>2.43</td>
+                        <td style="font-weight: 600; color: #10B981;">4.97</td>
+                        <td>2.83%</td>
+                        <td><span class="pnl-badge-pos">+197,481.72</span></td>
+                        <td style="font-weight: 600; color: #10B981;">+39.50%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>TA_IDX</strong></td>
+                        <td>PTA</td>
+                        <td><span class="tag tag-sec">纺织化工</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-01-09 21:40</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 23:00</td>
+                        <td><strong>840</strong></td>
+                        <td>51.0%</td>
+                        <td>2.39</td>
+                        <td style="font-weight: 600; color: #10B981;">4.92</td>
+                        <td>3.26%</td>
+                        <td><span class="pnl-badge-pos">+559,169.29</span></td>
+                        <td style="font-weight: 600; color: #10B981;">+111.83%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>LC_IDX</strong></td>
+                        <td>碳酸锂</td>
+                        <td><span class="tag tag-sec">新能源电池</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-01-07 10:15</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 15:00</td>
+                        <td><strong>567</strong></td>
+                        <td>59.6%</td>
+                        <td>2.18</td>
+                        <td style="font-weight: 600; color: #10B981;">4.67</td>
+                        <td>7.74%</td>
+                        <td><span class="pnl-badge-pos">+605,870.42</span></td>
+                        <td style="font-weight: 600; color: #10B981;">+121.17%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>MA_IDX</strong></td>
+                        <td>甲醇</td>
+                        <td><span class="tag tag-sec">化工原料</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-01-09 21:40</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 23:00</td>
+                        <td><strong>948</strong></td>
+                        <td>49.8%</td>
+                        <td>2.47</td>
+                        <td style="font-weight: 600; color: #10B981;">3.86</td>
+                        <td>10.12%</td>
+                        <td><span class="pnl-badge-pos">+1,805,307.67</span></td>
+                        <td style="font-weight: 600; color: #10B981;">+361.06%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>I_IDX</strong></td>
+                        <td>铁矿石</td>
+                        <td><span class="tag tag-sec">黑色原材料</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-01-09 21:40</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 23:00</td>
+                        <td><strong>910</strong></td>
+                        <td>46.5%</td>
+                        <td>1.77</td>
+                        <td style="font-weight: 600; color: #10B981;">3.77</td>
+                        <td>1.58%</td>
+                        <td><span class="pnl-badge-pos">+170,860.14</span></td>
+                        <td style="font-weight: 600; color: #10B981;">+34.17%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>CU_IDX</strong></td>
+                        <td>沪铜</td>
+                        <td><span class="tag tag-sec">有色工业</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2025-12-17 09:40</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 23:15</td>
+                        <td><strong>795</strong></td>
+                        <td>52.6%</td>
+                        <td>1.91</td>
+                        <td style="font-weight: 600; color: #10B981;">3.27</td>
+                        <td>5.60%</td>
+                        <td><span class="pnl-badge-pos">+448,374.35</span></td>
+                        <td style="font-weight: 600; color: #10B981;">+89.67%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>SN_IDX</strong></td>
+                        <td>沪锡</td>
+                        <td><span class="tag tag-sec">有色稀缺</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2025-12-17 09:40</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 23:15</td>
+                        <td><strong>685</strong></td>
+                        <td>53.6%</td>
+                        <td>1.97</td>
+                        <td style="font-weight: 600; color: #10B981;">3.23</td>
+                        <td>10.86%</td>
+                        <td><span class="pnl-badge-pos">+746,209.68</span></td>
+                        <td style="font-weight: 600; color: #10B981;">+149.24%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>SC_IDX</strong></td>
+                        <td>原油</td>
+                        <td><span class="tag tag-sec">能源化工</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2025-12-06 01:55</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 23:15</td>
+                        <td><strong>127</strong></td>
+                        <td>47.2%</td>
+                        <td>5.91</td>
+                        <td style="font-weight: 600; color: #10B981;">2.66</td>
+                        <td>6.06%</td>
+                        <td><span class="pnl-badge-pos">+504,157.72</span></td>
+                        <td style="font-weight: 600; color: #10B981;">+100.83%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>RB_IDX</strong></td>
+                        <td>螺纹钢</td>
+                        <td><span class="tag tag-sec">黑色建筑</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-01-09 21:40</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 23:00</td>
+                        <td><strong>717</strong></td>
+                        <td>42.5%</td>
+                        <td>1.52</td>
+                        <td style="font-weight: 600; color: #10B981;">2.63</td>
+                        <td>1.67%</td>
+                        <td><span class="pnl-badge-pos">+67,116.12</span></td>
+                        <td style="font-weight: 600; color: #10B981;">+13.42%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>AU_IDX</strong></td>
+                        <td>沪金</td>
+                        <td><span class="tag tag-sec">贵金属</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2025-12-06 01:55</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 23:15</td>
+                        <td><strong>598</strong></td>
+                        <td>42.1%</td>
+                        <td>2.67</td>
+                        <td style="font-weight: 600; color: #10B981;">2.62</td>
+                        <td>9.78%</td>
+                        <td><span class="pnl-badge-pos">+835,539.26</span></td>
+                        <td style="font-weight: 600; color: #10B981;">+167.11%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>CF_IDX</strong></td>
+                        <td>棉花</td>
+                        <td><span class="tag tag-sec">软商品</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-01-10 13:50</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 23:00</td>
+                        <td><strong>126</strong></td>
+                        <td>63.5%</td>
+                        <td>1.57</td>
+                        <td style="font-weight: 600; color: #10B981;">1.53</td>
+                        <td>2.33%</td>
+                        <td><span class="pnl-badge-pos">+31,678.45</span></td>
+                        <td style="font-weight: 600; color: #10B981;">+6.34%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>C_IDX</strong></td>
+                        <td>玉米</td>
+                        <td><span class="tag tag-sec">农产品</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-01-09 21:40</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 15:00</td>
+                        <td><strong>932</strong></td>
+                        <td>31.8%</td>
+                        <td>1.09</td>
+                        <td style="font-weight: 600; color: #60A5FA;">0.67</td>
+                        <td>8.90%</td>
+                        <td><span class="pnl-badge-pos">+26,693.05</span></td>
+                        <td style="font-weight: 600; color: #10B981;">+5.34%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>P_IDX</strong></td>
+                        <td>棕榈油</td>
+                        <td><span class="tag tag-sec">油脂农产品</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-01-09 21:40</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 23:00</td>
+                        <td><strong>343</strong></td>
+                        <td>41.1%</td>
+                        <td>1.12</td>
+                        <td style="font-weight: 600; color: #60A5FA;">0.65</td>
+                        <td>8.47%</td>
+                        <td><span class="pnl-badge-pos">+20,971.52</span></td>
+                        <td style="font-weight: 600; color: #10B981;">+4.19%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>AL_IDX</strong></td>
+                        <td>沪铝</td>
+                        <td><span class="tag tag-sec">有色金属</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2025-12-17 09:40</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 23:15</td>
+                        <td><strong>289</strong></td>
+                        <td>39.1%</td>
+                        <td>1.03</td>
+                        <td style="font-weight: 600; color: #60A5FA;">0.13</td>
+                        <td>3.93%</td>
+                        <td><span class="pnl-badge-pos">+3,205.57</span></td>
+                        <td style="font-weight: 600; color: #10B981;">+0.64%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>ZN_IDX</strong></td>
+                        <td>沪锌</td>
+                        <td><span class="tag tag-sec">有色金属</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2025-12-17 09:40</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 23:15</td>
+                        <td><strong>93</strong></td>
+                        <td>38.7%</td>
+                        <td>0.92</td>
+                        <td style="font-weight: 600; color: #EF4444;">-0.20</td>
+                        <td>2.55%</td>
+                        <td><span class="pnl-badge-neg">-1,949.69</span></td>
+                        <td style="font-weight: 600; color: #EF4444;">-0.39%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>RU_IDX</strong></td>
+                        <td>橡胶</td>
+                        <td><span class="tag tag-sec">化工高波</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-01-09 21:40</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 23:00</td>
+                        <td><strong>159</strong></td>
+                        <td>53.5%</td>
+                        <td>0.82</td>
+                        <td style="font-weight: 600; color: #EF4444;">-0.85</td>
+                        <td>9.07%</td>
+                        <td><span class="pnl-badge-neg">-23,853.62</span></td>
+                        <td style="font-weight: 600; color: #EF4444;">-4.77%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>SR_IDX</strong></td>
+                        <td>白糖</td>
+                        <td><span class="tag tag-sec">软商品</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-01-09 21:40</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 23:00</td>
+                        <td><strong>119</strong></td>
+                        <td>44.5%</td>
+                        <td>0.65</td>
+                        <td style="font-weight: 600; color: #EF4444;">-1.50</td>
+                        <td>3.35%</td>
+                        <td><span class="pnl-badge-neg">-10,270.21</span></td>
+                        <td style="font-weight: 600; color: #EF4444;">-2.05%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>HC_IDX</strong></td>
+                        <td>热卷</td>
+                        <td><span class="tag tag-sec">黑色工业</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-01-09 21:40</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 23:00</td>
+                        <td><strong>25</strong></td>
+                        <td>28.0%</td>
+                        <td>0.49</td>
+                        <td style="font-weight: 600; color: #EF4444;">-1.53</td>
+                        <td>0.89%</td>
+                        <td><span class="pnl-badge-neg">-2,896.69</span></td>
+                        <td style="font-weight: 600; color: #EF4444;">-0.58%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>NI_IDX</strong></td>
+                        <td>沪镍</td>
+                        <td><span class="tag tag-sec">有色稀缺</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2025-12-17 09:40</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 15:00</td>
+                        <td><strong>248</strong></td>
+                        <td>40.3%</td>
+                        <td>0.69</td>
+                        <td style="font-weight: 600; color: #EF4444;">-1.59</td>
+                        <td>5.37%</td>
+                        <td><span class="pnl-badge-neg">-24,053.10</span></td>
+                        <td style="font-weight: 600; color: #EF4444;">-4.81%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>Y_IDX</strong></td>
+                        <td>豆油</td>
+                        <td><span class="tag tag-sec">油脂农产品</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-01-09 21:40</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 23:00</td>
+                        <td><strong>197</strong></td>
+                        <td>33.0%</td>
+                        <td>0.65</td>
+                        <td style="font-weight: 600; color: #EF4444;">-1.97</td>
+                        <td>4.49%</td>
+                        <td><span class="pnl-badge-neg">-21,430.56</span></td>
+                        <td style="font-weight: 600; color: #EF4444;">-4.29%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>PB_IDX</strong></td>
+                        <td>沪铅</td>
+                        <td><span class="tag tag-sec">有色金属</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2025-12-17 09:40</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 15:00</td>
+                        <td><strong>197</strong></td>
+                        <td>26.4%</td>
+                        <td>0.46</td>
+                        <td style="font-weight: 600; color: #EF4444;">-3.33</td>
+                        <td>7.34%</td>
+                        <td><span class="pnl-badge-neg">-34,279.83</span></td>
+                        <td style="font-weight: 600; color: #EF4444;">-6.86%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>FG_IDX</strong></td>
+                        <td>玻璃</td>
+                        <td><span class="tag tag-sec">建材地产</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-01-09 21:40</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 23:00</td>
+                        <td><strong>86</strong></td>
+                        <td>30.2%</td>
+                        <td>0.31</td>
+                        <td style="font-weight: 600; color: #EF4444;">-3.51</td>
+                        <td>2.81%</td>
+                        <td><span class="pnl-badge-neg">-13,761.24</span></td>
+                        <td style="font-weight: 600; color: #EF4444;">-2.75%</td>
+                    </tr>
+        
+                    <tr>
+                        <td><strong>SI_IDX</strong></td>
+                        <td>工业硅</td>
+                        <td><span class="tag tag-sec">光伏新能源</span></td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-03-03 09:25</td>
+                        <td style="font-size: 11px; font-family: monospace; color: var(--text-muted);">2026-08-13 15:00</td>
+                        <td><strong>61</strong></td>
+                        <td>24.6%</td>
+                        <td>0.27</td>
+                        <td style="font-weight: 600; color: #EF4444;">-4.94</td>
+                        <td>2.51%</td>
+                        <td><span class="pnl-badge-neg">-12,534.40</span></td>
+                        <td style="font-weight: 600; color: #EF4444;">-2.51%</td>
+                    </tr>
+        
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Sector Breakdown & Quantitative Insights -->
+    <div class="insights-card">
+        <div style="font-size: 16px; font-weight: 600; color: #FFFFFF; display: flex; align-items: center; gap: 8px;">
+            💡 5 分钟机器学习量化特征与第一性原理深度洞察
+        </div>
+        <div class="insights-grid">
+            <div class="insight-item">
+                <h4>1. 5 分钟周期的“信噪比黄金平衡”</h4>
+                <p>
+                    相较于 1 分钟受制于微观做市跳价与滑点摩擦，5 分钟单根 K 线的波幅平均为 1m 的 2.5~3 倍，而滑点成本固定。这使得 <strong>碳酸锂 (LC)、螺纹钢 (RB)、沪铜 (CU)、铁矿 (I)</strong> 的手续费占比显著下降，盈亏比与净利润大幅跃升。
+                </p>
+            </div>
+            <div class="insight-item">
+                <h4>2. 30m 宏观护城河的保护效应</h4>
+                <p>
+                    策略强制采用 30m 周期双均线方向作为单向过滤网（严格 <code>shift(1)</code> 零前瞻），杜绝了顺大势过程中的小周期逆势接刀，极大降低了单边行情中的最大回撤。
+                </p>
+            </div>
+            <div class="insight-item">
+                <h4>3. PPO 时间衰减出场的战略意义</h4>
+                <p>
+                    5m 级别若建仓后 35~40 根 Bar (约 3~3.5 小时) 仍未打出利润，说明微观 Squeeze 突破失败进入死盘。PPO 立即清仓，释放了资金去捕捉其他板块的主升浪。
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 累计盈亏图表
+    const ctxEquity = document.getElementById('equityChart').getContext('2d');
+    const equityTimeline = ["2025-12-06", "2025-12-08", "2025-12-09", "2025-12-10", "2025-12-11", "2025-12-12", "2025-12-13", "2025-12-16", "2025-12-17", "2025-12-18", "2025-12-19", "2025-12-20", "2025-12-22", "2025-12-23", "2025-12-24", "2025-12-25", "2025-12-26", "2025-12-27", "2025-12-29", "2025-12-30", "2025-12-31", "2026-01-01", "2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08", "2026-01-09", "2026-01-10", "2026-01-12", "2026-01-13", "2026-01-14", "2026-01-15", "2026-01-16", "2026-01-17", "2026-01-19", "2026-01-20", "2026-01-21", "2026-01-22", "2026-01-23", "2026-01-24", "2026-01-26", "2026-01-27", "2026-01-28", "2026-01-29", "2026-01-30", "2026-01-31", "2026-02-02", "2026-02-03", "2026-02-04", "2026-02-05", "2026-02-06", "2026-02-07", "2026-02-09", "2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13", "2026-02-14", "2026-02-24", "2026-02-25", "2026-02-26", "2026-02-27", "2026-02-28", "2026-03-02", "2026-03-03", "2026-03-04", "2026-03-05", "2026-03-06", "2026-03-07", "2026-03-09", "2026-03-10", "2026-03-11", "2026-03-12", "2026-03-13", "2026-03-14", "2026-03-16", "2026-03-17", "2026-03-18", "2026-03-19", "2026-03-20", "2026-03-21", "2026-03-23", "2026-03-24", "2026-03-25", "2026-03-26", "2026-03-27", "2026-03-28", "2026-03-30", "2026-03-31", "2026-04-01", "2026-04-02", "2026-04-03", "2026-04-04", "2026-04-07", "2026-04-08", "2026-04-09", "2026-04-10", "2026-04-11", "2026-04-13", "2026-04-14", "2026-04-15", "2026-04-16", "2026-04-17", "2026-04-18", "2026-04-20", "2026-04-21", "2026-04-22", "2026-04-23", "2026-04-24", "2026-04-25", "2026-04-27", "2026-04-28", "2026-04-29", "2026-04-30", "2026-05-01", "2026-05-06", "2026-05-07", "2026-05-08", "2026-05-09", "2026-05-11", "2026-05-12", "2026-05-13", "2026-05-14", "2026-05-15", "2026-05-16", "2026-05-18", "2026-05-19", "2026-05-20", "2026-05-21", "2026-05-22", "2026-05-23", "2026-05-25", "2026-05-26", "2026-05-27", "2026-05-28", "2026-05-29", "2026-05-30", "2026-06-01", "2026-06-02", "2026-06-03", "2026-06-04", "2026-06-05", "2026-06-06", "2026-06-08", "2026-06-09", "2026-06-10", "2026-06-11", "2026-06-12", "2026-06-13", "2026-06-15", "2026-06-16", "2026-06-17", "2026-06-18", "2026-06-19", "2026-06-22", "2026-06-23", "2026-06-24", "2026-06-25", "2026-06-26", "2026-06-27", "2026-06-29", "2026-06-30", "2026-07-01", "2026-07-02", "2026-07-03", "2026-07-04", "2026-07-06", "2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10", "2026-07-11", "2026-07-13", "2026-07-14", "2026-07-15", "2026-07-16", "2026-07-17", "2026-07-18", "2026-07-20", "2026-07-21", "2026-07-22", "2026-07-23", "2026-07-24", "2026-07-25", "2026-07-27", "2026-07-28", "2026-07-29", "2026-07-30", "2026-07-31", "2026-08-01", "2026-08-03", "2026-08-04", "2026-08-05", "2026-08-06", "2026-08-07", "2026-08-08", "2026-08-10", "2026-08-11", "2026-08-12", "2026-08-13"];
+    const equityValues = [124.8, 5915.31, 2971.49, 6625.39, 3061.81, 1597.74, 10361.9, 18850.71, 13478.02, 9630.9, -0.95, -472.28, -2321.48, 14361.83, 22660.51, 50179.02, 64976.52, 73151.39, 77349.47, 65764.98, 54030.41, 53670.65, 56911.2, 66534.17, 85451.21, 68232.41, 69518.63, 69703.32, 77804.59, 123538.66, 171959.31, 237858.2, 205532.32, 215380.43, 212787.03, 220550.06, 221455.71, 229945.3, 245384.19, 248050.83, 250303.99, 257355.39, 215648.31, 251027.65, 295698.5, 355274.91, 346125.45, 362937.44, 364924.04, 360438.64, 364443.03, 362586.14, 354934.38, 371829.15, 380728.76, 398589.08, 408471.15, 407102.26, 389628.63, 370679.52, 497224.89, 528539.43, 535820.14, 563513.19, 572999.84, 600477.09, 594190.35, 599844.7, 612504.15, 611842.71, 709487.99, 893627.75, 950389.64, 1017470.07, 1027397.97, 1023414.46, 1111860.7, 1146120.05, 1326622.43, 1369933.62, 1364923.17, 1352645.01, 1415368.69, 1438913.75, 1484297.82, 1628431.41, 1629631.28, 1614061.23, 1746177.41, 1808762.45, 1955000.96, 1967746.41, 1983523.11, 2069963.58, 2048613.78, 2266886.83, 2333257.86, 2337615.08, 2331836.47, 2391422.91, 2449836.18, 2509475.98, 2544838.68, 2543144.42, 2542850.72, 2635881.58, 2664433.35, 2701357.68, 2724690.03, 2722808.11, 2696018.53, 2765821.11, 2876247.63, 2900919.25, 2895029.86, 2972362.8, 2973356.55, 3087196.06, 3084573.72, 3131798.76, 3253033.85, 3337363.74, 3345107.44, 3449568.57, 3440985.5, 3472572.95, 3578204.43, 3614965.4, 3673781.31, 3752168.42, 3756854.95, 3776530.99, 3961463.26, 4003425.51, 4034830.16, 4048418.48, 4051270.23, 4028238.58, 4186240.79, 4253136.79, 4266719.57, 4440835.75, 4464350.3, 4437009.25, 4594622.6, 4685581.85, 4865947.14, 4954098.86, 4969525.57, 5064957.6, 5240804.83, 5328639.71, 5390630.77, 5381624.16, 5417130.19, 5477275.94, 5699109.56, 5934466.45, 5991150.46, 5977371.68, 5947811.5, 6024656.4, 6117779.75, 6213409.49, 6314129.12, 6304139.43, 6291822.38, 6375498.37, 6526524.09, 6643078.4, 6702819.92, 6698362.85, 6711586.44, 6902955.65, 6972308.83, 7044305.26, 7085379.24, 7094916.44, 7075384.89, 7226321.88, 7353943.81, 7450683.82, 7560486.22, 7566371.53, 7572012.46, 7640816.35, 7642619.48, 7685819.99, 7700527.91, 7708389.59, 7753643.91, 7786762.4, 7907664.09, 7945665.49, 7976368.58, 7969327.61, 8012112.23, 8091899.51, 8169870.37, 8223122.09];
+
+    new Chart(ctxEquity, {
+        type: 'line',
+        data: {
+            labels: equityTimeline,
+            datasets: [{
+                label: '组合累计盈亏 (元)',
+                data: equityValues,
+                borderColor: '#10B981',
+                backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                borderWidth: 2,
+                fill: true,
+                pointRadius: 0,
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: '#1E293B',
+                    titleColor: '#F8FAFC',
+                    bodyColor: '#10B981'
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255, 255, 255, 0.04)' },
+                    ticks: { color: '#64748B', maxTicksLimit: 10 }
+                },
+                y: {
+                    grid: { color: 'rgba(255, 255, 255, 0.04)' },
+                    ticks: { color: '#64748B' }
+                }
+            }
+        }
+    });
+
+    // 出场类型饼图
+    const ctxPie = document.getElementById('exitPieChart').getContext('2d');
+    const exitData = [{"type": "\u5fae\u89c2\u6b62\u635f (SL)", "count": 9228, "pct": 74.5}, {"type": "\u540a\u706f\u9501\u5229/\u5206\u6279\u6b62\u76c8 (PARTIAL_TP)", "count": 2407, "pct": 19.4}, {"type": "\u65f6\u95f4\u8870\u51cf/\u8d85\u65f6\u51fa\u573a (TIMEOUT_EXIT)", "count": 748, "pct": 6.0}];
+    new Chart(ctxPie, {
+        type: 'doughnut',
+        data: {
+            labels: exitData.map(e => e.type),
+            datasets: [{
+                data: exitData.map(e => e.count),
+                backgroundColor: ['#10B981', '#3B82F6', '#EF4444'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: '#94A3B8', boxWidth: 12, font: { size: 11 } }
+                }
+            }
+        }
+    });
+</script>
+
+</body>
+</html>

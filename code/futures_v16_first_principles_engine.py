@@ -91,7 +91,9 @@ class FirstPrinciplesV16Engine:
         }).dropna()
         df_1h['ema_20_1h'] = calculate_ema(df_1h['close'], 20)
         df_1h['ema_50_1h'] = calculate_ema(df_1h['close'], 50)
-        df_1h['trend_1h'] = np.where(df_1h['ema_20_1h'] > df_1h['ema_50_1h'], 1, -1)
+        df_1h['trend_1h_raw'] = np.where(df_1h['ema_20_1h'] > df_1h['ema_50_1h'], 1, -1)
+        # 严格杜绝前瞻：15m 只看上一已完结整点小时
+        df_1h['trend_1h'] = df_1h['trend_1h_raw'].shift(1).fillna(0)
 
         # 归一化回 15m
         df_work = df_work.reset_index()

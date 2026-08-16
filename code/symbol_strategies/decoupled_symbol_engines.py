@@ -304,6 +304,7 @@ class DecoupledSymbolStrategyRunner:
         lots = 0
         holding_bars = 0
         half_locked = False
+        entry_reason_desc = ""
         trades = []
         eq_curve = []
         datetime_list = []
@@ -375,15 +376,53 @@ class DecoupledSymbolStrategyRunner:
                     capital += lock_pnl
                     lots -= half_lots
                     half_locked = True
-                    trades.append({"pnl_rmb": lock_pnl, "entry_dt": entry_time, "exit_dt": curr_dt, "type": "LONG_PPO_LOCK"})
+                    trades.append({
+                        "symbol": symbol,
+                        "name": cfg["name"],
+                        "pos_side": "做多 (LONG)",
+                        "lots": half_lots,
+                        "entry_dt": entry_time,
+                        "entry_price": round(float(entry_p), 2),
+                        "entry_reason": entry_reason_desc,
+                        "exit_dt": curr_dt,
+                        "exit_price": round(float(curr_p), 2),
+                        "exit_reason": f"PPO 阶梯减半锁利 (浮盈达 {profit_atrs:.1f} ATR，锁定 50% 仓位利润)",
+                        "pnl_rmb": round(float(lock_pnl), 2),
+                        "return_pct": round((curr_p - entry_p) / entry_p * 100, 2),
+                        "holding_bars": holding_bars,
+                        "type": "LONG_PPO_LOCK"
+                    })
 
                 if curr_l <= sl_p:
                     exit_p = sl_p - slippage
                     pnl = (exit_p - entry_p) * multiplier * lots - (abs(exit_p) + abs(entry_p)) * multiplier * lots * fee_rate
                     capital += pnl
+                    
+                    if profit_atrs >= trail_atr_mult:
+                        exit_desc = f"PPO 吊灯追踪止盈 (最高价 {highest_p:.2f} 回撤 1.2 ATR 触发止盈线 {sl_p:.2f})"
+                    elif profit_atrs >= be_atr_mult:
+                        exit_desc = f"保本安全垫触发 (抬高防守线至 {sl_p:.2f} 保护本金并锁定微利)"
+                    else:
+                        exit_desc = f"触及硬止损防守边界 (跌破 -{sl_atr_mult:.1f} ATR 止损线 {sl_p:.2f} 强制清仓)"
+
+                    trades.append({
+                        "symbol": symbol,
+                        "name": cfg["name"],
+                        "pos_side": "做多 (LONG)",
+                        "lots": lots,
+                        "entry_dt": entry_time,
+                        "entry_price": round(float(entry_p), 2),
+                        "entry_reason": entry_reason_desc,
+                        "exit_dt": curr_dt,
+                        "exit_price": round(float(exit_p), 2),
+                        "exit_reason": exit_desc,
+                        "pnl_rmb": round(float(pnl), 2),
+                        "return_pct": round((exit_p - entry_p) / entry_p * 100, 2),
+                        "holding_bars": holding_bars,
+                        "type": "LONG"
+                    })
                     pos = 0
                     half_locked = False
-                    trades.append({"pnl_rmb": pnl, "entry_dt": entry_time, "exit_dt": curr_dt, "type": "LONG"})
 
             elif pos == -1:
                 lowest_p = min(lowest_p, curr_l)
@@ -400,15 +439,53 @@ class DecoupledSymbolStrategyRunner:
                     capital += lock_pnl
                     lots -= half_lots
                     half_locked = True
-                    trades.append({"pnl_rmb": lock_pnl, "entry_dt": entry_time, "exit_dt": curr_dt, "type": "SHORT_PPO_LOCK"})
+                    trades.append({
+                        "symbol": symbol,
+                        "name": cfg["name"],
+                        "pos_side": "做空 (SHORT)",
+                        "lots": half_lots,
+                        "entry_dt": entry_time,
+                        "entry_price": round(float(entry_p), 2),
+                        "entry_reason": entry_reason_desc,
+                        "exit_dt": curr_dt,
+                        "exit_price": round(float(curr_p), 2),
+                        "exit_reason": f"PPO 阶梯减半锁利 (浮盈达 {profit_atrs:.1f} ATR，锁定 50% 仓位利润)",
+                        "pnl_rmb": round(float(lock_pnl), 2),
+                        "return_pct": round((entry_p - curr_p) / entry_p * 100, 2),
+                        "holding_bars": holding_bars,
+                        "type": "SHORT_PPO_LOCK"
+                    })
 
                 if curr_h >= sl_p:
                     exit_p = sl_p + slippage
                     pnl = (entry_p - exit_p) * multiplier * lots - (abs(exit_p) + abs(entry_p)) * multiplier * lots * fee_rate
                     capital += pnl
+                    
+                    if profit_atrs >= trail_atr_mult:
+                        exit_desc = f"PPO 吊灯追踪止盈 (最低价 {lowest_p:.2f} 反弹 1.2 ATR 触发止盈线 {sl_p:.2f})"
+                    elif profit_atrs >= be_atr_mult:
+                        exit_desc = f"保本安全垫触发 (压低防守线至 {sl_p:.2f} 保护本金并锁定微利)"
+                    else:
+                        exit_desc = f"触及硬止损防守边界 (反弹突破 +{sl_atr_mult:.1f} ATR 止损线 {sl_p:.2f} 强制清仓)"
+
+                    trades.append({
+                        "symbol": symbol,
+                        "name": cfg["name"],
+                        "pos_side": "做空 (SHORT)",
+                        "lots": lots,
+                        "entry_dt": entry_time,
+                        "entry_price": round(float(entry_p), 2),
+                        "entry_reason": entry_reason_desc,
+                        "exit_dt": curr_dt,
+                        "exit_price": round(float(exit_p), 2),
+                        "exit_reason": exit_desc,
+                        "pnl_rmb": round(float(pnl), 2),
+                        "return_pct": round((entry_p - exit_p) / entry_p * 100, 2),
+                        "holding_bars": holding_bars,
+                        "type": "SHORT"
+                    })
                     pos = 0
                     half_locked = False
-                    trades.append({"pnl_rmb": pnl, "entry_dt": entry_time, "exit_dt": curr_dt, "type": "SHORT"})
 
             if pos != 0:
                 continue
@@ -438,6 +515,10 @@ class DecoupledSymbolStrategyRunner:
                         highest_p = entry_p
                         holding_bars = 0
                         half_locked = False
+                        entry_reason_desc = (
+                            f"1h主趋势向上(trend=1) + 波动挤压突破(sq={sq:.2f}<{squeeze_limit}) + "
+                            f"放量(vr={vr:.2f}>1.1) + 唐奇安回踩(dd={dd:.2f}) + LightGBM多头概率(P={pl:.1%}>={prob_thresh:.0%})"
+                        )
                 elif t1h == -1 and sq < squeeze_limit and vr > 1.10 and -0.4 < dd < 0.6:
                     if not np.isnan(ps) and ps >= prob_thresh:
                         pos = -1
@@ -448,6 +529,10 @@ class DecoupledSymbolStrategyRunner:
                         lowest_p = entry_p
                         holding_bars = 0
                         half_locked = False
+                        entry_reason_desc = (
+                            f"1h主趋势向下(trend=-1) + 波动挤压突破(sq={sq:.2f}<{squeeze_limit}) + "
+                            f"放量(vr={vr:.2f}>1.1) + 唐奇安回踩(dd={dd:.2f}) + LightGBM空头概率(P={ps:.1%}>={prob_thresh:.0%})"
+                        )
             else:
                 # 其他品种标准动量放量突破入场
                 if t1h == 1 and sq < squeeze_limit and vr > 1.10:
@@ -460,6 +545,10 @@ class DecoupledSymbolStrategyRunner:
                         highest_p = entry_p
                         holding_bars = 0
                         half_locked = False
+                        entry_reason_desc = (
+                            f"1h主趋势向上(trend=1) + 波动挤压突破(sq={sq:.2f}<{squeeze_limit}) + "
+                            f"20周期均量放大(vr={vr:.2f}>1.10) + LightGBM多头预测概率(P={pl:.1%}>={prob_thresh:.0%})"
+                        )
                 elif t1h == -1 and sq < squeeze_limit and vr > 1.10:
                     if not np.isnan(ps) and ps >= prob_thresh:
                         pos = -1
@@ -470,6 +559,10 @@ class DecoupledSymbolStrategyRunner:
                         lowest_p = entry_p
                         holding_bars = 0
                         half_locked = False
+                        entry_reason_desc = (
+                            f"1h主趋势向下(trend=-1) + 波动挤压突破(sq={sq:.2f}<{squeeze_limit}) + "
+                            f"20周期均量放大(vr={vr:.2f}>1.10) + LightGBM空头预测概率(P={ps:.1%}>={prob_thresh:.0%})"
+                        )
 
         wins = [t for t in trades if t["pnl_rmb"] > 0]
         losses = [t for t in trades if t["pnl_rmb"] < 0]
