@@ -1196,6 +1196,30 @@ def test_structural_data_violations_fail_closed(mutate):
         validate_and_segment(bars, ResearchConfig(min_symbol_rows=1, min_fold_rows=1))
 
 
+def test_prepare_segmented_bars_resamples_5m_without_crossing_gaps():
+    bars = make_bars(12)
+    bars.loc[6:, "trade_time"] += pd.Timedelta(minutes=5)
+    manifest = [{
+        "symbol": "AG_IDX", "source_path": "source.txt",
+        "source_sha256": "a" * 64,
+    }]
+    bars.attrs["source_manifest"] = manifest
+
+    segmented, _ = research._prepare_segmented_bars(
+        bars,
+        ResearchConfig(
+            timeframe="15m", min_symbol_rows=1, min_symbols=1,
+            min_fold_rows=1,
+        ),
+    )
+
+    assert segmented.groupby("segment_id").size().tolist() == [2, 2]
+    assert segmented.groupby("segment_id")["trade_time"].diff().dropna().eq(
+        pd.Timedelta(minutes=15)
+    ).all()
+    assert segmented.attrs["source_manifest"] == manifest
+
+
 def make_scored(symbol, decision_time, probability, entry_open, exit_open):
     decision_time = pd.Timestamp(decision_time)
     return {
@@ -1233,6 +1257,30 @@ def make_mark_market(scored=None):
                 "close": close,
             })
     return pd.DataFrame(rows).drop_duplicates(["symbol", "segment_id", "trade_time"])
+
+
+def test_standardized_ledger_accepts_regular_15m_paths():
+    decision = pd.Timestamp("2026-01-01 09:00")
+    scored = pd.DataFrame([{
+        "symbol": "AG_IDX", "segment_id": "AG_IDX:1",
+        "decision_time": decision,
+        "entry_time": decision + pd.Timedelta(minutes=15),
+        "entry_open": 100.0,
+        "exit_time": decision + pd.Timedelta(minutes=45),
+        "exit_open": 103.0,
+        "probability": 0.80,
+    }])
+    market = pd.DataFrame({
+        "symbol": "AG_IDX", "segment_id": "AG_IDX:1",
+        "trade_time": pd.date_range(decision, periods=4, freq="15min"),
+        "open": [100.0, 100.0, 101.0, 103.0],
+        "close": [100.0, 100.0, 101.0, 103.0],
+    })
+
+    trades, daily = simulate_standardized_ledger(scored, market, 0.55, 5, 1)
+
+    assert len(trades) == 1
+    assert not daily.empty
 
 
 def test_ledger_reconciles_long_short_and_double_sided_costs():

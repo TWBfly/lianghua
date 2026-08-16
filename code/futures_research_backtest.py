@@ -52,6 +52,7 @@ BAR_COLUMNS = (
 
 @dataclass(frozen=True)
 class ResearchConfig:
+    timeframe: str = "5m"
     horizon: int = 6
     discontinuity: float = 0.03
     max_zero_volume_fraction: float = 0.50
@@ -237,6 +238,56 @@ def validate_and_segment(bars: pd.DataFrame, config=ResearchConfig()) -> tuple[p
     clean = pd.concat(clean_groups, ignore_index=True) if clean_groups else frame.iloc[0:0].assign(segment_id=pd.Series(dtype=str))
     quality = pd.DataFrame(quality_rows).set_index("symbol")
     return clean, quality
+
+
+def _prepare_segmented_bars(bars, config=ResearchConfig()):
+    segmented, quality = validate_and_segment(bars, config)
+    if config.timeframe == "5m":
+        segmented.attrs = dict(bars.attrs)
+        return segmented, quality
+    if config.timeframe != "15m":
+        raise ResearchRejected("timeframe must be 5m or 15m")
+
+    rows = []
+    for (_, segment_id), group in segmented.groupby(
+        ["symbol", "segment_id"], sort=False
+    ):
+        group = group.sort_values("trade_time", kind="stable")
+        for start in range(0, len(group) - 2, 3):
+            window = group.iloc[start:start + 3]
+            if not window["trade_time"].diff().dropna().eq(
+                pd.Timedelta(minutes=5)
+            ).all():
+                continue
+            row = {
+                "symbol": window["symbol"].iloc[0],
+                "timeframe": "15m",
+                "trade_time": window["trade_time"].iloc[-1],
+                "open": float(window["open"].iloc[0]),
+                "high": float(window["high"].max()),
+                "low": float(window["low"].min()),
+                "close": float(window["close"].iloc[-1]),
+                "volume": float(window["volume"].sum()),
+                "segment_id": segment_id,
+            }
+            for column, method in (
+                ("amount", "sum"), ("open_interest", "last"),
+                ("settlement", "last"), ("series_type", "first"),
+            ):
+                if column in window:
+                    values = window[column].dropna()
+                    row[column] = (
+                        float(values.sum()) if method == "sum" and not values.empty
+                        else values.iloc[-1] if method == "last" and not values.empty
+                        else values.iloc[0] if method == "first" and not values.empty
+                        else np.nan
+                    )
+            rows.append(row)
+    result = pd.DataFrame(rows)
+    if result.empty:
+        raise ResearchRejected("no complete 15m bars after causal resampling")
+    result.attrs = dict(bars.attrs)
+    return result.reset_index(drop=True), quality
 
 
 def assert_feature_columns(matrix):
@@ -649,10 +700,9 @@ def _segment_arrays(group):
     group = group.sort_values("trade_time", kind="stable")
     times = group["trade_time"].to_numpy(dtype="datetime64[ns]").view(np.int64)
     positions = {int(timestamp): position for position, timestamp in enumerate(times)}
-    gap_prefix = np.r_[
-        0,
-        np.cumsum(np.diff(times) != pd.Timedelta(minutes=5).value),
-    ]
+    differences = np.diff(times)
+    expected = differences.min() if len(differences) else 0
+    gap_prefix = np.r_[0, np.cumsum(differences != expected)]
     return (
         times,
         group["open"].to_numpy(dtype=float),
@@ -781,7 +831,7 @@ def simulate_standardized_ledger(scored, market, threshold, cost_bps, symbol_cou
         if exit_position <= entry_position:
             raise ResearchRejected("exit must follow entry")
         if gap_prefix[exit_position] != gap_prefix[decision_position]:
-            raise ResearchRejected("trade path must be continuous five-minute bars")
+            raise ResearchRejected("trade path must be continuous fixed-frequency bars")
         evaluation_times.update(times[decision_position:exit_position + 1])
 
         terminal_close = pd.isna(row.exit_open)
@@ -1686,8 +1736,8 @@ def run_prefix_attack(context):
     if not isinstance(appended, pd.DataFrame) or appended.empty:
         raise ResearchRejected("prefix attack requires future bars")
 
-    original_segmented, _ = validate_and_segment(bars, config)
-    extended_segmented, _ = validate_and_segment(
+    original_segmented, _ = _prepare_segmented_bars(bars, config)
+    extended_segmented, _ = _prepare_segmented_bars(
         pd.concat([bars, appended], ignore_index=True), config
     )
     full_original = build_causal_dataset(original_segmented, config)
@@ -3157,7 +3207,7 @@ def run_research(db_path, output_dir, config=ResearchConfig()):
     quality = None
     try:
         bars = load_futures_bars(db_path)
-        segmented, quality = validate_and_segment(bars, config)
+        segmented, quality = _prepare_segmented_bars(bars, config)
         if (
             isinstance(config.horizon, (bool, np.bool_))
             or not isinstance(config.horizon, (int, np.integer))
