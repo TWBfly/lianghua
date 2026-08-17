@@ -349,15 +349,21 @@ def candidate_names(model_backend="native"):
 
 
 def _research_domain(config):
-    models = list(candidate_names(config.model_backend))
-    thresholds = [float(value) for value in config.thresholds]
+    try:
+        models = list(candidate_names(config.model_backend))
+    except (ResearchRejected, TypeError, ValueError):
+        models = []
+    try:
+        thresholds = [float(value) for value in config.thresholds]
+    except (TypeError, ValueError):
+        thresholds = []
     return {
         "selectable_models": models,
         "thresholds": thresholds,
         "candidate_threshold_pairs": len(models) * len(thresholds),
         "feature_names": list(FEATURE_COLUMNS),
-        "horizon": int(config.horizon),
-        "embargo_bars": int(config.embargo_bars),
+        "horizon": config.horizon,
+        "embargo_bars": config.embargo_bars,
     }
 
 
@@ -3170,15 +3176,16 @@ def rejected_result(run_id, config, reason, quality=None):
     quality_rows = (
         [] if quality is None else _records(quality.reset_index())
     )
+    domain = _research_domain(config)
     return _json_safe({
         "run_id": run_id,
         "status": "RESEARCH_REJECTED",
         "provenance": {},
-        "research_domain": _research_domain(config),
+        "research_domain": domain,
         "run_identity": None,
         "config": asdict(config),
         "features": FEATURE_COLUMNS,
-        "candidates": candidate_names(config.model_backend),
+        "candidates": domain["selectable_models"],
         "seed": config.seed,
         "selected_candidate": None,
         "selection_scores": [],

@@ -3141,6 +3141,25 @@ def test_run_research_invalid_database_is_evidence_complete_rejection(
         assert not db_path.exists()
 
 
+def test_invalid_config_still_writes_rejected_research_domain(tmp_path):
+    result = research.run_research(
+        tmp_path / "missing.db",
+        tmp_path / "invalid-config-report",
+        ResearchConfig(
+            model_backend="invalid",
+            horizon="bad",
+            embargo_bars="bad",
+            thresholds=("bad",),
+        ),
+    )
+
+    assert result["status"] == "RESEARCH_REJECTED"
+    assert result["research_domain"]["selectable_models"] == []
+    assert result["research_domain"]["thresholds"] == []
+    assert result["research_domain"]["candidate_threshold_pairs"] == 0
+    assert Path(result["artifacts"]["report.json"]).is_file()
+
+
 def test_run_research_rejects_impossible_segments_before_causal_build(
         tmp_path, monkeypatch):
     bars = make_bars(5_500)
