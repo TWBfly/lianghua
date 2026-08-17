@@ -20,6 +20,11 @@ from ashare_data_engine import AShareDataEngine
 from backtest_metrics import build_daily_ledger, calculate_performance
 from learning_loop import EvolutionManager, ExperienceStore, ModelRegistry
 from market_data import MarketDataError, validate_daily_bars
+from data_contract import (
+    DataContractError,
+    validate_stock_contract,
+    validate_stock_universe,
+)
 from market_regime import (
     INDEX_CODE as REGIME_INDEX_CODE,
     N_STATES as REGIME_STATES,
@@ -191,6 +196,14 @@ def _backtest_metadata(fallback_signal_count, universe_mode,
                        data_provenance, backtest_mode, strategy,
                        insufficient_history_count=0,
                        market_regime=None):
+    provenance_items = (
+        data_provenance if isinstance(data_provenance, list)
+        else [data_provenance]
+    )
+    def common_value(key, fallback=None):
+        values = {item.get(key) for item in provenance_items}
+        return next(iter(values)) if len(values) == 1 else fallback
+
     price_semantics = _price_semantics(data_provenance)
     limitations = [
         "NO_POINT_IN_TIME_UNIVERSE",
@@ -203,6 +216,22 @@ def _backtest_metadata(fallback_signal_count, universe_mode,
         limitations.append("UNVERIFIED_MARKET_REGIME_DATA")
     metadata = {
         "engine": "NATIVE_A_SHARE_EVENT_V2",
+        "asset_type": common_value("asset_type", "MIXED"),
+        "source": common_value("source", "MULTIPLE"),
+        "verification_status": (
+            "VERIFIED" if provenance_items
+            and all(item.get("verification_status") == "VERIFIED"
+                    for item in provenance_items)
+            else "UNVERIFIED"
+        ),
+        "coverage_start": min(
+            (item.get("start_date") for item in provenance_items),
+            default=None,
+        ),
+        "coverage_end": max(
+            (item.get("end_date") for item in provenance_items),
+            default=None,
+        ),
         "price_mode": (
             "QFQ_ADJUSTED_PROXY"
             if price_semantics == "ADJUSTED_PROXY"
@@ -739,6 +768,10 @@ class KLineBacktestEngine:
         local_connection = conn is None
         db_connection = conn or self.get_connection()
         try:
+            data_provenance = validate_stock_contract(
+                db_connection, clean_symbol, start_date, end_date,
+                backtest_mode,
+            )
             frame, name, pe_ttm = self._load_market(
                 db_connection, clean_symbol, start_date, end_date
             )
@@ -748,6 +781,8 @@ class KLineBacktestEngine:
                 self._load_market_regimes(db_connection, end_date)
                 if regime_filter else None
             )
+        except DataContractError as exc:
+            return {"error": str(exc), "error_code": exc.error_code}
         except MarketDataError as exc:
             return {"error": f"行情数据质量错误: {exc}"}
         finally:
@@ -762,13 +797,6 @@ class KLineBacktestEngine:
                 "error": f"标的 [{clean_symbol} {name}] 属于 ST / 退市预警股票，不符合芒格/巴菲特优质股票池硬安全规则",
                 "error_code": "JUNK_STOCK_REJECTED",
             }
-
-        data_provenance = self._data_provenance(clean_symbol, frame)
-        provenance_error = _provenance_error(
-            data_provenance, backtest_mode
-        )
-        if provenance_error:
-            return provenance_error
 
         run_id = uuid.uuid4().hex
         market_frame, decisions, predictions = self._build_symbol_run(
@@ -969,28 +997,19 @@ class KLineBacktestEngine:
         with self.get_connection() as conn:
             automatic_universe = symbols is None
             if automatic_universe:
-                from munger_dalio_ai_screener import MungerDalioAIScreener
-                screener = MungerDalioAIScreener(db_path=self.db_path)
-                holy_grail_candidates = screener.get_diversified_holy_grail_universe(max_per_sector=2, total_target=12)
-                existing_syms = [
-                    str(row[0]) for row in conn.execute(
-                        "SELECT DISTINCT symbol FROM stock_daily WHERE symbol IN ({})"
-                        .format(",".join("?" for _ in holy_grail_candidates)),
-                        holy_grail_candidates
-                    ).fetchall()
+                symbols = [
+                    str(row[0]) for row in conn.execute("""
+                        SELECT c.symbol FROM stock_daily_catalog c
+                        WHERE c.asset_type IN ('STOCK', 'ETF')
+                          AND c.symbol NOT LIKE '%_IDX'
+                        ORDER BY c.symbol LIMIT 12
+                    """).fetchall()
                 ]
-                symbols = existing_syms if len(existing_syms) >= 6 else holy_grail_candidates
-
-
                 if not symbols:
-                    symbols = [
-                        str(row[0]) for row in conn.execute("""
-                            SELECT symbol FROM stock_daily
-                            GROUP BY symbol
-                            HAVING MIN(trade_date) <= ?
-                            ORDER BY symbol LIMIT 12
-                        """, (start_date,)).fetchall()
-                    ]
+                    return {
+                        "error": "no verified stock/ETF universe is available",
+                        "error_code": "INSUFFICIENT_VERIFIED_UNIVERSE",
+                    }
 
             else:
                 symbols = [str(symbol) for symbol in symbols]
@@ -1000,6 +1019,16 @@ class KLineBacktestEngine:
             )
             if invalid:
                 return {"error": f"股票代码格式错误: {invalid}"}
+
+            try:
+                universe_provenance = validate_stock_universe(
+                    conn, symbols, start_date, end_date, backtest_mode
+                )
+            except DataContractError as exc:
+                return {"error": str(exc), "error_code": exc.error_code}
+            provenance_by_symbol = {
+                item["symbol"]: item for item in universe_provenance
+            }
 
             run_id = uuid.uuid4().hex
             regimes = (
@@ -1023,12 +1052,7 @@ class KLineBacktestEngine:
                     frame = validate_daily_bars(frame, symbol)
                 except MarketDataError as exc:
                     return {"error": f"行情数据质量错误: {exc}"}
-                provenance = self._data_provenance(symbol, frame)
-                provenance_error = _provenance_error(
-                    provenance, backtest_mode
-                )
-                if provenance_error:
-                    return provenance_error
+                provenance = provenance_by_symbol[symbol]
                 market_frame, symbol_decisions, symbol_predictions = (
                     self._build_symbol_run(
                         symbol,

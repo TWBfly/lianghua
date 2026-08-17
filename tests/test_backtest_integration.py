@@ -39,7 +39,7 @@ def test_engine_keeps_manual_data_sync_capability(tmp_path):
 
 
 def build_test_db(tmp_path, symbols=("000001",), price=10.0,
-                  periods=220):
+                  periods=261):
     db_path = tmp_path / "quant.db"
     dates = pd.bdate_range("2025-01-01", periods=periods)
     with sqlite3.connect(db_path) as conn:
@@ -68,6 +68,16 @@ def build_test_db(tmp_path, symbols=("000001",), price=10.0,
                 total_mv REAL,
                 circ_mv REAL,
                 updated_at TEXT
+            );
+            CREATE TABLE stock_daily_catalog (
+                symbol TEXT PRIMARY KEY,
+                price_mode TEXT NOT NULL,
+                source TEXT NOT NULL,
+                start_date TEXT NOT NULL,
+                end_date TEXT NOT NULL,
+                row_count INTEGER NOT NULL,
+                asset_type TEXT NOT NULL,
+                updated_at TEXT NOT NULL
             );
         """)
         for symbol_index, symbol in enumerate(symbols):
@@ -101,6 +111,14 @@ def build_test_db(tmp_path, symbols=("000001",), price=10.0,
                 "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 rows,
             )
+            conn.execute("""
+                INSERT INTO stock_daily_catalog
+                (symbol, price_mode, source, start_date, end_date, row_count,
+                 asset_type, updated_at)
+                SELECT ?, 'QFQ', 'TEST_QFQ', MIN(trade_date), MAX(trade_date),
+                       COUNT(*), 'STOCK', 'now'
+                FROM stock_daily WHERE symbol=?
+            """, (symbol, symbol))
             conn.execute(
                 "INSERT INTO stock_basic VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (
@@ -140,18 +158,18 @@ def insufficient_predictions(df_kline, df_factors, symbol, **_kwargs):
     }, index=index)
 
 
-def catalog_symbol(engine, symbol, source="TEST_QFQ"):
+def catalog_symbol(engine, symbol, source="TEST_QFQ", asset_type="STOCK"):
     with engine.get_connection() as conn:
         start_date, end_date, row_count = conn.execute("""
             SELECT MIN(trade_date), MAX(trade_date), COUNT(*)
             FROM stock_daily WHERE symbol=?
         """, (symbol,)).fetchone()
         conn.execute("""
-            INSERT INTO stock_daily_catalog (
-                symbol, price_mode, source, start_date, end_date,
-                row_count, updated_at
-            ) VALUES (?, 'QFQ', ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        """, (symbol, source, start_date, end_date, row_count))
+            UPDATE stock_daily_catalog
+            SET price_mode='QFQ', source=?, start_date=?, end_date=?,
+                row_count=?, asset_type=?, updated_at=CURRENT_TIMESTAMP
+            WHERE symbol=?
+        """, (source, start_date, end_date, row_count, asset_type, symbol))
 
 
 def assert_enriched_backtest(result, metrics_key):
@@ -195,6 +213,62 @@ def test_insufficient_ml_history_creates_hold_without_orders(
     assert result["backtest_metadata"]["training_mode"] == (
         "FIXED_WINDOW_WALK_FORWARD"
     )
+
+
+def test_research_proxy_rejects_uncataloged_stock(tmp_path, monkeypatch):
+    engine = KLineBacktestEngine(build_test_db(tmp_path))
+    with engine.get_connection() as conn:
+        conn.execute("DELETE FROM stock_daily_catalog WHERE symbol='000001'")
+    monkeypatch.setattr(
+        backtest_kline_engine, "walk_forward_predict", deterministic_predictions
+    )
+
+    result = engine.run_kline_backtest(
+        "000001", "2025-07-01", "2025-10-31",
+        backtest_mode="RESEARCH_PROXY",
+    )
+
+    assert result["error_code"] == "UNCATALOGED_STOCK"
+
+
+def test_idx_symbol_is_rejected_by_stock_backtest(tmp_path):
+    engine = KLineBacktestEngine(build_test_db(tmp_path, symbols=("AG_IDX",)))
+
+    result = engine.run_kline_backtest(
+        "AG_IDX", "2025-07-01", "2025-10-31",
+        backtest_mode="RESEARCH_PROXY",
+    )
+
+    assert result["error_code"] == "ASSET_TYPE_MISMATCH"
+
+
+def test_portfolio_does_not_fallback_to_mixed_stock_daily_symbols(tmp_path):
+    engine = KLineBacktestEngine(
+        build_test_db(tmp_path, symbols=("AG_IDX",))
+    )
+
+    result = engine.run_portfolio_backtest(
+        symbols=None, start_date="2025-07-01", end_date="2025-10-31",
+        backtest_mode="RESEARCH_PROXY",
+    )
+
+    assert result["error_code"] == "INSUFFICIENT_VERIFIED_UNIVERSE"
+
+
+def test_research_proxy_metadata_states_adjusted_proxy(tmp_path, monkeypatch):
+    engine = KLineBacktestEngine(build_test_db(tmp_path))
+    catalog_symbol(engine, "000001", asset_type="STOCK")
+    monkeypatch.setattr(
+        backtest_kline_engine, "walk_forward_predict", deterministic_predictions
+    )
+
+    result = engine.run_kline_backtest(
+        "000001", "2025-07-01", "2025-10-31",
+        backtest_mode="RESEARCH_PROXY",
+    )
+
+    assert result["backtest_metadata"]["asset_type"] == "STOCK"
+    assert result["backtest_metadata"]["price_semantics"] == "ADJUSTED_PROXY"
 
 
 def test_backtest_metadata_reports_fixed_training_policy(
@@ -278,12 +352,14 @@ def test_causal_ml_buy_decision_carries_atr_risk_metadata(
 
 def test_strict_backtest_rejects_uncataloged_data(tmp_path):
     engine = KLineBacktestEngine(build_test_db(tmp_path))
+    with engine.get_connection() as conn:
+        conn.execute("DELETE FROM stock_daily_catalog WHERE symbol='000001'")
 
     result = engine.run_kline_backtest(
         "000001", "2025-07-01", "2025-12-31", 100_000
     )
 
-    assert result["error_code"] == "UNVERIFIED_DATA_PROVENANCE"
+    assert result["error_code"] == "UNCATALOGED_STOCK"
 
 
 def test_strict_backtest_rejects_qfq_execution_proxy(tmp_path):
@@ -328,6 +404,8 @@ def test_explicit_research_proxy_labels_verified_qfq(
 def test_explicit_research_proxy_labels_legacy_data(
         tmp_path, monkeypatch):
     engine = KLineBacktestEngine(build_test_db(tmp_path))
+    with engine.get_connection() as conn:
+        conn.execute("DELETE FROM stock_daily_catalog WHERE symbol='000001'")
     monkeypatch.setattr(
         backtest_kline_engine,
         "walk_forward_predict",
@@ -339,13 +417,7 @@ def test_explicit_research_proxy_labels_legacy_data(
         backtest_mode="RESEARCH_PROXY",
     )
 
-    provenance = result["backtest_metadata"]["data_provenance"]
-    assert provenance["price_mode"] == "UNKNOWN"
-    assert provenance["source"] == "LEGACY_UNCATALOGED"
-    assert provenance["verification_status"] == "UNVERIFIED"
-    assert result["backtest_metadata"]["price_semantics"] == (
-        "LEGACY_UNVERIFIED"
-    )
+    assert result["error_code"] == "UNCATALOGED_STOCK"
 
 
 def test_portfolio_uses_same_strict_provenance_gate(tmp_path):
@@ -360,7 +432,7 @@ def test_portfolio_uses_same_strict_provenance_gate(tmp_path):
         symbols=["000001", "000002"],
     )
 
-    assert result["error_code"] == "UNVERIFIED_DATA_PROVENANCE"
+    assert result["error_code"] == "RAW_EXECUTION_UNAVAILABLE"
 
 
 def test_mechanical_strategy_uses_shared_simulator_not_ml_pipeline(
@@ -588,7 +660,8 @@ def test_invalid_market_data_returns_existing_error_shape(
     )
 
     result = KLineBacktestEngine(db_path).run_kline_backtest(
-        "000001", "2025-01-01", "2025-12-31", 100_000
+        "000001", "2025-01-01", "2025-12-31", 100_000,
+        backtest_mode="RESEARCH_PROXY",
     )
 
     assert set(result) == {"error"}
@@ -656,40 +729,16 @@ def test_portfolio_engine_uses_one_account_and_real_drawdown(
         f"{result['equity_curve'][0]['date']} 至 "
         f"{result['equity_curve'][-1]['date']}"
     )
-    assert result["backtest_metadata"] == {
-        "engine": "NATIVE_A_SHARE_EVENT_V2",
-        "price_mode": "LEGACY_UNVERIFIED",
-        "price_semantics": "LEGACY_UNVERIFIED",
-        "backtest_mode": "RESEARCH_PROXY",
-        "strategy_name": "causal_ml",
-        "ai_used": False,
-        "data_license_status": "UNVERIFIED_FOR_COMMERCIAL_USE",
-        "universe_mode": "USER_SELECTED",
-        "fallback_signal_count": 0,
-        "training_mode": "FIXED_WINDOW_WALK_FORWARD",
-        "training_window": 504,
-        "retrain_every": 21,
-        "label_horizon": 5,
-        "holdout_size": 252,
-        "insufficient_history_count": 0,
-        "research_limitations": [
-            "NO_POINT_IN_TIME_UNIVERSE",
-            "NO_HISTORICAL_ST_STATUS",
-            "NO_HISTORICAL_IPO_LIMIT_STATUS",
-            "NO_CORPORATE_ACTION_CASH_LEDGER",
-            "TRANSACTION_RULES_APPROXIMATE",
-        ],
-        "data_provenance": [{
-            "symbol": symbol,
-            "price_mode": "UNKNOWN",
-            "source": "LEGACY_UNCATALOGED",
-            "start_date": result["equity_curve"][0]["date"],
-            "end_date": result["equity_curve"][-1]["date"],
-            "row_count": len(result["equity_curve"]),
-            "updated_at": None,
-            "verification_status": "UNVERIFIED",
-        } for symbol in ("000001", "000002")],
-    }
+    metadata = result["backtest_metadata"]
+    assert metadata["asset_type"] == "STOCK"
+    assert metadata["price_mode"] == "QFQ_ADJUSTED_PROXY"
+    assert metadata["price_semantics"] == "ADJUSTED_PROXY"
+    assert metadata["verification_status"] == "VERIFIED"
+    assert all(
+        item["asset_type"] == "STOCK"
+        and item["price_semantics"] == "ADJUSTED_PROXY"
+        for item in metadata["data_provenance"]
+    )
     allocation = result["kelly_allocations"][0]
     assert allocation["allocation_method"] == "FIXED_RISK_CAP"
     assert "allocation_pct" in allocation
@@ -701,7 +750,7 @@ def test_portfolio_engine_uses_one_account_and_real_drawdown(
 def test_yearly_breakdown_uses_equity_for_every_calendar_year(
         tmp_path, monkeypatch):
     db_path = build_test_db(
-        tmp_path, symbols=("000001", "000002"), periods=300
+        tmp_path, symbols=("000001", "000002"), periods=540
     )
     monkeypatch.setattr(
         backtest_kline_engine,
@@ -828,7 +877,7 @@ def test_repeated_historical_run_does_not_duplicate_experiences(
         count = conn.execute(
             "SELECT COUNT(*) FROM experiences"
         ).fetchone()[0]
-    assert count == 220
+        assert count == 261
 
 
 def test_champion_is_used_only_after_its_training_cutoff(
