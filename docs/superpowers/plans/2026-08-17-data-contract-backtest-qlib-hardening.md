@@ -425,7 +425,31 @@ def test_research_proxy_metadata_states_adjusted_proxy(tmp_path, monkeypatch):
 
 Update the test helper `catalog_symbol()` to insert `asset_type='STOCK'` and
 update tests that intentionally exercise legacy unverified behavior to expect
-the new structured rejection.
+the new structured rejection. Update `build_test_db()` so its normal fixture
+creates a verified QFQ `stock_daily_catalog` row for every requested
+stock-like symbol; otherwise every existing proxy-mode test would fail for the
+right reason before reaching the behavior it is testing:
+
+```python
+conn.execute("""
+    CREATE TABLE stock_daily_catalog (
+        symbol TEXT PRIMARY KEY, price_mode TEXT NOT NULL, source TEXT NOT NULL,
+        start_date TEXT NOT NULL, end_date TEXT NOT NULL, row_count INTEGER NOT NULL,
+        asset_type TEXT NOT NULL, updated_at TEXT NOT NULL
+    )
+""")
+# after inserting each symbol's bars:
+conn.execute("""
+    INSERT INTO stock_daily_catalog
+    (symbol, price_mode, source, start_date, end_date, row_count, asset_type, updated_at)
+    SELECT ?, 'QFQ', 'TEST_QFQ', MIN(trade_date), MAX(trade_date), COUNT(*), 'STOCK', 'now'
+    FROM stock_daily WHERE symbol=?
+""", (symbol, symbol))
+```
+
+Change `catalog_symbol()` from an INSERT to an UPDATE of the existing fixture
+row, accepting `asset_type="STOCK"`; tests for unverified/uncataloged behavior
+must explicitly delete that row before invoking the engine.
 
 - [ ] **Step 2: Run the boundary tests and verify RED**
 
