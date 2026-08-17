@@ -1196,6 +1196,55 @@ def test_structural_data_violations_fail_closed(mutate):
         validate_and_segment(bars, ResearchConfig(min_symbol_rows=1, min_fold_rows=1))
 
 
+def _prepare_15m(bars):
+    return research._prepare_segmented_bars(
+        bars,
+        ResearchConfig(
+            timeframe="15m", min_symbol_rows=1,
+            min_symbols=1, min_fold_rows=1,
+        ),
+    )
+
+
+def test_15m_resampling_does_not_hide_internal_zero_volume():
+    bars = make_bars(6)
+    bars["trade_time"] = pd.date_range(
+        "2026-01-02 09:05", periods=6, freq="5min"
+    )
+    bars.loc[1, "volume"] = 0.0
+
+    segmented, quality = _prepare_15m(bars)
+
+    assert segmented["trade_time"].tolist() == [pd.Timestamp("2026-01-02 09:30")]
+    assert quality.loc["AG_IDX", "zero_volume_boundaries"] >= 1
+    assert quality.loc["AG_IDX", "aggregated_15m_rows"] == 1
+
+
+def test_15m_resampling_does_not_hide_internal_price_jump():
+    bars = make_bars(6)
+    bars["trade_time"] = pd.date_range(
+        "2026-01-02 09:05", periods=6, freq="5min"
+    )
+    bars.loc[1, ["open", "high", "low", "close"]] *= 1.04
+
+    segmented, quality = _prepare_15m(bars)
+
+    assert segmented["trade_time"].tolist() == [pd.Timestamp("2026-01-02 09:30")]
+    assert quality.loc["AG_IDX", "price_jump_boundaries"] >= 1
+
+
+def test_15m_resampling_uses_natural_boundaries_and_drops_partials():
+    bars = make_bars(6)
+    bars["trade_time"] = pd.date_range(
+        "2026-01-02 09:10", periods=6, freq="5min"
+    )
+
+    segmented, quality = _prepare_15m(bars)
+
+    assert segmented["trade_time"].tolist() == [pd.Timestamp("2026-01-02 09:30")]
+    assert quality.loc["AG_IDX", "partial_15m_windows"] == 2
+
+
 def test_prepare_segmented_bars_resamples_5m_without_crossing_gaps():
     bars = make_bars(12)
     bars.loc[6:, "trade_time"] += pd.Timedelta(minutes=5)
@@ -1205,7 +1254,7 @@ def test_prepare_segmented_bars_resamples_5m_without_crossing_gaps():
     }]
     bars.attrs["source_manifest"] = manifest
 
-    segmented, _ = research._prepare_segmented_bars(
+    segmented, quality = research._prepare_segmented_bars(
         bars,
         ResearchConfig(
             timeframe="15m", min_symbol_rows=1, min_symbols=1,
@@ -1213,10 +1262,13 @@ def test_prepare_segmented_bars_resamples_5m_without_crossing_gaps():
         ),
     )
 
-    assert segmented.groupby("segment_id").size().tolist() == [2, 2]
-    assert segmented.groupby("segment_id")["trade_time"].diff().dropna().eq(
-        pd.Timedelta(minutes=15)
-    ).all()
+    assert segmented["trade_time"].tolist() == [
+        pd.Timestamp("2026-01-02 09:15"),
+        pd.Timestamp("2026-01-02 09:45"),
+        pd.Timestamp("2026-01-02 10:00"),
+    ]
+    assert segmented.groupby("segment_id").size().tolist() == [1, 2]
+    assert quality.loc["AG_IDX", "partial_15m_windows"] == 2
     assert segmented.attrs["source_manifest"] == manifest
 
 

@@ -13,7 +13,7 @@ import subprocess
 import sys
 import tempfile
 import uuid
-from dataclasses import asdict, dataclass, is_dataclass
+from dataclasses import asdict, dataclass, is_dataclass, replace
 from numbers import Real
 from pathlib import Path
 
@@ -237,6 +237,9 @@ def validate_and_segment(bars: pd.DataFrame, config=ResearchConfig()) -> tuple[p
             "start_time": group["trade_time"].min(),
             "end_time": group["trade_time"].max(),
             "zero_volume_fraction": zero_fraction,
+            "time_gap_boundaries": int(gap.iloc[1:].sum()),
+            "zero_volume_boundaries": int(zero_neighbor.sum()),
+            "price_jump_boundaries": int((open_gap | close_jump).sum()),
             "segment_count": int(group["segment_id"].nunique()),
             "status": "EXCLUDED" if excluded else "INCLUDED",
             "reason": "ZERO_VOLUME_FRACTION" if excluded else "",
@@ -257,41 +260,57 @@ def _prepare_segmented_bars(bars, config=ResearchConfig()):
     if config.timeframe != "15m":
         raise ResearchRejected("timeframe must be 5m or 15m")
 
-    source = _reject_if_invalid(bars)
+    source, quality = validate_and_segment(
+        bars, replace(config, timeframe="5m")
+    )
     source.attrs = {}
-    source["_source_segment"] = source.groupby("symbol", sort=False)[
+    source["_window_end"] = source["trade_time"].dt.ceil("15min")
+    keys = ["symbol", "segment_id", "_window_end"]
+    source["_window_size"] = source.groupby(keys, sort=False)[
         "trade_time"
-    ].diff().ne(pd.Timedelta(minutes=5)).groupby(source["symbol"]).cumsum()
-    keys = ["symbol", "_source_segment"]
-    source = source.sort_values(
-        [*keys, "trade_time"], kind="stable"
-    ).reset_index(drop=True)
-    source["_bucket"] = source.groupby(keys, sort=False).cumcount() // 3
-    grouped_keys = [*keys, "_bucket"]
-    complete = source.groupby(grouped_keys, sort=False)["trade_time"].transform(
-        "size"
-    ).eq(3)
-    source = source.loc[complete]
+    ].transform("size")
+
+    window_sizes = source.drop_duplicates(keys).loc[
+        :, ["symbol", "_window_size"]
+    ]
+    complete_counts = window_sizes["_window_size"].eq(3).groupby(
+        window_sizes["symbol"]
+    ).sum()
+    partial_counts = window_sizes["_window_size"].ne(3).groupby(
+        window_sizes["symbol"]
+    ).sum()
+    quality["aggregated_15m_rows"] = complete_counts.reindex(
+        quality.index, fill_value=0
+    ).astype(int)
+    quality["partial_15m_windows"] = partial_counts.reindex(
+        quality.index, fill_value=0
+    ).astype(int)
+
+    complete = source[source["_window_size"].eq(3)].copy()
+    if complete.empty:
+        raise ResearchRejected("no complete natural-boundary 15m bars")
+    if "series_type" in complete and complete.groupby(keys)[
+        "series_type"
+    ].nunique().gt(1).any():
+        raise ResearchRejected("15m window contains mixed series types")
+
     aggregations = {
-        "trade_time": "last", "open": "first", "high": "max", "low": "min",
-        "close": "last", "volume": "sum",
+        "open": "first", "high": "max", "low": "min",
+        "close": "last", "volume": "sum", "feature_segment_id": "first",
     }
     aggregations.update({
         column: method for column, method in (
-            ("amount", "sum"), ("open_interest", "last"),
+            ("amount", lambda values: values.sum(min_count=1)),
+            ("open_interest", "last"),
             ("settlement", "last"), ("series_type", "first"),
-        ) if column in source
+        ) if column in complete
     })
-    result = source.groupby(grouped_keys, sort=False, as_index=False).agg(
+    result = complete.groupby(keys, sort=False, as_index=False).agg(
         aggregations
-    ).drop(columns=["_source_segment", "_bucket"])
+    ).rename(columns={"_window_end": "trade_time"})
     result["timeframe"] = "15m"
-    if result.empty:
-        raise ResearchRejected("no complete 15m bars after causal resampling")
     result.attrs = source_attrs
-    segmented, quality = validate_and_segment(result, config)
-    segmented.attrs = source_attrs
-    return segmented, quality
+    return result, quality
 
 
 def assert_feature_columns(matrix):
