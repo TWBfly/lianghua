@@ -1149,20 +1149,28 @@ def predictive_metrics(labels, probability, threshold):
     }
 
 
-def moving_block_return_interval(daily_returns, config=ResearchConfig()):
+def moving_block_return_interval(
+        daily_returns, config=ResearchConfig(), block_days=5):
     try:
         returns = np.asarray(daily_returns, dtype=float)
         rng = np.random.default_rng(config.seed)
     except (AttributeError, TypeError, ValueError) as exc:
         raise ResearchRejected("invalid moving-block interval input") from exc
-    if returns.ndim != 1 or len(returns) < 5 or not np.isfinite(returns).all():
-        raise ResearchRejected("moving-block interval requires five finite daily returns")
+    if (
+        isinstance(block_days, (bool, np.bool_))
+        or not isinstance(block_days, (int, np.integer))
+        or block_days < 1
+        or returns.ndim != 1
+        or len(returns) < block_days
+        or not np.isfinite(returns).all()
+    ):
+        raise ResearchRejected("invalid moving-block interval input")
     totals = []
     for _ in range(1000):
         sample = []
         while len(sample) < len(returns):
-            start = int(rng.integers(0, len(returns) - 4))
-            sample.extend(returns[start:start + 5])
+            start = int(rng.integers(0, len(returns) - block_days + 1))
+            sample.extend(returns[start:start + block_days])
         total = float(np.prod(1.0 + np.asarray(sample[:len(returns)])) - 1.0)
         if not np.isfinite(total):
             raise ResearchRejected("non-finite moving-block return")
@@ -1170,10 +1178,23 @@ def moving_block_return_interval(daily_returns, config=ResearchConfig()):
     p05, p50, p95 = np.percentile(totals, [5, 50, 95])
     return {
         "samples": 1000,
-        "block_days": 5,
+        "block_days": int(block_days),
         "p05": float(p05),
         "p50": float(p50),
         "p95": float(p95),
+    }
+
+
+def moving_block_return_intervals(daily_returns, config=ResearchConfig()):
+    blocks = {
+        str(days): moving_block_return_interval(
+            daily_returns, config, block_days=days
+        )
+        for days in (5, 10, 20)
+    }
+    return {
+        "blocks": blocks,
+        "worst_p05": min(row["p05"] for row in blocks.values()),
     }
 
 
@@ -1588,7 +1609,7 @@ def build_base_evaluation(dataset, market, partitions, config=ResearchConfig()):
     )
     if 5 not in holdout_result["daily"]:
         raise ResearchRejected("locked holdout requires the 5 bp ledger")
-    holdout_result["bootstrap"] = moving_block_return_interval(
+    holdout_result["bootstrap"] = moving_block_return_intervals(
         holdout_result["daily"][5]["portfolio_return"], config
     )
     holdout_evaluation = dataset[
@@ -2262,6 +2283,11 @@ def _temporal_integrity(context, base):
         )
         observed[f"purge_{fold.name}"] = bool(label_safe and cutoff_safe)
         observed[f"embargo_{fold.name}"] = bool(embargo_safe)
+    observed["embargo_covers_horizon"] = bool(
+        isinstance(config.embargo_bars, (int, np.integer))
+        and not isinstance(config.embargo_bars, (bool, np.bool_))
+        and config.embargo_bars >= config.horizon
+    )
     return observed
 
 
@@ -2277,8 +2303,10 @@ def evaluate_acceptance_gates(context):
             for gate_id, required in (
                 ("integrity_checks", "all checks true"),
                 ("auc_above_chance_each_fold", "> 0.50 each fold"),
+                ("brier_better_than_dummy_each_fold", "candidate < Dummy each fold"),
                 ("positive_5bps_each_fold", "> 0 each fold"),
-                ("positive_bootstrap_lower_bound", "p05 > 0"),
+                ("baseline_superiority_each_fold", "candidate > both baselines each fold"),
+                ("positive_bootstrap_lower_bound", "5/10/20-day worst p05 > 0"),
                 ("label_shuffle", "20 hostile permutations rejected"),
                 ("feature_attacks", "AUC <= +0.01 and return <= +0.05"),
                 ("positive_symbol_fraction", ">= 0.50"),
@@ -2339,6 +2367,35 @@ def evaluate_acceptance_gates(context):
     try:
         folds = _fold_results(outer, holdout)
         observed = {
+            row["fold"]: {
+                "candidate": row["predictive_metrics"]["brier_score"],
+                "dummy_prior": row["benchmarks"]["dummy_prior"][
+                    "predictive_metrics"
+                ]["brier_score"],
+            }
+            for row in folds
+        }
+        affected = next((
+            name for name, values in observed.items()
+            if not all(_finite_number(value) for value in values.values())
+            or values["candidate"] >= values["dummy_prior"]
+        ), None)
+        gates.append(_gate_record(
+            "brier_better_than_dummy_each_fold", affected is None, observed,
+            "candidate Brier < Dummy Brier each fold", affected,
+            "candidate calibration beats Dummy" if affected is None
+            else f"candidate Brier did not beat Dummy: {affected}",
+        ))
+    except (AttributeError, KeyError, TypeError, ValueError) as exc:
+        gates.append(_failed_gate(
+            "brier_better_than_dummy_each_fold",
+            "candidate Brier < Dummy Brier each fold",
+            f"invalid fold Brier evidence: {exc}",
+        ))
+
+    try:
+        folds = _fold_results(outer, holdout)
+        observed = {
             row["fold"]: row["cost_metrics"][5]["total_return"] for row in folds
         }
         affected = next((
@@ -2356,23 +2413,76 @@ def evaluate_acceptance_gates(context):
         ))
 
     try:
-        bootstrap = holdout["bootstrap"]
-        p05 = bootstrap["p05"]
-        passed = (
-            bootstrap.get("samples") == 1000
-            and bootstrap.get("block_days") == 5
-            and _finite_number(p05)
-            and float(p05) > 0.0
-        )
+        folds = _fold_results(outer, holdout)
+        observed = {
+            row["fold"]: {
+                "candidate": row["cost_metrics"][5]["total_return"],
+                "dummy_prior": row["benchmarks"]["dummy_prior"][
+                    "cost_metrics"
+                ][5]["total_return"],
+                "equal_weight_long_only": row["benchmarks"][
+                    "equal_weight_long_only"
+                ]["cost_metrics"][5]["total_return"],
+            }
+            for row in folds
+        }
+        affected = next((
+            name for name, values in observed.items()
+            if not all(_finite_number(value) for value in values.values())
+            or values["candidate"] <= values["dummy_prior"]
+            or values["candidate"] <= values["equal_weight_long_only"]
+        ), None)
         gates.append(_gate_record(
-            "positive_bootstrap_lower_bound", passed, bootstrap,
-            {"samples": 1000, "block_days": 5, "p05": "> 0"},
-            None if passed else "holdout",
-            "bootstrap lower bound is positive" if passed else "invalid or non-positive holdout bootstrap lower bound",
+            "baseline_superiority_each_fold", affected is None, observed,
+            "candidate 5bp return > Dummy and equal-weight each fold", affected,
+            "candidate beats both return baselines" if affected is None
+            else f"candidate did not beat both baselines: {affected}",
         ))
     except (AttributeError, KeyError, TypeError, ValueError) as exc:
         gates.append(_failed_gate(
-            "positive_bootstrap_lower_bound", "1000 five-day samples and p05 > 0",
+            "baseline_superiority_each_fold",
+            "candidate 5bp return > Dummy and equal-weight each fold",
+            f"invalid baseline evidence: {exc}",
+        ))
+
+    try:
+        bootstrap = holdout["bootstrap"]
+        blocks = bootstrap["blocks"]
+        required_days = {"5": 5, "10": 10, "20": 20}
+        valid_blocks = (
+            set(blocks) == set(required_days)
+            and all(
+                blocks[key].get("samples") == 1000
+                and blocks[key].get("block_days") == days
+                and all(
+                    _finite_number(blocks[key].get(name))
+                    for name in ("p05", "p50", "p95")
+                )
+                for key, days in required_days.items()
+            )
+        )
+        recomputed = min(
+            (blocks[key]["p05"] for key in required_days),
+            default=float("nan"),
+        )
+        passed = bool(
+            valid_blocks
+            and _finite_number(bootstrap.get("worst_p05"))
+            and np.isclose(
+                bootstrap["worst_p05"], recomputed, rtol=0.0, atol=1e-12
+            )
+            and recomputed > 0.0
+        )
+        gates.append(_gate_record(
+            "positive_bootstrap_lower_bound", passed, bootstrap,
+            "5/10/20-day worst p05 > 0",
+            None if passed else "holdout",
+            "all block bootstrap lower bounds are positive" if passed
+            else "invalid or non-positive multi-block bootstrap lower bound",
+        ))
+    except (AttributeError, KeyError, TypeError, ValueError) as exc:
+        gates.append(_failed_gate(
+            "positive_bootstrap_lower_bound", "5/10/20-day worst p05 > 0",
             f"invalid bootstrap evidence: {exc}", affected_fold="holdout",
         ))
 
@@ -2608,7 +2718,8 @@ def evaluate_acceptance_gates(context):
 
 ACCEPTANCE_GATE_IDS = (
     "integrity_checks", "auc_above_chance_each_fold",
-    "positive_5bps_each_fold", "positive_bootstrap_lower_bound",
+    "brier_better_than_dummy_each_fold", "positive_5bps_each_fold",
+    "baseline_superiority_each_fold", "positive_bootstrap_lower_bound",
     "label_shuffle", "feature_attacks", "positive_symbol_fraction",
     "positive_symbol_concentration", "ten_bps_resilience",
     "cost_monotonicity",

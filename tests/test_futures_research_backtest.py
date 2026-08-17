@@ -727,12 +727,13 @@ def test_outer_and_holdout_base_evaluation_is_temporally_isolated(monkeypatch):
             parent_fits.append((active_parent.evaluation_times[0], train.copy()))
         return real_fit(candidate, train, evaluation, supplied_config)
 
-    def tracked_bootstrap(returns, supplied_config=ResearchConfig()):
+    def tracked_bootstrap(
+            returns, supplied_config=ResearchConfig(), block_days=5):
         nonlocal bootstrap_calls
         assert len(selection_calls) == 4
         assert active_parent is None
         bootstrap_calls += 1
-        return real_bootstrap(returns, supplied_config)
+        return real_bootstrap(returns, supplied_config, block_days=block_days)
 
     monkeypatch.setattr(research, "select_candidate", tracked_select)
     monkeypatch.setattr(research, "evaluate_fold", unlock_only_for_parent_evaluation)
@@ -763,7 +764,7 @@ def test_outer_and_holdout_base_evaluation_is_temporally_isolated(monkeypatch):
         assert chosen == choose_from_scores(candidate_scores)
     assert result["final_candidate"] == selection_calls[-1][1]
     pd.testing.assert_frame_equal(result["final_inner_scores"], selection_calls[-1][2])
-    assert bootstrap_calls == 1
+    assert bootstrap_calls == 3
     assert "bootstrap" in result["holdout"]
     identity = result["holdout"]["evaluation_identity"]
     assert identity["scope"] == "single_build_base_evaluation"
@@ -1177,6 +1178,19 @@ def test_bootstrap_uses_1000_deterministic_five_day_moving_blocks():
         research.moving_block_return_interval(["bad"] * 5, ResearchConfig(seed=42))
     with pytest.raises(ResearchRejected):
         research.moving_block_return_interval(returns, ResearchConfig(seed=-1))
+
+
+def test_moving_block_intervals_cover_5_10_and_20_days():
+    returns = np.full(60, 0.001)
+
+    result = research.moving_block_return_intervals(
+        returns, ResearchConfig(seed=42)
+    )
+
+    assert set(result["blocks"]) == {"5", "10", "20"}
+    assert result["worst_p05"] == min(
+        row["p05"] for row in result["blocks"].values()
+    )
 
 
 def test_default_cost_grid_includes_15_bps():
@@ -2173,7 +2187,7 @@ def passing_gate_context():
         "outer_3": research.TemporalFold("outer_3", times[:40], times[40:50]),
         "holdout": research.TemporalFold("holdout", times[:50], times[50:70]),
     }
-    config = ResearchConfig(embargo_bars=0)
+    config = ResearchConfig(embargo_bars=6)
     trade = pd.DataFrame([{
         "symbol": "S00",
         "decision_time": pd.Timestamp("2026-01-01 09:00"),
@@ -2197,7 +2211,7 @@ def passing_gate_context():
         ]
         return {
             "fold": name,
-            "predictive_metrics": {"roc_auc": 0.60},
+            "predictive_metrics": {"roc_auc": 0.60, "brier_score": 0.20},
             "cost_metrics": {
                 0: {"total_return": 0.12, "max_drawdown": 0.08},
                 2: {"total_return": 0.11, "max_drawdown": 0.08},
@@ -2207,6 +2221,15 @@ def passing_gate_context():
             },
             "trades": {
                 cost: trade.copy() for cost in (0, 2, 5, 10, 20)
+            },
+            "benchmarks": {
+                "dummy_prior": {
+                    "predictive_metrics": {"brier_score": 0.25},
+                    "cost_metrics": {5: {"total_return": 0.01}},
+                },
+                "equal_weight_long_only": {
+                    "cost_metrics": {5: {"total_return": 0.02}},
+                },
             },
             "split_cutoffs": {
                 "training_start": train["decision_time"].min(),
@@ -2223,8 +2246,14 @@ def passing_gate_context():
     ])
     holdout = fold("holdout")
     holdout["bootstrap"] = {
-        "samples": 1000, "block_days": 5, "p05": 0.01, "p50": 0.10,
-        "p95": 0.20,
+        "blocks": {
+            str(days): {
+                "samples": 1000, "block_days": days,
+                "p05": 0.01, "p50": 0.10, "p95": 0.20,
+            }
+            for days in (5, 10, 20)
+        },
+        "worst_p05": 0.01,
     }
     holdout["symbol_metrics"] = symbols
     candidate = Candidate("logistic_c0.1", 0.55)
@@ -2329,6 +2358,52 @@ def _attack(context, attack_id):
     return next(row for row in context["attacks"] if row["id"] == attack_id)
 
 
+def test_brier_gate_requires_model_to_beat_dummy_in_every_fold():
+    context = passing_gate_context()
+    context["outer_results"][1]["predictive_metrics"][
+        "brier_score"
+    ] = context["outer_results"][1]["benchmarks"]["dummy_prior"][
+        "predictive_metrics"
+    ]["brier_score"]
+
+    gate = next(
+        row for row in research.evaluate_acceptance_gates(context)
+        if row["id"] == "brier_better_than_dummy_each_fold"
+    )
+
+    assert gate["passed"] is False
+    assert gate["affected_fold"] == "outer_2"
+
+
+def test_baseline_gate_requires_5bp_return_to_beat_both_benchmarks():
+    context = passing_gate_context()
+    holdout = context["holdout"]
+    holdout["benchmarks"]["equal_weight_long_only"]["cost_metrics"][5][
+        "total_return"
+    ] = holdout["cost_metrics"][5]["total_return"]
+
+    gate = next(
+        row for row in research.evaluate_acceptance_gates(context)
+        if row["id"] == "baseline_superiority_each_fold"
+    )
+
+    assert gate["passed"] is False
+    assert gate["affected_fold"] == "holdout"
+
+
+def test_bootstrap_gate_uses_worst_of_all_required_blocks():
+    context = passing_gate_context()
+    context["holdout"]["bootstrap"]["blocks"]["20"]["p05"] = 0.0
+    context["holdout"]["bootstrap"]["worst_p05"] = 0.0
+
+    gate = next(
+        row for row in research.evaluate_acceptance_gates(context)
+        if row["id"] == "positive_bootstrap_lower_bound"
+    )
+
+    assert gate["passed"] is False
+
+
 def _refresh_attack_execution_evidence(context):
     train, evaluation, market, _, _ = research._attack_domain(context)
     identity = research._attack_execution_identity(train, evaluation, market)
@@ -2355,8 +2430,10 @@ def _attack_ready_partition_dataset():
     [
         ("integrity_checks", lambda c: c["checks"].__setitem__("ledger", False)),
         ("auc_above_chance_each_fold", lambda c: c["holdout"]["predictive_metrics"].__setitem__("roc_auc", 0.50)),
+        ("brier_better_than_dummy_each_fold", lambda c: c["outer_results"][1]["predictive_metrics"].__setitem__("brier_score", 0.25)),
         ("positive_5bps_each_fold", lambda c: c["outer_results"][1]["cost_metrics"][5].__setitem__("total_return", -0.001)),
-        ("positive_bootstrap_lower_bound", lambda c: c["holdout"]["bootstrap"].__setitem__("p05", 0.0)),
+        ("baseline_superiority_each_fold", lambda c: c["holdout"]["benchmarks"]["dummy_prior"]["cost_metrics"][5].__setitem__("total_return", 0.10)),
+        ("positive_bootstrap_lower_bound", lambda c: (c["holdout"]["bootstrap"]["blocks"]["20"].__setitem__("p05", 0.0), c["holdout"]["bootstrap"].__setitem__("worst_p05", 0.0))),
         ("label_shuffle", lambda c: _attack(c, "label_shuffle").__setitem__("median_return_5bps", 0.001)),
         ("feature_attacks", lambda c: _attack(c, "noise_features").__setitem__("roc_auc", 0.62)),
         ("positive_symbol_fraction", lambda c: c["holdout"].__setitem__("symbol_metrics", c["holdout"]["symbol_metrics"].assign(total_return=[-0.01] * 6 + [0.01] * 4))),
@@ -2372,7 +2449,7 @@ def test_each_acceptance_gate_is_non_negotiable(gate_id, mutate):
     gates = research.evaluate_acceptance_gates(context)
     failed = next(gate for gate in gates if gate["id"] == gate_id)
 
-    assert len(gates) == 10
+    assert len(gates) == 12
     assert failed["passed"] is False
     assert failed["reason"]
     assert research.research_status(gates) == "RESEARCH_REJECTED"
@@ -2381,7 +2458,7 @@ def test_each_acceptance_gate_is_non_negotiable(gate_id, mutate):
 def test_all_acceptance_gates_pass_only_with_complete_finite_evidence():
     gates = research.evaluate_acceptance_gates(passing_gate_context())
 
-    assert len(gates) == 10
+    assert len(gates) == 12
     assert all(gate["passed"] is True and gate["reason"] for gate in gates)
     assert research.research_status(gates) == "RESEARCH_ACCEPTED"
 
@@ -2633,7 +2710,8 @@ EXPECTED_REPORT_FILES = {
 }
 EXPECTED_GATE_IDS = (
     "integrity_checks", "auc_above_chance_each_fold",
-    "positive_5bps_each_fold", "positive_bootstrap_lower_bound",
+    "brier_better_than_dummy_each_fold", "positive_5bps_each_fold",
+    "baseline_superiority_each_fold", "positive_bootstrap_lower_bound",
     "label_shuffle", "feature_attacks", "positive_symbol_fraction",
     "positive_symbol_concentration", "ten_bps_resilience",
     "cost_monotonicity",
