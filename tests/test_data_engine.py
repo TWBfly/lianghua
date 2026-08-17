@@ -117,9 +117,12 @@ def test_partial_qfq_refresh_preserves_existing_history(tmp_path, monkeypatch):
         for day, close in enumerate([10.0, 11.0, 12.0], 1):
             insert_bar(conn, "000001", f"2024-01-0{day}", close)
         conn.execute("""
-            INSERT INTO stock_daily_catalog VALUES (
+            INSERT INTO stock_daily_catalog (
+                symbol, price_mode, source, start_date, end_date, row_count,
+                asset_type, updated_at
+            ) VALUES (
                 '000001', 'QFQ', 'OLD', '2024-01-01', '2024-01-03', 3,
-                '2024-01-04 00:00:00'
+                'STOCK', '2024-01-04 00:00:00'
             )
         """)
 
@@ -220,9 +223,12 @@ def test_qfq_catalog_failure_rolls_back_price_replacement(
     with sqlite3.connect(engine.db_path) as conn:
         insert_bar(conn, "000001", "2024-01-01", 99.0)
         conn.execute("""
-            INSERT INTO stock_daily_catalog VALUES (
+            INSERT INTO stock_daily_catalog (
+                symbol, price_mode, source, start_date, end_date, row_count,
+                asset_type, updated_at
+            ) VALUES (
                 '000001', 'QFQ', 'OLD', '2024-01-01', '2024-01-01', 1,
-                '2024-01-02 00:00:00'
+                'STOCK', '2024-01-02 00:00:00'
             )
         """)
         conn.execute("""
@@ -284,9 +290,12 @@ def test_verified_covered_symbol_is_reported_unchanged(
     with sqlite3.connect(engine.db_path) as conn:
         insert_bar(conn, "000001", "2024-01-01", 10.0)
         conn.execute("""
-            INSERT INTO stock_daily_catalog VALUES (
+            INSERT INTO stock_daily_catalog (
+                symbol, price_mode, source, start_date, end_date, row_count,
+                asset_type, updated_at
+            ) VALUES (
                 '000001', 'QFQ', 'TEST', '2024-01-01', '2024-01-01', 1,
-                '2024-01-02 00:00:00'
+                'STOCK', '2024-01-02 00:00:00'
             )
         """)
 

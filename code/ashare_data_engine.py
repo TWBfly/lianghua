@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 import akshare as ak
 
 from market_data import MarketDataError, validate_daily_bars
+from data_contract import ensure_asset_type_column
 
 # 数据库文件保存路径
 DB_DIR = "/Users/tang/PycharmProjects/pythonProject/lianghua/data"
@@ -115,6 +116,7 @@ class AShareDataEngine:
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
             """)
+            ensure_asset_type_column(conn)
 
             # 3. 大盘指数日线表 (沪深300, 中证500, 上证指数等)
             cursor.execute("""
@@ -222,13 +224,17 @@ class AShareDataEngine:
             except Exception as e:
                 print(f"   └─ 指数 {name_code} 更新失败: {e}")
 
-    def sync_stock_daily(self, symbols=None, start_date="20200101", end_date=None, batch_size=50):
+    def sync_stock_daily(
+            self, symbols=None, start_date="20200101", end_date=None,
+            batch_size=50, asset_type="STOCK"):
         """
         同步个股日线历史数据 (前复权 qfq)
         symbols: 股票代码列表，若为 None 则默认更新全市场或主要沪深300/中证500成分股
         """
         if end_date is None:
             end_date = datetime.now().strftime("%Y%m%d")
+        if asset_type not in {"STOCK", "ETF"}:
+            raise ValueError("asset_type must be STOCK or ETF")
 
         if symbols is None:
             # 默认抓取前 300 只市值最大的优质标的或全部
@@ -412,10 +418,10 @@ class AShareDataEngine:
                         conn.execute("""
                             INSERT INTO stock_daily_catalog (
                                 symbol, price_mode, source, start_date,
-                                end_date, row_count, updated_at
+                                end_date, row_count, asset_type, updated_at
                             ) VALUES (
                                 ?, 'QFQ', 'AKSHARE_STOCK_ZH_A_HIST',
-                                ?, ?, ?, CURRENT_TIMESTAMP
+                                ?, ?, ?, ?, CURRENT_TIMESTAMP
                             )
                             ON CONFLICT(symbol) DO UPDATE SET
                                 price_mode=excluded.price_mode,
@@ -423,12 +429,14 @@ class AShareDataEngine:
                                 start_date=excluded.start_date,
                                 end_date=excluded.end_date,
                                 row_count=excluded.row_count,
+                                asset_type=excluded.asset_type,
                                 updated_at=CURRENT_TIMESTAMP
                         """, (
                             sym,
                             df_clean['trade_date'].min(),
                             df_clean['trade_date'].max(),
                             len(df_clean),
+                            asset_type,
                         ))
                     result["committed"].append(sym)
                 if i % 20 == 0 or i == total:
