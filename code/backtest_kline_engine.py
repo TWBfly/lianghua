@@ -208,10 +208,12 @@ def _backtest_metadata(fallback_signal_count, universe_mode,
     limitations = [
         "NO_POINT_IN_TIME_UNIVERSE",
         "NO_HISTORICAL_ST_STATUS",
-        "NO_HISTORICAL_IPO_LIMIT_STATUS",
-        "NO_CORPORATE_ACTION_CASH_LEDGER",
-        "TRANSACTION_RULES_APPROXIMATE",
-    ]
+            "NO_HISTORICAL_IPO_LIMIT_STATUS",
+            "NO_CORPORATE_ACTION_CASH_LEDGER",
+            "TRANSACTION_RULES_APPROXIMATE",
+            "UNCATALOGED_ASSETS_REJECTED",
+            "MIXED_ASSET_DOMAINS_REJECTED",
+        ]
     if market_regime is not None:
         limitations.append("UNVERIFIED_MARKET_REGIME_DATA")
     metadata = {
