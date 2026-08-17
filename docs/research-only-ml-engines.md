@@ -8,6 +8,11 @@ offered by `hot_plugger.get_executable_strategies()` or `/api/strategies`.
 - `futures_self_evolving_holy_grail_engine` — `RESEARCH_ONLY_INVALIDATED`
 - `futures_v14_complete_self_evolving_engine` — `RESEARCH_ONLY_INVALIDATED`
 - `futures_v15_anti_degradation_engine` — `RESEARCH_ONLY_INVALIDATED`
+- `futures_v16_first_principles_engine` — `RESEARCH_ONLY_INVALIDATED`
+- `copper_v16_engine` — `RESEARCH_ONLY_INVALIDATED`
+- `symbol_strategies.decoupled_symbol_engines` — `RESEARCH_ONLY_INVALIDATED`
+- `generate_futures_html_report` — `RESEARCH_ONLY_INVALIDATED`
+- `futures_live_trader` — `RESEARCH_ONLY_INVALIDATED`
 - `multi_timeframe_benchmark_evaluator` — `RESEARCH_ONLY_INVALIDATED`
 - `xauusd_ml_strategy` — `RESEARCH_ONLY_INVALIDATED`
 - `xauusd_self_evolving_engine` — `RESEARCH_ONLY_INVALIDATED`

@@ -11,11 +11,16 @@ from web_server import validate_backtest_request
 
 
 RESEARCH_ONLY_INVALIDATED = {
+    "copper_v16_engine",
+    "futures_live_trader",
     "futures_ml_strategy_engine",
     "futures_self_evolving_holy_grail_engine",
     "futures_v14_complete_self_evolving_engine",
     "futures_v15_anti_degradation_engine",
+    "futures_v16_first_principles_engine",
+    "generate_futures_html_report",
     "multi_timeframe_benchmark_evaluator",
+    "symbol_strategies.decoupled_symbol_engines",
     "xauusd_ml_strategy",
     "xauusd_self_evolving_engine",
     "xauusd_hardcore_multi_tf",

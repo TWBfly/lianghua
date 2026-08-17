@@ -393,18 +393,16 @@ class FuturesLiveTradingEngine:
             api.close()
 
 
+TRADING_DISABLED_REASON = (
+    "15m futures research has not passed the required gates; "
+    "TqSim and live execution are isolated"
+)
+
+
+def main():
+    print(f"TRADING_DISABLED: {TRADING_DISABLED_REASON}", file=sys.stderr)
+    return 2
+
+
 if __name__ == "__main__":
-    # 读取环境变量或 .env 中的天勤账号
-    import dotenv
-    dotenv.load_dotenv(PROJECT_ROOT / ".env")
-    
-    tq_user = os.getenv("TQ_USER", "13800000000")
-    tq_pass = os.getenv("TQ_PASS", "redacted_password")
-    
-    engine = FuturesLiveTradingEngine(
-        tq_account=tq_user,
-        tq_password=tq_pass,
-        is_sim=True,  # 默认在虚拟模拟盘 TqSim 中运行
-        initial_balance=1000000.0
-    )
-    engine.run_live_loop()
+    raise SystemExit(main())

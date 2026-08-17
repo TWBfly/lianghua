@@ -11,7 +11,6 @@ import time
 import psutil
 import sqlite3
 import datetime
-import subprocess
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -27,6 +26,18 @@ from symbol_strategies.decoupled_symbol_engines import (
 )
 
 app = Flask(__name__)
+
+TRADING_DISABLED_REASON = (
+    "15m futures research has not passed the required gates; "
+    "legacy live and backtest dashboard sources are isolated"
+)
+
+
+def disabled_response():
+    return jsonify({
+        "status": "TRADING_DISABLED",
+        "disabled_reason": TRADING_DISABLED_REASON,
+    }), 503
 
 PID_FILE = PROJECT_ROOT / "data/logs/trader.pid"
 LOG_FILE = PROJECT_ROOT / "data/logs/futures_live_trader.log"
@@ -154,11 +165,12 @@ def get_trader_status():
 
 @app.route("/api/status")
 def api_status():
-    return jsonify(get_trader_status())
+    return disabled_response()
 
 
 @app.route("/api/logs")
 def api_logs():
+    return disabled_response()
     lines = []
     if LOG_FILE.exists():
         try:
@@ -172,6 +184,7 @@ def api_logs():
 
 @app.route("/api/kline")
 def api_kline():
+    return disabled_response()
     symbol = request.args.get("symbol", "AG_IDX")
     if symbol not in SYMBOL_CONFIGS:
         return jsonify({"error": f"未知品种 {symbol}"}), 400
@@ -265,6 +278,7 @@ def api_kline():
 
 @app.route("/api/trades")
 def api_trades():
+    return disabled_response()
     symbol_filter = request.args.get("symbol", "ALL")
     all_trades = []
 
@@ -287,11 +301,7 @@ def api_trades():
 
 @app.route("/api/trader/restart", methods=["POST"])
 def api_trader_restart():
-    try:
-        subprocess.run(["systemctl", "restart", "tq_lianghua.service"], check=True)
-        return jsonify({"status": "restarted"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return disabled_response()
 
 
 DASHBOARD_HTML = """
@@ -828,7 +838,7 @@ DASHBOARD_HTML = """
 
 @app.route("/")
 def index():
-    return render_template_string(DASHBOARD_HTML)
+    return disabled_response()
 
 
 if __name__ == "__main__":
