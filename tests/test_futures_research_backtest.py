@@ -596,6 +596,17 @@ def test_selection_ties_use_return_turnover_logistic_then_higher_threshold():
     ])) == Candidate("logistic_c0.1", 0.58)
 
 
+def test_near_best_qlib_domain_prefers_logistic_at_equal_turnover():
+    scores = _two_fold_scores([
+        ("logistic_c0.1", 0.55, 0.0100, 1.0),
+        ("qlib_lightgbm_constrained", 0.55, 0.0105, 1.0),
+    ])
+
+    assert choose_from_scores(scores, "qlib") == Candidate(
+        "logistic_c0.1", 0.55
+    )
+
+
 def test_selection_rejects_when_no_candidate_passes_both_folds():
     scores = _two_fold_scores([("logistic_c0.1", 0.55, 0.0, 0.0)])
 

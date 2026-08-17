@@ -72,6 +72,25 @@ class ResearchRejected(ValueError):
     pass
 
 
+def _validate_research_config(config):
+    horizon = config.horizon
+    embargo = config.embargo_bars
+    if (
+        isinstance(horizon, (bool, np.bool_))
+        or not isinstance(horizon, (int, np.integer))
+        or horizon < 1
+    ):
+        raise ResearchRejected(
+            "horizon must be an integer greater than or equal to one"
+        )
+    if (
+        isinstance(embargo, (bool, np.bool_))
+        or not isinstance(embargo, (int, np.integer))
+        or embargo < horizon
+    ):
+        raise ResearchRejected("embargo_bars must be at least horizon")
+
+
 @dataclass(frozen=True)
 class Candidate:
     model_name: str
@@ -323,7 +342,7 @@ def assert_feature_columns(matrix):
 
 def candidate_names(model_backend="native"):
     if model_backend == "qlib":
-        return ("qlib_lightgbm_constrained",)
+        return ("logistic_c0.1", "qlib_lightgbm_constrained")
     if model_backend != "native":
         raise ResearchRejected("model_backend must be native or qlib")
     return ("logistic_c0.1", "logistic_c1.0", "lightgbm_constrained")
@@ -348,7 +367,8 @@ def _fit_matrix(candidate, x_train, y_train, sample_weight, x_evaluation, config
     arrays = (x_train, y_train, sample_weight, x_evaluation)
     if any(not np.isfinite(np.asarray(array, dtype=float)).all() for array in arrays):
         raise ResearchRejected("model inputs must be finite")
-    if config.model_backend == "qlib":
+    qlib_model = candidate.model_name == "qlib_lightgbm_constrained"
+    if qlib_model:
         from qlib_model_adapter import fit_qlib_lightgbm
 
         probability, model = fit_qlib_lightgbm(
@@ -367,7 +387,7 @@ def _fit_matrix(candidate, x_train, y_train, sample_weight, x_evaluation, config
             x_train, y_train,
             logisticregression__sample_weight=sample_weight,
         )
-    else:
+    elif candidate.model_name == "lightgbm_constrained":
         model = LGBMClassifier(
             n_estimators=100, learning_rate=0.03, max_depth=3,
             num_leaves=7, min_child_samples=200, subsample=0.8,
@@ -376,7 +396,9 @@ def _fit_matrix(candidate, x_train, y_train, sample_weight, x_evaluation, config
             n_jobs=1, random_state=config.seed,
         )
         model.fit(x_train, y_train, sample_weight=sample_weight)
-    if config.model_backend != "qlib":
+    else:
+        raise ResearchRejected(f"unknown model candidate: {candidate.model_name}")
+    if not qlib_model:
         probability = model.predict_proba(x_evaluation)[:, 1]
     if not np.isfinite(probability).all() or ((probability < 0.0) | (probability > 1.0)).any():
         raise ResearchRejected("model probabilities must be finite and in [0, 1]")
@@ -3350,14 +3372,9 @@ def run_research(db_path, output_dir, config=ResearchConfig()):
     }
     quality = None
     try:
+        _validate_research_config(config)
         bars = load_futures_bars(db_path)
         segmented, quality = _prepare_segmented_bars(bars, config)
-        if (
-            isinstance(config.horizon, (bool, np.bool_))
-            or not isinstance(config.horizon, (int, np.integer))
-            or config.horizon < 1
-        ):
-            raise ResearchRejected("horizon must be an integer greater than or equal to one")
         if config.timeframe == "5m":
             required_bars = 48 + int(config.horizon) + 2
             potential_rows = (

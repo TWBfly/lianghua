@@ -6,6 +6,7 @@ import importlib.util
 import subprocess
 import sys
 import types
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -77,8 +78,8 @@ finally:
 
 class _FrameDataset:
     def __init__(self, train, test):
-        self.segments = {"train": "train", "valid": "valid", "test": "test"}
-        self.frames = {"train": train, "valid": train, "test": test}
+        self.segments = {"train": "train", "test": "test"}
+        self.frames = {"train": train, "test": test}
 
     def prepare(self, segment, col_set, data_key=None):
         frame = self.frames[segment]
@@ -142,18 +143,29 @@ def fit_qlib_lightgbm(x_train, y_train, sample_weight, x_evaluation, seed):
         "lambda_l2": 5.0,
         "seed": int(seed),
         "num_threads": 1,
+        "validation": "external_nested_walk_forward",
+        "boost_rounds": 100,
+        "early_stopping_rounds": 0,
     }
     model = qlib_gbdt.LGBModel(
-        num_boost_round=100, early_stopping_rounds=10,
+        num_boost_round=parameters["boost_rounds"],
+        early_stopping_rounds=parameters["early_stopping_rounds"],
         **{key: value for key, value in parameters.items()
-           if key not in {"backend", "qlib_version", "qlib_revision"}},
+           if key not in {
+               "backend", "qlib_version", "qlib_revision", "validation",
+               "boost_rounds", "early_stopping_rounds",
+           }},
     )
     recorder = qlib_gbdt.R
     qlib_gbdt.R = _NullRecorder()
     try:
-        model.fit(
-            dataset, reweighter=_Weights(sample_weight), verbose_eval=0,
-        )
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", message="Only training set found, disabling early stopping."
+            )
+            model.fit(
+                dataset, reweighter=_Weights(sample_weight), verbose_eval=0,
+            )
     finally:
         qlib_gbdt.R = recorder
     probability = model.predict(dataset, segment="test").to_numpy(dtype=float)
