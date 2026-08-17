@@ -354,6 +354,41 @@ def test_candidate_names_are_fixed():
     )
 
 
+def test_research_domain_records_fixed_trial_count():
+    config = ResearchConfig(model_backend="qlib")
+
+    domain = research._research_domain(config)
+
+    assert domain == {
+        "selectable_models": [
+            "logistic_c0.1", "qlib_lightgbm_constrained",
+        ],
+        "thresholds": [0.52, 0.55, 0.58],
+        "candidate_threshold_pairs": 6,
+        "feature_names": list(FEATURE_COLUMNS),
+        "horizon": 6,
+        "embargo_bars": 6,
+    }
+
+
+def test_run_identity_changes_with_database_or_module_hash():
+    domain = {
+        "selectable_models": ["logistic_c0.1"],
+        "thresholds": [0.55],
+    }
+    evaluation = {"id": "evaluation"}
+
+    first = research._run_identity(
+        domain, evaluation, "a" * 64, "b" * 64
+    )
+    second = research._run_identity(
+        domain, evaluation, "c" * 64, "b" * 64
+    )
+
+    assert first["id"] != second["id"]
+    assert len(first["id"]) == 64
+
+
 @pytest.mark.parametrize("model_name", [
     "logistic_c0.1", "logistic_c1.0", "lightgbm_constrained",
 ])
@@ -2769,6 +2804,34 @@ def rejected_result_fixture():
     return result
 
 
+def test_report_contains_domain_identity_and_aggregation_evidence(tmp_path):
+    result = rejected_result_fixture()
+    result["research_domain"] = research._research_domain(
+        ResearchConfig(model_backend="qlib")
+    )
+    result["run_identity"] = {
+        "id": "a" * 64,
+        "evaluation_identity": "evaluation",
+    }
+    result["data_quality"] = [{
+        "symbol": "AG_IDX", "status": "INCLUDED", "reason": "",
+        "aggregated_15m_rows": 10, "partial_15m_windows": 2,
+        "zero_volume_boundaries": 1, "price_jump_boundaries": 1,
+        "time_gap_boundaries": 1,
+    }]
+
+    paths = research.write_report(result, tmp_path / "evidence")
+
+    payload = json.loads(Path(paths["report.json"]).read_text())
+    markdown = Path(paths["report.md"]).read_text()
+    html = Path(paths["report.html"]).read_text()
+    assert payload["research_domain"]["candidate_threshold_pairs"] == 6
+    assert payload["run_identity"]["id"] == "a" * 64
+    assert payload["data_quality"][0]["partial_15m_windows"] == 2
+    assert "Research domain" in markdown
+    assert "Run identity" in html
+
+
 def test_report_artifacts_reconcile_and_preserve_rejection(tmp_path):
     result = rejected_result_fixture()
 
@@ -2910,7 +2973,11 @@ def test_run_research_consumes_only_official_adversarial_result(
     }])
     partitions = {"eligible_symbols": ("AG_IDX",)}
     base = {
-        "outer_results": [], "holdout": {},
+        "outer_results": [],
+        "holdout": {
+            "fold": "holdout",
+            "evaluation_identity": {"id": "fixture"},
+        },
         "final_candidate": Candidate("logistic_c0.1", 0.55),
         "final_inner_scores": pd.DataFrame(),
     }
@@ -2993,7 +3060,11 @@ def test_run_research_exposes_malformed_official_bundle_as_internal_error(
         lambda *_: {"eligible_symbols": ("AG_IDX",)},
     )
     monkeypatch.setattr(research, "build_base_evaluation", lambda *_: {
-        "outer_results": [], "holdout": {},
+        "outer_results": [],
+        "holdout": {
+            "fold": "holdout",
+            "evaluation_identity": {"id": "fixture"},
+        },
         "final_candidate": Candidate("logistic_c0.1", 0.55),
         "final_inner_scores": pd.DataFrame(),
     })

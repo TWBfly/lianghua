@@ -348,6 +348,32 @@ def candidate_names(model_backend="native"):
     return ("logistic_c0.1", "logistic_c1.0", "lightgbm_constrained")
 
 
+def _research_domain(config):
+    models = list(candidate_names(config.model_backend))
+    thresholds = [float(value) for value in config.thresholds]
+    return {
+        "selectable_models": models,
+        "thresholds": thresholds,
+        "candidate_threshold_pairs": len(models) * len(thresholds),
+        "feature_names": list(FEATURE_COLUMNS),
+        "horizon": int(config.horizon),
+        "embargo_bars": int(config.embargo_bars),
+    }
+
+
+def _run_identity(domain, evaluation_identity, database_sha256, module_sha256):
+    payload = {
+        "research_domain": domain,
+        "evaluation_identity": evaluation_identity,
+        "database_sha256": database_sha256,
+        "module_sha256": module_sha256,
+    }
+    encoded = json.dumps(
+        payload, sort_keys=True, separators=(",", ":")
+    ).encode()
+    return {"id": hashlib.sha256(encoded).hexdigest(), **payload}
+
+
 def inverse_symbol_class_weights(frame):
     complete = frame.groupby("symbol", dropna=False)["label"].agg(
         lambda labels: set(labels) == {0, 1}
@@ -3122,6 +3148,8 @@ def build_result(context, gates, status):
         "run_id": context["run_id"],
         "status": status,
         "provenance": context.get("provenance", {}),
+        "research_domain": context.get("research_domain"),
+        "run_identity": context.get("run_identity"),
         "config": asdict(context.get("config", ResearchConfig())),
         "features": FEATURE_COLUMNS,
         "candidates": candidate_names(
@@ -3146,6 +3174,8 @@ def rejected_result(run_id, config, reason, quality=None):
         "run_id": run_id,
         "status": "RESEARCH_REJECTED",
         "provenance": {},
+        "research_domain": _research_domain(config),
+        "run_identity": None,
         "config": asdict(config),
         "features": FEATURE_COLUMNS,
         "candidates": candidate_names(config.model_backend),
@@ -3205,7 +3235,14 @@ def _canonical_output_path(output_dir):
 def _markdown_report(payload):
     lines = [
         f"# {payload['status']}", "", DISCLAIMER, "",
-        f"Run ID: `{payload['run_id']}`", "", "## Data exclusions", "",
+        f"Run ID: `{payload['run_id']}`", "", "## Research domain", "",
+        "```json",
+        json.dumps(
+            payload.get("research_domain"), ensure_ascii=False, sort_keys=True
+        ),
+        "```", "", "## Run identity", "",
+        f"`{(payload.get('run_identity') or {}).get('id', 'Not reached')}`",
+        "", "## Data exclusions", "",
     ]
     quality = payload.get("data_quality", ())
     lines.extend(
@@ -3332,6 +3369,14 @@ def _html_report(payload):
         drawdown = (array / np.maximum.accumulate(array) - 1.0).tolist()
     status = _html_value(payload["status"])
     backend = "Qlib" if config.get("model_backend") == "qlib" else _html_value(config.get("model_backend"))
+    domain_text = json.dumps(
+        payload.get("research_domain"), ensure_ascii=False, sort_keys=True
+    )
+    run_identity = (payload.get("run_identity") or {}).get("id", "Not reached")
+    identity_html = (
+        f"<section><h2>Research domain</h2><pre>{_html_value(domain_text)}</pre>"
+        f"<h2>Run identity</h2><p><code>{_html_value(run_identity)}</code></p></section>"
+    )
     return f"""<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{status} · Qlib 15m 期货机器学习回测</title><style>
@@ -3342,12 +3387,13 @@ main{{max-width:1440px;margin:auto;padding:28px}}h1{{margin:0 0 8px;font-size:28
 .cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}}.card{{background:#0a1627;border:1px solid var(--line);padding:14px;border-radius:10px}}.card b{{display:block;font-size:20px;margin-top:6px}}
 .table-wrap{{overflow:auto;max-height:560px}}table{{border-collapse:collapse;width:100%;font-size:12px}}th,td{{border-bottom:1px solid var(--line);padding:8px;text-align:left;white-space:nowrap}}th{{position:sticky;top:0;background:#16243a}}svg{{width:100%;height:auto;background:#0a1627;border-radius:8px}}pre{{white-space:pre-wrap;word-break:break-word;color:#cbd5e1}}
 </style></head><body><main>
-<header><h1>Qlib 15m 期货机器学习回测</h1><div class="status">{status}</div><div class="muted">Run ID: {_html_value(payload['run_id'])} · 模型层: {backend} · 执行层: 审计期货研究账本</div></header>
-<p class="warning">{_html_value(DISCLAIMER)}。仅用于离线研究，不是实盘或可成交合约收益证明。</p>
-<section><h2>核心指标（Holdout，5 bps）</h2><div class="cards">{''.join(f'<div class="card"><span class="muted">{_html_value(name)}</span><b>{_html_value(value)}</b></div>' for name, value in cards)}</div></section>
+	<header><h1>Qlib 15m 期货机器学习回测</h1><div class="status">{status}</div><div class="muted">Run ID: {_html_value(payload['run_id'])} · 模型层: {backend} · 执行层: 审计期货研究账本</div></header>
+	<p class="warning">{_html_value(DISCLAIMER)}。仅用于离线研究，不是实盘或可成交合约收益证明。</p>
+	{identity_html}
+	<section><h2>核心指标（Holdout，5 bps）</h2><div class="cards">{''.join(f'<div class="card"><span class="muted">{_html_value(name)}</span><b>{_html_value(value)}</b></div>' for name, value in cards)}</div></section>
 <section><h2>权益曲线</h2>{_svg_chart(equity, '#60a5fa')}<h2>回撤曲线</h2>{_svg_chart(drawdown, '#fb7185')}</section>
 <section><h2>验收门</h2>{_html_table(gates, ('id','passed','affected_fold','observed','required','reason'))}</section>
-<section><h2>数据质量</h2>{_html_table(quality, ('symbol','status','raw_rows','start_time','end_time','zero_volume_fraction','segment_count','reason'))}</section>
+	<section><h2>数据质量</h2>{_html_table(quality, ('symbol','status','raw_rows','start_time','end_time','zero_volume_fraction','time_gap_boundaries','zero_volume_boundaries','price_jump_boundaries','aggregated_15m_rows','partial_15m_windows','segment_count','reason'))}</section>
 <section><h2>折叠与成本指标</h2>{_html_table(fold_metrics, ('evaluation_kind','fold','model_name','cost_bps','roc_auc','total_return','annualized_return','sharpe','max_drawdown','win_rate','profit_factor','trade_count','turnover'))}</section>
 <section><h2>品种明细</h2>{_html_table(symbol_metrics, ('fold','symbol','cost_bps','total_return','sharpe','max_drawdown','win_rate','profit_factor','trades'))}</section>
 <section><h2>交易明细</h2>{_html_table(trades, ('fold','symbol','cost_bps','decision_time','entry_time','exit_time','direction','entry_open','exit_open','net_sleeve_return','sleeve_pnl','exit_reason'))}</section>
@@ -3364,6 +3410,19 @@ def _reconcile_report(directory):
         parse_constant=reject_constant,
     )
     _validate_gate_bundle(payload.get("status"), payload.get("gates"), "report")
+    domain = payload.get("research_domain")
+    if (
+        not isinstance(domain, dict)
+        or domain.get("candidate_threshold_pairs")
+        != len(domain.get("selectable_models", ()))
+        * len(domain.get("thresholds", ()))
+    ):
+        raise RuntimeError("report research domain mismatch")
+    identity = payload.get("run_identity")
+    if identity is not None and (
+        not isinstance(identity, dict) or not _is_sha256(identity.get("id"))
+    ):
+        raise RuntimeError("report run identity mismatch")
     run_id = str(payload["run_id"])
     for filename, key in (
         ("data_quality.csv", "data_quality"),
@@ -3522,6 +3581,13 @@ def run_research(db_path, output_dir, config=ResearchConfig()):
             run_id, bars, segmented, quality, dataset, partitions, base, config
         )
         context["provenance"].update(provenance)
+        context["research_domain"] = _research_domain(config)
+        context["run_identity"] = _run_identity(
+            context["research_domain"],
+            base["holdout"]["evaluation_identity"],
+            provenance["database_sha256"],
+            provenance["module_sha256"],
+        )
         official = run_adversarial_checks(
             base, bars, dataset, segmented, partitions, context["checks"], config
         )
