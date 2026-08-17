@@ -34,6 +34,55 @@ def test_qlib_backend_returns_finite_probabilities_and_audit_identity():
     assert not any("Only training set found" in str(row.message) for row in caught)
 
 
+def _model_fixture():
+    rows = 500
+    rng = np.random.default_rng(42)
+    features = pd.DataFrame(
+        rng.normal(size=(rows, len(research.FEATURE_COLUMNS))),
+        columns=research.FEATURE_COLUMNS,
+    )
+    labels = pd.Series(np.arange(rows) % 2, name="label")
+    weights = pd.Series(np.ones(rows), index=features.index)
+    return features, labels, weights
+
+
+def test_qlib_model_identity_declares_model_only_role():
+    import qlib_model_adapter
+
+    features, labels, weights = _model_fixture()
+    _, model = qlib_model_adapter.fit_qlib_lightgbm(
+        features.iloc[:400], labels.iloc[:400], weights.iloc[:400],
+        features.iloc[400:], 42,
+    )
+
+    params = model.get_params()
+    assert params["validation"] == "external_nested_walk_forward"
+    assert params["backend"] == "qlib.LGBModel"
+    assert params["role"] == "model_only"
+    assert params["data_provider"] == "project_validated_in_memory"
+    assert params["execution_engine"] == "project_standardized_ledger"
+
+
+def test_qlib_failure_does_not_fallback_to_native(monkeypatch):
+    import qlib_model_adapter
+
+    features, labels, weights = _model_fixture()
+    monkeypatch.setattr(
+        qlib_model_adapter,
+        "fit_qlib_lightgbm",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            ImportError("qlib unavailable")
+        ),
+    )
+
+    with pytest.raises(research.ResearchRejected, match="Qlib"):
+        research._fit_matrix(
+            research.Candidate("qlib_lightgbm_constrained", 0.55),
+            features.iloc[:400], labels.iloc[:400], weights.iloc[:400],
+            features.iloc[400:], research.ResearchConfig(model_backend="qlib"),
+        )
+
+
 def test_qlib_domain_competes_with_one_simple_model():
     assert research.candidate_names("qlib") == (
         "logistic_c0.1", "qlib_lightgbm_constrained",

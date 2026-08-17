@@ -146,6 +146,9 @@ def fit_qlib_lightgbm(x_train, y_train, sample_weight, x_evaluation, seed):
         "validation": "external_nested_walk_forward",
         "boost_rounds": 100,
         "early_stopping_rounds": 0,
+        "role": "model_only",
+        "data_provider": "project_validated_in_memory",
+        "execution_engine": "project_standardized_ledger",
     }
     model = qlib_gbdt.LGBModel(
         num_boost_round=parameters["boost_rounds"],

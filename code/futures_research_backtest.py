@@ -401,11 +401,15 @@ def _fit_matrix(candidate, x_train, y_train, sample_weight, x_evaluation, config
         raise ResearchRejected("model inputs must be finite")
     qlib_model = candidate.model_name == "qlib_lightgbm_constrained"
     if qlib_model:
-        from qlib_model_adapter import fit_qlib_lightgbm
-
-        probability, model = fit_qlib_lightgbm(
-            x_train, y_train, sample_weight, x_evaluation, config.seed
-        )
+        try:
+            from qlib_model_adapter import fit_qlib_lightgbm
+            probability, model = fit_qlib_lightgbm(
+                x_train, y_train, sample_weight, x_evaluation, config.seed
+            )
+        except (ImportError, ModuleNotFoundError, OSError, ValueError) as exc:
+            raise ResearchRejected(
+                f"Qlib model unavailable: {exc}"
+            ) from exc
     elif candidate.model_name.startswith("logistic_c"):
         c_value = float(candidate.model_name.removeprefix("logistic_c"))
         model = make_pipeline(
