@@ -775,6 +775,8 @@ def _tianji_segment_features(group):
     path = close.diff().abs().rolling(20).sum().replace(0.0, np.nan)
     channel_high = high.rolling(20).max()
     channel_low = low.rolling(20).min()
+    prior_channel_high = high.shift(1).rolling(20).max()
+    prior_channel_low = low.shift(1).rolling(20).min()
     channel_span = (channel_high - channel_low).replace(0.0, np.nan)
     clv = (2.0 * close - high - low) / (high - low).replace(0.0, np.nan)
     frame = pd.DataFrame(index=group.index)
@@ -785,6 +787,8 @@ def _tianji_segment_features(group):
     frame["donchian_position_20"] = (
         2.0 * (close - channel_low) / channel_span - 1.0
     )
+    frame["prior_breakout_up_20"] = close > prior_channel_high
+    frame["prior_breakout_down_20"] = close < prior_channel_low
     frame["momentum_acceleration_5_20"] = (
         close.pct_change(5) - close.pct_change(20) / 4.0
     )
@@ -1536,6 +1540,10 @@ def simulate_tianji_ledger(targets, rebalance_times, market, cost_bps):
                         "entry_price": float(row.open),
                         "entry_cost": entry_cost,
                         "atr": float(order["atr"]),
+                        "entry_atr": float(order["atr"]),
+                        "trail_activation_r": float(
+                            order.get("trail_activation_r", 0.0)
+                        ),
                         "stop": float(row.open) - direction * float(order["atr"]),
                         "favorable": float(row.open),
                         "decision_time": order["decision_time"],
@@ -1589,16 +1597,24 @@ def simulate_tianji_ledger(targets, rebalance_times, market, cost_bps):
                 position["atr"] = float(row.atr)
             if position["direction"] == 1:
                 position["favorable"] = max(position["favorable"], float(row.high))
-                position["stop"] = max(
-                    position["stop"],
-                    position["favorable"] - TIANJI_TRAIL_ATR * position["atr"],
-                )
+                favorable_move = position["favorable"] - position["entry_price"]
+                if favorable_move >= (
+                    position["trail_activation_r"] * position["entry_atr"]
+                ):
+                    position["stop"] = max(
+                        position["stop"],
+                        position["favorable"] - TIANJI_TRAIL_ATR * position["atr"],
+                    )
             else:
                 position["favorable"] = min(position["favorable"], float(row.low))
-                position["stop"] = min(
-                    position["stop"],
-                    position["favorable"] + TIANJI_TRAIL_ATR * position["atr"],
-                )
+                favorable_move = position["entry_price"] - position["favorable"]
+                if favorable_move >= (
+                    position["trail_activation_r"] * position["entry_atr"]
+                ):
+                    position["stop"] = min(
+                        position["stop"],
+                        position["favorable"] + TIANJI_TRAIL_ATR * position["atr"],
+                    )
 
         if timestamp in set(rebalance_index):
             selected = target_groups.get(timestamp, decisions.iloc[0:0])
@@ -1635,6 +1651,9 @@ def simulate_tianji_ledger(targets, rebalance_times, market, cost_bps):
                         "direction": direction,
                         "weight": weight,
                         "atr": float(row["atr"]),
+                        "trail_activation_r": float(
+                            row.get("trail_activation_r", 0.0)
+                        ),
                         "decision_time": timestamp,
                     }
 

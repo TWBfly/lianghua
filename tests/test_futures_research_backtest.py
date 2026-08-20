@@ -390,6 +390,24 @@ def test_tianji_new_atr_updates_only_next_bar_stop():
     assert trades["exit_open"].iloc[0] == pytest.approx(109.5)
 
 
+def test_tianji_three_r_activation_does_not_trail_early():
+    market = make_tianji_market(5, symbols=("AG_IDX",))
+    market["atr"] = 2.0
+    market.loc[2, ["high", "low", "close"]] = [105.0, 100.0, 104.0]
+    market.loc[3, ["open", "high", "low", "close"]] = [
+        104.0, 104.5, 99.5, 103.0,
+    ]
+    targets = _single_tianji_target(market)
+    targets["trail_activation_r"] = 3.0
+    decision = targets["decision_time"].item()
+
+    trades, _, _ = research.simulate_tianji_ledger(
+        targets, pd.DatetimeIndex([decision]), market, 0
+    )
+
+    assert trades["exit_reason"].iloc[0] == "TERMINAL_CLOSE"
+
+
 def make_async_exposure_case():
     first_longs = ("L1", "L2", "L3", "L4")
     first_shorts = ("SI_IDX", "S2", "S3", "S4")
