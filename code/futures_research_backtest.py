@@ -781,6 +781,80 @@ def build_tianji_scores(segmented):
     ).reset_index(drop=True)
 
 
+def _tianji_leg(group, direction):
+    ordered = group.sort_values(
+        ["score", "symbol"],
+        ascending=[direction < 0, True],
+        kind="stable",
+    )
+    rows = []
+    sector_counts = {}
+    for row in ordered.itertuples(index=False):
+        if sector_counts.get(row.sector, 0) >= TIANJI_SECTOR_LIMIT:
+            continue
+        rows.append({
+            "decision_time": row.decision_time,
+            "symbol": row.symbol,
+            "direction": direction,
+            "atr": float(row.atr),
+            "atr_pct": float(row.atr_pct),
+            "score": float(row.score),
+            "sector": row.sector,
+        })
+        sector_counts[row.sector] = sector_counts.get(row.sector, 0) + 1
+        if len(rows) == TIANJI_TOP_K:
+            break
+    return rows
+
+
+def build_tianji_targets(scores, holdout_start):
+    required = {
+        "decision_time", "symbol", "eligible", "score", "atr", "atr_pct",
+        "sector",
+    }
+    if not isinstance(scores, pd.DataFrame) or scores.empty:
+        raise ResearchRejected("no TianJi scores")
+    missing = required.difference(scores.columns)
+    if missing:
+        raise ResearchRejected(
+            f"missing TianJi score columns: {', '.join(sorted(missing))}"
+        )
+    try:
+        start = pd.Timestamp(holdout_start)
+    except (TypeError, ValueError) as exc:
+        raise ResearchRejected("invalid TianJi holdout start") from exc
+    times = pd.DatetimeIndex(sorted(pd.to_datetime(
+        scores["decision_time"], errors="raise"
+    ).unique()))
+    rebalance_times = times[::TIANJI_REBALANCE_BARS]
+    rebalance_times = rebalance_times[rebalance_times >= start]
+    rows = []
+    for decision_time in rebalance_times:
+        group = scores[
+            scores["decision_time"].eq(decision_time)
+            & scores["eligible"]
+            & scores["score"].notna()
+        ]
+        longs = _tianji_leg(group, 1)
+        long_symbols = [row["symbol"] for row in longs]
+        short_pool = group[~group["symbol"].isin(long_symbols)]
+        shorts = _tianji_leg(short_pool, -1)
+        pair_count = min(len(longs), len(shorts))
+        rows.extend(longs[:pair_count])
+        rows.extend(shorts[:pair_count])
+    columns = (
+        "decision_time", "symbol", "direction", "atr", "atr_pct", "score",
+        "sector",
+    )
+    targets = pd.DataFrame(rows, columns=columns)
+    return (
+        targets.sort_values(
+            ["decision_time", "direction", "symbol"], kind="stable"
+        ).reset_index(drop=True),
+        rebalance_times,
+    )
+
+
 def _segment_features(group):
     close = group["close"].astype(float)
     volume = group["volume"].astype(float)

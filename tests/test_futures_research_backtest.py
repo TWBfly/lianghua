@@ -107,6 +107,38 @@ def test_tianji_score_prefix_is_unchanged_by_future_bars():
     assert {"label", "future_return", "probability"}.isdisjoint(actual.columns)
 
 
+def test_tianji_targets_are_neutral_sector_capped_and_rebalance_every_16_bars():
+    scores = research.build_tianji_scores(make_tianji_market(90))
+    holdout_start = scores["decision_time"].sort_values().unique()[0]
+
+    targets, rebalance_times = research.build_tianji_targets(scores, holdout_start)
+
+    assert (
+        np.diff(rebalance_times.values) / np.timedelta64(1, "m")
+    ).tolist() == [240.0] * (len(rebalance_times) - 1)
+    for _, group in targets.groupby("decision_time"):
+        longs = group["direction"].eq(1).sum()
+        shorts = group["direction"].eq(-1).sum()
+        assert longs <= 4
+        assert shorts <= 4
+        assert longs == shorts
+        assert not group["symbol"].duplicated().any()
+        assert group.groupby(["direction", "sector"]).size().max() <= 2
+
+
+def test_tianji_target_order_is_stable_under_input_shuffle():
+    scores = research.build_tianji_scores(make_tianji_market(90))
+    start = scores["decision_time"].min()
+
+    expected = research.build_tianji_targets(scores, start)
+    actual = research.build_tianji_targets(
+        scores.sample(frac=1, random_state=7), start
+    )
+
+    pd.testing.assert_frame_equal(expected[0], actual[0])
+    assert expected[1].equals(actual[1])
+
+
 def _write_source(
         db_path, bars, series_type="WEIGHTED_INDEX", metadata=True,
         source_sha256="a" * 64):
