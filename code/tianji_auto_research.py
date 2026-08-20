@@ -291,6 +291,18 @@ def auto_development_gates(metrics):
     return {"passed": all(checks.values()), "checks": checks}
 
 
+def attach_auto_gates(frame):
+    result = frame.copy()
+    if result.empty:
+        result["gates"] = pd.Series(dtype=object)
+    else:
+        result["gates"] = [
+            auto_development_gates(row._asdict())
+            for row in result.itertuples(index=False)
+        ]
+    return result
+
+
 ATTACK_IDS = (
     "costs",
     "sector_exclusion",
@@ -386,9 +398,7 @@ def run_auto_research(segmented, quality, config):
             if row["candidate_id"] == candidate_id
         ]
     )
-    aggregate["gates"] = aggregate.apply(
-        lambda row: auto_development_gates(row.to_dict()), axis=1
-    )
+    aggregate = attach_auto_gates(aggregate)
     survivors = aggregate[
         aggregate["gates"].map(lambda value: value["passed"])
     ].copy()

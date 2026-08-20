@@ -176,6 +176,18 @@ def test_auto_gates_require_all_hard_thresholds_and_positive_folds():
     assert not auto.auto_development_gates(metrics)["passed"]
 
 
+def test_attach_auto_gates_handles_empty_stage3():
+    frame = pd.DataFrame(columns=[
+        "candidate_id", "payoff_ratio", "max_drawdown", "total_return",
+        "trades", "turnover", "fold_returns",
+    ])
+
+    result = auto.attach_auto_gates(frame)
+
+    assert result.empty
+    assert "gates" in result.columns
+
+
 def test_auto_status_never_claims_research_acceptance():
     assert auto.auto_status("candidate") == "AUTO_DEVELOPMENT_CANDIDATE"
     assert auto.auto_status(None) == "AUTO_DEVELOPMENT_REJECTED"
