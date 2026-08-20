@@ -412,8 +412,6 @@ def _research_domain(config):
     except (TypeError, ValueError):
         thresholds = []
     return {
-        "strategy_mode": "predictive",
-        "predictive": True,
         "selectable_models": models,
         "thresholds": thresholds,
         "candidate_threshold_pairs": len(models) * len(thresholds),
@@ -1630,6 +1628,153 @@ def tianji_metrics(trades, bars, daily):
     if not all(np.isfinite(value) for value in result.values()):
         raise ResearchRejected("non-finite TianJi metrics")
     return result
+
+
+def build_tianji_evaluation(segmented, config=ResearchConfig()):
+    """Build the one frozen TianJi holdout without labels or model selection."""
+    if not isinstance(segmented, pd.DataFrame) or segmented.empty:
+        raise ResearchRejected("no segmented bars for TianJi evaluation")
+    if (
+        isinstance(config.min_symbol_rows, (bool, np.bool_))
+        or not isinstance(config.min_symbol_rows, (int, np.integer))
+        or config.min_symbol_rows < 1
+        or isinstance(config.min_symbols, (bool, np.bool_))
+        or not isinstance(config.min_symbols, (int, np.integer))
+        or config.min_symbols < 1
+    ):
+        raise ResearchRejected("invalid TianJi symbol requirements")
+    counts = segmented.groupby("symbol").size()
+    eligible = counts[counts >= config.min_symbol_rows + 30].index
+    if len(eligible) < config.min_symbols:
+        raise ResearchRejected("too few eligible TianJi symbols")
+    market = segmented[segmented["symbol"].isin(eligible)].copy()
+    scores = build_tianji_scores(market)
+    mature = scores.groupby("symbol").size()
+    eligible = mature[mature >= config.min_symbol_rows].index
+    if len(eligible) < config.min_symbols:
+        raise ResearchRejected("too few mature TianJi symbols")
+    if set(eligible) != set(market["symbol"].unique()):
+        market = market[market["symbol"].isin(eligible)].copy()
+        scores = build_tianji_scores(market)
+
+    times = pd.DatetimeIndex(sorted(scores["decision_time"].unique()))
+    holdout_index = int(len(times) * (1.0 - config.holdout_fraction))
+    if holdout_index < 1 or holdout_index >= len(times):
+        raise ResearchRejected("insufficient TianJi holdout times")
+    holdout_start = pd.Timestamp(times[holdout_index])
+    prefix_end = pd.Timestamp(times[holdout_index - 1])
+    prefix_scores = build_tianji_scores(
+        market[market["trade_time"].le(prefix_end)]
+    ).reset_index(drop=True)
+    full_prefix = scores[scores["decision_time"].le(prefix_end)].reset_index(drop=True)
+    prefix_invariance = prefix_scores.equals(full_prefix)
+
+    targets, rebalance_times = build_tianji_targets(scores, holdout_start)
+    if targets.empty:
+        raise ResearchRejected("no TianJi holdout targets")
+    atr = scores.loc[:, ["symbol", "decision_time", "atr"]].rename(
+        columns={"decision_time": "trade_time"}
+    )
+    evaluation_market = market[market["trade_time"].ge(holdout_start)].copy()
+    evaluation_market = evaluation_market.merge(
+        atr, on=["symbol", "trade_time"], how="left", validate="one_to_one"
+    )
+    if evaluation_market["atr"].isna().any():
+        raise ResearchRejected("missing causal TianJi ATR in holdout")
+
+    trades_by_cost = {}
+    bars_by_cost = {}
+    daily_by_cost = {}
+    cost_metrics = {}
+    signature = None
+    identity_columns = [
+        "symbol", "decision_time", "entry_time", "exit_time", "direction",
+        "entry_open", "exit_open", "weight", "exit_reason",
+    ]
+    for configured_cost in config.costs_bps:
+        key = int(configured_cost)
+        trades, bars, daily = simulate_tianji_ledger(
+            targets, rebalance_times, evaluation_market, key
+        )
+        current = trades.loc[:, identity_columns].reset_index(drop=True)
+        if signature is None:
+            signature = current
+        elif not current.equals(signature):
+            raise ResearchRejected("TianJi cost runs changed the frozen trade set")
+        trades_by_cost[key] = trades
+        bars_by_cost[key] = bars
+        daily_by_cost[key] = daily
+        cost_metrics[key] = tianji_metrics(trades, bars, daily)
+
+    forbidden = {"label", "future_return", "probability"}
+    domain = _research_domain(config)
+    non_predictive = (
+        forbidden.isdisjoint(scores.columns)
+        and forbidden.isdisjoint(targets.columns)
+        and domain["predictive"] is False
+        and domain["selectable_models"] == []
+        and domain["thresholds"] == []
+    )
+    checks = {
+        "structural": True,
+        "causal": prefix_invariance,
+        "ledger": True,
+        "prefix_invariance": prefix_invariance,
+        "non_predictive": non_predictive,
+    }
+    identity_frame = targets.loc[:, [
+        "decision_time", "symbol", "direction", "atr", "atr_pct", "score",
+    ]].copy()
+    hashes = pd.util.hash_pandas_object(
+        identity_frame, index=False, categorize=True
+    ).to_numpy(dtype="<u8")
+    evaluation_identity = {
+        "id": hashlib.sha256(hashes.tobytes()).hexdigest(),
+        "holdout_start": holdout_start.isoformat(),
+        "holdout_end": pd.Timestamp(
+            evaluation_market["trade_time"].max()
+        ).isoformat(),
+        "target_rows": int(len(targets)),
+    }
+    base = {
+        "outer_results": [],
+        "final_candidate": None,
+        "final_inner_scores": pd.DataFrame(),
+        "holdout": {
+            "fold": "holdout",
+            "model_name": "tianji_rule",
+            "model_identity": "tianji_rule_v1",
+            "model_parameters": {
+                "rebalance_bars": TIANJI_REBALANCE_BARS,
+                "top_k": TIANJI_TOP_K,
+                "side_exposure": TIANJI_SIDE_EXPOSURE,
+                "initial_stop_atr": TIANJI_INITIAL_STOP_ATR,
+                "trail_atr": TIANJI_TRAIL_ATR,
+            },
+            "threshold": None,
+            "evaluation_identity": evaluation_identity,
+            "split_cutoffs": {
+                "development_start": pd.Timestamp(scores["decision_time"].min()),
+                "development_end": prefix_end,
+                "evaluation_start": holdout_start,
+                "evaluation_end": pd.Timestamp(evaluation_market["trade_time"].max()),
+            },
+            "sample_counts": {
+                "evaluation_rows": int(len(evaluation_market)),
+                "symbols": int(len(eligible)),
+                "evaluation_dates": int(
+                    evaluation_market["trade_time"].dt.normalize().nunique()
+                ),
+            },
+            "predictive_metrics": {},
+            "cost_metrics": cost_metrics,
+            "trades": trades_by_cost,
+            "bars": bars_by_cost,
+            "daily": daily_by_cost,
+            "symbol_metrics": pd.DataFrame(),
+        },
+    }
+    return base, checks
 
 
 def strategy_metrics(trades, daily):
@@ -3313,6 +3458,15 @@ ACCEPTANCE_GATE_IDS = (
     "positive_symbol_concentration", "ten_bps_resilience",
     "cost_monotonicity",
 )
+TIANJI_ACCEPTANCE_GATE_IDS = (
+    "integrity_checks",
+    "non_predictive_contract",
+    "payoff_ratio_5bps",
+    "max_drawdown_5bps",
+    "minimum_trades_5bps",
+    "positive_return_5bps",
+    "cost_monotonicity",
+)
 GATE_FIELDS = {
     "id", "passed", "observed", "required", "affected_fold", "reason",
 }
@@ -3328,6 +3482,94 @@ def research_status(gates):
         and all(isinstance(gate, dict) and gate.get("passed") is True for gate in gates)
         else "RESEARCH_REJECTED"
     )
+
+
+def tianji_status(gates):
+    required = set(TIANJI_ACCEPTANCE_GATE_IDS)
+    return (
+        "RESEARCH_ACCEPTED"
+        if isinstance(gates, (list, tuple))
+        and len(gates) == len(required)
+        and {gate.get("id") for gate in gates if isinstance(gate, dict)} == required
+        and all(isinstance(gate, dict) and gate.get("passed") is True for gate in gates)
+        else "RESEARCH_REJECTED"
+    )
+
+
+def evaluate_tianji_gates(cost_metrics, checks):
+    required_costs = (0, 2, 5, 10, 15, 20)
+    required_checks = {
+        "structural", "causal", "ledger", "prefix_invariance", "non_predictive",
+    }
+    if (
+        not isinstance(cost_metrics, dict)
+        or set(cost_metrics) != set(required_costs)
+        or not isinstance(checks, dict)
+        or set(checks) != required_checks
+    ):
+        raise ResearchRejected("incomplete TianJi acceptance evidence")
+    primary = cost_metrics[5]
+    required_metrics = {"trades", "total_return", "payoff_ratio", "max_drawdown"}
+    if required_metrics.difference(primary):
+        raise ResearchRejected("incomplete TianJi 5 bp metrics")
+    values = {
+        "trades": int(primary["trades"]),
+        "total_return": float(primary["total_return"]),
+        "payoff_ratio": float(primary["payoff_ratio"]),
+        "max_drawdown": float(primary["max_drawdown"]),
+    }
+    if not all(_finite_number(value) for value in values.values()):
+        raise ResearchRejected("non-finite TianJi acceptance evidence")
+    returns = [float(cost_metrics[cost]["total_return"]) for cost in required_costs]
+    if not all(_finite_number(value) for value in returns):
+        raise ResearchRejected("non-finite TianJi cost evidence")
+
+    def gate(gate_id, passed, observed, required, success):
+        passed = bool(passed)
+        return _gate_record(
+            gate_id,
+            passed,
+            observed,
+            required,
+            None if passed else "holdout",
+            success if passed else f"{gate_id} failed: observed={observed}",
+        )
+
+    integrity = all(value is True for value in checks.values())
+    return [
+        gate(
+            "integrity_checks", integrity, dict(checks), "all checks true",
+            "all TianJi integrity checks passed",
+        ),
+        gate(
+            "non_predictive_contract", checks["non_predictive"] is True,
+            checks["non_predictive"], True,
+            "no labels, fitting, prediction, or candidate selection",
+        ),
+        gate(
+            "payoff_ratio_5bps", values["payoff_ratio"] >= 1.8,
+            values["payoff_ratio"], ">= 1.8", "5 bp payoff ratio passed",
+        ),
+        gate(
+            "max_drawdown_5bps", values["max_drawdown"] <= 0.10,
+            values["max_drawdown"], "<= 0.10", "5 bp bar drawdown passed",
+        ),
+        gate(
+            "minimum_trades_5bps", values["trades"] >= 200,
+            values["trades"], ">= 200", "5 bp closed trade count passed",
+        ),
+        gate(
+            "positive_return_5bps", values["total_return"] > 0.0,
+            values["total_return"], "> 0", "5 bp total return passed",
+        ),
+        gate(
+            "cost_monotonicity",
+            all(left >= right for left, right in zip(returns, returns[1:])),
+            returns,
+            "0/2/5/10/15/20 bp returns non-increasing",
+            "frozen TianJi trades decline with costs",
+        ),
+    ]
 
 
 def _is_sha256(value):
@@ -3409,8 +3651,15 @@ def _validate_gate_bundle(status, gates, label):
         ):
             raise RuntimeError(f"{label} gate bundle mixes run preconditions")
         return
-    if len(ids) != len(ACCEPTANCE_GATE_IDS) or set(ids) != set(ACCEPTANCE_GATE_IDS):
-        raise RuntimeError(f"{label} gate bundle must contain ten exact unique gates")
+    valid_ids = (
+        len(ids) == len(ACCEPTANCE_GATE_IDS)
+        and set(ids) == set(ACCEPTANCE_GATE_IDS)
+    ) or (
+        len(ids) == len(TIANJI_ACCEPTANCE_GATE_IDS)
+        and set(ids) == set(TIANJI_ACCEPTANCE_GATE_IDS)
+    )
+    if not valid_ids:
+        raise RuntimeError(f"{label} gate bundle has an invalid exact gate set")
     expected = (
         "RESEARCH_ACCEPTED"
         if all(gate["passed"] is True for gate in gates)
@@ -3647,14 +3896,17 @@ def _report_tables(context):
                 "reason": attack.get("reason"),
             })
     holdout = base.get("holdout", {})
-    holdout_daily = holdout.get("daily", {}).get(5, pd.DataFrame())
+    if context.get("config", ResearchConfig()).strategy_mode == "tianji":
+        equity_curve = holdout.get("bars", {}).get(5, pd.DataFrame())
+    else:
+        equity_curve = holdout.get("daily", {}).get(5, pd.DataFrame())
     return {
         "cutoffs": cutoffs,
         "data_quality": _records(context.get("quality", pd.DataFrame()).reset_index()),
         "fold_metrics": _json_safe(fold_metrics),
         "symbol_metrics": _records(holdout.get("symbol_metrics")),
         "trades": _json_safe(trades),
-        "equity_curve": _records(holdout_daily),
+        "equity_curve": _records(equity_curve),
     }
 
 
@@ -3706,6 +3958,8 @@ def build_result(context, gates, status):
     _validate_gate_bundle(status, gates, "official result")
     base = context["base"]
     candidate = base.get("final_candidate")
+    config = context.get("config", ResearchConfig())
+    tianji = config.strategy_mode == "tianji"
     tables = _report_tables(context)
     return _json_safe({
         "run_id": context["run_id"],
@@ -3713,12 +3967,10 @@ def build_result(context, gates, status):
         "provenance": context.get("provenance", {}),
         "research_domain": context.get("research_domain"),
         "run_identity": context.get("run_identity"),
-        "config": asdict(context.get("config", ResearchConfig())),
-        "features": FEATURE_COLUMNS,
-        "candidates": candidate_names(
-            context.get("config", ResearchConfig()).model_backend
-        ),
-        "seed": context.get("config", ResearchConfig()).seed,
+        "config": asdict(config),
+        "features": TIANJI_FEATURE_COLUMNS if tianji else FEATURE_COLUMNS,
+        "candidates": [] if tianji else candidate_names(config.model_backend),
+        "seed": config.seed,
         "selected_candidate": candidate,
         "selection_scores": base.get("final_inner_scores", pd.DataFrame()),
         "metrics": _metric_summary(base),
@@ -3734,6 +3986,7 @@ def rejected_result(run_id, config, reason, quality=None):
         [] if quality is None else _records(quality.reset_index())
     )
     domain = _research_domain(config)
+    tianji = getattr(config, "strategy_mode", "predictive") == "tianji"
     return _json_safe({
         "run_id": run_id,
         "status": "RESEARCH_REJECTED",
@@ -3741,7 +3994,7 @@ def rejected_result(run_id, config, reason, quality=None):
         "research_domain": domain,
         "run_identity": None,
         "config": asdict(config),
-        "features": FEATURE_COLUMNS,
+        "features": TIANJI_FEATURE_COLUMNS if tianji else FEATURE_COLUMNS,
         "candidates": domain["selectable_models"],
         "seed": config.seed,
         "selected_candidate": None,
@@ -3906,6 +4159,7 @@ def _svg_chart(values, color):
 
 def _html_report(payload):
     config = payload.get("config", {})
+    tianji = config.get("strategy_mode") == "tianji"
     gates = payload.get("gates", [])
     quality = payload.get("data_quality", [])
     fold_metrics = payload.get("fold_metrics", [])
@@ -3923,7 +4177,9 @@ def _html_report(payload):
         ("最大回撤", holdout.get("max_drawdown")),
         ("夏普", holdout.get("sharpe")),
         ("胜率", holdout.get("win_rate")),
-        ("盈亏比", holdout.get("profit_factor")),
+        ("盈亏比", holdout.get(
+            "payoff_ratio" if tianji else "profit_factor"
+        )),
         ("交易数", holdout.get("trade_count", len(trades))),
     )
     equity = [row.get("equity") for row in equity_rows if row.get("equity") is not None]
@@ -3932,7 +4188,14 @@ def _html_report(payload):
         array = np.asarray(equity, dtype=float)
         drawdown = (array / np.maximum.accumulate(array) - 1.0).tolist()
     status = _html_value(payload["status"])
-    backend = "Qlib" if config.get("model_backend") == "qlib" else _html_value(config.get("model_backend"))
+    title = "TianJi 15m 期货非预测回测" if tianji else "Qlib 15m 期货机器学习回测"
+    backend = (
+        "冻结 OHLCV 规则"
+        if tianji else (
+            "Qlib" if config.get("model_backend") == "qlib"
+            else _html_value(config.get("model_backend"))
+        )
+    )
     domain_text = json.dumps(
         payload.get("research_domain"), ensure_ascii=False, sort_keys=True
     )
@@ -3943,7 +4206,7 @@ def _html_report(payload):
     )
     return f"""<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{status} · Qlib 15m 期货机器学习回测</title><style>
+<title>{status} · {title}</title><style>
 :root{{--bg:#07111f;--card:#101d30;--line:#263a55;--text:#e7eef8;--muted:#94a3b8;--blue:#60a5fa;--red:#fb7185;--green:#34d399}}
 *{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}}
 main{{max-width:1440px;margin:auto;padding:28px}}h1{{margin:0 0 8px;font-size:28px}}h2{{margin:0 0 16px}}section{{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin:18px 0}}
@@ -3951,14 +4214,14 @@ main{{max-width:1440px;margin:auto;padding:28px}}h1{{margin:0 0 8px;font-size:28
 .cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}}.card{{background:#0a1627;border:1px solid var(--line);padding:14px;border-radius:10px}}.card b{{display:block;font-size:20px;margin-top:6px}}
 .table-wrap{{overflow:auto;max-height:560px}}table{{border-collapse:collapse;width:100%;font-size:12px}}th,td{{border-bottom:1px solid var(--line);padding:8px;text-align:left;white-space:nowrap}}th{{position:sticky;top:0;background:#16243a}}svg{{width:100%;height:auto;background:#0a1627;border-radius:8px}}pre{{white-space:pre-wrap;word-break:break-word;color:#cbd5e1}}
 </style></head><body><main>
-	<header><h1>Qlib 15m 期货机器学习回测</h1><div class="status">{status}</div><div class="muted">Run ID: {_html_value(payload['run_id'])} · 模型层: {backend} · 执行层: 审计期货研究账本</div></header>
+	<header><h1>{title}</h1><div class="status">{status}</div><div class="muted">Run ID: {_html_value(payload['run_id'])} · 信号层: {backend} · 执行层: 审计期货研究账本</div></header>
 	<p class="warning">{_html_value(DISCLAIMER)}。仅用于离线研究，不是实盘或可成交合约收益证明。</p>
 	{identity_html}
 	<section><h2>核心指标（Holdout，5 bps）</h2><div class="cards">{''.join(f'<div class="card"><span class="muted">{_html_value(name)}</span><b>{_html_value(value)}</b></div>' for name, value in cards)}</div></section>
 <section><h2>权益曲线</h2>{_svg_chart(equity, '#60a5fa')}<h2>回撤曲线</h2>{_svg_chart(drawdown, '#fb7185')}</section>
 <section><h2>验收门</h2>{_html_table(gates, ('id','passed','affected_fold','observed','required','reason'))}</section>
 	<section><h2>数据质量</h2>{_html_table(quality, ('symbol','status','raw_rows','start_time','end_time','zero_volume_fraction','time_gap_boundaries','zero_volume_boundaries','price_jump_boundaries','aggregated_15m_rows','partial_15m_windows','segment_count','reason'))}</section>
-<section><h2>折叠与成本指标</h2>{_html_table(fold_metrics, ('evaluation_kind','fold','model_name','cost_bps','roc_auc','total_return','annualized_return','sharpe','max_drawdown','win_rate','profit_factor','trade_count','turnover'))}</section>
+<section><h2>折叠与成本指标</h2>{_html_table(fold_metrics, ('evaluation_kind','fold','model_name','cost_bps','roc_auc','total_return','annualized_return','sharpe','max_drawdown','win_rate','payoff_ratio','profit_factor','trade_count','turnover'))}</section>
 <section><h2>品种明细</h2>{_html_table(symbol_metrics, ('fold','symbol','cost_bps','total_return','sharpe','max_drawdown','win_rate','profit_factor','trades'))}</section>
 <section><h2>交易明细</h2>{_html_table(trades, ('fold','symbol','cost_bps','decision_time','entry_time','exit_time','direction','entry_open','exit_open','net_sleeve_return','sleeve_pnl','exit_reason'))}</section>
 <section><h2>配置与来源</h2><pre>{_html_value({'config': config, 'provenance': payload.get('provenance', {}), 'selected_candidate': payload.get('selected_candidate'), 'features': payload.get('features', []), 'limitations': payload.get('limitations', [])})}</pre></section>
@@ -4109,6 +4372,30 @@ def run_research(db_path, output_dir, config=ResearchConfig()):
         _validate_research_config(config)
         bars = load_futures_bars(db_path)
         segmented, quality = _prepare_segmented_bars(bars, config)
+        if config.strategy_mode == "tianji":
+            base, checks = build_tianji_evaluation(segmented, config)
+            context = build_adversarial_context(
+                run_id, bars, segmented, quality,
+                pd.DataFrame(), {}, base, config,
+            )
+            context["checks"] = checks
+            context["attacks"] = []
+            context["provenance"].update(provenance)
+            context["research_domain"] = _research_domain(config)
+            context["run_identity"] = _run_identity(
+                context["research_domain"],
+                base["holdout"]["evaluation_identity"],
+                provenance["database_sha256"],
+                provenance["module_sha256"],
+            )
+            gates = evaluate_tianji_gates(
+                base["holdout"]["cost_metrics"], checks
+            )
+            status = tianji_status(gates)
+            _validate_gate_bundle(status, gates, "official TianJi")
+            result = build_result(context, gates, status)
+            result["artifacts"] = write_report(result, output_dir)
+            return result
         if config.timeframe == "5m":
             required_bars = 48 + int(config.horizon) + 2
             potential_rows = (

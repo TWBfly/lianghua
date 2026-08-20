@@ -242,6 +242,175 @@ def test_tianji_terminal_equity_reconciles_and_input_order_is_stable():
     )
 
 
+def tianji_metrics_fixture(**overrides):
+    return {
+        "trades": 200,
+        "total_return": 0.01,
+        "payoff_ratio": 1.8,
+        "max_drawdown": 0.10,
+        "profit_factor": 1.1,
+        **overrides,
+    }
+
+
+@pytest.mark.parametrize(
+    "name,gate_id,value",
+    [
+        ("payoff_ratio", "payoff_ratio_5bps", 1.7999),
+        ("max_drawdown", "max_drawdown_5bps", 0.1001),
+        ("trades", "minimum_trades_5bps", 199),
+        ("total_return", "positive_return_5bps", 0.0),
+    ],
+)
+def test_tianji_gate_rejects_each_failed_5bps_boundary(name, gate_id, value):
+    metrics = tianji_metrics_fixture(**{name: value})
+    costs = {
+        0: tianji_metrics_fixture(total_return=0.03),
+        2: tianji_metrics_fixture(total_return=0.02),
+        5: metrics,
+        10: tianji_metrics_fixture(total_return=0.005),
+        15: tianji_metrics_fixture(total_return=-0.005),
+        20: tianji_metrics_fixture(total_return=-0.01),
+    }
+
+    gates = research.evaluate_tianji_gates(costs, checks={
+        "structural": True,
+        "causal": True,
+        "ledger": True,
+        "prefix_invariance": True,
+        "non_predictive": True,
+    })
+
+    assert research.tianji_status(gates) == "RESEARCH_REJECTED"
+    assert next(g for g in gates if g["id"] == gate_id)["passed"] is False
+
+
+def test_tianji_run_never_calls_predictive_pipeline(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        research,
+        "build_causal_dataset",
+        lambda *_: pytest.fail("TianJi built future labels"),
+    )
+    monkeypatch.setattr(
+        research,
+        "fit_predict",
+        lambda *_: pytest.fail("TianJi fitted a model"),
+    )
+    monkeypatch.setattr(
+        research,
+        "select_candidate",
+        lambda *_: pytest.fail("TianJi selected a candidate"),
+    )
+    market = make_tianji_market(80)
+    quality = pd.DataFrame({
+        "symbol": sorted(market["symbol"].unique()),
+        "status": "INCLUDED",
+        "reason": "",
+    }).set_index("symbol")
+    returns = {0: 0.03, 2: 0.02, 5: 0.01, 10: 0.005, 15: 0.0, 20: -0.005}
+    cost_metrics = {
+        cost: tianji_metrics_fixture(total_return=value)
+        for cost, value in returns.items()
+    }
+    decision_times = pd.date_range("2026-01-02 09:00", periods=200, freq="15min")
+    trade_identity = pd.DataFrame({
+        "symbol": "AG_IDX",
+        "decision_time": decision_times,
+        "entry_time": decision_times + pd.Timedelta(minutes=15),
+        "exit_time": decision_times + pd.Timedelta(minutes=30),
+        "direction": 1,
+        "entry_open": 100.0,
+        "exit_open": 101.0,
+    })
+    bars = pd.DataFrame([{
+        "trade_time": pd.Timestamp("2026-01-02 09:30"),
+        "equity": 1.01,
+        "gross_exposure": 0.0,
+        "net_exposure": 0.0,
+        "turnover": 0.8,
+    }])
+    daily = pd.DataFrame([{
+        "date": pd.Timestamp("2026-01-02"),
+        "equity": 1.01,
+        "portfolio_return": 0.01,
+        "gross_exposure": 0.0,
+        "turnover": 0.8,
+    }])
+    base = {
+        "outer_results": [],
+        "final_candidate": None,
+        "final_inner_scores": pd.DataFrame(),
+        "holdout": {
+            "fold": "holdout",
+            "model_name": "tianji_rule",
+            "threshold": None,
+            "evaluation_identity": {"id": "fixture"},
+            "split_cutoffs": {
+                "evaluation_start": decision_times.min(),
+                "evaluation_end": decision_times.max(),
+            },
+            "sample_counts": {"evaluation_rows": len(market), "symbols": 8},
+            "predictive_metrics": {},
+            "cost_metrics": cost_metrics,
+            "trades": {
+                cost: trade_identity.assign(sleeve_pnl=value / len(trade_identity))
+                for cost, value in returns.items()
+            },
+            "bars": {cost: bars.copy() for cost in returns},
+            "daily": {cost: daily.copy() for cost in returns},
+            "symbol_metrics": pd.DataFrame(),
+        },
+    }
+    checks = {
+        "structural": True,
+        "causal": True,
+        "ledger": True,
+        "prefix_invariance": True,
+        "non_predictive": True,
+    }
+    monkeypatch.setattr(research, "load_futures_bars", lambda *_: market)
+    monkeypatch.setattr(
+        research, "_prepare_segmented_bars", lambda *_: (market, quality)
+    )
+    monkeypatch.setattr(
+        research, "build_tianji_evaluation", lambda *_: (base, checks)
+    )
+    monkeypatch.setattr(
+        research,
+        "build_adversarial_context",
+        lambda run_id, bars_, segmented, quality_, dataset, partitions, base_, config: {
+            "run_id": run_id,
+            "bars": bars_,
+            "segmented": segmented,
+            "quality": quality_,
+            "dataset": dataset,
+            "partitions": partitions,
+            "base": base_,
+            "config": config,
+            "checks": {},
+            "provenance": {},
+        },
+    )
+    db_path = tmp_path / "futures.db"
+    db_path.touch()
+
+    result = research.run_research(
+        db_path,
+        tmp_path / "report",
+        ResearchConfig(strategy_mode="tianji", timeframe="15m"),
+    )
+
+    assert result["status"] == "RESEARCH_ACCEPTED", result["gates"]
+    assert result["research_domain"]["predictive"] is False
+    assert result["candidates"] == []
+    assert result["selection_scores"] == []
+    assert result["equity_curve"][0]["trade_time"] == "2026-01-02T09:30:00"
+    assert set(result["artifacts"]) == EXPECTED_REPORT_FILES
+    html = Path(result["artifacts"]["report.html"]).read_text()
+    assert "TianJi 15m 期货非预测回测" in html
+    assert "机器学习回测" not in html
+
+
 def _write_source(
         db_path, bars, series_type="WEIGHTED_INDEX", metadata=True,
         source_sha256="a" * 64):
