@@ -287,6 +287,75 @@ def test_tianji_terminal_equity_reconciles_and_input_order_is_stable():
     )
 
 
+def test_tianji_inactive_symbol_without_atr_does_not_reject_ledger():
+    active = make_tianji_market(4, symbols=("AG_IDX",))
+    active["atr"] = 2.0
+    inactive = make_tianji_market(4, symbols=("CU_IDX",))
+    inactive["atr"] = np.nan
+    targets = _single_tianji_target(active)
+    decision = targets["decision_time"].item()
+
+    trades, bars, _ = research.simulate_tianji_ledger(
+        targets,
+        pd.DatetimeIndex([decision]),
+        pd.concat([active, inactive], ignore_index=True),
+        5,
+    )
+
+    assert len(trades) == 1
+    assert not bars.empty
+
+
+def test_tianji_target_without_atr_still_fails_closed():
+    market = make_tianji_market(4, symbols=("AG_IDX",))
+    market["atr"] = np.nan
+    targets = _single_tianji_target(market)
+    targets["atr"] = np.nan
+
+    with pytest.raises(ResearchRejected, match="target values"):
+        research.simulate_tianji_ledger(
+            targets,
+            pd.DatetimeIndex([targets["decision_time"].item()]),
+            market,
+            5,
+        )
+
+
+def test_tianji_open_position_retains_last_atr_through_risk_gap():
+    market = make_tianji_market(5, symbols=("AG_IDX",))
+    market["atr"] = 2.0
+    market.loc[2, ["high", "low", "close", "atr"]] = [110.0, 100.0, 109.0, np.nan]
+    market.loc[3, ["open", "high", "low", "close"]] = [109.0, 109.5, 103.0, 104.0]
+    targets = _single_tianji_target(market)
+    decision = targets["decision_time"].item()
+
+    trades, _, _ = research.simulate_tianji_ledger(
+        targets, pd.DatetimeIndex([decision]), market, 0
+    )
+
+    assert trades["exit_time"].iloc[0] == market["trade_time"].iloc[3]
+    assert trades["exit_open"].iloc[0] == pytest.approx(105.0)
+
+
+def test_tianji_new_atr_updates_only_next_bar_stop():
+    market = make_tianji_market(6, symbols=("AG_IDX",))
+    market["atr"] = 2.0
+    market.loc[2, ["high", "low", "close", "atr"]] = [110.0, 100.0, 109.0, 4.0]
+    market.loc[3, ["open", "high", "low", "close", "atr"]] = [
+        109.0, 112.0, 101.0, 111.0, 1.0,
+    ]
+    market.loc[4, ["open", "high", "low", "close"]] = [111.0, 111.5, 109.0, 110.0]
+    targets = _single_tianji_target(market)
+    decision = targets["decision_time"].item()
+
+    trades, _, _ = research.simulate_tianji_ledger(
+        targets, pd.DatetimeIndex([decision]), market, 0
+    )
+
+    assert trades["exit_time"].iloc[0] == market["trade_time"].iloc[4]
+    assert trades["exit_open"].iloc[0] == pytest.approx(109.5)
+
+
 def tianji_metrics_fixture(**overrides):
     return {
         "trades": 200,

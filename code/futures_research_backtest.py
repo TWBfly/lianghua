@@ -1345,8 +1345,8 @@ def simulate_tianji_ledger(targets, rebalance_times, market, cost_bps):
     for column in ("open", "high", "low", "close", "atr"):
         marks[column] = pd.to_numeric(marks[column], errors="coerce")
     if (
-        not np.isfinite(marks[["open", "high", "low", "close", "atr"]]).all().all()
-        or marks[["open", "high", "low", "close", "atr"]].le(0.0).any().any()
+        not np.isfinite(marks[["open", "high", "low", "close"]]).all().all()
+        or marks[["open", "high", "low", "close"]].le(0.0).any().any()
         or marks["high"].lt(marks[["open", "close"]].max(axis=1)).any()
         or marks["low"].gt(marks[["open", "close"]].min(axis=1)).any()
     ):
@@ -1489,7 +1489,8 @@ def simulate_tianji_ledger(targets, rebalance_times, market, cost_bps):
             position = positions.get(symbol)
             if position is None:
                 continue
-            position["atr"] = float(row.atr)
+            if np.isfinite(row.atr) and float(row.atr) > 0.0:
+                position["atr"] = float(row.atr)
             if position["direction"] == 1:
                 position["favorable"] = max(position["favorable"], float(row.high))
                 position["stop"] = max(
@@ -1689,8 +1690,17 @@ def build_tianji_evaluation(segmented, config=ResearchConfig()):
     evaluation_market = evaluation_market.merge(
         atr, on=["symbol", "trade_time"], how="left", validate="one_to_one"
     )
-    if evaluation_market["atr"].isna().any():
-        raise ResearchRejected("missing causal TianJi ATR in holdout")
+    target_keys = pd.MultiIndex.from_frame(
+        targets.loc[:, ["symbol", "decision_time"]].rename(
+            columns={"decision_time": "trade_time"}
+        )
+    )
+    market_keys = pd.MultiIndex.from_frame(
+        evaluation_market.loc[:, ["symbol", "trade_time"]]
+    )
+    target_market = evaluation_market[market_keys.isin(target_keys)]
+    if target_market["atr"].isna().any():
+        raise ResearchRejected("missing causal TianJi ATR for target")
 
     trades_by_cost = {}
     bars_by_cost = {}
