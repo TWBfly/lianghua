@@ -174,3 +174,61 @@ def test_auto_gates_require_all_hard_thresholds_and_positive_folds():
     assert auto.auto_development_gates(metrics)["passed"]
     metrics["fold_returns"][1] = 0.0
     assert not auto.auto_development_gates(metrics)["passed"]
+
+
+def test_auto_status_never_claims_research_acceptance():
+    assert auto.auto_status("candidate") == "AUTO_DEVELOPMENT_CANDIDATE"
+    assert auto.auto_status(None) == "AUTO_DEVELOPMENT_REJECTED"
+
+
+def test_robustness_attack_cannot_replace_original_candidate():
+    original = auto.candidate_specs(
+        auto.signal_specs()[:1], auto.risk_specs()[:1]
+    )[0]
+    attacks = auto.robustness_attacks(
+        original,
+        evaluate=lambda spec, attack: {
+            "candidate_id": spec.id,
+            "attack": attack,
+            "total_return": 0.01,
+            "max_drawdown": 0.10,
+            "payoff_ratio": 3.1,
+            "trades": 210,
+        },
+    )
+    assert set(attacks["candidate_id"]) == {original.id}
+    assert set(attacks["attack"]) == {
+        "costs", "sector_exclusion", "top_symbol_exclusion",
+        "entry_quantile_neighbor", "risk_neighbor", "prefix_invariance",
+    }
+
+
+def auto_report_fixture():
+    return {
+        "status": "AUTO_DEVELOPMENT_REJECTED",
+        "selected_candidate": None,
+        "selected_rule": None,
+        "search_space": {"signals": [], "risks": [], "sha256": "a" * 64},
+        "stage1_metrics": pd.DataFrame(),
+        "stage2_metrics": pd.DataFrame(),
+        "attack_metrics": pd.DataFrame(),
+        "survivors": pd.DataFrame(),
+        "stage_counts": {"stage1": 0, "stage2": 0, "stage3": 0},
+        "gates": {},
+        "limitations": ["development only"],
+    }
+
+
+def test_auto_report_bundle_is_atomic_and_refuses_overwrite(tmp_path):
+    import run_tianji_auto_research as runner
+
+    result = auto_report_fixture()
+    output = runner.write_auto_report(result, tmp_path / "auto")
+    expected = {
+        "auto_research_report.json", "search_space.json", "stage1_metrics.csv",
+        "stage2_metrics.csv", "attack_metrics.csv", "survivors.csv",
+        "auto_research_report.md",
+    }
+    assert expected.issubset({path.name for path in output.iterdir()})
+    with pytest.raises(FileExistsError):
+        runner.write_auto_report(result, output)

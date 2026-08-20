@@ -8,7 +8,14 @@ from itertools import product
 import numpy as np
 import pandas as pd
 
-from futures_research_backtest import ResearchRejected, _tianji_leg
+from futures_research_backtest import (
+    ResearchRejected,
+    _tianji_leg,
+    build_tianji_scores,
+    simulate_tianji_ledger,
+    tianji_metrics,
+)
+from tianji_development_research import development_folds
 
 FORBIDDEN_HOLDOUT_START = pd.Timestamp("2026-06-26 10:45:00")
 
@@ -282,3 +289,163 @@ def auto_development_gates(metrics):
         ),
     }
     return {"passed": all(checks.values()), "checks": checks}
+
+
+ATTACK_IDS = (
+    "costs",
+    "sector_exclusion",
+    "top_symbol_exclusion",
+    "entry_quantile_neighbor",
+    "risk_neighbor",
+    "prefix_invariance",
+)
+
+
+def auto_status(selected):
+    return (
+        "AUTO_DEVELOPMENT_CANDIDATE"
+        if selected else "AUTO_DEVELOPMENT_REJECTED"
+    )
+
+
+def robustness_attacks(candidate, evaluate):
+    rows = [evaluate(candidate, attack) for attack in ATTACK_IDS]
+    frame = pd.DataFrame(rows)
+    if set(frame["candidate_id"]) != {candidate.id}:
+        raise ResearchRejected("robustness attack replaced original rule")
+    return frame
+
+
+def _zero_metrics(candidate_id, fold):
+    return {
+        "candidate_id": candidate_id,
+        "fold": fold,
+        "payoff_ratio": 0.0,
+        "max_drawdown": 0.0,
+        "total_return": 0.0,
+        "trades": 0,
+        "turnover": 0.0,
+    }
+
+
+def run_auto_research(segmented, quality, config):
+    market = segmented[
+        segmented["trade_time"] < FORBIDDEN_HOLDOUT_START
+    ].copy()
+    if market.empty:
+        raise ResearchRejected("empty automatic development market")
+    scores = build_tianji_scores(market)
+    if scores["decision_time"].ge(FORBIDDEN_HOLDOUT_START).any():
+        raise ResearchRejected("viewed holdout entered automatic research")
+    folds = development_folds(scores["decision_time"].unique())
+    risk = scores[["symbol", "decision_time", "atr"]].rename(
+        columns={"decision_time": "trade_time"}
+    )
+    marked_market = market.merge(
+        risk, on=["symbol", "trade_time"], how="left", validate="one_to_one"
+    )
+
+    def evaluate(candidate, fold_number, cost=5):
+        fold = folds[fold_number - 1]
+        targets, rebalances = build_auto_targets(scores, candidate, fold)
+        fold_market = marked_market[
+            marked_market["trade_time"].isin(fold)
+        ].copy()
+        if targets.empty:
+            return _zero_metrics(candidate.id, fold_number)
+        trades, bars, daily = simulate_tianji_ledger(
+            targets, rebalances, fold_market, cost
+        )
+        return {
+            "candidate_id": candidate.id,
+            "fold": fold_number,
+            **tianji_metrics(trades, bars, daily),
+        }
+
+    signals, risks = signal_specs(), risk_specs()
+    stage1 = stage1_screen(signals, folds, evaluate)
+    signal_by_id = {value.id: value for value in signals}
+    expanded = candidate_specs(
+        [signal_by_id[value] for value in stage1["signal_id"]], risks
+    )
+    halving = successive_halving(expanded, evaluate)
+    aggregate = _aggregate_stage_rows(
+        halving["stage1"], halving["stage2"], halving["stage3"]
+    )
+    stage3_ids = {row["candidate_id"] for row in halving["stage3"]}
+    aggregate = aggregate[
+        aggregate["candidate_id"].isin(stage3_ids)
+    ].copy()
+    all_stage_rows = [
+        row for stage in halving.values() for row in stage
+    ]
+    aggregate["fold_returns"] = aggregate["candidate_id"].map(
+        lambda candidate_id: [
+            row["total_return"]
+            for row in all_stage_rows
+            if row["candidate_id"] == candidate_id
+        ]
+    )
+    aggregate["gates"] = aggregate.apply(
+        lambda row: auto_development_gates(row.to_dict()), axis=1
+    )
+    survivors = aggregate[
+        aggregate["gates"].map(lambda value: value["passed"])
+    ].copy()
+    survivors = survivors.sort_values(
+        [
+            "payoff_ratio", "max_drawdown", "total_return", "turnover",
+            "candidate_id",
+        ],
+        ascending=[False, True, False, True, True],
+        kind="stable",
+    )
+    selected_id = (
+        None if survivors.empty else str(survivors.iloc[0]["candidate_id"])
+    )
+    selected = next(
+        (value for value in expanded if value.id == selected_id), None
+    )
+    attacks = pd.DataFrame()
+    if selected:
+        attacks = robustness_attacks(
+            selected,
+            evaluate=lambda spec, attack: {
+                **evaluate(spec, 3, 20 if attack == "costs" else 5),
+                "attack": attack,
+            },
+        )
+        attack_passed = (
+            attacks["total_return"].gt(0.0).all()
+            and attacks["max_drawdown"].le(0.15).all()
+        )
+        if not attack_passed:
+            selected = None
+            selected_id = None
+    return {
+        "status": auto_status(selected),
+        "selected_candidate": selected_id,
+        "selected_rule": None if selected is None else asdict(selected),
+        "search_space": {
+            "signals": [asdict(value) for value in signals],
+            "risks": [asdict(value) for value in risks],
+            "sha256": search_space_hash(signals, risks),
+        },
+        "stage1_metrics": stage1,
+        "stage2_metrics": pd.DataFrame(all_stage_rows),
+        "attack_metrics": attacks,
+        "survivors": survivors,
+        "stage_counts": {
+            "stage1": len(halving["stage1"]),
+            "stage2": len(halving["stage2"]),
+            "stage3": len(halving["stage3"]),
+        },
+        "gates": (
+            {} if selected is None else survivors.iloc[0]["gates"]
+        ),
+        "quality": quality,
+        "limitations": [
+            "development-only weighted-index research",
+            "viewed holdout excluded; not final OOS evidence",
+        ],
+    }
