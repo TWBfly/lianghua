@@ -525,6 +525,50 @@ def test_tianji_run_never_calls_predictive_pipeline(tmp_path, monkeypatch):
     assert "机器学习回测" not in html
 
 
+def _tianji_pipeline_counts():
+    return {
+        "market_15m_rows": 100,
+        "risk_ready_rows": 80,
+        "signal_ready_rows": 60,
+        "holdout_market_rows": 20,
+        "holdout_risk_ready_rows": 15,
+        "target_rows": 4,
+        "trade_rows_5bps": 0,
+        "failure_stage": "ledger",
+    }
+
+
+def test_tianji_rejection_reports_pipeline_stage_counts():
+    counts = _tianji_pipeline_counts()
+
+    result = research.rejected_result(
+        "fixture",
+        ResearchConfig(strategy_mode="tianji", timeframe="15m"),
+        "fixture rejection",
+        pipeline_counts=counts,
+    )
+
+    assert result["pipeline_counts"] == counts
+
+
+def test_tianji_report_renders_pipeline_counts(tmp_path):
+    result = research.rejected_result(
+        "fixture",
+        ResearchConfig(strategy_mode="tianji", timeframe="15m"),
+        "fixture rejection",
+        pipeline_counts=_tianji_pipeline_counts(),
+    )
+
+    paths = research.write_report(result, tmp_path / "report")
+
+    payload = json.loads(Path(paths["report.json"]).read_text())
+    markdown = Path(paths["report.md"]).read_text()
+    html = Path(paths["report.html"]).read_text()
+    assert payload["pipeline_counts"]["failure_stage"] == "ledger"
+    assert "Pipeline counts" in markdown
+    assert "流水线计数" in html
+
+
 def _write_source(
         db_path, bars, series_type="WEIGHTED_INDEX", metadata=True,
         source_sha256="a" * 64):

@@ -1641,8 +1641,11 @@ def tianji_metrics(trades, bars, daily):
     return result
 
 
-def build_tianji_evaluation(segmented, config=ResearchConfig()):
+def build_tianji_evaluation(
+    segmented, config=ResearchConfig(), pipeline_counts=None
+):
     """Build the one frozen TianJi holdout without labels or model selection."""
+    pipeline_counts = pipeline_counts if pipeline_counts is not None else {}
     if not isinstance(segmented, pd.DataFrame) or segmented.empty:
         raise ResearchRejected("no segmented bars for TianJi evaluation")
     if (
@@ -1667,6 +1670,9 @@ def build_tianji_evaluation(segmented, config=ResearchConfig()):
     if set(eligible) != set(market["symbol"].unique()):
         market = market[market["symbol"].isin(eligible)].copy()
         scores = build_tianji_scores(market)
+    pipeline_counts["risk_ready_rows"] = int(scores["atr_ready"].sum())
+    pipeline_counts["signal_ready_rows"] = int(scores["signal_ready"].sum())
+    pipeline_counts["failure_stage"] = "holdout"
 
     times = pd.DatetimeIndex(sorted(scores["decision_time"].unique()))
     holdout_index = int(len(times) * (1.0 - config.holdout_fraction))
@@ -1683,12 +1689,17 @@ def build_tianji_evaluation(segmented, config=ResearchConfig()):
     targets, rebalance_times = build_tianji_targets(scores, holdout_start)
     if targets.empty:
         raise ResearchRejected("no TianJi holdout targets")
+    pipeline_counts["target_rows"] = int(len(targets))
     atr = scores.loc[:, ["symbol", "decision_time", "atr"]].rename(
         columns={"decision_time": "trade_time"}
     )
     evaluation_market = market[market["trade_time"].ge(holdout_start)].copy()
     evaluation_market = evaluation_market.merge(
         atr, on=["symbol", "trade_time"], how="left", validate="one_to_one"
+    )
+    pipeline_counts["holdout_market_rows"] = int(len(evaluation_market))
+    pipeline_counts["holdout_risk_ready_rows"] = int(
+        evaluation_market["atr"].notna().sum()
     )
     target_keys = pd.MultiIndex.from_frame(
         targets.loc[:, ["symbol", "decision_time"]].rename(
@@ -1701,6 +1712,7 @@ def build_tianji_evaluation(segmented, config=ResearchConfig()):
     target_market = evaluation_market[market_keys.isin(target_keys)]
     if target_market["atr"].isna().any():
         raise ResearchRejected("missing causal TianJi ATR for target")
+    pipeline_counts["failure_stage"] = "ledger"
 
     trades_by_cost = {}
     bars_by_cost = {}
@@ -1725,6 +1737,8 @@ def build_tianji_evaluation(segmented, config=ResearchConfig()):
         bars_by_cost[key] = bars
         daily_by_cost[key] = daily
         cost_metrics[key] = tianji_metrics(trades, bars, daily)
+    pipeline_counts["trade_rows_5bps"] = int(len(trades_by_cost[5]))
+    pipeline_counts["failure_stage"] = "complete"
 
     forbidden = {"label", "future_return", "probability"}
     domain = _research_domain(config)
@@ -3996,12 +4010,15 @@ def build_result(context, gates, status):
         "metrics": _metric_summary(base),
         "attacks": context.get("attacks", ()),
         "gates": gates,
+        "pipeline_counts": context.get("pipeline_counts", {}),
         "limitations": LIMITATIONS,
         **tables,
     })
 
 
-def rejected_result(run_id, config, reason, quality=None):
+def rejected_result(
+    run_id, config, reason, quality=None, pipeline_counts=None
+):
     quality_rows = (
         [] if quality is None else _records(quality.reset_index())
     )
@@ -4028,7 +4045,8 @@ def rejected_result(run_id, config, reason, quality=None):
             "reason": reason,
         }],
         "data_quality": quality_rows, "fold_metrics": [], "symbol_metrics": [],
-        "trades": [], "limitations": LIMITATIONS,
+        "trades": [], "pipeline_counts": pipeline_counts or {},
+        "limitations": LIMITATIONS,
     })
 
 
@@ -4133,6 +4151,15 @@ def _markdown_report(payload):
         f"- {row.get('id')}: passed={row.get('passed')}; reason={row.get('reason')}"
         for row in payload.get("gates", ())
     )
+    lines.extend([
+        "", "## Pipeline counts", "", "```json",
+        json.dumps(
+            payload.get("pipeline_counts", {}),
+            ensure_ascii=False,
+            sort_keys=True,
+        ),
+        "```",
+    ])
     lines.extend(["", "## Limitations", ""])
     lines.extend(f"- {item}" for item in payload.get("limitations", LIMITATIONS))
     return "\n".join(lines) + "\n"
@@ -4224,6 +4251,10 @@ def _html_report(payload):
         f"<section><h2>Research domain</h2><pre>{_html_value(domain_text)}</pre>"
         f"<h2>Run identity</h2><p><code>{_html_value(run_identity)}</code></p></section>"
     )
+    pipeline_html = (
+        "<section><h2>流水线计数</h2><pre>"
+        f"{_html_value(payload.get('pipeline_counts', {}))}</pre></section>"
+    )
     return f"""<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{status} · {title}</title><style>
@@ -4237,6 +4268,7 @@ main{{max-width:1440px;margin:auto;padding:28px}}h1{{margin:0 0 8px;font-size:28
 	<header><h1>{title}</h1><div class="status">{status}</div><div class="muted">Run ID: {_html_value(payload['run_id'])} · 信号层: {backend} · 执行层: 审计期货研究账本</div></header>
 	<p class="warning">{_html_value(DISCLAIMER)}。仅用于离线研究，不是实盘或可成交合约收益证明。</p>
 	{identity_html}
+	{pipeline_html}
 	<section><h2>核心指标（Holdout，5 bps）</h2><div class="cards">{''.join(f'<div class="card"><span class="muted">{_html_value(name)}</span><b>{_html_value(value)}</b></div>' for name, value in cards)}</div></section>
 <section><h2>权益曲线</h2>{_svg_chart(equity, '#60a5fa')}<h2>回撤曲线</h2>{_svg_chart(drawdown, '#fb7185')}</section>
 <section><h2>验收门</h2>{_html_table(gates, ('id','passed','affected_fold','observed','required','reason'))}</section>
@@ -4388,18 +4420,32 @@ def run_research(db_path, output_dir, config=ResearchConfig()):
         "command": command,
     }
     quality = None
+    pipeline_counts = {}
     try:
         _validate_research_config(config)
         bars = load_futures_bars(db_path)
         segmented, quality = _prepare_segmented_bars(bars, config)
         if config.strategy_mode == "tianji":
-            base, checks = build_tianji_evaluation(segmented, config)
+            pipeline_counts.update({
+                "market_15m_rows": int(len(segmented)),
+                "risk_ready_rows": 0,
+                "signal_ready_rows": 0,
+                "holdout_market_rows": 0,
+                "holdout_risk_ready_rows": 0,
+                "target_rows": 0,
+                "trade_rows_5bps": 0,
+                "failure_stage": "features",
+            })
+            base, checks = build_tianji_evaluation(
+                segmented, config, pipeline_counts
+            )
             context = build_adversarial_context(
                 run_id, bars, segmented, quality,
                 pd.DataFrame(), {}, base, config,
             )
             context["checks"] = checks
             context["attacks"] = []
+            context["pipeline_counts"] = pipeline_counts
             context["provenance"].update(provenance)
             context["research_domain"] = _research_domain(config)
             context["run_identity"] = _run_identity(
@@ -4468,7 +4514,10 @@ def run_research(db_path, output_dir, config=ResearchConfig()):
         status = official["status"]
         result = build_result(context, gates, status)
     except ResearchRejected as exc:
-        result = rejected_result(run_id, config, str(exc), quality)
+        result = rejected_result(
+            run_id, config, str(exc), quality,
+            pipeline_counts=pipeline_counts,
+        )
         result["provenance"].update(provenance)
     result["artifacts"] = write_report(result, output_dir)
     return result
