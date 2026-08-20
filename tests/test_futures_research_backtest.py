@@ -463,6 +463,48 @@ def test_tianji_async_capacity_result_is_deterministic_and_not_retried():
     assert "C_IDX" not in set(actual[0]["symbol"])
 
 
+def test_tianji_ledger_reconciles_requested_executed_and_clipped_weight():
+    targets, rebalances, market = make_async_exposure_case()
+
+    _, bars, _ = research.simulate_tianji_ledger(
+        targets, rebalances, market, 5
+    )
+
+    assert (
+        bars["requested_entry_weight"].sum()
+        >= bars["executed_entry_weight"].sum()
+    )
+    assert bars["requested_entry_weight"].sum() == pytest.approx(
+        bars["executed_entry_weight"].sum()
+        + bars["clipped_entry_weight"].sum()
+    )
+    assert bars["skipped_entries"].sum() >= 1
+
+
+def test_tianji_symbol_metrics_reconcile_trade_pnl_and_costs():
+    trades = pd.DataFrame({
+        "symbol": ["AG_IDX", "AG_IDX", "AU_IDX"],
+        "cost_bps": [5, 5, 5],
+        "sleeve_pnl": [0.03, -0.01, 0.02],
+        "gross_return": [0.04, -0.005, 0.03],
+        "weight": [1.0, 1.0, 1.0],
+        "entry_cost": [0.005, 0.0025, 0.005],
+        "exit_cost": [0.005, 0.0025, 0.005],
+        "exit_reason": ["SIGNAL", "STOP", "STOP"],
+        "exit_time": pd.to_datetime([
+            "2026-01-01", "2026-01-02", "2026-01-01",
+        ]),
+    })
+
+    metrics = research.tianji_symbol_metrics(trades).set_index("symbol")
+
+    assert metrics.loc["AG_IDX", "net_pnl"] == pytest.approx(0.02)
+    assert metrics.loc["AG_IDX", "entry_cost"] == pytest.approx(0.0075)
+    assert metrics.loc["AG_IDX", "exit_cost"] == pytest.approx(0.0075)
+    assert metrics.loc["AG_IDX", "trades"] == 2
+    assert metrics.loc["AG_IDX", "payoff_ratio"] == pytest.approx(3.0)
+
+
 def tianji_metrics_fixture(**overrides):
     return {
         "trades": 200,
@@ -561,6 +603,12 @@ def test_tianji_run_never_calls_predictive_pipeline(tmp_path, monkeypatch):
         "outer_results": [],
         "final_candidate": None,
         "final_inner_scores": pd.DataFrame(),
+        "universe": pd.DataFrame([{
+            "symbol": "AG_IDX", "sector": "PRECIOUS",
+            "included": True, "mature": True, "traded": True,
+            "excluded_reason": "", "source_path": "ag.txt",
+            "source_sha256": "a" * 64,
+        }]),
         "holdout": {
             "fold": "holdout",
             "model_name": "tianji_rule",
@@ -3370,7 +3418,7 @@ def test_feature_attack_gain_boundary_has_only_roundoff_tolerance(metric, limit)
 
 EXPECTED_REPORT_FILES = {
     "report.html", "report.md", "report.json", "data_quality.csv",
-    "fold_metrics.csv", "symbol_metrics.csv", "trades.csv",
+    "fold_metrics.csv", "symbol_metrics.csv", "trades.csv", "universe.csv",
 }
 EXPECTED_GATE_IDS = (
     "integrity_checks", "auc_above_chance_each_fold",

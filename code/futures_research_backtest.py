@@ -1474,6 +1474,10 @@ def simulate_tianji_ledger(targets, rebalance_times, market, cost_bps):
     for timestamp, group in marks.groupby("trade_time", sort=True):
         timestamp = pd.Timestamp(timestamp)
         timestamp_turnover = 0.0
+        requested_entry_weight = 0.0
+        executed_entry_weight = 0.0
+        clipped_entry_weight = 0.0
+        skipped_entries = 0
         observed = {row.symbol: row for row in group.itertuples(index=False)}
         for symbol in sorted(observed):
             row = observed[symbol]
@@ -1516,7 +1520,11 @@ def simulate_tianji_ledger(targets, rebalance_times, market, cost_bps):
                             2.0 * TIANJI_SIDE_EXPOSURE - gross_used,
                         ),
                     )
+                    requested_entry_weight += requested_weight
+                    executed_entry_weight += weight
+                    clipped_entry_weight += requested_weight - weight
                     if weight <= 1e-12:
+                        skipped_entries += 1
                         continue
                     entry_cost = weight * cost
                     realized_sleeve_pnl -= entry_cost
@@ -1567,6 +1575,10 @@ def simulate_tianji_ledger(targets, rebalance_times, market, cost_bps):
             "gross_exposure": gross_exposure,
             "net_exposure": net_exposure,
             "turnover": timestamp_turnover,
+            "requested_entry_weight": requested_entry_weight,
+            "executed_entry_weight": executed_entry_weight,
+            "clipped_entry_weight": clipped_entry_weight,
+            "skipped_entries": skipped_entries,
         })
 
         for symbol, row in observed.items():
@@ -1725,6 +1737,58 @@ def tianji_metrics(trades, bars, daily):
     return result
 
 
+def tianji_symbol_metrics(trades):
+    columns = (
+        "symbol", "cost_bps", "trades", "gross_pnl", "entry_cost",
+        "exit_cost", "net_pnl", "win_rate", "payoff_ratio", "profit_factor",
+        "closed_trade_max_drawdown", "stop_exits", "signal_exits",
+        "terminal_exits",
+    )
+    required = {
+        "symbol", "cost_bps", "sleeve_pnl", "gross_return", "weight",
+        "entry_cost", "exit_cost", "exit_reason", "exit_time",
+    }
+    if not isinstance(trades, pd.DataFrame) or required.difference(trades.columns):
+        raise ResearchRejected("invalid TianJi symbol metric trades")
+    rows = []
+    for (symbol, cost_bps), group in trades.groupby(
+        ["symbol", "cost_bps"], sort=True
+    ):
+        group = group.sort_values("exit_time", kind="stable")
+        pnl = group["sleeve_pnl"].astype(float)
+        winners = pnl[pnl > 0.0]
+        losers = -pnl[pnl < 0.0]
+        curve = pnl.cumsum().to_numpy(dtype=float)
+        peak = np.maximum.accumulate(np.r_[0.0, curve])
+        drawdown = peak - np.r_[0.0, curve]
+        reasons = group["exit_reason"].value_counts()
+        rows.append({
+            "symbol": symbol,
+            "cost_bps": float(cost_bps),
+            "trades": int(len(group)),
+            "gross_pnl": float(
+                (group["gross_return"] * group["weight"]).sum()
+            ),
+            "entry_cost": float(group["entry_cost"].sum()),
+            "exit_cost": float(group["exit_cost"].sum()),
+            "net_pnl": float(pnl.sum()),
+            "win_rate": float((pnl > 0.0).mean()),
+            "payoff_ratio": (
+                float(winners.mean() / losers.mean())
+                if len(winners) and len(losers) else 0.0
+            ),
+            "profit_factor": (
+                float(winners.sum() / losers.sum())
+                if len(winners) and len(losers) else 0.0
+            ),
+            "closed_trade_max_drawdown": float(drawdown.max()),
+            "stop_exits": int(reasons.get("STOP", 0)),
+            "signal_exits": int(reasons.get("SIGNAL", 0)),
+            "terminal_exits": int(reasons.get("TERMINAL_CLOSE", 0)),
+        })
+    return pd.DataFrame(rows, columns=columns)
+
+
 def build_tianji_evaluation(
     segmented, config=ResearchConfig(), pipeline_counts=None
 ):
@@ -1823,6 +1887,10 @@ def build_tianji_evaluation(
         cost_metrics[key] = tianji_metrics(trades, bars, daily)
     pipeline_counts["trade_rows_5bps"] = int(len(trades_by_cost[5]))
     pipeline_counts["failure_stage"] = "complete"
+    all_cost_trades = pd.concat(
+        list(trades_by_cost.values()), ignore_index=True
+    )
+    symbol_metrics = tianji_symbol_metrics(all_cost_trades)
 
     forbidden = {"label", "future_return", "probability"}
     domain = _research_domain(config)
@@ -1858,6 +1926,9 @@ def build_tianji_evaluation(
         "outer_results": [],
         "final_candidate": None,
         "final_inner_scores": pd.DataFrame(),
+        "universe_scores": scores.loc[:, [
+            "symbol", "atr_ready", "signal_ready",
+        ]].copy(),
         "holdout": {
             "fold": "holdout",
             "model_name": "tianji_rule",
@@ -1889,7 +1960,7 @@ def build_tianji_evaluation(
             "trades": trades_by_cost,
             "bars": bars_by_cost,
             "daily": daily_by_cost,
-            "symbol_metrics": pd.DataFrame(),
+            "symbol_metrics": symbol_metrics,
         },
     }
     return base, checks
@@ -3813,7 +3884,7 @@ def _validate_official_bundle(official):
 
 REPORT_FILES = (
     "report.html", "report.md", "report.json", "data_quality.csv", "fold_metrics.csv",
-    "symbol_metrics.csv", "trades.csv",
+    "symbol_metrics.csv", "trades.csv", "universe.csv",
 )
 CSV_COLUMNS = {
     "data_quality.csv": ("run_id", "symbol", "status", "reason"),
@@ -3827,6 +3898,10 @@ CSV_COLUMNS = {
     "trades.csv": (
         "run_id", "fold", "symbol", "cost_bps", "decision_time",
         "entry_time", "exit_time", "sleeve_pnl",
+    ),
+    "universe.csv": (
+        "run_id", "symbol", "sector", "included", "mature", "traded",
+        "excluded_reason", "source_path", "source_sha256",
     ),
 }
 DISCLAIMER = "加权指数研究回测，不代表可成交合约或实盘收益"
@@ -4024,6 +4099,7 @@ def _report_tables(context):
         "fold_metrics": _json_safe(fold_metrics),
         "symbol_metrics": _records(holdout.get("symbol_metrics")),
         "trades": _json_safe(trades),
+        "universe": _records(base.get("universe")),
         "equity_curve": _records(equity_curve),
     }
 
@@ -4129,7 +4205,7 @@ def rejected_result(
             "reason": reason,
         }],
         "data_quality": quality_rows, "fold_metrics": [], "symbol_metrics": [],
-        "trades": [], "pipeline_counts": pipeline_counts or {},
+        "trades": [], "universe": [], "pipeline_counts": pipeline_counts or {},
         "limitations": LIMITATIONS,
     })
 
@@ -4392,6 +4468,7 @@ def _reconcile_report(directory):
         ("fold_metrics.csv", "fold_metrics"),
         ("symbol_metrics.csv", "symbol_metrics"),
         ("trades.csv", "trades"),
+        ("universe.csv", "universe"),
     ):
         frame = pd.read_csv(directory / filename, dtype=str, keep_default_na=False)
         if len(frame) != payload["row_counts"][filename]:
@@ -4457,6 +4534,7 @@ def write_report(result, output_dir):
             ("fold_metrics.csv", "fold_metrics"),
             ("symbol_metrics.csv", "symbol_metrics"),
             ("trades.csv", "trades"),
+            ("universe.csv", "universe"),
         ):
             frame = _table_frame(payload, key, filename)
             csv_frame = frame.apply(lambda column: column.map(_spreadsheet_safe))
@@ -4523,6 +4601,18 @@ def run_research(db_path, output_dir, config=ResearchConfig()):
             base, checks = build_tianji_evaluation(
                 segmented, config, pipeline_counts
             )
+            if "universe" not in base:
+                universe_scores = base.pop("universe_scores")
+                universe_trades = pd.concat(
+                    list(base["holdout"]["trades"].values()),
+                    ignore_index=True,
+                )
+                base["universe"] = tianji_universe_table(
+                    quality,
+                    universe_scores,
+                    universe_trades,
+                    bars.attrs.get("source_manifest", ()),
+                )
             context = build_adversarial_context(
                 run_id, bars, segmented, quality,
                 pd.DataFrame(), {}, base, config,
