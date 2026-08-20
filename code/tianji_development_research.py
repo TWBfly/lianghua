@@ -7,6 +7,9 @@ from futures_research_backtest import (
     ResearchRejected,
     TIANJI_REBALANCE_BARS,
     _tianji_leg,
+    build_tianji_scores,
+    simulate_tianji_ledger,
+    tianji_metrics,
 )
 
 CANDIDATES = ("continuation", "reversal", "timeseries_donchian")
@@ -87,3 +90,156 @@ def candidate_targets(scores, market, candidate, fold_times):
     targets["trail_activation_r"] = 3.0
     return targets, rebalance_times
 
+
+def development_gates(metrics):
+    checks = {
+        "payoff_ratio": float(metrics["payoff_ratio"]) >= 3.0,
+        "max_drawdown": float(metrics["max_drawdown"]) <= 0.15,
+        "positive_return": float(metrics["total_return"]) > 0.0,
+        "minimum_trades": int(metrics["trades"]) >= 200,
+    }
+    return {"passed": all(checks.values()), "checks": checks}
+
+
+def select_development_candidate(rows):
+    eligible = rows[rows["eligible"]].sort_values(
+        ["worst_payoff", "worst_drawdown", "turnover", "candidate"],
+        ascending=[False, True, True, True],
+        kind="stable",
+    )
+    return None if eligible.empty else str(eligible.iloc[0]["candidate"])
+
+
+def development_status(selected):
+    return "DEVELOPMENT_CANDIDATE" if selected else "DEVELOPMENT_REJECTED"
+
+
+def _combined_metrics(fold_results):
+    trades = pd.concat(
+        [result["trades"] for result in fold_results], ignore_index=True
+    )
+    pnl = (
+        trades["sleeve_pnl"].astype(float)
+        if len(trades) else pd.Series(dtype=float)
+    )
+    winners = pnl[pnl > 0.0]
+    losers = -pnl[pnl < 0.0]
+    return {
+        "payoff_ratio": (
+            float(winners.mean() / losers.mean())
+            if len(winners) and len(losers) else 0.0
+        ),
+        "max_drawdown": max(
+            (result["metrics"]["max_drawdown"] for result in fold_results),
+            default=0.0,
+        ),
+        "total_return": float(np.prod([
+            1.0 + result["metrics"]["total_return"]
+            for result in fold_results
+        ]) - 1.0),
+        "trades": int(len(trades)),
+        "turnover": float(sum(
+            result["metrics"]["turnover"] for result in fold_results
+        )),
+    }
+
+
+def _evaluate_fold(scores, market, candidate, fold, cost):
+    targets, rebalances = candidate_targets(
+        scores, market, candidate, fold
+    )
+    fold_market = market[market["trade_time"].isin(fold)].copy()
+    if targets.empty:
+        return {
+            "trades": pd.DataFrame(columns=["sleeve_pnl"]),
+            "metrics": {
+                "payoff_ratio": 0.0,
+                "max_drawdown": 0.0,
+                "total_return": 0.0,
+                "trades": 0,
+                "turnover": 0.0,
+            },
+        }
+    trades, bars, daily = simulate_tianji_ledger(
+        targets, rebalances, fold_market, cost
+    )
+    return {
+        "trades": trades,
+        "metrics": tianji_metrics(trades, bars, daily),
+    }
+
+
+def evaluate_development(segmented, quality, config):
+    segmented = segmented[
+        segmented["trade_time"] < FORBIDDEN_HOLDOUT_START
+    ].copy()
+    if segmented.empty:
+        raise ResearchRejected("empty TianJi development market")
+    scores = build_tianji_scores(segmented)
+    if scores["decision_time"].ge(FORBIDDEN_HOLDOUT_START).any():
+        raise ResearchRejected("viewed holdout entered development scores")
+    folds = development_folds(scores["decision_time"].unique())
+    atr = scores[["symbol", "decision_time", "atr"]].rename(
+        columns={"decision_time": "trade_time"}
+    )
+    market = segmented.merge(
+        atr, on=["symbol", "trade_time"], how="left", validate="one_to_one"
+    )
+    candidate_rows = []
+    fold_rows = []
+    for candidate in CANDIDATES:
+        results = []
+        for number, fold in enumerate(folds, start=1):
+            result = _evaluate_fold(scores, market, candidate, fold, 5)
+            results.append(result)
+            fold_rows.append({
+                "candidate": candidate,
+                "fold": number,
+                "cost_bps": 5,
+                **result["metrics"],
+            })
+        combined = _combined_metrics(results)
+        gate = development_gates(combined)
+        fold_returns = [
+            result["metrics"]["total_return"] for result in results
+        ]
+        candidate_rows.append({
+            "candidate": candidate,
+            "eligible": bool(
+                gate["passed"] and all(value > 0.0 for value in fold_returns)
+            ),
+            "worst_payoff": min(
+                result["metrics"]["payoff_ratio"] for result in results
+            ),
+            "worst_drawdown": max(
+                result["metrics"]["max_drawdown"] for result in results
+            ),
+            **combined,
+            "gates": gate,
+        })
+    candidate_frame = pd.DataFrame(candidate_rows)
+    selected = select_development_candidate(candidate_frame)
+    stress_rows = []
+    if selected:
+        for cost in (0, 2, 10, 15, 20):
+            results = [
+                _evaluate_fold(scores, market, selected, fold, cost)
+                for fold in folds
+            ]
+            stress_rows.append({
+                "cost_bps": cost,
+                **_combined_metrics(results),
+            })
+    return {
+        "status": development_status(selected),
+        "selected_candidate": selected,
+        "candidate_metrics": candidate_frame,
+        "fold_metrics": pd.DataFrame(fold_rows),
+        "stress_metrics": pd.DataFrame(stress_rows),
+        "quality": quality,
+        "forbidden_holdout_start": FORBIDDEN_HOLDOUT_START,
+        "limitations": (
+            "development-only weighted-index research",
+            "viewed holdout excluded; not final OOS evidence",
+        ),
+    }
