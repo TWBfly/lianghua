@@ -1292,6 +1292,346 @@ def simulate_standardized_ledger(scored, market, threshold, cost_bps, symbol_cou
     return trade_frame, daily
 
 
+def simulate_tianji_ledger(targets, rebalance_times, market, cost_bps):
+    """Run frozen TianJi targets through a next-open, bar-marked ledger."""
+    target_required = {
+        "decision_time", "symbol", "direction", "atr", "atr_pct",
+    }
+    market_required = {
+        "symbol", "trade_time", "open", "high", "low", "close", "atr",
+    }
+    if not isinstance(targets, pd.DataFrame) or not isinstance(market, pd.DataFrame):
+        raise ResearchRejected("TianJi targets and market must be data frames")
+    missing = target_required.difference(targets.columns)
+    if missing:
+        raise ResearchRejected(
+            f"missing TianJi target columns: {', '.join(sorted(missing))}"
+        )
+    missing = market_required.difference(market.columns)
+    if missing:
+        raise ResearchRejected(
+            f"missing TianJi market columns: {', '.join(sorted(missing))}"
+        )
+    if not _finite_number(cost_bps) or float(cost_bps) < 0.0:
+        raise ResearchRejected("TianJi cost_bps must be finite and non-negative")
+
+    decisions = targets.copy()
+    marks = market.copy()
+    decisions["decision_time"] = _parse_trade_time(decisions["decision_time"])
+    marks["trade_time"] = _parse_trade_time(marks["trade_time"])
+    if decisions.duplicated(["decision_time", "symbol"]).any():
+        raise ResearchRejected("duplicate TianJi target")
+    if marks.duplicated(["trade_time", "symbol"]).any():
+        raise ResearchRejected("duplicate TianJi market timestamp")
+    for column in ("atr", "atr_pct"):
+        decisions[column] = pd.to_numeric(decisions[column], errors="coerce")
+    decisions["direction"] = pd.to_numeric(
+        decisions["direction"], errors="coerce"
+    )
+    if (
+        not decisions["direction"].isin((-1, 1)).all()
+        or not np.isfinite(decisions[["atr", "atr_pct"]]).all().all()
+        or decisions[["atr", "atr_pct"]].le(0.0).any().any()
+    ):
+        raise ResearchRejected("invalid TianJi target values")
+    for column in ("open", "high", "low", "close", "atr"):
+        marks[column] = pd.to_numeric(marks[column], errors="coerce")
+    if (
+        not np.isfinite(marks[["open", "high", "low", "close", "atr"]]).all().all()
+        or marks[["open", "high", "low", "close", "atr"]].le(0.0).any().any()
+        or marks["high"].lt(marks[["open", "close"]].max(axis=1)).any()
+        or marks["low"].gt(marks[["open", "close"]].min(axis=1)).any()
+    ):
+        raise ResearchRejected("invalid TianJi market values")
+    try:
+        rebalance_index = pd.DatetimeIndex(rebalance_times)
+    except (TypeError, ValueError) as exc:
+        raise ResearchRejected("invalid TianJi rebalance times") from exc
+    if rebalance_index.has_duplicates or not rebalance_index.is_monotonic_increasing:
+        raise ResearchRejected("invalid TianJi rebalance times")
+    if not set(decisions["decision_time"]).issubset(set(rebalance_index)):
+        raise ResearchRejected("TianJi target is outside the rebalance schedule")
+
+    decisions = decisions.sort_values(
+        ["decision_time", "direction", "symbol"], kind="stable"
+    ).reset_index(drop=True)
+    marks = marks.sort_values(["trade_time", "symbol"], kind="stable").reset_index(drop=True)
+    target_groups = {
+        time: group.copy()
+        for time, group in decisions.groupby("decision_time", sort=False)
+    }
+    positions = {}
+    pending = {}
+    last_rows = {}
+    trades = []
+    bar_rows = []
+    realized_sleeve_pnl = 0.0
+    cost = float(cost_bps) / 10_000.0
+
+    def close_position(symbol, time, price, reason):
+        nonlocal realized_sleeve_pnl, timestamp_turnover
+        position = positions.pop(symbol)
+        ratio = float(price) / position["entry_price"]
+        gross_return = position["direction"] * (ratio - 1.0)
+        gross_pnl = position["weight"] * gross_return
+        exit_notional = position["weight"] * ratio
+        exit_cost = exit_notional * cost
+        sleeve_pnl = gross_pnl - position["entry_cost"] - exit_cost
+        realized_sleeve_pnl += gross_pnl - exit_cost
+        timestamp_turnover += exit_notional
+        trades.append({
+            "symbol": symbol,
+            "decision_time": position["decision_time"],
+            "entry_time": position["entry_time"],
+            "exit_time": pd.Timestamp(time),
+            "direction": position["direction"],
+            "entry_open": position["entry_price"],
+            "exit_open": float(price),
+            "gross_return": gross_return,
+            "entry_cost": position["entry_cost"],
+            "exit_cost": exit_cost,
+            "sleeve_pnl": sleeve_pnl,
+            "weight": position["weight"],
+            "exit_reason": reason,
+            "cost_bps": float(cost_bps),
+            "turnover": position["weight"] + exit_notional,
+        })
+
+    for timestamp, group in marks.groupby("trade_time", sort=True):
+        timestamp = pd.Timestamp(timestamp)
+        timestamp_turnover = 0.0
+        observed = {row.symbol: row for row in group.itertuples(index=False)}
+        for symbol in sorted(observed):
+            row = observed[symbol]
+            last_rows[symbol] = row
+            position = positions.get(symbol)
+            if position is not None:
+                gap_stop = (
+                    position["direction"] == 1 and row.open <= position["stop"]
+                ) or (
+                    position["direction"] == -1 and row.open >= position["stop"]
+                )
+                if gap_stop:
+                    old_direction = position["direction"]
+                    close_position(symbol, timestamp, row.open, "STOP")
+                    order = pending.get(symbol)
+                    if order is not None and order["direction"] in (0, old_direction):
+                        pending.pop(symbol)
+
+            order = pending.pop(symbol, None)
+            if order is not None:
+                position = positions.get(symbol)
+                if position is not None and position["direction"] != order["direction"]:
+                    close_position(symbol, timestamp, row.open, "SIGNAL")
+                    position = None
+                if order["direction"] and position is None:
+                    entry_cost = order["weight"] * cost
+                    realized_sleeve_pnl -= entry_cost
+                    timestamp_turnover += order["weight"]
+                    direction = int(order["direction"])
+                    positions[symbol] = {
+                        "direction": direction,
+                        "weight": float(order["weight"]),
+                        "entry_time": timestamp,
+                        "entry_price": float(row.open),
+                        "entry_cost": entry_cost,
+                        "atr": float(order["atr"]),
+                        "stop": float(row.open) - direction * float(order["atr"]),
+                        "favorable": float(row.open),
+                        "decision_time": order["decision_time"],
+                    }
+
+            position = positions.get(symbol)
+            if position is not None:
+                hit_stop = (
+                    position["direction"] == 1 and row.low <= position["stop"]
+                ) or (
+                    position["direction"] == -1 and row.high >= position["stop"]
+                )
+                if hit_stop:
+                    close_position(symbol, timestamp, position["stop"], "STOP")
+
+        unrealized = 0.0
+        for symbol, position in positions.items():
+            row = last_rows.get(symbol)
+            if row is None:
+                continue
+            unrealized += position["weight"] * position["direction"] * (
+                float(row.close) / position["entry_price"] - 1.0
+            )
+        gross_exposure = sum(position["weight"] for position in positions.values())
+        net_exposure = sum(
+            position["weight"] * position["direction"]
+            for position in positions.values()
+        )
+        if gross_exposure > 0.8 + 1e-12 or abs(net_exposure) > 0.4 + 1e-12:
+            raise ResearchRejected("invalid TianJi exposure")
+        equity = 1.0 + realized_sleeve_pnl + unrealized
+        if not np.isfinite(equity) or equity <= 0.0:
+            raise ResearchRejected("non-positive TianJi equity")
+        bar_rows.append({
+            "trade_time": timestamp,
+            "equity": equity,
+            "gross_exposure": gross_exposure,
+            "net_exposure": net_exposure,
+            "turnover": timestamp_turnover,
+        })
+
+        for symbol, row in observed.items():
+            position = positions.get(symbol)
+            if position is None:
+                continue
+            position["atr"] = float(row.atr)
+            if position["direction"] == 1:
+                position["favorable"] = max(position["favorable"], float(row.high))
+                position["stop"] = max(
+                    position["stop"],
+                    position["favorable"] - TIANJI_TRAIL_ATR * position["atr"],
+                )
+            else:
+                position["favorable"] = min(position["favorable"], float(row.low))
+                position["stop"] = min(
+                    position["stop"],
+                    position["favorable"] + TIANJI_TRAIL_ATR * position["atr"],
+                )
+
+        if timestamp in set(rebalance_index):
+            selected = target_groups.get(timestamp, decisions.iloc[0:0])
+            selected_by_symbol = {
+                row.symbol: row for row in selected.itertuples(index=False)
+            }
+            for symbol, position in positions.items():
+                target = selected_by_symbol.get(symbol)
+                if target is None or target.direction != position["direction"]:
+                    pending[symbol] = {
+                        "direction": 0,
+                        "weight": 0.0,
+                        "atr": position["atr"],
+                        "decision_time": timestamp,
+                    }
+            for direction in (1, -1):
+                leg = selected[selected["direction"].eq(direction)]
+                retained = {
+                    symbol for symbol, position in positions.items()
+                    if position["direction"] == direction
+                    and symbol in set(leg["symbol"])
+                }
+                side_budget = min(
+                    TIANJI_SIDE_EXPOSURE, 0.1 * int(len(leg))
+                )
+                retained_weight = sum(positions[symbol]["weight"] for symbol in retained)
+                new_rows = leg[~leg["symbol"].isin(retained)]
+                remaining = max(0.0, side_budget - retained_weight)
+                inverse_atr = 1.0 / new_rows["atr_pct"] if len(new_rows) else pd.Series(dtype=float)
+                denominator = float(inverse_atr.sum())
+                for index, row in new_rows.iterrows():
+                    weight = remaining * float(inverse_atr.loc[index]) / denominator
+                    pending[row["symbol"]] = {
+                        "direction": direction,
+                        "weight": weight,
+                        "atr": float(row["atr"]),
+                        "decision_time": timestamp,
+                    }
+
+    if bar_rows and positions:
+        timestamp_turnover = 0.0
+        for symbol in sorted(tuple(positions)):
+            row = last_rows[symbol]
+            close_position(symbol, row.trade_time, row.close, "TERMINAL_CLOSE")
+        bar_rows[-1]["equity"] = 1.0 + realized_sleeve_pnl
+        bar_rows[-1]["gross_exposure"] = 0.0
+        bar_rows[-1]["net_exposure"] = 0.0
+        bar_rows[-1]["turnover"] += timestamp_turnover
+
+    trade_columns = (
+        "symbol", "decision_time", "entry_time", "exit_time", "direction",
+        "entry_open", "exit_open", "gross_return", "entry_cost", "exit_cost",
+        "sleeve_pnl", "weight", "exit_reason", "cost_bps", "turnover",
+    )
+    trade_frame = pd.DataFrame(trades, columns=trade_columns).sort_values(
+        ["entry_time", "symbol"], kind="stable"
+    ).reset_index(drop=True)
+    bar_frame = pd.DataFrame(bar_rows)
+    if bar_frame.empty:
+        return trade_frame, bar_frame, pd.DataFrame()
+    bar_frame["date"] = bar_frame["trade_time"].dt.normalize()
+    daily = bar_frame.groupby("date", sort=True).agg(
+        equity=("equity", "last"),
+        gross_exposure=("gross_exposure", "mean"),
+        net_exposure=("net_exposure", "mean"),
+        turnover=("turnover", "sum"),
+    ).reset_index()
+    previous = np.r_[1.0, daily["equity"].to_numpy(dtype=float)[:-1]]
+    daily["pnl"] = daily["equity"].to_numpy(dtype=float) - previous
+    daily["portfolio_return"] = daily["equity"].to_numpy(dtype=float) / previous - 1.0
+    if abs(float(bar_frame["equity"].iloc[-1]) - (1.0 + float(trade_frame["sleeve_pnl"].sum()))) > 1e-12:
+        raise ResearchRejected("TianJi ledger mismatch")
+    return trade_frame, bar_frame, daily
+
+
+def tianji_metrics(trades, bars, daily):
+    """Calculate payoff and drawdown from the reconciled TianJi bar ledger."""
+    if not all(isinstance(frame, pd.DataFrame) for frame in (trades, bars, daily)):
+        raise ResearchRejected("invalid TianJi metric frames")
+    if "sleeve_pnl" not in trades or bars.empty or daily.empty:
+        raise ResearchRejected("incomplete TianJi metric frames")
+    required_bars = {"equity", "gross_exposure", "net_exposure", "turnover"}
+    required_daily = {"equity", "portfolio_return"}
+    if required_bars.difference(bars.columns) or required_daily.difference(daily.columns):
+        raise ResearchRejected("missing TianJi metric columns")
+    pnl = pd.to_numeric(trades["sleeve_pnl"], errors="coerce")
+    bar_values = bars.loc[:, sorted(required_bars)].apply(pd.to_numeric, errors="coerce")
+    daily_values = daily.loc[:, sorted(required_daily)].apply(pd.to_numeric, errors="coerce")
+    if (
+        not np.isfinite(pnl).all()
+        or not np.isfinite(bar_values).all().all()
+        or not np.isfinite(daily_values).all().all()
+        or bar_values["equity"].le(0.0).any()
+    ):
+        raise ResearchRejected("non-finite TianJi metric input")
+    if abs(float(bars["equity"].iloc[-1]) - (1.0 + float(pnl.sum()))) > 1e-12:
+        raise ResearchRejected("TianJi ledger mismatch")
+    returns = daily["portfolio_return"].astype(float)
+    expected = daily["equity"].to_numpy(dtype=float) / np.r_[
+        1.0, daily["equity"].to_numpy(dtype=float)[:-1]
+    ] - 1.0
+    if np.max(np.abs(returns.to_numpy() - expected)) > 1e-12:
+        raise ResearchRejected("TianJi ledger mismatch")
+    winners = pnl[pnl > 0.0]
+    losers = -pnl[pnl < 0.0]
+    payoff_ratio = (
+        float(winners.mean() / losers.mean())
+        if len(winners) and len(losers) else 0.0
+    )
+    profit_factor = (
+        float(winners.sum() / losers.sum())
+        if len(winners) and len(losers) else 0.0
+    )
+    equity = bars["equity"].to_numpy(dtype=float)
+    peak = np.maximum.accumulate(np.r_[1.0, equity])
+    drawdown = 1.0 - np.r_[1.0, equity] / peak
+    deviation = float(returns.std(ddof=1)) if len(returns) > 1 else 0.0
+    final_equity = float(equity[-1])
+    result = {
+        "days": int(len(daily)),
+        "trades": int(len(trades)),
+        "total_return": final_equity - 1.0,
+        "annualized_return": final_equity ** (252.0 / len(daily)) - 1.0,
+        "annualized_volatility": deviation * np.sqrt(252.0),
+        "sharpe": float(returns.mean()) / deviation * np.sqrt(252.0) if deviation else 0.0,
+        "max_drawdown": float(drawdown.max()),
+        "win_rate": float(pnl.gt(0.0).mean()) if len(pnl) else 0.0,
+        "payoff_ratio": payoff_ratio,
+        "profit_factor": profit_factor,
+        "exposure": float(bars["gross_exposure"].mean()),
+        "max_abs_net_exposure": float(bars["net_exposure"].abs().max()),
+        "turnover": float(bars["turnover"].sum()),
+    }
+    if not all(np.isfinite(value) for value in result.values()):
+        raise ResearchRejected("non-finite TianJi metrics")
+    return result
+
+
 def strategy_metrics(trades, daily):
     """Return finite strategy statistics from the marked daily ledger."""
     zero = {

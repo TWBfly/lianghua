@@ -139,6 +139,109 @@ def test_tianji_target_order_is_stable_under_input_shuffle():
     assert expected[1].equals(actual[1])
 
 
+def _single_tianji_target(market):
+    return pd.DataFrame([{
+        "decision_time": market["trade_time"].iloc[0],
+        "symbol": "AG_IDX",
+        "direction": 1,
+        "atr": 2.0,
+        "atr_pct": 0.02,
+        "score": 1.0,
+        "sector": "PRECIOUS",
+    }])
+
+
+def test_tianji_signal_executes_only_at_next_open():
+    market = make_tianji_market(4, symbols=("AG_IDX",))
+    market["atr"] = 2.0
+    targets = _single_tianji_target(market)
+    decision = targets["decision_time"].item()
+
+    trades, bars, _ = research.simulate_tianji_ledger(
+        targets, pd.DatetimeIndex([decision]), market, 0
+    )
+
+    assert trades["entry_time"].iloc[0] == market["trade_time"].iloc[1]
+    assert trades["entry_open"].iloc[0] == market["open"].iloc[1]
+    assert bars["gross_exposure"].max() <= 0.4 + 1e-12
+
+
+def test_tianji_gap_through_stop_uses_worse_open():
+    market = make_tianji_market(4, symbols=("AG_IDX",))
+    market["atr"] = 2.0
+    market.loc[2, ["open", "high", "low", "close"]] = [95.0, 96.0, 94.0, 95.0]
+    targets = _single_tianji_target(market)
+    decision = targets["decision_time"].item()
+
+    trades, _, _ = research.simulate_tianji_ledger(
+        targets, pd.DatetimeIndex([decision]), market, 5
+    )
+
+    assert trades["exit_reason"].iloc[0] == "STOP"
+    assert trades["exit_open"].iloc[0] == 95.0
+    assert trades["entry_cost"].iloc[0] > 0
+    assert trades["exit_cost"].iloc[0] > 0
+
+
+def test_tianji_trailing_stop_uses_only_prior_completed_bar():
+    market = make_tianji_market(5, symbols=("AG_IDX",))
+    market["atr"] = 2.0
+    market.loc[2, ["high", "low", "close"]] = [110.0, 100.0, 109.0]
+    market.loc[3, ["open", "high", "low", "close"]] = [109.0, 109.5, 103.0, 104.0]
+    targets = _single_tianji_target(market)
+    decision = targets["decision_time"].item()
+
+    trades, _, _ = research.simulate_tianji_ledger(
+        targets, pd.DatetimeIndex([decision]), market, 0
+    )
+
+    assert trades["exit_time"].iloc[0] == market["trade_time"].iloc[3]
+    assert trades["exit_open"].iloc[0] == pytest.approx(105.0)
+
+
+def test_tianji_metrics_use_bar_drawdown_and_true_payoff_ratio():
+    trades = pd.DataFrame({"sleeve_pnl": [0.30, -0.05, -0.15]})
+    bars = pd.DataFrame({
+        "equity": [1.0, 0.8, 1.1],
+        "gross_exposure": [0.0, 0.8, 0.0],
+        "net_exposure": [0.0, 0.0, 0.0],
+        "turnover": [0.0, 0.8, 0.8],
+    })
+    daily = pd.DataFrame({
+        "equity": [0.8, 1.1],
+        "portfolio_return": [-0.2, 0.375],
+    })
+
+    metrics = research.tianji_metrics(trades, bars, daily)
+
+    assert metrics["payoff_ratio"] == pytest.approx(3.0)
+    assert metrics["profit_factor"] == pytest.approx(1.5)
+    assert metrics["max_drawdown"] == pytest.approx(0.2)
+
+
+def test_tianji_terminal_equity_reconciles_and_input_order_is_stable():
+    market = make_tianji_market(4, symbols=("AG_IDX",))
+    market["atr"] = 2.0
+    targets = _single_tianji_target(market)
+    decision = targets["decision_time"].item()
+
+    expected = research.simulate_tianji_ledger(
+        targets, pd.DatetimeIndex([decision]), market, 5
+    )
+    actual = research.simulate_tianji_ledger(
+        targets,
+        pd.DatetimeIndex([decision]),
+        market.sample(frac=1, random_state=11),
+        5,
+    )
+
+    pd.testing.assert_frame_equal(expected[0], actual[0])
+    pd.testing.assert_frame_equal(expected[1], actual[1])
+    assert expected[1]["equity"].iloc[-1] == pytest.approx(
+        1.0 + expected[0]["sleeve_pnl"].sum()
+    )
+
+
 def _write_source(
         db_path, bars, series_type="WEIGHTED_INDEX", metadata=True,
         source_sha256="a" * 64):
