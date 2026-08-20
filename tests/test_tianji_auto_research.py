@@ -1,4 +1,5 @@
 import dataclasses
+import hashlib
 import inspect
 import random
 
@@ -97,3 +98,79 @@ def test_auto_target_builder_serializes_risk_spec_and_forbids_holdout():
             candidate,
             pd.DatetimeIndex(scores["decision_time"].unique()),
         )
+
+
+def test_stage1_keeps_at_most_four_with_stable_order():
+    rows = pd.DataFrame([
+        {
+            "signal_id": f"s{number:02d}",
+            "worst_payoff": number / 10,
+            "worst_return": number / 100,
+            "turnover": 20 - number,
+        }
+        for number in range(16)
+    ])
+
+    survivors = auto.select_stage1_survivors(rows)
+
+    assert len(survivors) == 4
+    assert survivors["signal_id"].tolist() == ["s15", "s14", "s13", "s12"]
+
+
+def test_stage1_screen_evaluates_every_signal_on_three_folds():
+    calls = []
+
+    def evaluate(candidate, fold):
+        calls.append((candidate.signal.id, fold))
+        rank = auto.signal_specs().index(candidate.signal) + 1
+        return {
+            "payoff_ratio": rank / 10,
+            "total_return": rank / 100,
+            "turnover": 10.0,
+        }
+
+    survivors = auto.stage1_screen(
+        auto.signal_specs(), (1, 2, 3), evaluate
+    )
+
+    assert len(calls) == 16 * 3
+    assert len(survivors) == 4
+
+
+def test_successive_halving_caps_128_to_32_to_8_deterministically():
+    signals = auto.signal_specs()[:4]
+    candidates = auto.candidate_specs(signals, auto.risk_specs())
+    calls = []
+
+    def evaluate(candidate, fold):
+        calls.append((candidate.id, fold))
+        rank = int(hashlib.sha256(candidate.id.encode()).hexdigest()[:8], 16)
+        return {
+            "candidate_id": candidate.id,
+            "fold": fold,
+            "payoff_ratio": 1.1 + rank % 100 / 100,
+            "max_drawdown": 0.05,
+            "total_return": 0.01,
+            "trades": 80,
+            "turnover": 10.0,
+        }
+
+    result = auto.successive_halving(candidates, evaluate)
+
+    assert len(result["stage1"]) == 128
+    assert len(result["stage2"]) == 32
+    assert len(result["stage3"]) == 8
+    assert len(calls) == 128 + 32 + 8
+
+
+def test_auto_gates_require_all_hard_thresholds_and_positive_folds():
+    metrics = {
+        "payoff_ratio": 3.0,
+        "max_drawdown": 0.15,
+        "total_return": 0.01,
+        "trades": 200,
+        "fold_returns": [0.01, 0.02, 0.01],
+    }
+    assert auto.auto_development_gates(metrics)["passed"]
+    metrics["fold_returns"][1] = 0.0
+    assert not auto.auto_development_gates(metrics)["passed"]

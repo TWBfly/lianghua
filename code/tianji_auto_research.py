@@ -177,3 +177,108 @@ def build_auto_targets(scores, candidate, fold_times):
     targets["trail_distance_atr"] = risk.trail_distance_atr
     targets["side_exposure"] = risk.side_exposure
     return targets, rebalances
+
+
+def select_stage1_survivors(rows):
+    return rows.sort_values(
+        ["worst_payoff", "worst_return", "turnover", "signal_id"],
+        ascending=[False, False, True, True],
+        kind="stable",
+    ).head(4).reset_index(drop=True)
+
+
+def stage1_screen(signals, folds, evaluate):
+    proxy = RiskSpec(2, 16, 0.20, 1.0, 3.0, 3.0)
+    rows = []
+    for signal in sorted(signals):
+        candidate = CandidateSpec(signal, proxy)
+        fold_rows = [
+            evaluate(candidate, number)
+            for number in range(1, len(folds) + 1)
+        ]
+        rows.append({
+            "signal_id": signal.id,
+            "worst_payoff": min(
+                row["payoff_ratio"] for row in fold_rows
+            ),
+            "worst_return": min(
+                row["total_return"] for row in fold_rows
+            ),
+            "turnover": sum(row["turnover"] for row in fold_rows),
+        })
+    return select_stage1_survivors(pd.DataFrame(rows))
+
+
+def _aggregate_stage_rows(*stages):
+    frame = pd.DataFrame([
+        row for stage in stages for row in stage
+    ])
+    rows = []
+    for candidate_id, group in frame.groupby("candidate_id", sort=True):
+        rows.append({
+            "candidate_id": candidate_id,
+            "fold": int(group["fold"].max()),
+            "payoff_ratio": float(group["payoff_ratio"].min()),
+            "max_drawdown": float(group["max_drawdown"].max()),
+            "total_return": float(
+                (1.0 + group["total_return"].astype(float)).prod() - 1.0
+            ),
+            "trades": int(group["trades"].sum()),
+            "turnover": float(group["turnover"].sum()),
+        })
+    return pd.DataFrame(rows)
+
+
+def _stage_rank(rows, limit):
+    frame = pd.DataFrame(rows)
+    projected = frame["trades"] * 3
+    frame = frame[
+        np.isfinite(frame[[
+            "payoff_ratio", "max_drawdown", "total_return",
+        ]]).all(axis=1)
+        & frame["total_return"].gt(0.0)
+        & frame["payoff_ratio"].ge(1.0)
+        & frame["max_drawdown"].le(0.15)
+        & projected.ge(200)
+    ]
+    return frame.sort_values(
+        [
+            "payoff_ratio", "max_drawdown", "total_return", "turnover",
+            "candidate_id",
+        ],
+        ascending=[False, True, False, True, True],
+        kind="stable",
+    ).head(limit).reset_index(drop=True)
+
+
+def successive_halving(candidates, evaluate):
+    current = tuple(sorted(candidates))[:128]
+    stage1 = [evaluate(candidate, 1) for candidate in current]
+    keep1 = set(_stage_rank(stage1, 32)["candidate_id"])
+    current = tuple(
+        candidate for candidate in current if candidate.id in keep1
+    )
+    stage2 = [evaluate(candidate, 2) for candidate in current]
+    aggregate2 = _aggregate_stage_rows(stage1, stage2)
+    aggregate2 = aggregate2[
+        aggregate2["candidate_id"].isin({candidate.id for candidate in current})
+    ]
+    keep2 = set(_stage_rank(aggregate2, 8)["candidate_id"])
+    current = tuple(
+        candidate for candidate in current if candidate.id in keep2
+    )
+    stage3 = [evaluate(candidate, 3) for candidate in current]
+    return {"stage1": stage1, "stage2": stage2, "stage3": stage3}
+
+
+def auto_development_gates(metrics):
+    checks = {
+        "payoff_ratio": float(metrics["payoff_ratio"]) >= 3.0,
+        "max_drawdown": float(metrics["max_drawdown"]) <= 0.15,
+        "positive_return": float(metrics["total_return"]) > 0.0,
+        "minimum_trades": int(metrics["trades"]) >= 200,
+        "positive_folds": all(
+            value > 0.0 for value in metrics["fold_returns"]
+        ),
+    }
+    return {"passed": all(checks.values()), "checks": checks}
