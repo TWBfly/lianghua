@@ -759,20 +759,30 @@ def build_tianji_scores(segmented):
         :, ["symbol", "segment_id", "trade_time", "close"]
     ].join(features)
     frame = frame.rename(columns={"trade_time": "decision_time"})
-    finite_columns = [*TIANJI_FEATURE_COLUMNS, "atr", "amihud_20", "close"]
-    frame = frame[np.isfinite(frame.loc[:, finite_columns]).all(axis=1)].copy()
-    frame = frame[(frame["atr"] > 0.0) & (frame["close"] > 0.0)]
-    frame["atr_pct"] = frame["atr"] / frame["close"]
-    illiquidity_rank = frame.groupby("decision_time")["amihud_20"].rank(
+    directional_finite = np.isfinite(
+        frame.loc[:, [*TIANJI_FEATURE_COLUMNS, "amihud_20", "close"]]
+    ).all(axis=1)
+    frame["atr_ready"] = (
+        np.isfinite(frame["atr"])
+        & np.isfinite(frame["close"])
+        & frame["atr"].gt(0.0)
+        & frame["close"].gt(0.0)
+    )
+    frame["atr_pct"] = np.where(
+        frame["atr_ready"], frame["atr"] / frame["close"], np.nan
+    )
+    frame["signal_ready"] = False
+    mature = frame[directional_finite & frame["atr_ready"]].copy()
+    illiquidity_rank = mature.groupby("decision_time")["amihud_20"].rank(
         pct=True, method="average"
     )
-    frame["eligible"] = illiquidity_rank <= 0.80
-    eligible = frame[frame["eligible"]].copy()
-    ranks = eligible.groupby("decision_time")[list(TIANJI_FEATURE_COLUMNS)].rank(
+    mature = mature[illiquidity_rank <= 0.80]
+    frame.loc[mature.index, "signal_ready"] = True
+    ranks = mature.groupby("decision_time")[list(TIANJI_FEATURE_COLUMNS)].rank(
         pct=True, method="average"
     )
     frame["score"] = np.nan
-    frame.loc[eligible.index, "score"] = ranks.mean(axis=1)
+    frame.loc[mature.index, "score"] = ranks.mean(axis=1)
     frame["sector"] = frame["symbol"].map(TIANJI_SECTORS).fillna("OTHER")
     return frame.sort_values(
         ["decision_time", "symbol"], kind="stable"
@@ -807,7 +817,7 @@ def _tianji_leg(group, direction):
 
 def build_tianji_targets(scores, holdout_start):
     required = {
-        "decision_time", "symbol", "eligible", "score", "atr", "atr_pct",
+        "decision_time", "symbol", "signal_ready", "score", "atr", "atr_pct",
         "sector",
     }
     if not isinstance(scores, pd.DataFrame) or scores.empty:
@@ -830,7 +840,7 @@ def build_tianji_targets(scores, holdout_start):
     for decision_time in rebalance_times:
         group = scores[
             scores["decision_time"].eq(decision_time)
-            & scores["eligible"]
+            & scores["signal_ready"]
             & scores["score"].notna()
         ]
         longs = _tianji_leg(group, 1)
@@ -1649,7 +1659,7 @@ def build_tianji_evaluation(segmented, config=ResearchConfig()):
         raise ResearchRejected("too few eligible TianJi symbols")
     market = segmented[segmented["symbol"].isin(eligible)].copy()
     scores = build_tianji_scores(market)
-    mature = scores.groupby("symbol").size()
+    mature = scores[scores["signal_ready"]].groupby("symbol").size()
     eligible = mature[mature >= config.min_symbol_rows].index
     if len(eligible) < config.min_symbols:
         raise ResearchRejected("too few mature TianJi symbols")

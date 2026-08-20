@@ -107,6 +107,51 @@ def test_tianji_score_prefix_is_unchanged_by_future_bars():
     assert {"label", "future_return", "probability"}.isdisjoint(actual.columns)
 
 
+def test_tianji_keeps_risk_atr_when_directional_signal_is_immature():
+    market = make_tianji_market(25)
+
+    scores = research.build_tianji_scores(market)
+    last_time = market["trade_time"].max()
+    row = scores[
+        scores["symbol"].eq("AG_IDX")
+        & scores["decision_time"].eq(last_time)
+    ].iloc[0]
+
+    assert row["atr_ready"]
+    assert np.isfinite(row["atr"])
+    assert not row["signal_ready"]
+    assert np.isnan(row["score"])
+
+
+def test_tianji_targets_exclude_immature_signal_rows():
+    scores = research.build_tianji_scores(make_tianji_market(40))
+    times = pd.DatetimeIndex(sorted(scores["decision_time"].unique()))
+    rebalance_time = next(
+        time for time in times[::research.TIANJI_REBALANCE_BARS]
+        if scores[
+            scores["decision_time"].eq(time) & scores["signal_ready"]
+        ].shape[0]
+    )
+    mask = (
+        scores["decision_time"].eq(rebalance_time)
+        & scores["signal_ready"]
+    )
+    symbol = scores.loc[mask, "symbol"].iloc[0]
+    scores.loc[
+        scores["decision_time"].eq(rebalance_time)
+        & scores["symbol"].eq(symbol),
+        ["signal_ready", "score"],
+    ] = [False, 1.0]
+
+    targets, _ = research.build_tianji_targets(scores, rebalance_time)
+
+    selected = targets[
+        targets["decision_time"].eq(rebalance_time)
+        & targets["symbol"].eq(symbol)
+    ]
+    assert selected.empty
+
+
 def test_tianji_targets_are_neutral_sector_capped_and_rebalance_every_16_bars():
     scores = research.build_tianji_scores(make_tianji_market(90))
     holdout_start = scores["decision_time"].sort_values().unique()[0]
