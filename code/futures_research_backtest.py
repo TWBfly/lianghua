@@ -778,6 +778,10 @@ def _tianji_segment_features(group):
     prior_channel_high = high.shift(1).rolling(20).max()
     prior_channel_low = low.shift(1).rolling(20).min()
     channel_span = (channel_high - channel_low).replace(0.0, np.nan)
+    path_40 = close.diff().abs().rolling(40).sum().replace(0.0, np.nan)
+    channel_high_40 = high.rolling(40).max()
+    channel_low_40 = low.rolling(40).min()
+    channel_span_40 = (channel_high_40 - channel_low_40).replace(0.0, np.nan)
     clv = (2.0 * close - high - low) / (high - low).replace(0.0, np.nan)
     frame = pd.DataFrame(index=group.index)
     frame["signed_kaufman_efficiency_20"] = (
@@ -789,12 +793,25 @@ def _tianji_segment_features(group):
     )
     frame["prior_breakout_up_20"] = close > prior_channel_high
     frame["prior_breakout_down_20"] = close < prior_channel_low
+    frame["signed_kaufman_efficiency_40"] = (
+        np.sign(close.pct_change(40))
+        * (close - close.shift(40)).abs() / path_40
+    )
+    frame["donchian_position_40"] = (
+        2.0 * (close - channel_low_40) / channel_span_40 - 1.0
+    )
     frame["momentum_acceleration_5_20"] = (
         close.pct_change(5) - close.pct_change(20) / 4.0
+    )
+    frame["momentum_acceleration_10_40"] = (
+        close.pct_change(10) - close.pct_change(40) / 4.0
     )
     frame["intraday_intensity_10"] = (
         clv * volume / volume.rolling(20).mean().replace(0.0, np.nan)
     ).rolling(10).mean()
+    frame["intraday_intensity_20"] = (
+        clv * volume / volume.rolling(40).mean().replace(0.0, np.nan)
+    ).rolling(20).mean()
     frame["atr"] = true_range.rolling(20).mean()
     frame["amihud_20"] = (
         close.pct_change().abs() / volume.replace(0.0, np.nan) * 1e6
@@ -1509,6 +1526,9 @@ def simulate_tianji_ledger(targets, rebalance_times, market, cost_bps):
                 if order["direction"] and position is None:
                     direction = int(order["direction"])
                     requested_weight = max(0.0, float(order["weight"]))
+                    side_cap = float(
+                        order.get("side_exposure", TIANJI_SIDE_EXPOSURE)
+                    )
                     side_used = sum(
                         live["weight"] for live in positions.values()
                         if live["direction"] == direction
@@ -1518,10 +1538,10 @@ def simulate_tianji_ledger(targets, rebalance_times, market, cost_bps):
                     )
                     weight = min(
                         requested_weight,
-                        max(0.0, TIANJI_SIDE_EXPOSURE - side_used),
+                        max(0.0, side_cap - side_used),
                         max(
                             0.0,
-                            2.0 * TIANJI_SIDE_EXPOSURE - gross_used,
+                            2.0 * side_cap - gross_used,
                         ),
                     )
                     requested_entry_weight += requested_weight
@@ -1533,6 +1553,9 @@ def simulate_tianji_ledger(targets, rebalance_times, market, cost_bps):
                     entry_cost = weight * cost
                     realized_sleeve_pnl -= entry_cost
                     timestamp_turnover += weight
+                    initial_stop_atr = float(
+                        order.get("initial_stop_atr", TIANJI_INITIAL_STOP_ATR)
+                    )
                     positions[symbol] = {
                         "direction": direction,
                         "weight": weight,
@@ -1544,7 +1567,12 @@ def simulate_tianji_ledger(targets, rebalance_times, market, cost_bps):
                         "trail_activation_r": float(
                             order.get("trail_activation_r", 0.0)
                         ),
-                        "stop": float(row.open) - direction * float(order["atr"]),
+                        "stop": float(row.open) - direction * (
+                            initial_stop_atr * float(order["atr"])
+                        ),
+                        "trail_distance_atr": float(
+                            order.get("trail_distance_atr", TIANJI_TRAIL_ATR)
+                        ),
                         "favorable": float(row.open),
                         "decision_time": order["decision_time"],
                     }
@@ -1603,7 +1631,8 @@ def simulate_tianji_ledger(targets, rebalance_times, market, cost_bps):
                 ):
                     position["stop"] = max(
                         position["stop"],
-                        position["favorable"] - TIANJI_TRAIL_ATR * position["atr"],
+                        position["favorable"]
+                        - position["trail_distance_atr"] * position["atr"],
                     )
             else:
                 position["favorable"] = min(position["favorable"], float(row.low))
@@ -1613,7 +1642,8 @@ def simulate_tianji_ledger(targets, rebalance_times, market, cost_bps):
                 ):
                     position["stop"] = min(
                         position["stop"],
-                        position["favorable"] + TIANJI_TRAIL_ATR * position["atr"],
+                        position["favorable"]
+                        + position["trail_distance_atr"] * position["atr"],
                     )
 
         if timestamp in set(rebalance_index):
@@ -1637,9 +1667,15 @@ def simulate_tianji_ledger(targets, rebalance_times, market, cost_bps):
                     if position["direction"] == direction
                     and symbol in set(leg["symbol"])
                 }
-                side_budget = min(
-                    TIANJI_SIDE_EXPOSURE, 0.1 * int(len(leg))
-                )
+                if len(leg) and "side_exposure" in leg:
+                    side_values = leg["side_exposure"].astype(float).unique()
+                    if len(side_values) != 1:
+                        raise ResearchRejected("mixed TianJi side exposure")
+                    side_budget = float(side_values[0])
+                else:
+                    side_budget = min(
+                        TIANJI_SIDE_EXPOSURE, 0.1 * int(len(leg))
+                    )
                 retained_weight = sum(positions[symbol]["weight"] for symbol in retained)
                 new_rows = leg[~leg["symbol"].isin(retained)]
                 remaining = max(0.0, side_budget - retained_weight)
@@ -1651,8 +1687,17 @@ def simulate_tianji_ledger(targets, rebalance_times, market, cost_bps):
                         "direction": direction,
                         "weight": weight,
                         "atr": float(row["atr"]),
+                        "initial_stop_atr": float(
+                            row.get("initial_stop_atr", TIANJI_INITIAL_STOP_ATR)
+                        ),
                         "trail_activation_r": float(
                             row.get("trail_activation_r", 0.0)
+                        ),
+                        "trail_distance_atr": float(
+                            row.get("trail_distance_atr", TIANJI_TRAIL_ATR)
+                        ),
+                        "side_exposure": float(
+                            row.get("side_exposure", TIANJI_SIDE_EXPOSURE)
                         ),
                         "decision_time": timestamp,
                     }

@@ -141,6 +141,25 @@ def test_tianji_score_prefix_is_unchanged_by_future_bars():
     assert {"label", "future_return", "probability"}.isdisjoint(actual.columns)
 
 
+def test_tianji_scores_include_causal_slow_primitives():
+    market = make_tianji_market(100)
+    cutoff = market["trade_time"].sort_values().unique()[80]
+    prefix = market[market["trade_time"] <= cutoff]
+
+    expected = research.build_tianji_scores(prefix)
+    actual = research.build_tianji_scores(market)
+    actual = actual[actual["decision_time"] <= cutoff]
+
+    for column in (
+        "signed_kaufman_efficiency_40", "donchian_position_40",
+        "momentum_acceleration_10_40", "intraday_intensity_20",
+    ):
+        assert column in actual
+    pd.testing.assert_frame_equal(
+        expected.reset_index(drop=True), actual.reset_index(drop=True)
+    )
+
+
 def test_tianji_keeps_risk_atr_when_directional_signal_is_immature():
     market = make_tianji_market(25)
 
@@ -406,6 +425,30 @@ def test_tianji_three_r_activation_does_not_trail_early():
     )
 
     assert trades["exit_reason"].iloc[0] == "TERMINAL_CLOSE"
+
+
+def test_per_target_stop_and_trail_distance_change_exit_levels():
+    market = make_tianji_market(5, symbols=("AG_IDX",))
+    market["atr"] = 2.0
+    market.loc[2, ["high", "low", "close"]] = [108.0, 100.0, 107.0]
+    market.loc[3, ["open", "high", "low", "close"]] = [
+        107.0, 107.5, 101.0, 102.0,
+    ]
+    target = _single_tianji_target(market)
+    target[[
+        "initial_stop_atr", "trail_activation_r", "trail_distance_atr",
+        "side_exposure",
+    ]] = [0.75, 2.0, 3.0, 0.20]
+
+    trades, bars, _ = research.simulate_tianji_ledger(
+        target,
+        pd.DatetimeIndex([target["decision_time"].item()]),
+        market,
+        0,
+    )
+
+    assert trades["exit_open"].iloc[0] == pytest.approx(102.0)
+    assert bars["gross_exposure"].max() <= 0.20 + 1e-12
 
 
 def make_async_exposure_case():
