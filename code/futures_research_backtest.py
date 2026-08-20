@@ -1433,13 +1433,31 @@ def simulate_tianji_ledger(targets, rebalance_times, market, cost_bps):
                     close_position(symbol, timestamp, row.open, "SIGNAL")
                     position = None
                 if order["direction"] and position is None:
-                    entry_cost = order["weight"] * cost
-                    realized_sleeve_pnl -= entry_cost
-                    timestamp_turnover += order["weight"]
                     direction = int(order["direction"])
+                    requested_weight = max(0.0, float(order["weight"]))
+                    side_used = sum(
+                        live["weight"] for live in positions.values()
+                        if live["direction"] == direction
+                    )
+                    gross_used = sum(
+                        live["weight"] for live in positions.values()
+                    )
+                    weight = min(
+                        requested_weight,
+                        max(0.0, TIANJI_SIDE_EXPOSURE - side_used),
+                        max(
+                            0.0,
+                            2.0 * TIANJI_SIDE_EXPOSURE - gross_used,
+                        ),
+                    )
+                    if weight <= 1e-12:
+                        continue
+                    entry_cost = weight * cost
+                    realized_sleeve_pnl -= entry_cost
+                    timestamp_turnover += weight
                     positions[symbol] = {
                         "direction": direction,
-                        "weight": float(order["weight"]),
+                        "weight": weight,
                         "entry_time": timestamp,
                         "entry_price": float(row.open),
                         "entry_cost": entry_cost,

@@ -356,6 +356,79 @@ def test_tianji_new_atr_updates_only_next_bar_stop():
     assert trades["exit_open"].iloc[0] == pytest.approx(109.5)
 
 
+def make_async_exposure_case():
+    first_longs = ("L1", "L2", "L3", "L4")
+    first_shorts = ("SI_IDX", "S2", "S3", "S4")
+    second_shorts = ("C_IDX", "S2", "S3", "S4")
+    first_decision = pd.Timestamp("2026-01-02 09:00")
+    second_decision = pd.Timestamp("2026-01-02 09:15")
+    rows = []
+    for decision_time, longs, shorts in (
+        (first_decision, first_longs, first_shorts),
+        (second_decision, first_longs, second_shorts),
+    ):
+        for direction, symbols in ((1, longs), (-1, shorts)):
+            rows.extend({
+                "decision_time": decision_time,
+                "symbol": symbol,
+                "direction": direction,
+                "atr": 2.0,
+                "atr_pct": 0.02,
+                "score": float(number),
+                "sector": "TEST",
+            } for number, symbol in enumerate(symbols, start=1))
+    targets = pd.DataFrame(rows)
+    market_rows = []
+    all_symbols = sorted(set((*first_longs, *first_shorts, *second_shorts)))
+    times = pd.date_range(first_decision, periods=5, freq="15min")
+    for time in times:
+        for symbol in all_symbols:
+            if time == times[2] and symbol == "SI_IDX":
+                continue
+            market_rows.append({
+                "symbol": symbol,
+                "trade_time": time,
+                "open": 100.0,
+                "high": 101.0,
+                "low": 99.0,
+                "close": 100.0,
+                "atr": 2.0,
+            })
+    return (
+        targets,
+        pd.DatetimeIndex([first_decision, second_decision]),
+        pd.DataFrame(market_rows),
+    )
+
+
+def test_tianji_async_exit_reserves_capacity_until_actual_close():
+    targets, rebalances, market = make_async_exposure_case()
+
+    trades, bars, _ = research.simulate_tianji_ledger(
+        targets, rebalances, market, 5
+    )
+
+    assert bars["gross_exposure"].max() <= 0.8 + 1e-12
+    assert bars["net_exposure"].abs().max() <= 0.4 + 1e-12
+    assert "C_IDX" not in set(trades["symbol"])
+    assert "SI_IDX" in set(trades["symbol"])
+
+
+def test_tianji_async_capacity_result_is_deterministic_and_not_retried():
+    targets, rebalances, market = make_async_exposure_case()
+    expected = research.simulate_tianji_ledger(targets, rebalances, market, 5)
+    actual = research.simulate_tianji_ledger(
+        targets.sample(frac=1, random_state=21),
+        rebalances,
+        market.sample(frac=1, random_state=22),
+        5,
+    )
+
+    pd.testing.assert_frame_equal(expected[0], actual[0])
+    pd.testing.assert_frame_equal(expected[1], actual[1])
+    assert "C_IDX" not in set(actual[0]["symbol"])
+
+
 def tianji_metrics_fixture(**overrides):
     return {
         "trades": 200,
