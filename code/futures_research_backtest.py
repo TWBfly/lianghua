@@ -43,18 +43,43 @@ TIANJI_TOP_K = 4
 TIANJI_SECTOR_LIMIT = 2
 TIANJI_INITIAL_STOP_ATR = 1.0
 TIANJI_TRAIL_ATR = 2.5
+TIANJI_SECTOR_GROUPS = {
+    "PRECIOUS": ("AG_IDX", "AU_IDX", "PD_IDX", "PT_IDX"),
+    "BASE_METALS": (
+        "AD_IDX", "AL_IDX", "AO_IDX", "BC_IDX", "CU_IDX", "LC_IDX",
+        "NI_IDX", "PB_IDX", "PS_IDX", "SI_IDX", "SN_IDX", "SS_IDX",
+        "ZN_IDX",
+    ),
+    "FERROUS": (
+        "HC_IDX", "I_IDX", "JM_IDX", "J_IDX", "RB_IDX", "SF_IDX",
+        "SM_IDX", "WR_IDX",
+    ),
+    "ENERGY": ("BU_IDX", "FU_IDX", "LU_IDX", "PG_IDX", "SC_IDX"),
+    "CHEMICALS": (
+        "BR_IDX", "BZ_IDX", "EB_IDX", "EG_IDX", "L-F_IDX", "L_IDX",
+        "MA_IDX", "NR_IDX", "PF_IDX", "PL_IDX", "PP-F_IDX", "PP_IDX",
+        "PR_IDX", "PX_IDX", "RU_IDX", "SA_IDX", "SH_IDX", "TA_IDX",
+        "UR_IDX", "V-F_IDX", "V_IDX",
+    ),
+    "AGRICULTURE": (
+        "AP_IDX", "A_IDX", "B_IDX", "CF_IDX", "CJ_IDX", "CS_IDX",
+        "CY_IDX", "C_IDX", "JD_IDX", "LH_IDX", "M_IDX", "OI_IDX",
+        "PK_IDX", "P_IDX", "RM_IDX", "RR_IDX", "RS_IDX", "SR_IDX",
+        "Y_IDX",
+    ),
+    "FORESTRY_BUILDING": (
+        "BB_IDX", "FB_IDX", "FG_IDX", "LG_IDX", "OP_IDX", "SP_IDX",
+    ),
+    "FINANCIAL": (
+        "IC_IDX", "IF_IDX", "IH_IDX", "IM_IDX", "TF_IDX", "TL_IDX",
+        "TS_IDX", "T_IDX",
+    ),
+    "SHIPPING": ("EC_IDX",),
+}
 TIANJI_SECTORS = {
-    "AG_IDX": "PRECIOUS", "AU_IDX": "PRECIOUS",
-    "CU_IDX": "BASE_METALS", "AL_IDX": "BASE_METALS",
-    "ZN_IDX": "BASE_METALS", "SN_IDX": "BASE_METALS",
-    "LC_IDX": "BASE_METALS", "SI_IDX": "BASE_METALS",
-    "RB_IDX": "FERROUS", "HC_IDX": "FERROUS", "I_IDX": "FERROUS",
-    "JM_IDX": "FERROUS", "J_IDX": "FERROUS", "FG_IDX": "FERROUS",
-    "MA_IDX": "CHEMICALS", "TA_IDX": "CHEMICALS",
-    "SA_IDX": "CHEMICALS", "RU_IDX": "CHEMICALS", "SC_IDX": "CHEMICALS",
-    "M_IDX": "AGRI", "Y_IDX": "AGRI", "P_IDX": "AGRI",
-    "C_IDX": "AGRI", "CF_IDX": "AGRI", "SR_IDX": "AGRI",
-    "IF_IDX": "FINANCIAL", "IC_IDX": "FINANCIAL", "IM_IDX": "FINANCIAL",
+    symbol: sector
+    for sector, symbols in TIANJI_SECTOR_GROUPS.items()
+    for symbol in symbols
 }
 ATTACK_EVIDENCE = {
     "prefix_invariance": ("prefix", FEATURE_COLUMNS),
@@ -696,6 +721,46 @@ def select_candidate(dataset, market, folds, config=ResearchConfig()):
     ), pd.DataFrame(score_rows)
 
 
+def validate_tianji_sector_map(symbols):
+    missing = sorted(set(map(str, symbols)) - set(TIANJI_SECTORS))
+    if missing:
+        raise ResearchRejected(
+            f"missing TianJi sector mapping: {', '.join(missing)}"
+        )
+
+
+def tianji_universe_table(quality, scores, trades, manifest):
+    if not isinstance(quality, pd.DataFrame) or not isinstance(scores, pd.DataFrame):
+        raise ResearchRejected("invalid TianJi universe evidence")
+    symbols = sorted(
+        set(quality.index.astype(str)) | set(scores["symbol"].astype(str))
+    )
+    validate_tianji_sector_map(symbols)
+    manifest_by_symbol = {row["symbol"]: row for row in manifest}
+    mature = set(scores.loc[scores["signal_ready"], "symbol"].astype(str))
+    traded = (
+        set(trades.loc[trades["cost_bps"].eq(5), "symbol"].astype(str))
+        if isinstance(trades, pd.DataFrame)
+        and {"cost_bps", "symbol"}.issubset(trades.columns)
+        else set()
+    )
+    rows = []
+    for symbol in symbols:
+        q = quality.loc[symbol] if symbol in quality.index else pd.Series(dtype=object)
+        source = manifest_by_symbol.get(symbol, {})
+        rows.append({
+            "symbol": symbol,
+            "sector": TIANJI_SECTORS[symbol],
+            "included": q.get("status") == "INCLUDED",
+            "mature": symbol in mature,
+            "traded": symbol in traded,
+            "excluded_reason": q.get("reason", ""),
+            "source_path": source.get("source_path"),
+            "source_sha256": source.get("source_sha256"),
+        })
+    return pd.DataFrame(rows)
+
+
 def _tianji_segment_features(group):
     close = group["close"].astype(float)
     high = group["high"].astype(float)
@@ -745,6 +810,7 @@ def build_tianji_scores(segmented):
         )
     if segmented.empty:
         raise ResearchRejected("no segmented bars for TianJi scores")
+    validate_tianji_sector_map(segmented["symbol"].unique())
     ordered = segmented.sort_values(
         ["symbol", "trade_time"], kind="stable"
     ).copy()
@@ -783,7 +849,7 @@ def build_tianji_scores(segmented):
     )
     frame["score"] = np.nan
     frame.loc[mature.index, "score"] = ranks.mean(axis=1)
-    frame["sector"] = frame["symbol"].map(TIANJI_SECTORS).fillna("OTHER")
+    frame["sector"] = frame["symbol"].map(TIANJI_SECTORS)
     return frame.sort_values(
         ["decision_time", "symbol"], kind="stable"
     ).reset_index(drop=True)

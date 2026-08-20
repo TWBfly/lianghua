@@ -94,6 +94,40 @@ def test_tianji_contract_is_non_predictive_and_15m_only():
         ))
 
 
+def test_tianji_sector_map_rejects_unknown_verified_symbol():
+    with pytest.raises(ResearchRejected, match="sector mapping"):
+        research.validate_tianji_sector_map(("AG_IDX", "NEW_IDX"))
+
+
+def test_tianji_universe_table_reconciles_included_mature_and_traded():
+    quality = pd.DataFrame({
+        "symbol": ["AG_IDX", "AU_IDX", "BB_IDX"],
+        "status": ["INCLUDED", "INCLUDED", "EXCLUDED"],
+        "reason": ["", "", "ZERO_VOLUME_FRACTION"],
+    }).set_index("symbol")
+    scores = pd.DataFrame({
+        "symbol": ["AG_IDX", "AU_IDX"],
+        "atr_ready": [True, True],
+        "signal_ready": [True, False],
+    })
+    trades = pd.DataFrame({"symbol": ["AG_IDX"], "cost_bps": [5]})
+    manifest = [
+        {"symbol": "AG_IDX", "source_path": "ag.txt", "source_sha256": "a" * 64},
+        {"symbol": "AU_IDX", "source_path": "au.txt", "source_sha256": "b" * 64},
+    ]
+
+    table = research.tianji_universe_table(quality, scores, trades, manifest)
+
+    rows = table.set_index("symbol")
+    assert rows.loc[
+        "AG_IDX", ["included", "mature", "traded"]
+    ].tolist() == [True, True, True]
+    assert rows.loc[
+        "AU_IDX", ["included", "mature", "traded"]
+    ].tolist() == [True, False, False]
+    assert rows.loc["BB_IDX", "excluded_reason"] == "ZERO_VOLUME_FRACTION"
+
+
 def test_tianji_score_prefix_is_unchanged_by_future_bars():
     market = make_tianji_market(90)
     cutoff = market["trade_time"].sort_values().unique()[70]
