@@ -31,6 +31,31 @@ FEATURE_COLUMNS = (
     "ret_1", "ret_3", "ret_6", "ret_12", "vol_12", "vol_48",
     "range_pct", "body_pct", "close_pos", "ema_gap_12_48", "volume_z48",
 )
+TIANJI_FEATURE_COLUMNS = (
+    "signed_kaufman_efficiency_20",
+    "donchian_position_20",
+    "momentum_acceleration_5_20",
+    "intraday_intensity_10",
+)
+TIANJI_REBALANCE_BARS = 16
+TIANJI_SIDE_EXPOSURE = 0.40
+TIANJI_TOP_K = 4
+TIANJI_SECTOR_LIMIT = 2
+TIANJI_INITIAL_STOP_ATR = 1.0
+TIANJI_TRAIL_ATR = 2.5
+TIANJI_SECTORS = {
+    "AG_IDX": "PRECIOUS", "AU_IDX": "PRECIOUS",
+    "CU_IDX": "BASE_METALS", "AL_IDX": "BASE_METALS",
+    "ZN_IDX": "BASE_METALS", "SN_IDX": "BASE_METALS",
+    "LC_IDX": "BASE_METALS", "SI_IDX": "BASE_METALS",
+    "RB_IDX": "FERROUS", "HC_IDX": "FERROUS", "I_IDX": "FERROUS",
+    "JM_IDX": "FERROUS", "J_IDX": "FERROUS", "FG_IDX": "FERROUS",
+    "MA_IDX": "CHEMICALS", "TA_IDX": "CHEMICALS",
+    "SA_IDX": "CHEMICALS", "RU_IDX": "CHEMICALS", "SC_IDX": "CHEMICALS",
+    "M_IDX": "AGRI", "Y_IDX": "AGRI", "P_IDX": "AGRI",
+    "C_IDX": "AGRI", "CF_IDX": "AGRI", "SR_IDX": "AGRI",
+    "IF_IDX": "FINANCIAL", "IC_IDX": "FINANCIAL", "IM_IDX": "FINANCIAL",
+}
 ATTACK_EVIDENCE = {
     "prefix_invariance": ("prefix", FEATURE_COLUMNS),
     "feature_whitelist": ("whitelist", FEATURE_COLUMNS),
@@ -54,6 +79,7 @@ BAR_COLUMNS = (
 @dataclass(frozen=True)
 class ResearchConfig:
     timeframe: str = "5m"
+    strategy_mode: str = "predictive"
     model_backend: str = "native"
     horizon: int = 6
     discontinuity: float = 0.03
@@ -73,6 +99,23 @@ class ResearchRejected(ValueError):
 
 
 def _validate_research_config(config):
+    if config.strategy_mode not in {"predictive", "tianji"}:
+        raise ResearchRejected("strategy_mode must be predictive or tianji")
+    if config.strategy_mode == "tianji":
+        if config.timeframe != "15m":
+            raise ResearchRejected("TianJi strategy requires timeframe 15m")
+        if not isinstance(config.holdout_fraction, Real) or not np.isclose(
+            float(config.holdout_fraction), 0.20
+        ):
+            raise ResearchRejected("TianJi holdout_fraction must equal 0.20")
+        try:
+            costs = tuple(float(value) for value in config.costs_bps)
+        except (TypeError, ValueError):
+            costs = ()
+        if costs != (0.0, 2.0, 5.0, 10.0, 15.0, 20.0):
+            raise ResearchRejected(
+                "TianJi costs_bps must equal (0, 2, 5, 10, 15, 20)"
+            )
     horizon = config.horizon
     embargo = config.embargo_bars
     if (
@@ -349,6 +392,17 @@ def candidate_names(model_backend="native"):
 
 
 def _research_domain(config):
+    if getattr(config, "strategy_mode", "predictive") == "tianji":
+        return {
+            "strategy_mode": "tianji",
+            "predictive": False,
+            "selectable_models": [],
+            "thresholds": [],
+            "candidate_threshold_pairs": 0,
+            "feature_names": list(TIANJI_FEATURE_COLUMNS),
+            "horizon": None,
+            "embargo_bars": None,
+        }
     try:
         models = list(candidate_names(config.model_backend))
     except (ResearchRejected, TypeError, ValueError):
@@ -358,6 +412,8 @@ def _research_domain(config):
     except (TypeError, ValueError):
         thresholds = []
     return {
+        "strategy_mode": "predictive",
+        "predictive": True,
         "selectable_models": models,
         "thresholds": thresholds,
         "candidate_threshold_pairs": len(models) * len(thresholds),
@@ -640,6 +696,89 @@ def select_candidate(dataset, market, folds, config=ResearchConfig()):
     return choose_from_scores(
         pd.DataFrame(selectable_rows), config.model_backend
     ), pd.DataFrame(score_rows)
+
+
+def _tianji_segment_features(group):
+    close = group["close"].astype(float)
+    high = group["high"].astype(float)
+    low = group["low"].astype(float)
+    volume = group["volume"].astype(float)
+    previous_close = close.shift(1).replace(0.0, np.nan)
+    true_range = pd.concat([
+        high - low,
+        (high - previous_close).abs(),
+        (low - previous_close).abs(),
+    ], axis=1).max(axis=1)
+    path = close.diff().abs().rolling(20).sum().replace(0.0, np.nan)
+    channel_high = high.rolling(20).max()
+    channel_low = low.rolling(20).min()
+    channel_span = (channel_high - channel_low).replace(0.0, np.nan)
+    clv = (2.0 * close - high - low) / (high - low).replace(0.0, np.nan)
+    frame = pd.DataFrame(index=group.index)
+    frame["signed_kaufman_efficiency_20"] = (
+        np.sign(close.pct_change(20))
+        * (close - close.shift(20)).abs() / path
+    )
+    frame["donchian_position_20"] = (
+        2.0 * (close - channel_low) / channel_span - 1.0
+    )
+    frame["momentum_acceleration_5_20"] = (
+        close.pct_change(5) - close.pct_change(20) / 4.0
+    )
+    frame["intraday_intensity_10"] = (
+        clv * volume / volume.rolling(20).mean().replace(0.0, np.nan)
+    ).rolling(10).mean()
+    frame["atr"] = true_range.rolling(20).mean()
+    frame["amihud_20"] = (
+        close.pct_change().abs() / volume.replace(0.0, np.nan) * 1e6
+    ).rolling(20).mean()
+    return frame
+
+
+def build_tianji_scores(segmented):
+    required = {
+        "symbol", "segment_id", "trade_time", "open", "high", "low",
+        "close", "volume",
+    }
+    missing = required.difference(segmented.columns)
+    if missing:
+        raise ResearchRejected(
+            f"missing segmented columns: {', '.join(sorted(missing))}"
+        )
+    if segmented.empty:
+        raise ResearchRejected("no segmented bars for TianJi scores")
+    ordered = segmented.sort_values(
+        ["symbol", "trade_time"], kind="stable"
+    ).copy()
+    feature_group = (
+        "feature_segment_id" if "feature_segment_id" in ordered else "segment_id"
+    )
+    features = pd.concat([
+        _tianji_segment_features(group.sort_values("trade_time", kind="stable"))
+        for _, group in ordered.groupby(["symbol", feature_group], sort=False)
+    ]).sort_index().loc[ordered.index]
+    frame = ordered.loc[
+        :, ["symbol", "segment_id", "trade_time", "close"]
+    ].join(features)
+    frame = frame.rename(columns={"trade_time": "decision_time"})
+    finite_columns = [*TIANJI_FEATURE_COLUMNS, "atr", "amihud_20", "close"]
+    frame = frame[np.isfinite(frame.loc[:, finite_columns]).all(axis=1)].copy()
+    frame = frame[(frame["atr"] > 0.0) & (frame["close"] > 0.0)]
+    frame["atr_pct"] = frame["atr"] / frame["close"]
+    illiquidity_rank = frame.groupby("decision_time")["amihud_20"].rank(
+        pct=True, method="average"
+    )
+    frame["eligible"] = illiquidity_rank <= 0.80
+    eligible = frame[frame["eligible"]].copy()
+    ranks = eligible.groupby("decision_time")[list(TIANJI_FEATURE_COLUMNS)].rank(
+        pct=True, method="average"
+    )
+    frame["score"] = np.nan
+    frame.loc[eligible.index, "score"] = ranks.mean(axis=1)
+    frame["sector"] = frame["symbol"].map(TIANJI_SECTORS).fillna("OTHER")
+    return frame.sort_values(
+        ["decision_time", "symbol"], kind="stable"
+    ).reset_index(drop=True)
 
 
 def _segment_features(group):

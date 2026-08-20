@@ -47,6 +47,66 @@ def make_bars(rows, symbol="AG_IDX"):
     })
 
 
+def make_tianji_market(periods=80, symbols=None):
+    symbols = symbols or (
+        "AG_IDX", "AU_IDX", "CU_IDX", "AL_IDX",
+        "RB_IDX", "I_IDX", "MA_IDX", "M_IDX",
+    )
+    times = pd.date_range("2026-01-02 09:00", periods=periods, freq="15min")
+    rows = []
+    for number, symbol in enumerate(symbols, start=1):
+        close = 100.0 + number + np.arange(periods) * (0.02 * number)
+        volume = 1_000.0 + number * 10 + np.arange(periods)
+        for index, time in enumerate(times):
+            rows.append({
+                "symbol": symbol,
+                "segment_id": f"{symbol}:1",
+                "feature_segment_id": f"{symbol}:features",
+                "trade_time": time,
+                "open": close[index] - 0.1,
+                "high": close[index] + 0.5,
+                "low": close[index] - 0.5,
+                "close": close[index],
+                "volume": volume[index],
+            })
+    return pd.DataFrame(rows)
+
+
+def test_tianji_contract_is_non_predictive_and_15m_only():
+    domain = research._research_domain(ResearchConfig(
+        strategy_mode="tianji", timeframe="15m"
+    ))
+
+    assert domain["strategy_mode"] == "tianji"
+    assert domain["predictive"] is False
+    assert domain["selectable_models"] == []
+    assert domain["thresholds"] == []
+    assert domain["candidate_threshold_pairs"] == 0
+    with pytest.raises(ResearchRejected, match="15m"):
+        research._validate_research_config(ResearchConfig(strategy_mode="tianji"))
+    with pytest.raises(ResearchRejected, match="holdout_fraction"):
+        research._validate_research_config(ResearchConfig(
+            strategy_mode="tianji", timeframe="15m", holdout_fraction=0.25
+        ))
+    with pytest.raises(ResearchRejected, match="costs_bps"):
+        research._validate_research_config(ResearchConfig(
+            strategy_mode="tianji", timeframe="15m", costs_bps=(5,)
+        ))
+
+
+def test_tianji_score_prefix_is_unchanged_by_future_bars():
+    market = make_tianji_market(90)
+    cutoff = market["trade_time"].sort_values().unique()[70]
+    prefix = market[market["trade_time"] <= cutoff]
+
+    expected = research.build_tianji_scores(prefix)
+    actual = research.build_tianji_scores(market)
+    actual = actual[actual["decision_time"] <= cutoff].reset_index(drop=True)
+
+    pd.testing.assert_frame_equal(expected.reset_index(drop=True), actual)
+    assert {"label", "future_return", "probability"}.isdisjoint(actual.columns)
+
+
 def _write_source(
         db_path, bars, series_type="WEIGHTED_INDEX", metadata=True,
         source_sha256="a" * 64):
