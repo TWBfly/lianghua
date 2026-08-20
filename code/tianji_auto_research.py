@@ -303,6 +303,26 @@ def attach_auto_gates(frame):
     return result
 
 
+def select_auto_survivors(frame):
+    result = attach_auto_gates(frame)
+    mask = pd.Series(
+        [value["passed"] for value in result["gates"]],
+        index=result.index,
+        dtype=bool,
+    )
+    survivors = result.loc[mask].copy()
+    if survivors.empty:
+        return survivors
+    return survivors.sort_values(
+        [
+            "payoff_ratio", "max_drawdown", "total_return", "turnover",
+            "candidate_id",
+        ],
+        ascending=[False, True, False, True, True],
+        kind="stable",
+    )
+
+
 ATTACK_IDS = (
     "costs",
     "sector_exclusion",
@@ -398,18 +418,7 @@ def run_auto_research(segmented, quality, config):
             if row["candidate_id"] == candidate_id
         ]
     )
-    aggregate = attach_auto_gates(aggregate)
-    survivors = aggregate[
-        aggregate["gates"].map(lambda value: value["passed"])
-    ].copy()
-    survivors = survivors.sort_values(
-        [
-            "payoff_ratio", "max_drawdown", "total_return", "turnover",
-            "candidate_id",
-        ],
-        ascending=[False, True, False, True, True],
-        kind="stable",
-    )
+    survivors = select_auto_survivors(aggregate)
     selected_id = (
         None if survivors.empty else str(survivors.iloc[0]["candidate_id"])
     )

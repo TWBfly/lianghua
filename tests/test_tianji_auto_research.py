@@ -188,6 +188,21 @@ def test_attach_auto_gates_handles_empty_stage3():
     assert "gates" in result.columns
 
 
+def test_select_auto_survivors_preserves_empty_metric_schema():
+    frame = pd.DataFrame(columns=[
+        "candidate_id", "payoff_ratio", "max_drawdown", "total_return",
+        "trades", "turnover", "fold_returns",
+    ])
+
+    result = auto.select_auto_survivors(frame)
+
+    assert result.empty
+    assert {
+        "candidate_id", "payoff_ratio", "max_drawdown", "total_return",
+        "turnover", "gates",
+    }.issubset(result.columns)
+
+
 def test_auto_status_never_claims_research_acceptance():
     assert auto.auto_status("candidate") == "AUTO_DEVELOPMENT_CANDIDATE"
     assert auto.auto_status(None) == "AUTO_DEVELOPMENT_REJECTED"
