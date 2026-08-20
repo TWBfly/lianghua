@@ -66,9 +66,14 @@ Stage 2 combines the surviving signal skeletons with a finite risk grammar:
 - positions per side: `1` or `2`;
 - rebalance check interval: `16` or `32` bars;
 - side exposure: `0.20` or `0.30`;
-- initial stop: `0.75` or `1.00` ATR;
-- trailing activation: `2R` or `3R`;
-- trailing distance: `2.5` or `3.0` ATR.
+- four predeclared exit profiles, rather than a Cartesian product:
+  - `(initial_stop=0.75 ATR, activation=2R, trail=2.5 ATR)`;
+  - `(initial_stop=0.75 ATR, activation=3R, trail=3.0 ATR)`;
+  - `(initial_stop=1.00 ATR, activation=2R, trail=2.5 ATR)`;
+  - `(initial_stop=1.00 ATR, activation=3R, trail=3.0 ATR)`.
+
+Positions per side, rebalance interval, side exposure, and the four exit
+profiles form exactly `2 × 2 × 2 × 4 = 32` risk variants.
 
 Unused capacity remains cash. Entries execute at each symbol's next observed
 open with live capacity clipping. Stops and exits retain the audited ledger
