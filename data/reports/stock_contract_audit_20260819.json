@@ -1,0 +1,14 @@
+{
+  "stock": {
+    "rows": 433278,
+    "symbols": 399,
+    "index_rows": 0,
+    "uncataloged_symbols": 0,
+    "catalog_mismatch_count": 0
+  },
+  "futures_5m": {
+    "rows": 1200061,
+    "symbols": 85,
+    "zero_volume": 19289
+  }
+}

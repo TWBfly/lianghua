@@ -1,0 +1,132 @@
+# RESEARCH_REJECTED
+
+加权指数研究回测，不代表可成交合约或实盘收益
+
+Run ID: `81a31d5548134df09feefb5a311a9dd0`
+
+## Research domain
+
+```json
+{"candidate_threshold_pairs": 6, "embargo_bars": 6, "feature_names": ["ret_1", "ret_3", "ret_6", "ret_12", "vol_12", "vol_48", "range_pct", "body_pct", "close_pos", "ema_gap_12_48", "volume_z48"], "horizon": 6, "selectable_models": ["logistic_c0.1", "qlib_lightgbm_constrained"], "thresholds": [0.52, 0.55, 0.58]}
+```
+
+## Run identity
+
+`Not reached`
+
+## Data exclusions
+
+- AD_IDX: INCLUDED
+- AG_IDX: INCLUDED
+- AL_IDX: INCLUDED
+- AO_IDX: INCLUDED
+- AP_IDX: INCLUDED
+- AU_IDX: INCLUDED
+- A_IDX: INCLUDED
+- BB_IDX: EXCLUDED ZERO_VOLUME_FRACTION
+- BC_IDX: INCLUDED
+- BR_IDX: INCLUDED
+- BU_IDX: INCLUDED
+- BZ_IDX: INCLUDED
+- B_IDX: INCLUDED
+- CF_IDX: INCLUDED
+- CJ_IDX: INCLUDED
+- CS_IDX: INCLUDED
+- CU_IDX: INCLUDED
+- CY_IDX: INCLUDED
+- C_IDX: INCLUDED
+- EB_IDX: INCLUDED
+- EC_IDX: INCLUDED
+- EG_IDX: INCLUDED
+- FB_IDX: INCLUDED
+- FG_IDX: INCLUDED
+- FU_IDX: INCLUDED
+- HC_IDX: INCLUDED
+- IC_IDX: INCLUDED
+- IF_IDX: INCLUDED
+- IH_IDX: INCLUDED
+- IM_IDX: INCLUDED
+- I_IDX: INCLUDED
+- JD_IDX: INCLUDED
+- JM_IDX: INCLUDED
+- J_IDX: INCLUDED
+- L-F_IDX: INCLUDED
+- LC_IDX: INCLUDED
+- LG_IDX: INCLUDED
+- LH_IDX: INCLUDED
+- LU_IDX: INCLUDED
+- L_IDX: INCLUDED
+- MA_IDX: INCLUDED
+- M_IDX: INCLUDED
+- NI_IDX: INCLUDED
+- NR_IDX: INCLUDED
+- OI_IDX: INCLUDED
+- OP_IDX: INCLUDED
+- PB_IDX: INCLUDED
+- PD_IDX: INCLUDED
+- PF_IDX: INCLUDED
+- PG_IDX: INCLUDED
+- PK_IDX: INCLUDED
+- PL_IDX: INCLUDED
+- PP-F_IDX: INCLUDED
+- PP_IDX: INCLUDED
+- PR_IDX: INCLUDED
+- PS_IDX: INCLUDED
+- PT_IDX: INCLUDED
+- PX_IDX: INCLUDED
+- P_IDX: INCLUDED
+- RB_IDX: INCLUDED
+- RM_IDX: INCLUDED
+- RR_IDX: INCLUDED
+- RS_IDX: EXCLUDED ZERO_VOLUME_FRACTION
+- RU_IDX: INCLUDED
+- SA_IDX: INCLUDED
+- SC_IDX: INCLUDED
+- SF_IDX: INCLUDED
+- SH_IDX: INCLUDED
+- SI_IDX: INCLUDED
+- SM_IDX: INCLUDED
+- SN_IDX: INCLUDED
+- SP_IDX: INCLUDED
+- SR_IDX: INCLUDED
+- SS_IDX: INCLUDED
+- TA_IDX: INCLUDED
+- TF_IDX: INCLUDED
+- TL_IDX: INCLUDED
+- TS_IDX: INCLUDED
+- T_IDX: INCLUDED
+- UR_IDX: INCLUDED
+- V-F_IDX: INCLUDED
+- V_IDX: INCLUDED
+- WR_IDX: EXCLUDED ZERO_VOLUME_FRACTION
+- Y_IDX: INCLUDED
+- ZN_IDX: INCLUDED
+
+## Split cutoffs
+
+- Not reached
+
+## Selected candidate
+
+`null`
+
+## Cost tables
+
+- Not reached
+
+## Per-symbol concentration
+
+`null`
+
+## Adversarial checks
+
+- Not reached
+
+## Gates
+
+- RUN_PRECONDITION: passed=False; reason=no candidate passed both inner folds
+
+## Limitations
+
+- 加权指数研究回测，不代表可成交合约或实盘收益
+- 仅用于离线研究；不是可执行策略、合约仿真或实盘收益证据。

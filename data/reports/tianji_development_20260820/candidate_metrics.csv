@@ -1,0 +1,4 @@
+candidate,eligible,worst_payoff,worst_drawdown,payoff_ratio,max_drawdown,total_return,trades,turnover,gates
+continuation,False,0.6156050366894213,0.011994606328259882,1.1894664754669677,0.011994606328259882,-0.02120663520986188,150,29.99990500793146,"{""checks"": {""max_drawdown"": true, ""minimum_trades"": false, ""payoff_ratio"": false, ""positive_return"": false}, ""passed"": false}"
+reversal,False,1.2309961830644762,0.007322318023917251,1.5648101443401152,0.007322318023917251,-0.006816393524701314,148,29.61024875746192,"{""checks"": {""max_drawdown"": true, ""minimum_trades"": false, ""payoff_ratio"": false, ""positive_return"": false}, ""passed"": false}"
+timeseries_donchian,False,1.0945878917689678,0.01065787570527632,1.385900401130911,0.01065787570527632,-0.01252575242002163,72,14.402147910500076,"{""checks"": {""max_drawdown"": true, ""minimum_trades"": false, ""payoff_ratio"": false, ""positive_return"": false}, ""passed"": false}"

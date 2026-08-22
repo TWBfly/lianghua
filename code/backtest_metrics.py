@@ -91,7 +91,9 @@ def calculate_performance(daily_results, initial_capital, annual_days=252):
     turnover = float(frame["turnover"].sum())
     average_equity = float(frame["end_equity"].mean())
     result = {
-        "annualized_volatility_pct": volatility * 100,
+        "annualized_return_pct": annual_return * 100.0,
+        "annualized_volatility_pct": volatility * 100.0,
+        "max_drawdown_pct": max_drawdown * 100.0,
         "sharpe_ratio": sharpe,
         "sortino_ratio": sortino,
         "calmar_ratio": calmar,

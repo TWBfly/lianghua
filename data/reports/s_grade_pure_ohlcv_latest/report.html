@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>S-Grade 纯量价结构性 Alpha 策略回测报告</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --primary: #10b981;
+      --accent: #38bdf8;
+      --border: #334155;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 30px;
+    }
+    .container {
+      max-width: 1050px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 20px;
+      margin-bottom: 25px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      color: var(--primary);
+    }
+    .badge {
+      background: #065f46;
+      color: #34d399;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-weight: bold;
+      font-size: 14px;
+      border: 1px solid #10b981;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .card-title {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+    .card-val {
+      font-size: 20px;
+      font-weight: bold;
+      color: var(--text);
+    }
+    .val-positive { color: #10b981; }
+    .val-negative { color: #f43f5e; }
+    .section {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 25px;
+    }
+    .section-title {
+      font-size: 16px;
+      font-weight: bold;
+      margin-top: 0;
+      margin-bottom: 15px;
+      border-left: 4px solid var(--primary);
+      padding-left: 10px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .chart-box {
+      background: #0b1120;
+      border-radius: 6px;
+      padding: 10px;
+      border: 1px solid var(--border);
+    }
+    .chart-svg {
+      width: 100%;
+      height: 260px;
+      display: block;
+    }
+    .score-breakdown {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .score-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: #0f172a;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>S-Grade 纯量价结构性 Alpha 策略回测报告</h1>
+        <div style="color: var(--muted); font-size: 13px; margin-top: 5px;">
+          策略内核: Qlib LightGBM + Kaufman KER 效率 + 波动率挤压 (Zero Market Beta) · 调仓周期: 5日 · 组合持仓: Top-8
+        </div>
+      </div>
+      <div class="badge">S 级 · 准予执行 (86.5分)</div>
+    </header>
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-title">累计超额收益</div>
+        <div class="card-val val-positive">+4.95 %</div>
+      </div>
+      <div class="card">
+        <div class="card-title">夏普比率 (Sharpe)</div>
+        <div class="card-val val-positive">1.65</div>
+      </div>
+      <div class="card">
+        <div class="card-title">索提诺比率 (Sortino)</div>
+        <div class="card-val val-positive">2.82</div>
+      </div>
+      <div class="card">
+        <div class="card-title">卡玛比率 (Calmar)</div>
+        <div class="card-val val-positive">4.43</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">资产净值走势曲线 (Equity Curve & Dynamic Mark-to-Market)</div>
+      <div class="chart-box">
+        
+    <svg viewBox="0 0 750 260" class="chart-svg">
+      <defs>
+        <linearGradient id="eqGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#10b981" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="#10b981" stop-opacity="0.0"/>
+        </linearGradient>
+      </defs>
+      <line x1="60" y1="20" x2="730" y2="20" stroke="#334155" stroke-dasharray="3,3"/>
+      <line x1="60" y1="130.0" x2="730" y2="130.0" stroke="#334155" stroke-dasharray="3,3"/>
+      <line x1="60" y1="230" x2="730" y2="230" stroke="#475569"/>
+      <text x="50" y="25" fill="#94a3b8" font-size="11" text-anchor="end">1,054,759</text>
+      <text x="50" y="234" fill="#94a3b8" font-size="11" text-anchor="end">953,789</text>
+      <polygon points="60,230 60.0,135.8 72.2,145.3 84.4,137.0 96.5,130.8 108.7,120.1 120.9,110.3 133.1,125.5 145.3,113.8 157.5,115.2 169.6,117.9 181.8,135.5 194.0,99.0 206.2,111.0 218.4,142.7 230.5,122.1 242.7,113.0 254.9,144.0 267.1,158.4 279.3,180.3 291.5,159.2 303.6,180.9 315.8,180.6 328.0,183.7 340.2,183.7 352.4,162.2 364.5,152.5 376.7,164.4 388.9,170.9 401.1,182.3 413.3,200.1 425.5,190.0 437.6,201.6 449.8,213.3 462.0,216.7 474.2,212.6 486.4,220.0 498.5,209.7 510.7,173.7 522.9,163.4 535.1,132.0 547.3,141.5 559.5,121.3 571.6,143.3 583.8,120.4 596.0,90.7 608.2,102.4 620.4,110.0 632.5,108.3 644.7,106.0 656.9,75.6 669.1,70.7 681.3,82.7 693.5,32.5 705.6,53.8 717.8,30.9 730.0,31.0 730,230" fill="url(#eqGrad)"/>
+      <polyline points="60.0,135.8 72.2,145.3 84.4,137.0 96.5,130.8 108.7,120.1 120.9,110.3 133.1,125.5 145.3,113.8 157.5,115.2 169.6,117.9 181.8,135.5 194.0,99.0 206.2,111.0 218.4,142.7 230.5,122.1 242.7,113.0 254.9,144.0 267.1,158.4 279.3,180.3 291.5,159.2 303.6,180.9 315.8,180.6 328.0,183.7 340.2,183.7 352.4,162.2 364.5,152.5 376.7,164.4 388.9,170.9 401.1,182.3 413.3,200.1 425.5,190.0 437.6,201.6 449.8,213.3 462.0,216.7 474.2,212.6 486.4,220.0 498.5,209.7 510.7,173.7 522.9,163.4 535.1,132.0 547.3,141.5 559.5,121.3 571.6,143.3 583.8,120.4 596.0,90.7 608.2,102.4 620.4,110.0 632.5,108.3 644.7,106.0 656.9,75.6 669.1,70.7 681.3,82.7 693.5,32.5 705.6,53.8 717.8,30.9 730.0,31.0" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/>
+    </svg>
+    
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">StrategyEvaluatorAgent 100 分量化综合评分与决策</div>
+      <div class="score-breakdown">
+        <div class="score-item"><span>1. 预测质量与因子Alpha (满分25)</span><span style="color:#10b981;font-weight:bold;">24.6 分</span></div>
+        <div class="score-item"><span>2. 风险调整后收益 (满分25)</span><span style="color:#10b981;font-weight:bold;">20.6 分</span></div>
+        <div class="score-item"><span>3. 回撤与下行风险控制 (满分20)</span><span style="color:#38bdf8;font-weight:bold;">12.0 分</span></div>
+        <div class="score-item"><span>4. 抗过拟合与对抗鲁棒性 (满分20)</span><span style="color:#10b981;font-weight:bold;">19.3 分</span></div>
+        <div class="score-item"><span>5. 实盘可行性与摩擦成本 (满分10)</span><span style="color:#10b981;font-weight:bold;">10.0 分</span></div>
+        <div class="score-item" style="background:#064e3b;border:1px solid #10b981;"><span>综合总分 / 决策评级</span><span style="color:#34d399;font-weight:bold;">86.5 分 (S 级·准予执行)</span></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">核心量价结构性因子评价 (Top Mined OHLCV Factors)</div>
+      <table>
+        <thead>
+          <tr>
+            <th>因子名称</th>
+            <th>物理 / 微观结构机制</th>
+            <th>Mean Rank IC</th>
+            <th>Rank ICIR</th>
+            <th>IC 胜率</th>
+            <th>多空夏普</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>kaufman_efficiency_20</code></td>
+            <td>考夫曼趋势效率比 (路径信噪比 = 净位移/总路程)</td>
+            <td style="color:#10b981;">+0.0280</td>
+            <td style="color:#10b981;font-weight:bold;">+4.93</td>
+            <td>62.6%</td>
+            <td style="color:#10b981;font-weight:bold;">+4.74</td>
+          </tr>
+          <tr>
+            <td><code>vol_squeeze_ratio_20</code></td>
+            <td>布林带宽 / ATR 波动率挤压突变度</td>
+            <td style="color:#10b981;">+0.0220</td>
+            <td style="color:#10b981;font-weight:bold;">+3.96</td>
+            <td>58.2%</td>
+            <td style="color:#10b981;">+2.72</td>
+          </tr>
+          <tr>
+            <td><code>amihud_illiquidity_20</code></td>
+            <td>Amihud 价格冲击流动性惩罚因子</td>
+            <td style="color:#10b981;">+0.0306</td>
+            <td style="color:#10b981;">+3.70</td>
+            <td>55.9%</td>
+            <td>+2.14</td>
+          </tr>
+          <tr>
+            <td><code>breakout_channel_pos_20</code></td>
+            <td>20日唐奇安通道能量位置</td>
+            <td style="color:#10b981;">+0.0174</td>
+            <td>+1.52</td>
+            <td>57.1%</td>
+            <td>+3.19</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <div class="section-title">日度权益明细表 (Daily Mark-to-Market Ledger - 节选)</div>
+      <table>
+        <thead>
+          <tr>
+            <th>交易日期</th>
+            <th>期初资金 (CNY)</th>
+            <th>期末净值 (CNY)</th>
+            <th>日收益率</th>
+            <th>最大回撤</th>
+            <th>当日成交额</th>
+            <th>手续费+滑点</th>
+          </tr>
+        </thead>
+        <tbody>
+    
+          <tr>
+            <td>2026-07-13</td>
+            <td>1,006,498.58</td>
+            <td style="font-weight:bold;">1,020,775.58</td>
+            <td style="color:#10b981;">+1.42 %</td>
+            <td>0.00 %</td>
+            <td>0.00</td>
+            <td>0.00</td>
+          </tr>
+        
+          <tr>
+            <td>2026-07-14</td>
+            <td>1,020,775.58</td>
+            <td style="font-weight:bold;">1,015,163.23</td>
+            <td style="color:#f43f5e;">-0.55 %</td>
+            <td>0.55 %</td>
+            <td>1,203,085.00</td>
+            <td>1,405.35</td>
+          </tr>
+        
+          <tr>
+            <td>2026-07-15</td>
+            <td>1,015,163.23</td>
+            <td style="font-weight:bold;">1,011,494.23</td>
+            <td style="color:#f43f5e;">-0.36 %</td>
+            <td>0.91 %</td>
+            <td>0.00</td>
+            <td>0.00</td>
+          </tr>
+        
+          <tr>
+            <td>2026-07-16</td>
+            <td>1,011,494.23</td>
+            <td style="font-weight:bold;">1,012,324.23</td>
+            <td style="color:#10b981;">+0.08 %</td>
+            <td>0.83 %</td>
+            <td>0.00</td>
+            <td>0.00</td>
+          </tr>
+        
+          <tr>
+            <td>2026-07-17</td>
+            <td>1,012,324.23</td>
+            <td style="font-weight:bold;">1,013,416.23</td>
+            <td style="color:#10b981;">+0.11 %</td>
+            <td>0.72 %</td>
+            <td>0.00</td>
+            <td>0.00</td>
+          </tr>
+        
+          <tr>
+            <td>2026-07-20</td>
+            <td>1,013,416.23</td>
+            <td style="font-weight:bold;">1,028,031.23</td>
+            <td style="color:#10b981;">+1.44 %</td>
+            <td>0.00 %</td>
+            <td>0.00</td>
+            <td>0.00</td>
+          </tr>
+        
+          <tr>
+            <td>2026-07-21</td>
+            <td>1,028,031.23</td>
+            <td style="font-weight:bold;">1,030,365.74</td>
+            <td style="color:#10b981;">+0.23 %</td>
+            <td>0.00 %</td>
+            <td>1,456,685.00</td>
+            <td>1,737.49</td>
+          </tr>
+        
+          <tr>
+            <td>2026-07-22</td>
+            <td>1,030,365.74</td>
+            <td style="font-weight:bold;">1,024,607.74</td>
+            <td style="color:#f43f5e;">-0.56 %</td>
+            <td>0.56 %</td>
+            <td>0.00</td>
+            <td>0.00</td>
+          </tr>
+        
+          <tr>
+            <td>2026-07-23</td>
+            <td>1,024,607.74</td>
+            <td style="font-weight:bold;">1,048,763.74</td>
+            <td style="color:#10b981;">+2.36 %</td>
+            <td>0.00 %</td>
+            <td>0.00</td>
+            <td>0.00</td>
+          </tr>
+        
+          <tr>
+            <td>2026-07-24</td>
+            <td>1,048,763.74</td>
+            <td style="font-weight:bold;">1,038,506.74</td>
+            <td style="color:#f43f5e;">-0.98 %</td>
+            <td>0.98 %</td>
+            <td>0.00</td>
+            <td>0.00</td>
+          </tr>
+        
+          <tr>
+            <td>2026-07-27</td>
+            <td>1,038,506.74</td>
+            <td style="font-weight:bold;">1,049,511.74</td>
+            <td style="color:#10b981;">+1.06 %</td>
+            <td>0.00 %</td>
+            <td>0.00</td>
+            <td>0.00</td>
+          </tr>
+        
+          <tr>
+            <td>2026-07-28</td>
+            <td>1,049,511.74</td>
+            <td style="font-weight:bold;">1,049,479.71</td>
+            <td style="color:#f43f5e;">-0.00 %</td>
+            <td>0.00 %</td>
+            <td>1,175,368.00</td>
+            <td>1,375.03</td>
+          </tr>
+        
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>
+    

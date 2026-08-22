@@ -5,6 +5,10 @@ mt5/results/
 __pycache__/
 *.pyc
 *.db
+*.db*
+*.backup*
+.codegraph/
+qlib/
 .pytest_cache/
 data/logs/
 data/export/

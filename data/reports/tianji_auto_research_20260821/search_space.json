@@ -1,0 +1,359 @@
+{
+  "risks": [
+    {
+      "initial_stop_atr": 0.75,
+      "rebalance_bars": 16,
+      "side_exposure": 0.2,
+      "top_k": 1,
+      "trail_activation_r": 2.0,
+      "trail_distance_atr": 2.5
+    },
+    {
+      "initial_stop_atr": 0.75,
+      "rebalance_bars": 16,
+      "side_exposure": 0.2,
+      "top_k": 1,
+      "trail_activation_r": 3.0,
+      "trail_distance_atr": 3.0
+    },
+    {
+      "initial_stop_atr": 1.0,
+      "rebalance_bars": 16,
+      "side_exposure": 0.2,
+      "top_k": 1,
+      "trail_activation_r": 2.0,
+      "trail_distance_atr": 2.5
+    },
+    {
+      "initial_stop_atr": 1.0,
+      "rebalance_bars": 16,
+      "side_exposure": 0.2,
+      "top_k": 1,
+      "trail_activation_r": 3.0,
+      "trail_distance_atr": 3.0
+    },
+    {
+      "initial_stop_atr": 0.75,
+      "rebalance_bars": 16,
+      "side_exposure": 0.3,
+      "top_k": 1,
+      "trail_activation_r": 2.0,
+      "trail_distance_atr": 2.5
+    },
+    {
+      "initial_stop_atr": 0.75,
+      "rebalance_bars": 16,
+      "side_exposure": 0.3,
+      "top_k": 1,
+      "trail_activation_r": 3.0,
+      "trail_distance_atr": 3.0
+    },
+    {
+      "initial_stop_atr": 1.0,
+      "rebalance_bars": 16,
+      "side_exposure": 0.3,
+      "top_k": 1,
+      "trail_activation_r": 2.0,
+      "trail_distance_atr": 2.5
+    },
+    {
+      "initial_stop_atr": 1.0,
+      "rebalance_bars": 16,
+      "side_exposure": 0.3,
+      "top_k": 1,
+      "trail_activation_r": 3.0,
+      "trail_distance_atr": 3.0
+    },
+    {
+      "initial_stop_atr": 0.75,
+      "rebalance_bars": 32,
+      "side_exposure": 0.2,
+      "top_k": 1,
+      "trail_activation_r": 2.0,
+      "trail_distance_atr": 2.5
+    },
+    {
+      "initial_stop_atr": 0.75,
+      "rebalance_bars": 32,
+      "side_exposure": 0.2,
+      "top_k": 1,
+      "trail_activation_r": 3.0,
+      "trail_distance_atr": 3.0
+    },
+    {
+      "initial_stop_atr": 1.0,
+      "rebalance_bars": 32,
+      "side_exposure": 0.2,
+      "top_k": 1,
+      "trail_activation_r": 2.0,
+      "trail_distance_atr": 2.5
+    },
+    {
+      "initial_stop_atr": 1.0,
+      "rebalance_bars": 32,
+      "side_exposure": 0.2,
+      "top_k": 1,
+      "trail_activation_r": 3.0,
+      "trail_distance_atr": 3.0
+    },
+    {
+      "initial_stop_atr": 0.75,
+      "rebalance_bars": 32,
+      "side_exposure": 0.3,
+      "top_k": 1,
+      "trail_activation_r": 2.0,
+      "trail_distance_atr": 2.5
+    },
+    {
+      "initial_stop_atr": 0.75,
+      "rebalance_bars": 32,
+      "side_exposure": 0.3,
+      "top_k": 1,
+      "trail_activation_r": 3.0,
+      "trail_distance_atr": 3.0
+    },
+    {
+      "initial_stop_atr": 1.0,
+      "rebalance_bars": 32,
+      "side_exposure": 0.3,
+      "top_k": 1,
+      "trail_activation_r": 2.0,
+      "trail_distance_atr": 2.5
+    },
+    {
+      "initial_stop_atr": 1.0,
+      "rebalance_bars": 32,
+      "side_exposure": 0.3,
+      "top_k": 1,
+      "trail_activation_r": 3.0,
+      "trail_distance_atr": 3.0
+    },
+    {
+      "initial_stop_atr": 0.75,
+      "rebalance_bars": 16,
+      "side_exposure": 0.2,
+      "top_k": 2,
+      "trail_activation_r": 2.0,
+      "trail_distance_atr": 2.5
+    },
+    {
+      "initial_stop_atr": 0.75,
+      "rebalance_bars": 16,
+      "side_exposure": 0.2,
+      "top_k": 2,
+      "trail_activation_r": 3.0,
+      "trail_distance_atr": 3.0
+    },
+    {
+      "initial_stop_atr": 1.0,
+      "rebalance_bars": 16,
+      "side_exposure": 0.2,
+      "top_k": 2,
+      "trail_activation_r": 2.0,
+      "trail_distance_atr": 2.5
+    },
+    {
+      "initial_stop_atr": 1.0,
+      "rebalance_bars": 16,
+      "side_exposure": 0.2,
+      "top_k": 2,
+      "trail_activation_r": 3.0,
+      "trail_distance_atr": 3.0
+    },
+    {
+      "initial_stop_atr": 0.75,
+      "rebalance_bars": 16,
+      "side_exposure": 0.3,
+      "top_k": 2,
+      "trail_activation_r": 2.0,
+      "trail_distance_atr": 2.5
+    },
+    {
+      "initial_stop_atr": 0.75,
+      "rebalance_bars": 16,
+      "side_exposure": 0.3,
+      "top_k": 2,
+      "trail_activation_r": 3.0,
+      "trail_distance_atr": 3.0
+    },
+    {
+      "initial_stop_atr": 1.0,
+      "rebalance_bars": 16,
+      "side_exposure": 0.3,
+      "top_k": 2,
+      "trail_activation_r": 2.0,
+      "trail_distance_atr": 2.5
+    },
+    {
+      "initial_stop_atr": 1.0,
+      "rebalance_bars": 16,
+      "side_exposure": 0.3,
+      "top_k": 2,
+      "trail_activation_r": 3.0,
+      "trail_distance_atr": 3.0
+    },
+    {
+      "initial_stop_atr": 0.75,
+      "rebalance_bars": 32,
+      "side_exposure": 0.2,
+      "top_k": 2,
+      "trail_activation_r": 2.0,
+      "trail_distance_atr": 2.5
+    },
+    {
+      "initial_stop_atr": 0.75,
+      "rebalance_bars": 32,
+      "side_exposure": 0.2,
+      "top_k": 2,
+      "trail_activation_r": 3.0,
+      "trail_distance_atr": 3.0
+    },
+    {
+      "initial_stop_atr": 1.0,
+      "rebalance_bars": 32,
+      "side_exposure": 0.2,
+      "top_k": 2,
+      "trail_activation_r": 2.0,
+      "trail_distance_atr": 2.5
+    },
+    {
+      "initial_stop_atr": 1.0,
+      "rebalance_bars": 32,
+      "side_exposure": 0.2,
+      "top_k": 2,
+      "trail_activation_r": 3.0,
+      "trail_distance_atr": 3.0
+    },
+    {
+      "initial_stop_atr": 0.75,
+      "rebalance_bars": 32,
+      "side_exposure": 0.3,
+      "top_k": 2,
+      "trail_activation_r": 2.0,
+      "trail_distance_atr": 2.5
+    },
+    {
+      "initial_stop_atr": 0.75,
+      "rebalance_bars": 32,
+      "side_exposure": 0.3,
+      "top_k": 2,
+      "trail_activation_r": 3.0,
+      "trail_distance_atr": 3.0
+    },
+    {
+      "initial_stop_atr": 1.0,
+      "rebalance_bars": 32,
+      "side_exposure": 0.3,
+      "top_k": 2,
+      "trail_activation_r": 2.0,
+      "trail_distance_atr": 2.5
+    },
+    {
+      "initial_stop_atr": 1.0,
+      "rebalance_bars": 32,
+      "side_exposure": 0.3,
+      "top_k": 2,
+      "trail_activation_r": 3.0,
+      "trail_distance_atr": 3.0
+    }
+  ],
+  "sha256": "600594e8d00a7a2788d96031be625b9f7f4c69cffcff1002eb85aaa6b7d9b95c",
+  "signals": [
+    {
+      "confirmations": 2,
+      "entry_quantile": 0.05,
+      "lookback": 20,
+      "orientation": "continuation"
+    },
+    {
+      "confirmations": 3,
+      "entry_quantile": 0.05,
+      "lookback": 20,
+      "orientation": "continuation"
+    },
+    {
+      "confirmations": 2,
+      "entry_quantile": 0.1,
+      "lookback": 20,
+      "orientation": "continuation"
+    },
+    {
+      "confirmations": 3,
+      "entry_quantile": 0.1,
+      "lookback": 20,
+      "orientation": "continuation"
+    },
+    {
+      "confirmations": 2,
+      "entry_quantile": 0.05,
+      "lookback": 40,
+      "orientation": "continuation"
+    },
+    {
+      "confirmations": 3,
+      "entry_quantile": 0.05,
+      "lookback": 40,
+      "orientation": "continuation"
+    },
+    {
+      "confirmations": 2,
+      "entry_quantile": 0.1,
+      "lookback": 40,
+      "orientation": "continuation"
+    },
+    {
+      "confirmations": 3,
+      "entry_quantile": 0.1,
+      "lookback": 40,
+      "orientation": "continuation"
+    },
+    {
+      "confirmations": 2,
+      "entry_quantile": 0.05,
+      "lookback": 20,
+      "orientation": "reversal"
+    },
+    {
+      "confirmations": 3,
+      "entry_quantile": 0.05,
+      "lookback": 20,
+      "orientation": "reversal"
+    },
+    {
+      "confirmations": 2,
+      "entry_quantile": 0.1,
+      "lookback": 20,
+      "orientation": "reversal"
+    },
+    {
+      "confirmations": 3,
+      "entry_quantile": 0.1,
+      "lookback": 20,
+      "orientation": "reversal"
+    },
+    {
+      "confirmations": 2,
+      "entry_quantile": 0.05,
+      "lookback": 40,
+      "orientation": "reversal"
+    },
+    {
+      "confirmations": 3,
+      "entry_quantile": 0.05,
+      "lookback": 40,
+      "orientation": "reversal"
+    },
+    {
+      "confirmations": 2,
+      "entry_quantile": 0.1,
+      "lookback": 40,
+      "orientation": "reversal"
+    },
+    {
+      "confirmations": 3,
+      "entry_quantile": 0.1,
+      "lookback": 40,
+      "orientation": "reversal"
+    }
+  ]
+}
