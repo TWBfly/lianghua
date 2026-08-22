@@ -27,7 +27,7 @@ from data_contract import validate_futures_universe
 DB_PATH = PROJECT_ROOT / "data/ashare_quant.db"
 
 
-def compute_zscore_features_and_meta_labels(df: pd.DataFrame, multiplier: float = 10.0, sl_atr_mult: float = 1.2, max_bars: int = 5) -> pd.DataFrame:
+def compute_zscore_features_and_meta_labels(df: pd.DataFrame, multiplier: float = 10.0, sl_atr_mult: float = 1.2, max_bars: int = 5, macro_freq: str = "60min") -> pd.DataFrame:
     """计算 Z-Score、RSI(2)、波动微观特征，并使用三重屏障生成 Meta-Labeling 标签"""
     df_res = df.copy()
     c = df_res["close"].astype(float)
@@ -81,20 +81,21 @@ def compute_zscore_features_and_meta_labels(df: pd.DataFrame, multiplier: float 
     oi = df_res.get("open_interest", pd.Series(np.zeros(len(df_res)))).fillna(0).astype(float)
     df_res["oi_flow"] = oi.diff() / (v.rolling(20).mean() + 1e-8)
 
-    # 1h 宏观顺势对齐 (shift 1 零前瞻)
+    # 宏观跨周期顺势对齐 (shift 1 零前瞻)
     if "datetime" not in df_res.columns and "trade_time" in df_res.columns:
         df_res["datetime"] = pd.to_datetime(df_res["trade_time"])
     else:
         df_res["datetime"] = pd.to_datetime(df_res["datetime"])
     df_res = df_res.sort_values("datetime").reset_index(drop=True)
-    df_1h = df_res.set_index("datetime").resample("60min").agg({
+    df_macro = df_res.set_index("datetime").resample(macro_freq).agg({
         "open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"
     }).dropna()
-    c_1h = df_1h["close"]
-    trend_1h_series = np.where(c_1h > calculate_ema(c_1h, 20), 1, np.where(c_1h < calculate_ema(c_1h, 20), -1, 0))
-    df_1h["trend_1h"] = pd.Series(trend_1h_series, index=df_1h.index).shift(1)
-    df_res = pd.merge_asof(df_res, df_1h[["trend_1h"]], on="datetime", direction="backward")
+    c_macro = df_macro["close"]
+    trend_macro_series = np.where(c_macro > calculate_ema(c_macro, 20), 1, np.where(c_macro < calculate_ema(c_macro, 20), -1, 0))
+    df_macro["trend_1h"] = pd.Series(trend_macro_series, index=df_macro.index).shift(1)
+    df_res = pd.merge_asof(df_res, df_macro[["trend_1h"]], on="datetime", direction="backward")
     df_res["trend_1h"] = df_res["trend_1h"].fillna(0)
+
 
     # 2. 一阶主模型触发条件
     bullish_reversal = (c > o) & (c > c.shift(1))
@@ -394,13 +395,12 @@ def simulate_mean_reversion_execution(
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="极值 Z-Score 均值回归 + ML Meta-Labeling 多周期回测引擎")
-    parser.add_argument("--timeframe", type=str, default="5m", choices=["1m", "5m", "15m"], help="回测周期 (1m, 5m, 15m)")
+    parser.add_argument("--timeframe", type=str, default="10m", choices=["1m", "5m", "10m", "15m", "30m"], help="回测周期 (1m, 5m, 10m, 15m, 30m)")
     parser.add_argument("--meta-thresh", type=float, default=0.52, help="Meta-Labeling 准入概率阈值")
     args = parser.parse_args()
 
     tf = args.timeframe
-    macro_freq = "60min" if tf == "15m" else ("30min" if tf == "5m" else "15min")
-    macro_col = f"trend_{macro_freq}"
+    macro_freq = "120min" if tf == "30m" else ("60min" if tf in ["10m", "15m"] else ("30min" if tf == "5m" else "15min"))
 
     print("=" * 110)
     print(f"🔬 极值 Z-Score 均值回归 + ML Meta-Labeling 25 大主力期货全量回测对决 【周期: {tf} | 宏观对齐: {macro_freq}】")
@@ -436,7 +436,8 @@ def main():
     for sym in symbols:
         cfg = SYMBOL_CONFIGS[sym]
         df_raw = load_tf_data(sym, tf)
-        df_feat = compute_zscore_features_and_meta_labels(df_raw, multiplier=cfg["multiplier"])
+        df_feat = compute_zscore_features_and_meta_labels(df_raw, multiplier=cfg["multiplier"], macro_freq=macro_freq)
+
 
         # 训练 Meta 分类器
         prob_meta = run_walk_forward_meta_classifier(df_feat, feature_cols, train_window=3000, step_size=500, purge_gap=5)

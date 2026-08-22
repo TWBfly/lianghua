@@ -55,10 +55,12 @@ DOMINANT_SYMBOL_MAP = {
 TIMEFRAME_MAP = {
     "1m": 60,
     "5m": 300,
+    "10m": 600,
     "15m": 900,
     "30m": 1800,
     "1h": 3600
 }
+
 
 
 def load_tq_credentials(env_file=ENV_PATH):
