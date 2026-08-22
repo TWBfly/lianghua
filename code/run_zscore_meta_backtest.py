@@ -392,8 +392,18 @@ def simulate_mean_reversion_execution(
 
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="极值 Z-Score 均值回归 + ML Meta-Labeling 多周期回测引擎")
+    parser.add_argument("--timeframe", type=str, default="5m", choices=["1m", "5m", "15m"], help="回测周期 (1m, 5m, 15m)")
+    parser.add_argument("--meta-thresh", type=float, default=0.52, help="Meta-Labeling 准入概率阈值")
+    args = parser.parse_args()
+
+    tf = args.timeframe
+    macro_freq = "60min" if tf == "15m" else ("30min" if tf == "5m" else "15min")
+    macro_col = f"trend_{macro_freq}"
+
     print("=" * 110)
-    print("🔬 极值 Z-Score 均值回归 + ML Meta-Labeling 25 大主力期货全量回测对决")
+    print(f"🔬 极值 Z-Score 均值回归 + ML Meta-Labeling 25 大主力期货全量回测对决 【周期: {tf} | 宏观对齐: {macro_freq}】")
     print("=" * 110)
 
     conn = sqlite3.connect(DB_PATH)
@@ -404,22 +414,32 @@ def main():
     ]
 
     # 1. 契约安全校验
-    validate_futures_universe(conn, symbols, timeframe="15m")
+    validate_futures_universe(conn, symbols, timeframe=tf)
     conn.close()
 
     feature_cols = ["zscore", "rsi_2", "squeeze", "accel_norm", "vol_ratio", "rsi_14", "donchian_dist", "oi_flow", "trend_1h"]
-    runner = DecoupledSymbolStrategyRunner()
+    
+    # 动态加载对应周期数据
+    def load_tf_data(sym: str, timeframe: str) -> pd.DataFrame:
+        with sqlite3.connect(DB_PATH) as c:
+            df = pd.read_sql_query(
+                "SELECT trade_time, open, high, low, close, volume, open_interest FROM futures_min_bars "
+                "WHERE symbol=? AND timeframe=? ORDER BY trade_time ASC",
+                c, params=(sym, timeframe)
+            )
+            df["datetime"] = pd.to_datetime(df["trade_time"])
+            return df
 
     results_baseline = []
     results_meta = []
 
     for sym in symbols:
         cfg = SYMBOL_CONFIGS[sym]
-        df_raw = runner.load_symbol_data(sym)
+        df_raw = load_tf_data(sym, tf)
         df_feat = compute_zscore_features_and_meta_labels(df_raw, multiplier=cfg["multiplier"])
 
         # 训练 Meta 分类器
-        prob_meta = run_walk_forward_meta_classifier(df_feat, feature_cols)
+        prob_meta = run_walk_forward_meta_classifier(df_feat, feature_cols, train_window=3000, step_size=500, purge_gap=5)
         df_feat["meta_prob"] = prob_meta
 
         # 回测 A: 纯规则 Baseline
@@ -427,7 +447,7 @@ def main():
         results_baseline.append(res_a)
 
         # 回测 B: ML Meta-Labeling 过滤版
-        res_b = simulate_mean_reversion_execution(df_feat, cfg, sym, use_meta_filter=True, meta_prob_thresh=0.52)
+        res_b = simulate_mean_reversion_execution(df_feat, cfg, sym, use_meta_filter=True, meta_prob_thresh=args.meta_thresh)
         results_meta.append(res_b)
 
         print(
@@ -441,11 +461,12 @@ def main():
     df_res_b = pd.DataFrame(results_meta)
 
     print("\n" + "=" * 110)
-    print("📊 25 大品种整体对照大盘汇总 (Baseline vs ML Meta-Labeling)")
+    print(f"📊 25 大品种整体对照大盘汇总 【周期: {tf}】 (Baseline vs ML Meta-Labeling)")
     print("=" * 110)
     print(f"【纯规则 Baseline】: 平均胜率 {df_res_a['win_rate_pct'].mean():.1f}% | 平均盈亏比 {df_res_a['profit_loss_ratio'].mean():.2f} | 总交易次数 {df_res_a['total_trades'].sum()} | 组合总净利 ¥{df_res_a['net_profit_rmb'].sum():,.2f}")
     print(f"【Meta-Labeling  】: 平均胜率 {df_res_b['win_rate_pct'].mean():.1f}% | 平均盈亏比 {df_res_b['profit_loss_ratio'].mean():.2f} | 总交易次数 {df_res_b['total_trades'].sum()} | 组合总净利 ¥{df_res_b['net_profit_rmb'].sum():,.2f}")
     print("=" * 110)
+
 
 
 if __name__ == "__main__":
