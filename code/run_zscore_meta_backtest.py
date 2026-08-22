@@ -28,7 +28,7 @@ DB_PATH = PROJECT_ROOT / "data/ashare_quant.db"
 
 
 def compute_zscore_features_and_meta_labels(df: pd.DataFrame, multiplier: float = 10.0, sl_atr_mult: float = 1.2, max_bars: int = 5, macro_freq: str = "60min") -> pd.DataFrame:
-    """计算 Z-Score、RSI(2)、波动微观特征，并使用三重屏障生成 Meta-Labeling 标签"""
+    """计算 Z-Score、RSI(2)、微观拒绝形态、持仓量筹码流，并使用三重屏障生成 Meta-Labeling 标签"""
     df_res = df.copy()
     c = df_res["close"].astype(float)
     o = df_res["open"].astype(float)
@@ -36,11 +36,12 @@ def compute_zscore_features_and_meta_labels(df: pd.DataFrame, multiplier: float 
     l = df_res["low"].astype(float)
     v = df_res["volume"].astype(float)
 
-    # 1. 基础指标
+    # 1. 基础指标与偏离度
     sma_20 = c.rolling(20).mean()
     std_20 = c.rolling(20).std() + 1e-8
     zscore = (c - sma_20) / std_20
     df_res["zscore"] = zscore
+    df_res["sma_20"] = sma_20
 
     # RSI(2)
     delta = c.diff()
@@ -50,11 +51,11 @@ def compute_zscore_features_and_meta_labels(df: pd.DataFrame, multiplier: float 
     avg_loss = loss.rolling(2).mean() + 1e-8
     df_res["rsi_2"] = 100.0 - (100.0 / (1.0 + avg_gain / avg_loss))
 
-    # SMA(5) 目标止盈线
+    # SMA(5) 首发止盈目标线
     sma_5 = c.rolling(5).mean()
     df_res["sma_5"] = sma_5
 
-    # ATR(14) 与挤压特征
+    # ATR(14) 与波动挤压特征
     df_temp = pd.DataFrame({"open": o, "high": h, "low": l, "close": c})
     atr_14 = calculate_atr(df_temp, 14).fillna(c * 0.01)
     atr_7 = calculate_atr(df_temp, 7).fillna(c * 0.01)
@@ -69,17 +70,30 @@ def compute_zscore_features_and_meta_labels(df: pd.DataFrame, multiplier: float 
     df_res["accel_norm"] = ((e10 - e30) - (e30 - e60)) / (atr_14 + 1e-8)
 
     # 量比与 RSI(14)
-    df_res["vol_ratio"] = v / (v.rolling(20).mean() + 1e-8)
+    vol_ma20 = v.rolling(20).mean().fillna(1.0)
+    df_res["vol_ratio"] = v / (vol_ma20 + 1e-8)
+    df_res["vol_climax"] = np.where(v >= vol_ma20 * 1.5, 1.0, 0.0)
     df_res["rsi_14"] = calculate_rsi(c, 14).fillna(50.0)
+
+    # 微观长影线拒斥比率 (Pin Bar Absorption)
+    body = np.abs(c - o)
+    lower_shadow = np.where(c >= o, o - l, c - l)
+    upper_shadow = np.where(c >= o, h - c, h - o)
+    df_res["shadow_rejection_long"] = lower_shadow / (body + 1e-8)
+    df_res["shadow_rejection_short"] = upper_shadow / (body + 1e-8)
 
     # 唐奇安通道偏离度
     don_hi = h.rolling(20).max()
     don_lo = l.rolling(20).min()
     df_res["donchian_dist"] = (c - (don_hi + don_lo) / 2.0) / (atr_14 + 1e-8)
 
-    # 持仓增量流
+    # 期货持仓量增减与量价背离 (OI 筹码特征)
     oi = df_res.get("open_interest", pd.Series(np.zeros(len(df_res)))).fillna(0).astype(float)
-    df_res["oi_flow"] = oi.diff() / (v.rolling(20).mean() + 1e-8)
+    oi_diff = oi.diff().fillna(0)
+    df_res["oi_diff"] = oi_diff
+    df_res["oi_flow"] = oi_diff / (vol_ma20 + 1e-8)
+    # 空平/多平获利减仓特征 (胜率最高形态)
+    df_res["oi_unwinding"] = np.where(oi_diff < 0, 1.0, 0.0)
 
     # 宏观跨周期顺势对齐 (shift 1 零前瞻)
     if "datetime" not in df_res.columns and "trade_time" in df_res.columns:
@@ -96,69 +110,60 @@ def compute_zscore_features_and_meta_labels(df: pd.DataFrame, multiplier: float 
     df_res = pd.merge_asof(df_res, df_macro[["trend_1h"]], on="datetime", direction="backward")
     df_res["trend_1h"] = df_res["trend_1h"].fillna(0)
 
+    # 2. 一阶主模型触发条件 (结合 Pin Bar 拒斥与持仓量背离)
+    bullish_reversal = (c > o) & (c > c.shift(1)) & (lower_shadow >= body * 0.5)
+    bearish_reversal = (c < o) & (c < c.shift(1)) & (upper_shadow >= body * 0.5)
 
-    # 2. 一阶主模型触发条件
-    bullish_reversal = (c > o) & (c > c.shift(1))
-    bearish_reversal = (c < o) & (c < c.shift(1))
+    oi_ok_long = oi_diff <= vol_ma20 * 0.5
+    oi_ok_short = oi_diff <= vol_ma20 * 0.5
 
-    long_trigger = (df_res["zscore"] <= -2.0) & (df_res["rsi_2"] <= 15.0) & bullish_reversal & (c < sma_5)
-    short_trigger = (df_res["zscore"] >= 2.0) & (df_res["rsi_2"] >= 85.0) & bearish_reversal & (c > sma_5)
+    long_trigger = (df_res["zscore"] <= -2.0) & (df_res["rsi_2"] <= 15.0) & bullish_reversal & (c < sma_5) & oi_ok_long
+    short_trigger = (df_res["zscore"] >= 2.0) & (df_res["rsi_2"] >= 85.0) & bearish_reversal & (c > sma_5) & oi_ok_short
 
     df_res["primary_signal"] = 0
     df_res.loc[long_trigger, "primary_signal"] = 1
     df_res.loc[short_trigger, "primary_signal"] = -1
 
-    # 3. Meta-Labeling 标签构建 (二元分类: 1 = 均值回归成功, 0 = 止损/超时失败)
-    n = len(df_res)
-    meta_labels = np.full(n, np.nan)
-
+    # 3. 三重屏障 Meta 标注
+    meta_labels = np.full(len(df_res), np.nan)
     close_arr = c.values
-    open_arr = o.values
     high_arr = h.values
     low_arr = l.values
-    sma5_arr = sma_5.values
     atr_arr = atr_14.values
+    sma5_arr = sma_5.values
     sig_arr = df_res["primary_signal"].values
 
-    for i in range(n - max_bars - 1):
+    for i in range(len(df_res) - max_bars):
         sig = sig_arr[i]
         if sig == 0:
             continue
 
-        entry_p = open_arr[i + 1]  # 次 Bar 开盘进场
-        curr_atr = atr_arr[i]
-        target_hit = False
-        sl_hit = False
+        p0 = close_arr[i]
+        atr = max(2.0, float(atr_arr[i]))
+        sl = p0 - sl_atr_mult * atr if sig == 1 else p0 + sl_atr_mult * atr
 
-        if sig == 1:
-            sl_p = entry_p - sl_atr_mult * curr_atr
-            for k in range(1, max_bars + 1):
-                idx = i + 1 + k
-                if idx >= n:
-                    break
-                # 是否触及目标 SMA(5)
-                if high_arr[idx] >= sma5_arr[idx - 1]:
-                    target_hit = True
-                    break
-                # 是否触及止损
-                if low_arr[idx] <= sl_p:
-                    sl_hit = True
-                    break
-            meta_labels[i] = 1 if target_hit and not sl_hit else 0
+        hit_label = 0
+        for b in range(1, max_bars + 1):
+            curr_bar_h = high_arr[i + b]
+            curr_bar_l = low_arr[i + b]
+            curr_sma5 = sma5_arr[i + b]
 
-        elif sig == -1:
-            sl_p = entry_p + sl_atr_mult * curr_atr
-            for k in range(1, max_bars + 1):
-                idx = i + 1 + k
-                if idx >= n:
+            if sig == 1:
+                if curr_bar_l <= sl:
+                    hit_label = 0
                     break
-                if low_arr[idx] <= sma5_arr[idx - 1]:
-                    target_hit = True
+                if curr_bar_h >= curr_sma5:
+                    hit_label = 1
                     break
-                if high_arr[idx] >= sl_p:
-                    sl_hit = True
+            elif sig == -1:
+                if curr_bar_h >= sl:
+                    hit_label = 0
                     break
-            meta_labels[i] = 1 if target_hit and not sl_hit else 0
+                if curr_bar_l <= curr_sma5:
+                    hit_label = 1
+                    break
+
+        meta_labels[i] = hit_label
 
     df_res["meta_label"] = meta_labels
     return df_res
@@ -211,7 +216,6 @@ def run_walk_forward_meta_classifier(df_feat: pd.DataFrame, feature_cols: list, 
     return prob_meta
 
 
-
 def simulate_mean_reversion_execution(
     df_sim: pd.DataFrame,
     cfg: dict,
@@ -222,10 +226,9 @@ def simulate_mean_reversion_execution(
     sl_atr_mult: float = 1.2,
     max_holding_bars: int = 5
 ) -> dict:
-    """真实逐日盯市 MTM 全真撮合仿真引擎"""
+    """真实逐日盯市 MTM 全真撮合仿真引擎 (V2 极速回归 + 动态保本与 Meta 动态加权)"""
     multiplier = cfg["multiplier"]
     fee_rate = 0.00005  # 万分之0.5
-    tick_size = cfg.get("tick_size", 1.0)
 
     close_arr = df_sim["close"].values
     open_arr = df_sim["open"].values
@@ -263,7 +266,7 @@ def simulate_mean_reversion_execution(
         eq_curve.append(max(0.0, capital + unrealized))
         datetime_list.append(curr_dt)
 
-        # 1. 持仓出场逻辑 (SMA5 快速止盈 vs 硬止损 vs 5 根 Bar 超时)
+        # 1. 持仓出场逻辑 (SMA5 快速止盈 vs 动态保本 vs 硬止损 vs 超时)
         if pos != 0:
             holding_bars += 1
             exit_hit = False
@@ -272,20 +275,20 @@ def simulate_mean_reversion_execution(
 
             if pos == 1:
                 target_sma5 = sma5_arr[i]
-                # 触及 SMA(5) 止盈
+                # (1) 触及 SMA(5) 极速完全止盈 (均值回归最佳半衰期锁定)
                 if curr_h >= target_sma5:
                     exit_p = target_sma5 - slippage
                     exit_desc = f"回归 SMA(5) 极速止盈 ({target_sma5:.2f})"
                     exit_hit = True
-                # 触及硬止损
+                # (2) 触及硬止损 / 动态保本止损
                 elif curr_l <= sl_p:
                     exit_p = min(open_arr[i], sl_p) - slippage
-                    exit_desc = f"触发硬止损防守边界 ({sl_p:.2f})"
+                    exit_desc = f"触发止损防守边界 ({sl_p:.2f})"
                     exit_hit = True
-                # 超时强平
+                # (3) 超时强平
                 elif holding_bars >= max_holding_bars:
                     exit_p = curr_p - slippage
-                    exit_desc = f"达到最大持仓上限 {max_holding_bars} 根 Bar 强制均值清仓"
+                    exit_desc = f"达到最大持仓上限 {max_holding_bars} Bar 均值清仓"
                     exit_hit = True
 
                 if exit_hit:
@@ -297,6 +300,10 @@ def simulate_mean_reversion_execution(
                         "bars": holding_bars, "reason": exit_desc
                     })
                     pos = 0
+                else:
+                    # 动态保本保护: 若已有 >0.4 ATR 浮盈，则将止损提升至保本线
+                    if curr_h >= entry_p + 0.4 * curr_atr:
+                        sl_p = max(sl_p, entry_p + 0.05 * curr_atr)
 
             elif pos == -1:
                 target_sma5 = sma5_arr[i]
@@ -306,11 +313,11 @@ def simulate_mean_reversion_execution(
                     exit_hit = True
                 elif curr_h >= sl_p:
                     exit_p = max(open_arr[i], sl_p) + slippage
-                    exit_desc = f"触发硬止损防守边界 ({sl_p:.2f})"
+                    exit_desc = f"触发止损防守边界 ({sl_p:.2f})"
                     exit_hit = True
                 elif holding_bars >= max_holding_bars:
                     exit_p = curr_p + slippage
-                    exit_desc = f"达到最大持仓上限 {max_holding_bars} 根 Bar 强制均值清仓"
+                    exit_desc = f"达到最大持仓上限 {max_holding_bars} Bar 均值清仓"
                     exit_hit = True
 
                 if exit_hit:
@@ -322,6 +329,10 @@ def simulate_mean_reversion_execution(
                         "bars": holding_bars, "reason": exit_desc
                     })
                     pos = 0
+                else:
+                    # 空头动态保本保护
+                    if curr_l <= entry_p - 0.4 * curr_atr:
+                        sl_p = min(sl_p, entry_p - 0.05 * curr_atr)
 
         # 2. 开仓信号
         if pos == 0:
@@ -334,11 +345,18 @@ def simulate_mean_reversion_execution(
                     continue  # 坚决过滤劣质假反弹信号
 
                 sl_dist = sl_atr_mult * curr_atr
-                calc_lots = max(1, min(cfg.get("max_lots", 5), int((capital * 0.01) / (sl_dist * multiplier + 1e-6))))
+                base_lots = max(1, min(cfg.get("max_lots", 5), int((capital * 0.01) / (sl_dist * multiplier + 1e-6))))
+                # Lopez de Prado 连续置信度仓位缩放 (Bet Sizing)
+                if use_meta_filter and not np.isnan(prob):
+                    bet_scale = max(1.0, min(1.8, 1.0 + (prob - 0.5) * 3.0))
+                    calc_lots = max(1, int(base_lots * bet_scale))
+                else:
+                    calc_lots = base_lots
 
                 if sig == 1:
                     pos = 1
-                    lots = calc_lots
+                    total_lots = calc_lots
+                    rem_lots = calc_lots
                     entry_p = next_o + slippage
                     entry_dt = curr_dt
                     sl_p = entry_p - sl_dist
@@ -417,7 +435,12 @@ def main():
     validate_futures_universe(conn, symbols, timeframe=tf)
     conn.close()
 
-    feature_cols = ["zscore", "rsi_2", "squeeze", "accel_norm", "vol_ratio", "rsi_14", "donchian_dist", "oi_flow", "trend_1h"]
+    feature_cols = [
+        "zscore", "rsi_2", "squeeze", "accel_norm", "vol_ratio", "vol_climax",
+        "rsi_14", "shadow_rejection_long", "shadow_rejection_short",
+        "donchian_dist", "oi_flow", "oi_unwinding", "trend_1h"
+    ]
+
     
     # 动态加载对应周期数据
     def load_tf_data(sym: str, timeframe: str) -> pd.DataFrame:
