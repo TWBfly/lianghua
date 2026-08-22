@@ -140,6 +140,22 @@ def calculate_atr(frame: pd.DataFrame, n: int = 14) -> pd.Series:
     return _wilder_average(true_range, n)
 
 
+def calculate_adx(frame: pd.DataFrame, n: int = 14) -> pd.Series:
+    """Average Directional Index — trend strength (0-100). ADX >= 25 = trending."""
+    high = frame["high"].astype(float)
+    low = frame["low"].astype(float)
+    up_move = high.diff()
+    down_move = -low.diff()
+    plus_dm = up_move.where((up_move > down_move) & (up_move > 0), 0.0)
+    minus_dm = down_move.where((down_move > up_move) & (down_move > 0), 0.0)
+    atr = calculate_atr(frame, n)
+    plus_di = 100.0 * _wilder_average(plus_dm, n) / atr.replace(0, np.nan)
+    minus_di = 100.0 * _wilder_average(minus_dm, n) / atr.replace(0, np.nan)
+    dx = 100.0 * (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, np.nan)
+    adx = _wilder_average(dx.fillna(0), n)
+    return adx.fillna(0)
+
+
 def calculate_technical_indicators(frame: pd.DataFrame) -> pd.DataFrame:
     close = frame["close"].astype(float)
     high = frame["high"].astype(float)
