@@ -171,3 +171,69 @@ def audit_database(db_path):
             "zero_volume": futures[2] or 0,
         },
     }
+
+
+def validate_futures_contract(conn: sqlite3.Connection, symbol: str, timeframe: str = "15m") -> dict:
+    """
+    严格校验期货真实主力合约数据契约与血缘规范：
+    1. 必须在 futures_series_metadata 中注册为 REAL_DOMINANT_CONTRACT
+    2. 必须为北京时间校准版本 (source_title 包含 '(北京时间)')
+    3. 表内行数、起止时间必须与元数据 1:1 严格对齐
+    4. 无 OHLC 几何倒挂与非正价格
+    5. 零成交量占比必须 < 5%
+    """
+    value = str(symbol).strip().upper()
+    if not value.endswith("_IDX"):
+        value = f"{value}_IDX"
+    tf = str(timeframe).strip().lower()
+
+    # 1. 检查元数据
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT symbol, timeframe, series_type, source_file, source_title, row_count, start_time, end_time
+        FROM futures_series_metadata
+        WHERE symbol = ? AND timeframe = ?
+    """, (value, tf))
+    meta = cursor.fetchone()
+    if meta is None:
+        raise DataContractError(f"期货标的 [{value}] 在 [{tf}] 周期无元数据血缘登记！", "UNCATALOGED_FUTURES")
+
+    keys = ("symbol", "timeframe", "series_type", "source_file", "source_title", "row_count", "start_time", "end_time")
+    provenance = dict(zip(keys, meta))
+
+    if provenance["series_type"] != "REAL_DOMINANT_CONTRACT":
+        raise DataContractError(f"期货标的 [{value} {tf}] 属于合成或非真实主力类型 [{provenance['series_type']}]，禁止直接回测！", "NON_DOMINANT_DATA")
+
+    if "(北京时间)" not in provenance["source_title"]:
+        raise DataContractError(f"期货标的 [{value} {tf}] 未通过标准北京时间时区校准！", "UNALIGNED_TIMEZONE")
+
+    # 2. 检查实际表记录与元数据一致性
+    actual = cursor.execute("""
+        SELECT COUNT(*), MIN(trade_time), MAX(trade_time),
+               SUM(CASE WHEN volume = 0 OR volume IS NULL THEN 1 ELSE 0 END),
+               SUM(CASE WHEN high < low OR high < open OR high < close OR low > open OR low > close OR close <= 0 THEN 1 ELSE 0 END)
+        FROM futures_min_bars
+        WHERE symbol = ? AND timeframe = ?
+    """, (value, tf)).fetchone()
+
+    actual_cnt, actual_start, actual_end, zero_vol_cnt, ohlc_err_cnt = actual
+    if actual_cnt != provenance["row_count"]:
+        raise DataContractError(f"期货标的 [{value} {tf}] 表内行数 ({actual_cnt}) 与元数据声明 ({provenance['row_count']}) 不一致！", "ROW_COUNT_MISMATCH")
+
+    if actual_start != provenance["start_time"] or actual_end != provenance["end_time"]:
+        raise DataContractError(f"期货标的 [{value} {tf}] 表内时段与元数据声明不一致！", "TIME_RANGE_MISMATCH")
+
+    if ohlc_err_cnt > 0:
+        raise DataContractError(f"期货标的 [{value} {tf}] 发现 {ohlc_err_cnt} 处 OHLC 物理几何倒挂或非正价格！", "OHLC_INVARIANT_VIOLATION")
+
+    if zero_vol_cnt / max(1, actual_cnt) > 0.05:
+        raise DataContractError(f"期货标的 [{value} {tf}] 零成交量占比高达 {zero_vol_cnt/actual_cnt*100:.1f}%，违反流动性契约！", "ILLIQUID_ASSET")
+
+    provenance["verification_status"] = "VERIFIED_REAL_DOMINANT"
+    return provenance
+
+
+def validate_futures_universe(conn: sqlite3.Connection, symbols: list[str], timeframe: str = "15m") -> list[dict]:
+    """批量校验期货品种池数据契约"""
+    return [validate_futures_contract(conn, s, timeframe) for s in symbols]
+

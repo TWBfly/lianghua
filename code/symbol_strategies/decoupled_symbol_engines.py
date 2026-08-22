@@ -135,6 +135,56 @@ SYMBOL_CONFIGS = {
         "name": "碳酸锂", "category": "新能源电池", "multiplier": 1.0, "margin": 0.12,
         "prob_thresh": 0.54, "target_atr": 3.5, "sl_atr": 1.1, "be_atr": 1.5, "be_lock_offset": 0.2, "trail_atr": 4.0, "max_lots": 2, "squeeze_thresh": 0.95,
         "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "HC_IDX": {
+        "name": "热卷", "category": "黑色工业", "multiplier": 10.0, "margin": 0.10,
+        "prob_thresh": 0.53, "target_atr": 3.6, "sl_atr": 1.1, "be_atr": 1.5, "be_lock_offset": 0.1, "trail_atr": 4.0, "max_lots": 10, "squeeze_thresh": 0.94,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "AL_IDX": {
+        "name": "沪铝", "category": "有色金属", "multiplier": 5.0, "margin": 0.10,
+        "prob_thresh": 0.54, "target_atr": 3.8, "sl_atr": 1.0, "be_atr": 1.8, "be_lock_offset": 0.1, "trail_atr": 4.0, "max_lots": 5, "squeeze_thresh": 0.95,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "ZN_IDX": {
+        "name": "沪锌", "category": "有色金属", "multiplier": 5.0, "margin": 0.10,
+        "prob_thresh": 0.54, "target_atr": 3.8, "sl_atr": 1.0, "be_atr": 1.8, "be_lock_offset": 0.1, "trail_atr": 4.0, "max_lots": 4, "squeeze_thresh": 0.95,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "RU_IDX": {
+        "name": "橡胶", "category": "化工高波", "multiplier": 10.0, "margin": 0.10,
+        "prob_thresh": 0.55, "target_atr": 4.0, "sl_atr": 1.2, "be_atr": 1.8, "be_lock_offset": 0.1, "trail_atr": 4.5, "max_lots": 4, "squeeze_thresh": 0.95,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "P_IDX": {
+        "name": "棕榈油", "category": "油脂油料", "multiplier": 10.0, "margin": 0.08,
+        "prob_thresh": 0.55, "target_atr": 4.0, "sl_atr": 1.0, "be_atr": 1.8, "be_lock_offset": 0.1, "trail_atr": 4.5, "max_lots": 6, "squeeze_thresh": 0.95,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "FG_IDX": {
+        "name": "玻璃", "category": "建材玻璃", "multiplier": 20.0, "margin": 0.10,
+        "prob_thresh": 0.54, "target_atr": 3.8, "sl_atr": 1.1, "be_atr": 1.8, "be_lock_offset": 0.1, "trail_atr": 4.0, "max_lots": 8, "squeeze_thresh": 0.94,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "SR_IDX": {
+        "name": "白糖", "category": "软商品", "multiplier": 10.0, "margin": 0.08,
+        "prob_thresh": 0.54, "target_atr": 3.6, "sl_atr": 1.0, "be_atr": 1.8, "be_lock_offset": 0.1, "trail_atr": 4.0, "max_lots": 8, "squeeze_thresh": 0.95,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "CF_IDX": {
+        "name": "棉花", "category": "软商品", "multiplier": 5.0, "margin": 0.08,
+        "prob_thresh": 0.54, "target_atr": 3.6, "sl_atr": 1.0, "be_atr": 1.8, "be_lock_offset": 0.1, "trail_atr": 4.0, "max_lots": 10, "squeeze_thresh": 0.95,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "Y_IDX": {
+        "name": "豆油", "category": "油脂油料", "multiplier": 10.0, "margin": 0.08,
+        "prob_thresh": 0.55, "target_atr": 3.8, "sl_atr": 1.0, "be_atr": 1.8, "be_lock_offset": 0.1, "trail_atr": 4.0, "max_lots": 6, "squeeze_thresh": 0.95,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "SI_IDX": {
+        "name": "工业硅", "category": "广期新能源", "multiplier": 5.0, "margin": 0.10,
+        "prob_thresh": 0.54, "target_atr": 3.6, "sl_atr": 1.1, "be_atr": 1.6, "be_lock_offset": 0.1, "trail_atr": 4.0, "max_lots": 6, "squeeze_thresh": 0.95,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
     }
 }
 
