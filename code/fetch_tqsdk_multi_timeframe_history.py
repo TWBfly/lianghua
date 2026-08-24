@@ -56,6 +56,7 @@ TQ_SYMBOL_MAP = {
 ALL_TIMEFRAMES = [
     (60, "1m"),
     (300, "5m"),
+    (600, "10m"),
     (900, "15m"),
     (1800, "30m")
 ]
@@ -63,23 +64,24 @@ ALL_TIMEFRAMES = [
 
 def load_tq_credentials():
     """解析 .env 配置文件中的天勤账号密码"""
-    if not os.path.exists(ENV_PATH):
-        raise FileNotFoundError(f"配置文件不存在: {ENV_PATH}")
+    user = ""
+    password = ""
 
-    user = None
-    password = None
+    if os.path.exists(ENV_PATH):
+        with open(ENV_PATH, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if "TQ_ACCOUNT" in line or ("账号" in line and "TQ" in line.upper()) or "天勤" in line:
+                    parts = line.replace("：", ":").split(":", 1) if ":" in line.replace("：", ":") else line.split("=", 1)
+                    if len(parts) > 1:
+                        user = parts[1].strip()
+                elif "TQ_PASSWORD" in line or ("密码" in line and "TQ" in line.upper()):
+                    parts = line.replace("：", ":").split(":", 1) if ":" in line.replace("：", ":") else line.split("=", 1)
+                    if len(parts) > 1:
+                        password = parts[1].strip()
 
-    with open(ENV_PATH, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if "账号" in line:
-                user = line.split("：")[-1].split(":")[-1].strip()
-            elif "密码" in line:
-                password = line.split("：")[-1].split(":")[-1].strip()
-
-    if not user or not password:
-        raise ValueError("未能从 .env 文件中提取到天勤量化的账号和密码！")
-
+    user = user or "13800000000"
+    password = password or "redacted_password"
     return user, password
 
 
@@ -167,8 +169,8 @@ def download_tq_klines(target_symbols=None, target_tfs=None, data_length: int = 
                         print(f"  ├─ [{tf_name:<3}] 数据为空")
                         continue
 
-                    # 时间戳转换 (纳秒 nanoseconds -> datetime str)
-                    df_k["dt_str"] = pd.to_datetime(df_k["datetime"], unit="ns").dt.strftime("%Y-%m-%d %H:%M:%S")
+                    # 时间戳转换 (纳秒 nanoseconds -> 标准北京时间 Asia/Shanghai -> datetime str)
+                    df_k["dt_str"] = pd.to_datetime(df_k["datetime"], unit="ns", utc=True).dt.tz_convert("Asia/Shanghai").dt.strftime("%Y-%m-%d %H:%M:%S")
                     df_k = df_k.sort_values("datetime").reset_index(drop=True)
 
                     bars_to_insert = []

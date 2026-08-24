@@ -16,4 +16,5 @@ data/*.xls
 data/futures_live_state.json
 scratch/
 .DS_Store
+vnpy/
 

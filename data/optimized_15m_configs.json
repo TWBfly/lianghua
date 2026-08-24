@@ -1,0 +1,716 @@
+{
+  "AG_IDX": {
+    "best_params": {
+      "prob_thresh": 0.54,
+      "squeeze_thresh": 0.9,
+      "sl_atr": 0.8,
+      "be_atr": 1.8,
+      "trail_atr": 4.5,
+      "vr_thresh": 1.1
+    },
+    "before": {
+      "net_profit": 182383.83030684362,
+      "return_pct": 18.238383030684364,
+      "win_rate": 55.88235294117647,
+      "pl_ratio": 2.4293730644763483,
+      "max_dd": 1.9537943572961343,
+      "trades": 34,
+      "sharpe": 2.493853695273744
+    },
+    "after": {
+      "net_profit": 270228.6164327611,
+      "return_pct": 27.02286164327611,
+      "win_rate": 65.85365853658537,
+      "pl_ratio": 2.4513869069797516,
+      "max_dd": 1.8019972286013486,
+      "trades": 41,
+      "sharpe": 2.651005099286233
+    }
+  },
+  "AU_IDX": {
+    "best_params": {
+      "prob_thresh": 0.57,
+      "squeeze_thresh": 0.9,
+      "sl_atr": 1.5,
+      "be_atr": 1.8,
+      "trail_atr": 2.8,
+      "vr_thresh": 1.1
+    },
+    "before": {
+      "net_profit": 26093.606915082084,
+      "return_pct": 2.6093606915082086,
+      "win_rate": 9.836065573770492,
+      "pl_ratio": 10.587413889352183,
+      "max_dd": 7.893227909409674,
+      "trades": 61,
+      "sharpe": 0.20418164287652268
+    },
+    "after": {
+      "net_profit": 127976.14828210743,
+      "return_pct": 12.797614828210744,
+      "win_rate": 20.0,
+      "pl_ratio": 15.481482627710474,
+      "max_dd": 3.0624082606675334,
+      "trades": 20,
+      "sharpe": 0.7673108109967979
+    }
+  },
+  "CU_IDX": {
+    "best_params": {
+      "prob_thresh": 0.56,
+      "squeeze_thresh": 0.95,
+      "sl_atr": 1.5,
+      "be_atr": 2.2,
+      "trail_atr": 3.5,
+      "vr_thresh": 1.05
+    },
+    "before": {
+      "net_profit": 3936.0400371857686,
+      "return_pct": 0.39360400371857684,
+      "win_rate": 46.03174603174603,
+      "pl_ratio": 1.2139876749493959,
+      "max_dd": 7.365439693464576,
+      "trades": 63,
+      "sharpe": 0.0887026334894056
+    },
+    "after": {
+      "net_profit": 67527.10018011555,
+      "return_pct": 6.752710018011555,
+      "win_rate": 67.3469387755102,
+      "pl_ratio": 0.9460280348570941,
+      "max_dd": 3.409871891905583,
+      "trades": 49,
+      "sharpe": 1.309290222873845
+    }
+  },
+  "SN_IDX": {
+    "best_params": {
+      "prob_thresh": 0.56,
+      "squeeze_thresh": 0.9,
+      "sl_atr": 1.2,
+      "be_atr": 2.2,
+      "trail_atr": 2.8,
+      "vr_thresh": 1.1
+    },
+    "before": {
+      "net_profit": -28497.855269042775,
+      "return_pct": -2.8497855269042778,
+      "win_rate": 43.47826086956522,
+      "pl_ratio": 1.0638346227061781,
+      "max_dd": 7.677829547539204,
+      "trades": 69,
+      "sharpe": -0.34332080666079573
+    },
+    "after": {
+      "net_profit": 51234.304202937754,
+      "return_pct": 5.123430420293775,
+      "win_rate": 60.86956521739131,
+      "pl_ratio": 1.6114694640657286,
+      "max_dd": 2.2799219713903316,
+      "trades": 23,
+      "sharpe": 0.9289182939359946
+    }
+  },
+  "RB_IDX": {
+    "best_params": {
+      "prob_thresh": 0.57,
+      "squeeze_thresh": 0.9,
+      "sl_atr": 0.8,
+      "be_atr": 1.4,
+      "trail_atr": 4.5,
+      "vr_thresh": 1.1
+    },
+    "before": {
+      "net_profit": -19686.14678628673,
+      "return_pct": -1.968614678628673,
+      "win_rate": 13.793103448275861,
+      "pl_ratio": 1.8853211750494494,
+      "max_dd": 2.147386904684407,
+      "trades": 58,
+      "sharpe": -2.017032763859579
+    },
+    "after": {
+      "net_profit": 2674.476918053697,
+      "return_pct": 0.26744769180536965,
+      "win_rate": 40.0,
+      "pl_ratio": 2.341883197328507,
+      "max_dd": 0.3020488845932205,
+      "trades": 15,
+      "sharpe": 0.58871748377165
+    }
+  },
+  "I_IDX": {
+    "best_params": {
+      "prob_thresh": 0.57,
+      "squeeze_thresh": 0.95,
+      "sl_atr": 1.2,
+      "be_atr": 2.2,
+      "trail_atr": 3.5,
+      "vr_thresh": 1.1
+    },
+    "before": {
+      "net_profit": -18994.406396753504,
+      "return_pct": -1.8994406396753503,
+      "win_rate": 19.51219512195122,
+      "pl_ratio": 0.8119665132366239,
+      "max_dd": 2.442724883989772,
+      "trades": 41,
+      "sharpe": -2.2398603575481393
+    },
+    "after": {
+      "net_profit": -4109.666367884725,
+      "return_pct": -0.4109666367884725,
+      "win_rate": 25.0,
+      "pl_ratio": 1.2718444754734384,
+      "max_dd": 0.8622572779061591,
+      "trades": 16,
+      "sharpe": -0.6638902834699054
+    }
+  },
+  "J_IDX": {
+    "best_params": {
+      "prob_thresh": 0.57,
+      "squeeze_thresh": 0.9,
+      "sl_atr": 1.5,
+      "be_atr": 2.2,
+      "trail_atr": 4.5,
+      "vr_thresh": 1.05
+    },
+    "before": {
+      "net_profit": -9613.984309678897,
+      "return_pct": -0.9613984309678898,
+      "win_rate": 27.027027027027028,
+      "pl_ratio": 2.1415889585031684,
+      "max_dd": 1.8034848399670487,
+      "trades": 37,
+      "sharpe": -0.35638471613287986
+    },
+    "after": {
+      "net_profit": 24655.864114176482,
+      "return_pct": 2.465586411417648,
+      "win_rate": 60.0,
+      "pl_ratio": 1.4524424837915104,
+      "max_dd": 1.0699938033633465,
+      "trades": 20,
+      "sharpe": 1.0615017303354988
+    }
+  },
+  "JM_IDX": {
+    "best_params": {
+      "prob_thresh": 0.56,
+      "squeeze_thresh": 0.93,
+      "sl_atr": 1.5,
+      "be_atr": 2.2,
+      "trail_atr": 3.5,
+      "vr_thresh": 1.05
+    },
+    "before": {
+      "net_profit": -4587.8102095949,
+      "return_pct": -0.45878102095948997,
+      "win_rate": 29.72972972972973,
+      "pl_ratio": 1.9885176818527959,
+      "max_dd": 1.5207472616674167,
+      "trades": 37,
+      "sharpe": -0.3317308842852624
+    },
+    "after": {
+      "net_profit": 9128.98727152415,
+      "return_pct": 0.912898727152415,
+      "win_rate": 56.75675675675676,
+      "pl_ratio": 1.0490698317098894,
+      "max_dd": 0.9185107756997987,
+      "trades": 37,
+      "sharpe": 0.618053049215369
+    }
+  },
+  "SC_IDX": {
+    "best_params": {
+      "prob_thresh": 0.54,
+      "squeeze_thresh": 0.9,
+      "sl_atr": 1.0,
+      "be_atr": 2.2,
+      "trail_atr": 3.5,
+      "vr_thresh": 1.1
+    },
+    "before": {
+      "net_profit": 37205.16306937486,
+      "return_pct": 3.720516306937486,
+      "win_rate": 11.11111111111111,
+      "pl_ratio": 10.466868028946216,
+      "max_dd": 4.402058134417026,
+      "trades": 45,
+      "sharpe": 0.41656907603757454
+    },
+    "after": {
+      "net_profit": 92656.70052201743,
+      "return_pct": 9.265670052201743,
+      "win_rate": 18.181818181818183,
+      "pl_ratio": 9.044074898718435,
+      "max_dd": 3.788863926763413,
+      "trades": 33,
+      "sharpe": 0.8889593976542022
+    }
+  },
+  "MA_IDX": {
+    "best_params": {
+      "prob_thresh": 0.52,
+      "squeeze_thresh": 0.9,
+      "sl_atr": 1.0,
+      "be_atr": 2.2,
+      "trail_atr": 4.5,
+      "vr_thresh": 1.05
+    },
+    "before": {
+      "net_profit": -13558.839835465187,
+      "return_pct": -1.3558839835465188,
+      "win_rate": 33.33333333333333,
+      "pl_ratio": 1.7158093500167344,
+      "max_dd": 3.4790907603879875,
+      "trades": 54,
+      "sharpe": -0.2796243522793416
+    },
+    "after": {
+      "net_profit": 251802.6320644156,
+      "return_pct": 25.180263206441563,
+      "win_rate": 41.81818181818181,
+      "pl_ratio": 4.967537164078572,
+      "max_dd": 5.768033794708847,
+      "trades": 55,
+      "sharpe": 1.6646978064958906
+    }
+  },
+  "TA_IDX": {
+    "best_params": {
+      "name": "PTA",
+      "category": "纺织化工",
+      "multiplier": 5.0,
+      "margin": 0.08,
+      "prob_thresh": 0.56,
+      "target_atr": 4.0,
+      "sl_atr": 0.9,
+      "be_atr": 2.4,
+      "be_lock_offset": 0.1,
+      "trail_atr": 5.0,
+      "max_lots": 10,
+      "squeeze_thresh": 0.95,
+      "feature_set": [
+        "squeeze",
+        "accel_norm",
+        "vol_ratio",
+        "donchian_dist",
+        "rsi_14",
+        "oi_diff_norm"
+      ]
+    },
+    "before": {
+      "net_profit": 38411.3465931823,
+      "return_pct": 3.84113465931823,
+      "win_rate": 38.63636363636363,
+      "pl_ratio": 3.536884327315869,
+      "max_dd": 1.071845311547266,
+      "trades": 44,
+      "sharpe": 1.3891932411615844
+    },
+    "after": {
+      "net_profit": 38411.3465931823,
+      "return_pct": 3.84113465931823,
+      "win_rate": 38.63636363636363,
+      "pl_ratio": 3.536884327315869,
+      "max_dd": 1.071845311547266,
+      "trades": 44,
+      "sharpe": 1.3891932411615844
+    }
+  },
+  "SA_IDX": {
+    "best_params": {
+      "prob_thresh": 0.56,
+      "squeeze_thresh": 0.9,
+      "sl_atr": 0.8,
+      "be_atr": 2.2,
+      "trail_atr": 4.5,
+      "vr_thresh": 1.1
+    },
+    "before": {
+      "net_profit": -9518.018036011956,
+      "return_pct": -0.9518018036011955,
+      "win_rate": 24.0,
+      "pl_ratio": 1.433258919807823,
+      "max_dd": 1.0463418547214947,
+      "trades": 50,
+      "sharpe": -1.4181312059738043
+    },
+    "after": {
+      "net_profit": 752.1028655477567,
+      "return_pct": 0.07521028655477567,
+      "win_rate": 25.0,
+      "pl_ratio": 3.3178441598434736,
+      "max_dd": 0.3743094640084853,
+      "trades": 24,
+      "sharpe": 0.11474147504405653
+    }
+  },
+  "M_IDX": {
+    "best_params": {
+      "prob_thresh": 0.57,
+      "squeeze_thresh": 0.9,
+      "sl_atr": 0.8,
+      "be_atr": 2.2,
+      "trail_atr": 2.8,
+      "vr_thresh": 1.05
+    },
+    "before": {
+      "net_profit": -8676.13231488748,
+      "return_pct": -0.867613231488748,
+      "win_rate": 23.52941176470588,
+      "pl_ratio": 1.928468440792707,
+      "max_dd": 1.2837827769101202,
+      "trades": 51,
+      "sharpe": -1.0269569345119192
+    },
+    "after": {
+      "net_profit": 2362.4923066505,
+      "return_pct": 0.23624923066505,
+      "win_rate": 48.275862068965516,
+      "pl_ratio": 1.4059377574068548,
+      "max_dd": 0.274446511152659,
+      "trades": 29,
+      "sharpe": 0.4680708705090018
+    }
+  },
+  "C_IDX": {
+    "best_params": {
+      "prob_thresh": 0.52,
+      "squeeze_thresh": 0.9,
+      "sl_atr": 1.2,
+      "be_atr": 1.4,
+      "trail_atr": 2.8,
+      "vr_thresh": 1.1
+    },
+    "before": {
+      "net_profit": -50712.77950606868,
+      "return_pct": -5.071277950606868,
+      "win_rate": 19.607843137254903,
+      "pl_ratio": 0.9957294842323455,
+      "max_dd": 5.722504604212974,
+      "trades": 51,
+      "sharpe": -2.854140848647179
+    },
+    "after": {
+      "net_profit": -9235.087568828138,
+      "return_pct": -0.9235087568828136,
+      "win_rate": 28.57142857142857,
+      "pl_ratio": 1.4815498855926459,
+      "max_dd": 1.1281451737007586,
+      "trades": 28,
+      "sharpe": -0.7201163871001901
+    }
+  },
+  "LC_IDX": {
+    "best_params": {
+      "prob_thresh": 0.52,
+      "squeeze_thresh": 0.95,
+      "sl_atr": 1.5,
+      "be_atr": 2.2,
+      "trail_atr": 3.5,
+      "vr_thresh": 1.05
+    },
+    "before": {
+      "net_profit": 6085.821816621581,
+      "return_pct": 0.6085821816621582,
+      "win_rate": 55.55555555555556,
+      "pl_ratio": 0.9128774277948308,
+      "max_dd": 3.983238297509903,
+      "trades": 45,
+      "sharpe": 0.1584037389486275
+    },
+    "after": {
+      "net_profit": 86772.99837014405,
+      "return_pct": 8.677299837014404,
+      "win_rate": 65.75342465753424,
+      "pl_ratio": 1.2863710736004221,
+      "max_dd": 3.096297557886998,
+      "trades": 73,
+      "sharpe": 1.7298731008192756
+    }
+  },
+  "HC_IDX": {
+    "best_params": {
+      "prob_thresh": 0.54,
+      "squeeze_thresh": 0.9,
+      "sl_atr": 1.0,
+      "be_atr": 2.2,
+      "trail_atr": 2.8,
+      "vr_thresh": 1.1
+    },
+    "before": {
+      "net_profit": -17897.541728111217,
+      "return_pct": -1.7897541728111217,
+      "win_rate": 0.0,
+      "pl_ratio": 0.0,
+      "max_dd": 1.8290225637856075,
+      "trades": 35,
+      "sharpe": -2.2367195175939876
+    },
+    "after": {
+      "net_profit": -249.14625452726614,
+      "return_pct": -0.024914625452726612,
+      "win_rate": 43.47826086956522,
+      "pl_ratio": 1.2569148161758017,
+      "max_dd": 0.3947952416507178,
+      "trades": 23,
+      "sharpe": -0.040368903830950834
+    }
+  },
+  "AL_IDX": {
+    "best_params": {
+      "prob_thresh": 0.57,
+      "squeeze_thresh": 0.93,
+      "sl_atr": 1.5,
+      "be_atr": 1.8,
+      "trail_atr": 4.5,
+      "vr_thresh": 1.1
+    },
+    "before": {
+      "net_profit": -24328.45895529585,
+      "return_pct": -2.432845895529585,
+      "win_rate": 32.20338983050847,
+      "pl_ratio": 1.18090214012331,
+      "max_dd": 3.6394128816490317,
+      "trades": 59,
+      "sharpe": -1.093980472813045
+    },
+    "after": {
+      "net_profit": 2192.3437121522147,
+      "return_pct": 0.21923437121522146,
+      "win_rate": 45.45454545454545,
+      "pl_ratio": 1.3249208560806087,
+      "max_dd": 1.1826784352617083,
+      "trades": 22,
+      "sharpe": 0.1630478207448277
+    }
+  },
+  "ZN_IDX": {
+    "best_params": {
+      "prob_thresh": 0.57,
+      "squeeze_thresh": 0.95,
+      "sl_atr": 0.8,
+      "be_atr": 1.8,
+      "trail_atr": 4.5,
+      "vr_thresh": 1.05
+    },
+    "before": {
+      "net_profit": -27724.76449921122,
+      "return_pct": -2.772476449921122,
+      "win_rate": 26.229508196721312,
+      "pl_ratio": 0.9939338415424037,
+      "max_dd": 2.982553390605809,
+      "trades": 61,
+      "sharpe": -1.5811100854332925
+    },
+    "after": {
+      "net_profit": 9454.629432097776,
+      "return_pct": 0.9454629432097775,
+      "win_rate": 34.61538461538461,
+      "pl_ratio": 3.450471591591937,
+      "max_dd": 0.6579976957043633,
+      "trades": 26,
+      "sharpe": 0.8269967603235538
+    }
+  },
+  "RU_IDX": {
+    "best_params": {
+      "prob_thresh": 0.54,
+      "squeeze_thresh": 0.93,
+      "sl_atr": 1.0,
+      "be_atr": 1.8,
+      "trail_atr": 4.5,
+      "vr_thresh": 1.05
+    },
+    "before": {
+      "net_profit": 62537.309393362375,
+      "return_pct": 6.253730939336237,
+      "win_rate": 57.77777777777777,
+      "pl_ratio": 1.6093116756969195,
+      "max_dd": 2.608373570878064,
+      "trades": 45,
+      "sharpe": 1.141883694304531
+    },
+    "after": {
+      "net_profit": 90230.71797634661,
+      "return_pct": 9.023071797634662,
+      "win_rate": 62.22222222222222,
+      "pl_ratio": 2.05503152933938,
+      "max_dd": 1.6089439081043506,
+      "trades": 45,
+      "sharpe": 1.7093495912709462
+    }
+  },
+  "P_IDX": {
+    "best_params": {
+      "prob_thresh": 0.54,
+      "squeeze_thresh": 0.9,
+      "sl_atr": 1.5,
+      "be_atr": 1.8,
+      "trail_atr": 4.5,
+      "vr_thresh": 1.05
+    },
+    "before": {
+      "net_profit": -22004.622106639785,
+      "return_pct": -2.2004622106639786,
+      "win_rate": 29.411764705882355,
+      "pl_ratio": 1.1229675746345145,
+      "max_dd": 2.4243174564929326,
+      "trades": 34,
+      "sharpe": -1.042504050993405
+    },
+    "after": {
+      "net_profit": 7456.862423849641,
+      "return_pct": 0.7456862423849641,
+      "win_rate": 62.5,
+      "pl_ratio": 0.8513489985042165,
+      "max_dd": 1.8875253554033873,
+      "trades": 16,
+      "sharpe": 0.474015595802922
+    }
+  },
+  "FG_IDX": {
+    "best_params": {
+      "prob_thresh": 0.57,
+      "squeeze_thresh": 0.95,
+      "sl_atr": 1.5,
+      "be_atr": 1.4,
+      "trail_atr": 2.8,
+      "vr_thresh": 1.1
+    },
+    "before": {
+      "net_profit": -2036.3376646895194,
+      "return_pct": -0.20363376646895195,
+      "win_rate": 31.372549019607842,
+      "pl_ratio": 2.037330893400125,
+      "max_dd": 1.2456571870412962,
+      "trades": 51,
+      "sharpe": -0.12682136843669264
+    },
+    "after": {
+      "net_profit": 12939.453567097778,
+      "return_pct": 1.2939453567097778,
+      "win_rate": 69.56521739130434,
+      "pl_ratio": 1.0352407938278845,
+      "max_dd": 0.5909032498999315,
+      "trades": 23,
+      "sharpe": 1.179139898825225
+    }
+  },
+  "SR_IDX": {
+    "best_params": {
+      "prob_thresh": 0.54,
+      "squeeze_thresh": 0.93,
+      "sl_atr": 1.5,
+      "be_atr": 1.8,
+      "trail_atr": 2.8,
+      "vr_thresh": 1.05
+    },
+    "before": {
+      "net_profit": -6925.486499935854,
+      "return_pct": -0.6925486499935853,
+      "win_rate": 26.666666666666668,
+      "pl_ratio": 1.8313931062531676,
+      "max_dd": 1.5675250005732537,
+      "trades": 45,
+      "sharpe": -0.7398021362190539
+    },
+    "after": {
+      "net_profit": 21485.36009629676,
+      "return_pct": 2.148536009629676,
+      "win_rate": 57.14285714285714,
+      "pl_ratio": 1.8115275343164305,
+      "max_dd": 0.5471786494866485,
+      "trades": 42,
+      "sharpe": 1.2869847276893691
+    }
+  },
+  "CF_IDX": {
+    "best_params": {
+      "prob_thresh": 0.56,
+      "squeeze_thresh": 0.95,
+      "sl_atr": 1.5,
+      "be_atr": 2.2,
+      "trail_atr": 2.8,
+      "vr_thresh": 1.1
+    },
+    "before": {
+      "net_profit": -33612.79545970971,
+      "return_pct": -3.3612795459709717,
+      "win_rate": 31.03448275862069,
+      "pl_ratio": 0.9199568678560176,
+      "max_dd": 4.9972701744004615,
+      "trades": 58,
+      "sharpe": -1.0778332643188369
+    },
+    "after": {
+      "net_profit": 13815.940447588568,
+      "return_pct": 1.3815940447588568,
+      "win_rate": 55.00000000000001,
+      "pl_ratio": 1.1202277953837696,
+      "max_dd": 1.447728232649084,
+      "trades": 40,
+      "sharpe": 0.5495414076425258
+    }
+  },
+  "Y_IDX": {
+    "best_params": {
+      "prob_thresh": 0.54,
+      "squeeze_thresh": 0.93,
+      "sl_atr": 1.2,
+      "be_atr": 2.2,
+      "trail_atr": 4.5,
+      "vr_thresh": 1.1
+    },
+    "before": {
+      "net_profit": -14658.037696687621,
+      "return_pct": -1.465803769668762,
+      "win_rate": 21.21212121212121,
+      "pl_ratio": 1.488974378723654,
+      "max_dd": 1.830011094741529,
+      "trades": 33,
+      "sharpe": -1.0152262433047987
+    },
+    "after": {
+      "net_profit": 29385.787991987425,
+      "return_pct": 2.9385787991987424,
+      "win_rate": 45.94594594594595,
+      "pl_ratio": 2.6533894599700307,
+      "max_dd": 0.6698999430485949,
+      "trades": 37,
+      "sharpe": 0.8882072498308783
+    }
+  },
+  "SI_IDX": {
+    "best_params": {
+      "prob_thresh": 0.54,
+      "squeeze_thresh": 0.95,
+      "sl_atr": 1.5,
+      "be_atr": 2.2,
+      "trail_atr": 4.5,
+      "vr_thresh": 1.1
+    },
+    "before": {
+      "net_profit": 8726.579149498022,
+      "return_pct": 0.8726579149498022,
+      "win_rate": 60.3448275862069,
+      "pl_ratio": 0.8180515584909986,
+      "max_dd": 1.5553482224790056,
+      "trades": 58,
+      "sharpe": 0.41982658112805377
+    },
+    "after": {
+      "net_profit": 44291.274766147835,
+      "return_pct": 4.4291274766147835,
+      "win_rate": 71.1864406779661,
+      "pl_ratio": 0.9185919816080665,
+      "max_dd": 0.9727575005026396,
+      "trades": 59,
+      "sharpe": 1.5957481840171779
+    }
+  }
+}

@@ -23,6 +23,11 @@ sys.path.append(str(PROJECT_ROOT / "code"))
 from symbol_strategies.decoupled_symbol_engines import DecoupledSymbolStrategyRunner, SYMBOL_CONFIGS
 from technical_indicators import calculate_atr, calculate_ema, calculate_rsi
 from data_contract import validate_futures_universe
+from futures_contract_calendar import (
+    get_dominant_contract_by_date,
+    calculate_roll_friction,
+    is_in_roll_window
+)
 
 DB_PATH = PROJECT_ROOT / "data/ashare_quant.db"
 
@@ -218,15 +223,16 @@ def run_walk_forward_meta_classifier(df_feat: pd.DataFrame, feature_cols: list, 
 
 def simulate_mean_reversion_execution(
     df_sim: pd.DataFrame,
-    cfg: dict,
     symbol: str,
+    cfg: dict,
     use_meta_filter: bool = True,
-    meta_prob_thresh: float = 0.52,
+    meta_prob_thresh: float = 0.50,
     initial_capital: float = 500000.0,
     sl_atr_mult: float = 1.2,
-    max_holding_bars: int = 5
+    max_holding_bars: int = 5,
+    simulate_contract_roll: bool = True
 ) -> dict:
-    """真实逐日盯市 MTM 全真撮合仿真引擎 (V2 极速回归 + 动态保本与 Meta 动态加权)"""
+    """真实逐日盯市 MTM 全真撮合仿真引擎 (V2 极速回归 + 动态保本与 Meta 动态加权 + 主力换月与展期摩擦计算)"""
     multiplier = cfg["multiplier"]
     fee_rate = 0.00005  # 万分之0.5
 
@@ -247,6 +253,11 @@ def simulate_mean_reversion_execution(
     lots = 0
     holding_bars = 0
     entry_dt = ""
+    entry_contract = ""
+    last_contract = None
+
+    total_roll_events = 0
+    total_roll_friction_rmb = 0.0
 
     trades = []
     eq_curve = []
@@ -260,6 +271,21 @@ def simulate_mean_reversion_execution(
         curr_atr = max(2.0, float(atr_arr[i]))
         next_o = open_arr[i + 1]
         slippage = 0.03 * curr_atr
+
+        curr_contract = get_dominant_contract_by_date(symbol, curr_dt)
+        if last_contract is None:
+            last_contract = curr_contract
+
+        # 换月检测与展期摩擦核算 (跨换月持仓产生双重平旧开新手续费与滑点)
+        if pos != 0 and curr_contract != last_contract:
+            if simulate_contract_roll:
+                roll_cost = calculate_roll_friction(curr_p, multiplier, lots, fee_rate=fee_rate, slippage=slippage)
+                capital -= roll_cost
+                total_roll_friction_rmb += roll_cost
+                total_roll_events += 1
+            last_contract = curr_contract
+        else:
+            last_contract = curr_contract
 
         # 逐 Bar 盯市 MTM
         unrealized = (curr_p - entry_p) * multiplier * lots if pos == 1 else ((entry_p - curr_p) * multiplier * lots if pos == -1 else 0.0)
@@ -296,6 +322,7 @@ def simulate_mean_reversion_execution(
                     capital += pnl
                     trades.append({
                         "symbol": symbol, "side": "LONG", "lots": lots, "entry_dt": entry_dt, "entry_p": entry_p,
+                        "entry_contract": entry_contract, "exit_contract": curr_contract,
                         "exit_dt": curr_dt, "exit_p": exit_p, "pnl": pnl, "ret_pct": (exit_p - entry_p) / entry_p * 100,
                         "bars": holding_bars, "reason": exit_desc
                     })
@@ -325,6 +352,7 @@ def simulate_mean_reversion_execution(
                     capital += pnl
                     trades.append({
                         "symbol": symbol, "side": "SHORT", "lots": lots, "entry_dt": entry_dt, "entry_p": entry_p,
+                        "entry_contract": entry_contract, "exit_contract": curr_contract,
                         "exit_dt": curr_dt, "exit_p": exit_p, "pnl": pnl, "ret_pct": (entry_p - exit_p) / entry_p * 100,
                         "bars": holding_bars, "reason": exit_desc
                     })
@@ -355,10 +383,10 @@ def simulate_mean_reversion_execution(
 
                 if sig == 1:
                     pos = 1
-                    total_lots = calc_lots
-                    rem_lots = calc_lots
+                    lots = calc_lots
                     entry_p = next_o + slippage
                     entry_dt = curr_dt
+                    entry_contract = curr_contract
                     sl_p = entry_p - sl_dist
                     holding_bars = 0
 
@@ -367,6 +395,7 @@ def simulate_mean_reversion_execution(
                     lots = calc_lots
                     entry_p = next_o - slippage
                     entry_dt = curr_dt
+                    entry_contract = curr_contract
                     sl_p = entry_p + sl_dist
                     holding_bars = 0
 
@@ -398,6 +427,7 @@ def simulate_mean_reversion_execution(
         "symbol": symbol,
         "name": cfg["name"],
         "use_meta": use_meta_filter,
+        "simulate_contract_roll": simulate_contract_roll,
         "total_trades": total_trades,
         "win_rate_pct": win_rate,
         "profit_loss_ratio": pl_ratio,
@@ -406,22 +436,25 @@ def simulate_mean_reversion_execution(
         "max_drawdown_pct": max_dd,
         "daily_sharpe": daily_sr,
         "avg_bars": np.mean([t["bars"] for t in trades]) if trades else 0.0,
+        "total_roll_events": total_roll_events,
+        "total_roll_friction_rmb": total_roll_friction_rmb,
         "trades": trades
     }
 
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="极值 Z-Score 均值回归 + ML Meta-Labeling 多周期回测引擎")
+    parser = argparse.ArgumentParser(description="极值 Z-Score 均值回归 + ML Meta-Labeling 多周期回测引擎 (含主力换月与展期摩擦计算)")
     parser.add_argument("--timeframe", type=str, default="10m", choices=["1m", "5m", "10m", "15m", "30m"], help="回测周期 (1m, 5m, 10m, 15m, 30m)")
     parser.add_argument("--meta-thresh", type=float, default=0.52, help="Meta-Labeling 准入概率阈值")
+    parser.add_argument("--simulate-roll", action="store_true", default=True, help="是否开启真实主力移仓换月双重摩擦成本计算 (默认开启)")
     args = parser.parse_args()
 
     tf = args.timeframe
     macro_freq = "120min" if tf == "30m" else ("60min" if tf in ["10m", "15m"] else ("30min" if tf == "5m" else "15min"))
 
     print("=" * 110)
-    print(f"🔬 极值 Z-Score 均值回归 + ML Meta-Labeling 25 大主力期货全量回测对决 【周期: {tf} | 宏观对齐: {macro_freq}】")
+    print(f"🔬 极值 Z-Score 均值回归 + ML Meta-Labeling 25 大主力期货全量回测对决 【周期: {tf} | 宏观对齐: {macro_freq} | 换月展期模拟: {args.simulate_roll}】")
     print("=" * 110)
 
     conn = sqlite3.connect(DB_PATH)
@@ -441,7 +474,6 @@ def main():
         "donchian_dist", "oi_flow", "oi_unwinding", "trend_1h"
     ]
 
-    
     # 动态加载对应周期数据
     def load_tf_data(sym: str, timeframe: str) -> pd.DataFrame:
         with sqlite3.connect(DB_PATH) as c:
@@ -461,23 +493,22 @@ def main():
         df_raw = load_tf_data(sym, tf)
         df_feat = compute_zscore_features_and_meta_labels(df_raw, multiplier=cfg["multiplier"], macro_freq=macro_freq)
 
-
         # 训练 Meta 分类器
         prob_meta = run_walk_forward_meta_classifier(df_feat, feature_cols, train_window=3000, step_size=500, purge_gap=5)
         df_feat["meta_prob"] = prob_meta
 
         # 回测 A: 纯规则 Baseline
-        res_a = simulate_mean_reversion_execution(df_feat, cfg, sym, use_meta_filter=False)
+        res_a = simulate_mean_reversion_execution(df_feat, sym, cfg, use_meta_filter=False, simulate_contract_roll=args.simulate_roll)
         results_baseline.append(res_a)
 
         # 回测 B: ML Meta-Labeling 过滤版
-        res_b = simulate_mean_reversion_execution(df_feat, cfg, sym, use_meta_filter=True, meta_prob_thresh=args.meta_thresh)
+        res_b = simulate_mean_reversion_execution(df_feat, sym, cfg, use_meta_filter=True, meta_prob_thresh=args.meta_thresh, simulate_contract_roll=args.simulate_roll)
         results_meta.append(res_b)
 
         print(
             f"[{sym:<8} {cfg['name']:<4}] | "
-            f"纯规则: 交易{res_a['total_trades']:>3}笔, 胜率{res_a['win_rate_pct']:>5.1f}%, 盈亏比{res_a['profit_loss_ratio']:>4.2f}, 回撤{res_a['max_drawdown_pct']:>4.2f}%, 净利 ¥{res_a['net_profit_rmb']:>+9.2f} | "
-            f"Meta过滤: 交易{res_b['total_trades']:>3}笔, 胜率{res_b['win_rate_pct']:>5.1f}%, 盈亏比{res_b['profit_loss_ratio']:>4.2f}, 回撤{res_b['max_drawdown_pct']:>4.2f}%, 净利 ¥{res_b['net_profit_rmb']:>+9.2f}"
+            f"纯规则: 交易{res_a['total_trades']:>3}笔(换月展期{res_a['total_roll_events']:>2}次/扣费¥{res_a['total_roll_friction_rmb']:>6.1f}), 胜率{res_a['win_rate_pct']:>5.1f}%, 盈亏比{res_a['profit_loss_ratio']:>4.2f}, 净利 ¥{res_a['net_profit_rmb']:>+9.2f} | "
+            f"Meta过滤: 交易{res_b['total_trades']:>3}笔(换月展期{res_b['total_roll_events']:>2}次/扣费¥{res_b['total_roll_friction_rmb']:>6.1f}), 胜率{res_b['win_rate_pct']:>5.1f}%, 盈亏比{res_b['profit_loss_ratio']:>4.2f}, 净利 ¥{res_b['net_profit_rmb']:>+9.2f}"
         )
 
     # 汇总全局矩阵
@@ -485,12 +516,11 @@ def main():
     df_res_b = pd.DataFrame(results_meta)
 
     print("\n" + "=" * 110)
-    print(f"📊 25 大品种整体对照大盘汇总 【周期: {tf}】 (Baseline vs ML Meta-Labeling)")
+    print(f"📊 25 大品种整体对照大盘汇总 【周期: {tf} | 换月展期模拟: {args.simulate_roll}】 (Baseline vs ML Meta-Labeling)")
     print("=" * 110)
-    print(f"【纯规则 Baseline】: 平均胜率 {df_res_a['win_rate_pct'].mean():.1f}% | 平均盈亏比 {df_res_a['profit_loss_ratio'].mean():.2f} | 总交易次数 {df_res_a['total_trades'].sum()} | 组合总净利 ¥{df_res_a['net_profit_rmb'].sum():,.2f}")
-    print(f"【Meta-Labeling  】: 平均胜率 {df_res_b['win_rate_pct'].mean():.1f}% | 平均盈亏比 {df_res_b['profit_loss_ratio'].mean():.2f} | 总交易次数 {df_res_b['total_trades'].sum()} | 组合总净利 ¥{df_res_b['net_profit_rmb'].sum():,.2f}")
+    print(f"【纯规则 Baseline】: 平均胜率 {df_res_a['win_rate_pct'].mean():.1f}% | 平均盈亏比 {df_res_a['profit_loss_ratio'].mean():.2f} | 总交易次数 {df_res_a['total_trades'].sum()} | 展期总摩擦 ¥{df_res_a['total_roll_friction_rmb'].sum():,.2f} | 组合总净利 ¥{df_res_a['net_profit_rmb'].sum():,.2f}")
+    print(f"【Meta-Labeling  】: 平均胜率 {df_res_b['win_rate_pct'].mean():.1f}% | 平均盈亏比 {df_res_b['profit_loss_ratio'].mean():.2f} | 总交易次数 {df_res_b['total_trades'].sum()} | 展期总摩擦 ¥{df_res_b['total_roll_friction_rmb'].sum():,.2f} | 组合总净利 ¥{df_res_b['net_profit_rmb'].sum():,.2f}")
     print("=" * 110)
-
 
 
 if __name__ == "__main__":

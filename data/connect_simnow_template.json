@@ -1,0 +1,10 @@
+{
+  "user_id": "填写你的SimNow账号(如012345)",
+  "password": "填写你的SimNow密码",
+  "broker_id": "9999",
+  "auth_code": "0000000000000000",
+  "app_id": "simnow_client_test",
+  "md_address": "tcp://180.168.146.187:10211",
+  "td_address": "tcp://180.168.146.187:10201",
+  "comments": "SimNow 官方标配：BrokerID为9999，AuthCode为16个0，AppID为simnow_client_test。非交易时段可切换7x24小时前置(md:10131, td:10130)"
+}

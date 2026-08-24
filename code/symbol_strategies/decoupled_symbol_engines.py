@@ -18,6 +18,7 @@ import sys
 import sqlite3
 import datetime
 import warnings
+from typing import Dict, Tuple, Optional, Any
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -32,6 +33,11 @@ from technical_indicators import (
     calculate_atr,
     calculate_ema,
     calculate_rsi
+)
+from futures_contract_calendar import (
+    get_dominant_contract_by_date,
+    calculate_roll_friction,
+    is_in_roll_window
 )
 
 DB_PATH = str(PROJECT_ROOT / "data/ashare_quant.db")
@@ -62,130 +68,131 @@ class LightweightPPOExecutionAgent:
 # 15 大品种极值解耦专属配置映射表 (针对每一个品种 15m K线量身定制物理数学参数)
 SYMBOL_CONFIGS = {
     "AG_IDX": {
-        "name": "沪银", "category": "贵金属", "multiplier": 15.0, "margin": 0.12,
-        "prob_thresh": 0.56, "target_atr": 4.0, "sl_atr": 1.0, "be_atr": 1.6, "be_lock_offset": 0.1, "trail_atr": 5.0, "max_lots": 3, "squeeze_thresh": 0.95,
+        "name": "白银", "category": "贵金属", "multiplier": 15.0, "tick": 1.0, "margin": 0.12,
+        "prob_thresh": 0.54, "target_atr": 4.0, "sl_atr": 0.8, "be_atr": 1.8, "be_lock_offset": 0.1, "trail_atr": 4.5, "max_lots": 2, "squeeze_thresh": 0.90, "vr_thresh": 1.10,
         "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
     },
     "AU_IDX": {
-        "name": "沪金", "category": "贵金属", "multiplier": 1000.0, "margin": 0.10,
-        "prob_thresh": 0.54, "target_atr": 4.0, "sl_atr": 1.0, "be_atr": 1.8, "be_lock_offset": 0.1, "trail_atr": 4.5, "max_lots": 1, "squeeze_thresh": 0.95,
+        "name": "黄金", "category": "贵金属", "multiplier": 1000.0, "tick": 0.02, "margin": 0.10,
+        "prob_thresh": 0.57, "target_atr": 4.0, "sl_atr": 1.5, "be_atr": 1.8, "be_lock_offset": 0.1, "trail_atr": 2.8, "max_lots": 2, "squeeze_thresh": 0.90, "vr_thresh": 1.10,
         "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
     },
     "CU_IDX": {
-        "name": "沪铜", "category": "有色工业", "multiplier": 5.0, "margin": 0.12,
-        "prob_thresh": 0.54, "target_atr": 4.0, "sl_atr": 1.2, "be_atr": 2.0, "be_lock_offset": 0.1, "trail_atr": 5.0, "max_lots": 2, "squeeze_thresh": 0.95,
+        "name": "沪铜", "category": "有色金属", "multiplier": 5.0, "tick": 10.0, "margin": 0.10,
+        "prob_thresh": 0.56, "target_atr": 4.0, "sl_atr": 1.5, "be_atr": 2.2, "be_lock_offset": 0.1, "trail_atr": 3.5, "max_lots": 2, "squeeze_thresh": 0.95, "vr_thresh": 1.05,
         "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
     },
     "SN_IDX": {
-        "name": "沪锡", "category": "有色稀缺", "multiplier": 1.0, "margin": 0.12,
-        "prob_thresh": 0.54, "target_atr": 4.0, "sl_atr": 1.2, "be_atr": 2.0, "be_lock_offset": 0.1, "trail_atr": 3.2, "max_lots": 2, "squeeze_thresh": 0.95,
-        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
-    },
-    "RB_IDX": {
-        "name": "螺纹钢", "category": "黑色建筑", "multiplier": 10.0, "margin": 0.10,
-        "prob_thresh": 0.53, "target_atr": 3.6, "sl_atr": 1.1, "be_atr": 1.5, "be_lock_offset": 0.1, "trail_atr": 4.0, "max_lots": 10, "squeeze_thresh": 0.94,
-        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
-    },
-    "I_IDX": {
-        "name": "铁矿石", "category": "黑色原材料", "multiplier": 100.0, "margin": 0.12,
-        "prob_thresh": 0.54, "target_atr": 3.6, "sl_atr": 1.2, "be_atr": 2.0, "be_lock_offset": 0.1, "trail_atr": 3.2, "max_lots": 2, "squeeze_thresh": 0.95,
-        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
-    },
-    "J_IDX": {
-        "name": "焦炭", "category": "双焦能源", "multiplier": 100.0, "margin": 0.12,
-        "prob_thresh": 0.56, "target_atr": 4.0, "sl_atr": 1.0, "be_atr": 2.0, "be_lock_offset": 0.1, "trail_atr": 4.0, "max_lots": 2, "squeeze_thresh": 0.95,
-        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
-    },
-    "JM_IDX": {
-        "name": "焦煤", "category": "双焦能源", "multiplier": 60.0, "margin": 0.12,
-        "prob_thresh": 0.57, "target_atr": 4.0, "sl_atr": 1.2, "be_atr": 2.0, "be_lock_offset": 0.1, "trail_atr": 5.0, "max_lots": 2, "squeeze_thresh": 0.95,
-        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
-    },
-    "SC_IDX": {
-        "name": "原油", "category": "能源化工", "multiplier": 1000.0, "margin": 0.10,
-        "prob_thresh": 0.56, "target_atr": 4.0, "sl_atr": 1.0, "be_atr": 1.6, "be_lock_offset": 0.1, "trail_atr": 3.2, "max_lots": 1, "squeeze_thresh": 0.95,
-        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
-    },
-    "MA_IDX": {
-        "name": "甲醇", "category": "化工原料", "multiplier": 50.0, "margin": 0.10,
-        "prob_thresh": 0.56, "target_atr": 4.0, "sl_atr": 1.0, "be_atr": 2.0, "be_lock_offset": 0.1, "trail_atr": 3.2, "max_lots": 6, "squeeze_thresh": 0.95,
-        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
-    },
-    "TA_IDX": {
-        "name": "PTA", "category": "纺织化工", "multiplier": 5.0, "margin": 0.08,
-        "prob_thresh": 0.56, "target_atr": 4.0, "sl_atr": 0.9, "be_atr": 2.4, "be_lock_offset": 0.1, "trail_atr": 5.0, "max_lots": 10, "squeeze_thresh": 0.95,
-        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
-    },
-    "SA_IDX": {
-        "name": "纯碱", "category": "化工高波", "multiplier": 20.0, "margin": 0.12,
-        "prob_thresh": 0.56, "target_atr": 4.0, "sl_atr": 0.9, "be_atr": 2.0, "be_lock_offset": 0.1, "trail_atr": 3.2, "max_lots": 5, "squeeze_thresh": 0.95,
-        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
-    },
-    "M_IDX": {
-        "name": "豆粕", "category": "农产品", "multiplier": 10.0, "margin": 0.08,
-        "prob_thresh": 0.56, "target_atr": 4.0, "sl_atr": 0.9, "be_atr": 2.0, "be_lock_offset": 0.1, "trail_atr": 4.0, "max_lots": 8, "squeeze_thresh": 0.95,
-        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
-    },
-    "C_IDX": {
-        "name": "玉米", "category": "农产品", "multiplier": 10.0, "margin": 0.08,
-        "prob_thresh": 0.53, "target_atr": 3.6, "sl_atr": 1.4, "be_atr": 1.6, "be_lock_offset": 0.2, "trail_atr": 3.0, "max_lots": 30, "squeeze_thresh": 0.95,
-        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
-    },
-    "LC_IDX": {
-        "name": "碳酸锂", "category": "新能源电池", "multiplier": 1.0, "margin": 0.12,
-        "prob_thresh": 0.54, "target_atr": 3.5, "sl_atr": 1.1, "be_atr": 1.5, "be_lock_offset": 0.2, "trail_atr": 4.0, "max_lots": 2, "squeeze_thresh": 0.95,
-        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
-    },
-    "HC_IDX": {
-        "name": "热卷", "category": "黑色工业", "multiplier": 10.0, "margin": 0.10,
-        "prob_thresh": 0.53, "target_atr": 3.6, "sl_atr": 1.1, "be_atr": 1.5, "be_lock_offset": 0.1, "trail_atr": 4.0, "max_lots": 10, "squeeze_thresh": 0.94,
+        "name": "沪锡", "category": "有色金属", "multiplier": 1.0, "tick": 10.0, "margin": 0.12,
+        "prob_thresh": 0.56, "target_atr": 4.0, "sl_atr": 1.2, "be_atr": 2.2, "be_lock_offset": 0.1, "trail_atr": 2.8, "max_lots": 2, "squeeze_thresh": 0.90, "vr_thresh": 1.10,
         "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
     },
     "AL_IDX": {
-        "name": "沪铝", "category": "有色金属", "multiplier": 5.0, "margin": 0.10,
-        "prob_thresh": 0.54, "target_atr": 3.8, "sl_atr": 1.0, "be_atr": 1.8, "be_lock_offset": 0.1, "trail_atr": 4.0, "max_lots": 5, "squeeze_thresh": 0.95,
+        "name": "沪铝", "category": "有色金属", "multiplier": 5.0, "tick": 5.0, "margin": 0.09,
+        "prob_thresh": 0.57, "target_atr": 4.0, "sl_atr": 1.5, "be_atr": 1.8, "be_lock_offset": 0.1, "trail_atr": 4.5, "max_lots": 2, "squeeze_thresh": 0.93, "vr_thresh": 1.10,
         "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
     },
     "ZN_IDX": {
-        "name": "沪锌", "category": "有色金属", "multiplier": 5.0, "margin": 0.10,
-        "prob_thresh": 0.54, "target_atr": 3.8, "sl_atr": 1.0, "be_atr": 1.8, "be_lock_offset": 0.1, "trail_atr": 4.0, "max_lots": 4, "squeeze_thresh": 0.95,
-        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
-    },
-    "RU_IDX": {
-        "name": "橡胶", "category": "化工高波", "multiplier": 10.0, "margin": 0.10,
-        "prob_thresh": 0.55, "target_atr": 4.0, "sl_atr": 1.2, "be_atr": 1.8, "be_lock_offset": 0.1, "trail_atr": 4.5, "max_lots": 4, "squeeze_thresh": 0.95,
-        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
-    },
-    "P_IDX": {
-        "name": "棕榈油", "category": "油脂油料", "multiplier": 10.0, "margin": 0.08,
-        "prob_thresh": 0.55, "target_atr": 4.0, "sl_atr": 1.0, "be_atr": 1.8, "be_lock_offset": 0.1, "trail_atr": 4.5, "max_lots": 6, "squeeze_thresh": 0.95,
-        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
-    },
-    "FG_IDX": {
-        "name": "玻璃", "category": "建材玻璃", "multiplier": 20.0, "margin": 0.10,
-        "prob_thresh": 0.54, "target_atr": 3.8, "sl_atr": 1.1, "be_atr": 1.8, "be_lock_offset": 0.1, "trail_atr": 4.0, "max_lots": 8, "squeeze_thresh": 0.94,
-        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
-    },
-    "SR_IDX": {
-        "name": "白糖", "category": "软商品", "multiplier": 10.0, "margin": 0.08,
-        "prob_thresh": 0.54, "target_atr": 3.6, "sl_atr": 1.0, "be_atr": 1.8, "be_lock_offset": 0.1, "trail_atr": 4.0, "max_lots": 8, "squeeze_thresh": 0.95,
-        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
-    },
-    "CF_IDX": {
-        "name": "棉花", "category": "软商品", "multiplier": 5.0, "margin": 0.08,
-        "prob_thresh": 0.54, "target_atr": 3.6, "sl_atr": 1.0, "be_atr": 1.8, "be_lock_offset": 0.1, "trail_atr": 4.0, "max_lots": 10, "squeeze_thresh": 0.95,
-        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
-    },
-    "Y_IDX": {
-        "name": "豆油", "category": "油脂油料", "multiplier": 10.0, "margin": 0.08,
-        "prob_thresh": 0.55, "target_atr": 3.8, "sl_atr": 1.0, "be_atr": 1.8, "be_lock_offset": 0.1, "trail_atr": 4.0, "max_lots": 6, "squeeze_thresh": 0.95,
+        "name": "沪锌", "category": "有色金属", "multiplier": 5.0, "tick": 5.0, "margin": 0.09,
+        "prob_thresh": 0.57, "target_atr": 4.0, "sl_atr": 0.8, "be_atr": 1.8, "be_lock_offset": 0.1, "trail_atr": 4.5, "max_lots": 2, "squeeze_thresh": 0.95, "vr_thresh": 1.05,
         "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
     },
     "SI_IDX": {
-        "name": "工业硅", "category": "广期新能源", "multiplier": 5.0, "margin": 0.10,
-        "prob_thresh": 0.54, "target_atr": 3.6, "sl_atr": 1.1, "be_atr": 1.6, "be_lock_offset": 0.1, "trail_atr": 4.0, "max_lots": 6, "squeeze_thresh": 0.95,
+        "name": "工业硅", "category": "新能源", "multiplier": 5.0, "tick": 5.0, "margin": 0.10,
+        "prob_thresh": 0.54, "target_atr": 4.0, "sl_atr": 1.5, "be_atr": 2.2, "be_lock_offset": 0.1, "trail_atr": 4.5, "max_lots": 2, "squeeze_thresh": 0.95, "vr_thresh": 1.10,
         "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
-    }
+    },
+    "LC_IDX": {
+        "name": "碳酸锂", "category": "新能源", "multiplier": 1.0, "tick": 50.0, "margin": 0.12,
+        "prob_thresh": 0.52, "target_atr": 4.0, "sl_atr": 1.5, "be_atr": 2.2, "be_lock_offset": 0.1, "trail_atr": 3.5, "max_lots": 2, "squeeze_thresh": 0.95, "vr_thresh": 1.05,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "RB_IDX": {
+        "name": "螺纹钢", "category": "黑色建材", "multiplier": 10.0, "tick": 1.0, "margin": 0.09,
+        "prob_thresh": 0.57, "target_atr": 4.0, "sl_atr": 0.8, "be_atr": 1.4, "be_lock_offset": 0.1, "trail_atr": 4.5, "max_lots": 2, "squeeze_thresh": 0.90, "vr_thresh": 1.10,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "HC_IDX": {
+        "name": "热卷", "category": "黑色建材", "multiplier": 10.0, "tick": 1.0, "margin": 0.10,
+        "strategy_mode": "zscore_ppo_reversal", "z_thresh": 2.2,
+        "prob_thresh": 0.50, "target_atr": 4.0, "sl_atr": 3.0, "be_atr": 2.5, "be_lock_offset": 0.1, "trail_atr": 6.0, "max_lots": 30, "squeeze_thresh": 0.90, "vr_thresh": 1.10,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "I_IDX": {
+        "name": "铁矿石", "category": "黑色原材料", "multiplier": 100.0, "tick": 0.5, "margin": 0.12,
+        "prob_thresh": 0.56, "target_atr": 4.0, "sl_atr": 2.8, "be_atr": 4.0, "be_lock_offset": 0.2, "trail_atr": 7.0, "max_lots": 10, "squeeze_thresh": 0.88, "vr_thresh": 1.05,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "J_IDX": {
+        "name": "焦炭", "category": "黑色原材料", "multiplier": 100.0, "tick": 0.5, "margin": 0.15,
+        "prob_thresh": 0.57, "target_atr": 4.0, "sl_atr": 1.5, "be_atr": 2.2, "be_lock_offset": 0.1, "trail_atr": 4.5, "max_lots": 2, "squeeze_thresh": 0.90, "vr_thresh": 1.05,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "JM_IDX": {
+        "name": "焦煤", "category": "黑色原材料", "multiplier": 60.0, "tick": 0.5, "margin": 0.15,
+        "prob_thresh": 0.56, "target_atr": 4.0, "sl_atr": 1.5, "be_atr": 2.2, "be_lock_offset": 0.1, "trail_atr": 3.5, "max_lots": 2, "squeeze_thresh": 0.93, "vr_thresh": 1.05,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "SC_IDX": {
+        "name": "原油", "category": "能源化工", "multiplier": 1000.0, "tick": 0.1, "margin": 0.12,
+        "prob_thresh": 0.54, "target_atr": 4.0, "sl_atr": 1.0, "be_atr": 2.2, "be_lock_offset": 0.1, "trail_atr": 3.5, "max_lots": 2, "squeeze_thresh": 0.90, "vr_thresh": 1.10,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "MA_IDX": {
+        "name": "甲醇", "category": "能源化工", "multiplier": 10.0, "tick": 1.0, "margin": 0.09,
+        "prob_thresh": 0.52, "target_atr": 4.0, "sl_atr": 1.0, "be_atr": 2.2, "be_lock_offset": 0.1, "trail_atr": 4.5, "max_lots": 2, "squeeze_thresh": 0.90, "vr_thresh": 1.05,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "TA_IDX": {
+        "name": "PTA", "category": "纺织化工", "multiplier": 5.0, "tick": 2.0, "margin": 0.08,
+        "prob_thresh": 0.56, "target_atr": 4.0, "sl_atr": 0.9, "be_atr": 2.4, "be_lock_offset": 0.1, "trail_atr": 5.0, "max_lots": 10, "squeeze_thresh": 0.95, "vr_thresh": 1.10,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "SA_IDX": {
+        "name": "纯碱", "category": "能源化工", "multiplier": 20.0, "tick": 1.0, "margin": 0.12,
+        "prob_thresh": 0.56, "target_atr": 4.0, "sl_atr": 0.8, "be_atr": 2.2, "be_lock_offset": 0.1, "trail_atr": 4.5, "max_lots": 2, "squeeze_thresh": 0.90, "vr_thresh": 1.10,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "RU_IDX": {
+        "name": "橡胶", "category": "能源化工", "multiplier": 10.0, "tick": 5.0, "margin": 0.10,
+        "prob_thresh": 0.54, "target_atr": 4.0, "sl_atr": 1.0, "be_atr": 1.8, "be_lock_offset": 0.1, "trail_atr": 4.5, "max_lots": 2, "squeeze_thresh": 0.93, "vr_thresh": 1.05,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "FG_IDX": {
+        "name": "玻璃", "category": "建材玻璃", "multiplier": 20.0, "tick": 1.0, "margin": 0.10,
+        "prob_thresh": 0.57, "target_atr": 4.0, "sl_atr": 1.5, "be_atr": 1.4, "be_lock_offset": 0.1, "trail_atr": 2.8, "max_lots": 2, "squeeze_thresh": 0.95, "vr_thresh": 1.10,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "M_IDX": {
+        "name": "豆粕", "category": "农产品", "multiplier": 10.0, "tick": 1.0, "margin": 0.08,
+        "prob_thresh": 0.57, "target_atr": 4.0, "sl_atr": 0.8, "be_atr": 2.2, "be_lock_offset": 0.1, "trail_atr": 2.8, "max_lots": 2, "squeeze_thresh": 0.90, "vr_thresh": 1.05,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "C_IDX": {
+        "name": "玉米", "category": "农产品", "multiplier": 10.0, "tick": 1.0, "margin": 0.08,
+        "prob_thresh": 0.52, "target_atr": 4.0, "sl_atr": 3.5, "be_atr": 3.0, "be_lock_offset": 0.1, "trail_atr": 6.5, "max_lots": 20, "squeeze_thresh": 0.90, "vr_thresh": 1.05,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "P_IDX": {
+        "name": "棕榈油", "category": "油脂油料", "multiplier": 10.0, "tick": 2.0, "margin": 0.09,
+        "prob_thresh": 0.54, "target_atr": 4.0, "sl_atr": 1.5, "be_atr": 1.8, "be_lock_offset": 0.1, "trail_atr": 4.5, "max_lots": 2, "squeeze_thresh": 0.90, "vr_thresh": 1.05,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "Y_IDX": {
+        "name": "豆油", "category": "油脂油料", "multiplier": 10.0, "tick": 2.0, "margin": 0.08,
+        "prob_thresh": 0.54, "target_atr": 4.0, "sl_atr": 1.2, "be_atr": 2.2, "be_lock_offset": 0.1, "trail_atr": 4.5, "max_lots": 2, "squeeze_thresh": 0.93, "vr_thresh": 1.10,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "SR_IDX": {
+        "name": "白糖", "category": "软商品", "multiplier": 10.0, "tick": 1.0, "margin": 0.08,
+        "prob_thresh": 0.54, "target_atr": 4.0, "sl_atr": 1.5, "be_atr": 1.8, "be_lock_offset": 0.1, "trail_atr": 2.8, "max_lots": 2, "squeeze_thresh": 0.93, "vr_thresh": 1.05,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
+    "CF_IDX": {
+        "name": "棉花", "category": "软商品", "multiplier": 5.0, "tick": 5.0, "margin": 0.08,
+        "prob_thresh": 0.56, "target_atr": 4.0, "sl_atr": 1.5, "be_atr": 2.2, "be_lock_offset": 0.1, "trail_atr": 2.8, "max_lots": 2, "squeeze_thresh": 0.95, "vr_thresh": 1.10,
+        "feature_set": ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"]
+    },
 }
 
 
@@ -276,6 +283,11 @@ class DecoupledSymbolStrategyRunner:
         oi_diff = oi_series.diff().fillna(0)
         df_merged["oi_diff_norm"] = oi_diff / (v.rolling(20).mean() + 1e-8)
 
+        # 6.1 统计学 Z-Score (用于均值回归/反转适配)
+        sma20 = s_c.rolling(20).mean()
+        std20 = s_c.rolling(20).std()
+        df_merged["zscore"] = (s_c - sma20) / (std20 + 1e-8)
+
         # 7. 真实 High/Low 达利欧非对称盈亏比标签 (正向零前瞻)
         horizon = 35
         target_atr = cfg["target_atr"]
@@ -289,65 +301,67 @@ class DecoupledSymbolStrategyRunner:
 
         df_merged["label_long"] = ((future_max_up >= target_atr) & (future_max_down < sl_atr)).astype(int)
         df_merged["label_short"] = ((future_max_down >= target_atr) & (future_max_up < sl_atr)).astype(int)
+        return df_merged.dropna(subset=["atr_14", "trend_1h"]).copy().reset_index(drop=True)
 
-        return df_merged
-
-    def run_single_symbol_backtest(self, symbol: str, initial_capital: float = 1000000.0) -> dict:
-        """单品种极值解耦 Walk-Forward + PPO 混合评估"""
-        if symbol not in SYMBOL_CONFIGS:
-            raise KeyError(f"未配置品种 [{symbol}] 的策略配置")
-
+    def backtest_symbol(
+        self,
+        symbol: str,
+        initial_capital: float = 100000.0,
+        train_window: int = 2500,
+        step_size: int = 500,
+        purge_gap: int = 40,
+        horizon: int = 35,
+        simulate_contract_roll: bool = True
+    ) -> Dict:
+        """极简低内存 Walk-Forward 回测引擎 (含主力换月与展期摩擦计算)"""
+        df = self.load_symbol_data(symbol)
+        clean_df = self.compute_features_and_labels(df, SYMBOL_CONFIGS[symbol])
         cfg = SYMBOL_CONFIGS[symbol]
-        df_15m = self.load_symbol_data(symbol)
-        df_merged = self.compute_features_and_labels(df_15m, cfg)
 
-        feature_cols = cfg["feature_set"]
-        clean_df = df_merged.dropna(subset=feature_cols + ["atr_14", "trend_1h"]).copy().reset_index(drop=True)
         n_samples = len(clean_df)
-
-        train_window = 1500
-        step_size = 100
-        purge_gap = 40  # 严格 > horizon (35)
-
-        X_mat = clean_df[feature_cols].values.astype(np.float32)
-        y_long = clean_df["label_long"].values
-        y_short = clean_df["label_short"].values
-
         prob_long = np.full(n_samples, np.nan)
         prob_short = np.full(n_samples, np.nan)
 
-        model_params = dict(
-            n_estimators=50, learning_rate=0.02, max_depth=3, num_leaves=6,
-            min_child_samples=25, class_weight="balanced", random_state=42, verbose=-1, n_jobs=1
-        )
+        feature_cols = cfg.get("feature_set", ["squeeze", "accel_norm", "vol_ratio", "donchian_dist", "rsi_14", "oi_diff_norm"])
 
-        for end_idx in range(train_window + purge_gap, n_samples, step_size):
-            train_s = max(0, end_idx - train_window - purge_gap)
-            train_e = end_idx - purge_gap
-            pred_s = end_idx
-            pred_e = min(end_idx + step_size, n_samples)
+        # 增量滚动 Walk-Forward 拟合
+        for start_idx in range(0, n_samples - train_window - horizon, step_size):
+            train_end = start_idx + train_window
+            pred_s = train_end + purge_gap
+            pred_e = min(pred_s + step_size, n_samples)
 
-            if train_e - train_s < 400:
-                continue
+            if pred_s >= n_samples:
+                break
 
-            X_tr = X_mat[train_s:train_e]
-            y_tr_l = y_long[train_s:train_e]
-            y_tr_s = y_short[train_s:train_e]
-            X_pred = X_mat[pred_s:pred_e]
+            train_slice = clean_df.iloc[start_idx:train_end]
+            pred_slice = clean_df.iloc[pred_s:pred_e]
 
-            if y_tr_l.sum() >= 5:
-                clf_l = lgb.LGBMClassifier(**model_params).fit(X_tr, y_tr_l)
+            X_train = train_slice[feature_cols].values
+            y_train_l = train_slice["label_long"].values
+            y_train_s = train_slice["label_short"].values
+
+            X_pred = pred_slice[feature_cols].values
+
+            # LightGBM 极速分类器
+            if np.sum(y_train_l) >= 5:
+                clf_l = lgb.LGBMClassifier(n_estimators=30, max_depth=3, learning_rate=0.05, num_leaves=7, verbose=-1, random_state=42)
+                clf_l.fit(X_train, y_train_l)
                 prob_long[pred_s:pred_e] = clf_l.predict_proba(X_pred)[:, 1]
 
-            if y_tr_s.sum() >= 5:
-                clf_s = lgb.LGBMClassifier(**model_params).fit(X_tr, y_tr_s)
+            if np.sum(y_train_s) >= 5:
+                clf_s = lgb.LGBMClassifier(n_estimators=30, max_depth=3, learning_rate=0.05, num_leaves=7, verbose=-1, random_state=42)
+                clf_s.fit(X_train, y_train_s)
                 prob_short[pred_s:pred_e] = clf_s.predict_proba(X_pred)[:, 1]
 
-        # 真实盘中模拟交易 (含轻量级 PPO 动态调仓)
+        # 真实盘中模拟交易 (含轻量级 PPO 动态调仓与主力换月)
         capital = initial_capital
         pos = 0
         entry_p = 0.0
         entry_time = ""
+        last_contract = None
+        total_roll_events = 0
+        total_roll_friction_rmb = 0.0
+
         sl_p = 0.0
         highest_p = 0.0
         lowest_p = 999999.0
@@ -368,7 +382,8 @@ class DecoupledSymbolStrategyRunner:
         t1h_arr = clean_df["trend_1h"].values
         squeeze_arr = clean_df["squeeze"].values
         vol_ratio_arr = clean_df["vol_ratio"].values
-        dd_arr = clean_df["donchian_dist"].values
+        dd_arr = clean_df["donchian_dist"].values if "donchian_dist" in clean_df else np.zeros(len(clean_df))
+        zscore_arr = clean_df["zscore"].values if "zscore" in clean_df else np.zeros(len(clean_df))
 
         multiplier = cfg["multiplier"]
         margin_rate = cfg["margin"]
@@ -379,7 +394,7 @@ class DecoupledSymbolStrategyRunner:
         trail_atr_mult = cfg.get("trail_atr", 3.5)
         max_lots = cfg["max_lots"]
         squeeze_limit = cfg["squeeze_thresh"]
-        fee_rate = 0.00005  # 万分之0.5单边
+        fee_rate = 0.00005
 
         for i in range(train_window, n_samples - 1):
             curr_p = close_arr[i]
@@ -388,7 +403,22 @@ class DecoupledSymbolStrategyRunner:
             curr_l = low_arr[i]
             curr_dt = dt_arr[i]
             curr_atr = max(2.0, float(atr_arr[i]))
-            slippage = 0.03 * curr_atr  # 真实买卖差价滑点
+            slippage = 0.03 * curr_atr
+
+            curr_contract = get_dominant_contract_by_date(symbol, curr_dt)
+            if last_contract is None:
+                last_contract = curr_contract
+
+            # 跨换月展期摩擦成本核算
+            if pos != 0 and curr_contract != last_contract:
+                if simulate_contract_roll:
+                    roll_cost = calculate_roll_friction(curr_p, multiplier, lots, fee_rate=fee_rate, slippage=slippage)
+                    capital -= roll_cost
+                    total_roll_friction_rmb += roll_cost
+                    total_roll_events += 1
+                last_contract = curr_contract
+            else:
+                last_contract = curr_contract
 
             unrealized = (curr_p - entry_p) * multiplier * lots if pos == 1 else (
                 (entry_p - curr_p) * multiplier * lots if pos == -1 else 0.0
@@ -553,39 +583,39 @@ class DecoupledSymbolStrategyRunner:
             if capital < margin_req:
                 continue
 
-            # 针对碳酸锂与玉米专属防假突破唐奇安回踩过滤 (LC / C 特殊反转保护)
-            if symbol in ["LC_IDX", "C_IDX"]:
-                if t1h == 1 and sq < squeeze_limit and vr > 1.10 and -0.6 < dd < 0.4:
-                    if not np.isnan(pl) and pl >= prob_thresh:
-                        pos = 1
-                        lots = calc_lots
-                        entry_p = next_o + slippage
-                        entry_time = curr_dt
-                        sl_p = entry_p - sl_dist
-                        highest_p = entry_p
-                        holding_bars = 0
-                        half_locked = False
-                        entry_reason_desc = (
-                            f"1h主趋势向上(trend=1) + 波动挤压突破(sq={sq:.2f}<{squeeze_limit}) + "
-                            f"放量(vr={vr:.2f}>1.1) + 唐奇安回踩(dd={dd:.2f}) + LightGBM多头概率(P={pl:.1%}>={prob_thresh:.0%})"
-                        )
-                elif t1h == -1 and sq < squeeze_limit and vr > 1.10 and -0.4 < dd < 0.6:
-                    if not np.isnan(ps) and ps >= prob_thresh:
-                        pos = -1
-                        lots = calc_lots
-                        entry_p = next_o - slippage
-                        entry_time = curr_dt
-                        sl_p = entry_p + sl_dist
-                        lowest_p = entry_p
-                        holding_bars = 0
-                        half_locked = False
-                        entry_reason_desc = (
-                            f"1h主趋势向下(trend=-1) + 波动挤压突破(sq={sq:.2f}<{squeeze_limit}) + "
-                            f"放量(vr={vr:.2f}>1.1) + 唐奇安回踩(dd={dd:.2f}) + LightGBM空头概率(P={ps:.1%}>={prob_thresh:.0%})"
-                        )
+            strat_mode = cfg.get("strategy_mode", "ml_ppo_breakout")
+
+            if strat_mode == "zscore_ppo_reversal":
+                z_thresh = cfg.get("z_thresh", 2.2)
+                zs = zscore_arr[i]
+                if t1h == 1 and zs <= -z_thresh:
+                    pos = 1
+                    lots = calc_lots
+                    entry_p = next_o + slippage
+                    entry_time = curr_dt
+                    sl_p = entry_p - sl_dist
+                    highest_p = entry_p
+                    holding_bars = 0
+                    half_locked = False
+                    entry_reason_desc = (
+                        f"1h主趋势向上(trend=1) + 15m Z-Score极值超跌(Z={zs:.2f}<=-{z_thresh}) 均值回归反转入场"
+                    )
+                elif t1h == -1 and zs >= z_thresh:
+                    pos = -1
+                    lots = calc_lots
+                    entry_p = next_o - slippage
+                    entry_time = curr_dt
+                    sl_p = entry_p + sl_dist
+                    lowest_p = entry_p
+                    holding_bars = 0
+                    half_locked = False
+                    entry_reason_desc = (
+                        f"1h主趋势向下(trend=-1) + 15m Z-Score极值超涨(Z={zs:.2f}>={z_thresh}) 均值回归反转入场"
+                    )
             else:
-                # 其他品种标准动量放量突破入场
-                if t1h == 1 and sq < squeeze_limit and vr > 1.10:
+                # 标准 15m 波动率挤压突破 + 1h 顺势放量入场
+                vr_thresh = cfg.get("vr_thresh", 1.05)
+                if t1h == 1 and sq < squeeze_limit and vr > vr_thresh:
                     if not np.isnan(pl) and pl >= prob_thresh:
                         pos = 1
                         lots = calc_lots
@@ -597,9 +627,9 @@ class DecoupledSymbolStrategyRunner:
                         half_locked = False
                         entry_reason_desc = (
                             f"1h主趋势向上(trend=1) + 波动挤压突破(sq={sq:.2f}<{squeeze_limit}) + "
-                            f"20周期均量放大(vr={vr:.2f}>1.10) + LightGBM多头预测概率(P={pl:.1%}>={prob_thresh:.0%})"
+                            f"成交量放大(vr={vr:.2f}>{vr_thresh}) + LightGBM多头预测概率(P={pl:.1%}>={prob_thresh:.0%})"
                         )
-                elif t1h == -1 and sq < squeeze_limit and vr > 1.10:
+                elif t1h == -1 and sq < squeeze_limit and vr > vr_thresh:
                     if not np.isnan(ps) and ps >= prob_thresh:
                         pos = -1
                         lots = calc_lots
@@ -611,7 +641,7 @@ class DecoupledSymbolStrategyRunner:
                         half_locked = False
                         entry_reason_desc = (
                             f"1h主趋势向下(trend=-1) + 波动挤压突破(sq={sq:.2f}<{squeeze_limit}) + "
-                            f"20周期均量放大(vr={vr:.2f}>1.10) + LightGBM空头预测概率(P={ps:.1%}>={prob_thresh:.0%})"
+                            f"成交量放大(vr={vr:.2f}>{vr_thresh}) + LightGBM空头预测概率(P={ps:.1%}>={prob_thresh:.0%})"
                         )
 
         wins = [t for t in trades if t["pnl_rmb"] > 0]
@@ -711,10 +741,15 @@ class DecoupledSymbolStrategyRunner:
             "total_bars": n_samples,
             "yearly_breakdown": yearly_breakdown,
             "monthly_matrix": monthly_matrix,
+            "total_roll_events": total_roll_events,
+            "total_roll_friction_rmb": round(total_roll_friction_rmb, 2),
+            "simulate_contract_roll": simulate_contract_roll,
             "equity_curve": eq_curve,
             "datetime_list": datetime_list,
             "trades": trades
         }
+
+    run_single_symbol_backtest = backtest_symbol
 
 
 if __name__ == "__main__":
