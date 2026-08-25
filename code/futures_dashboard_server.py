@@ -235,7 +235,7 @@ def get_strategy_trader_status(strategy_id: str):
         for p in psutil.process_iter(['pid', 'name', 'cmdline', 'create_time', 'memory_info']):
             cmdline = p.info.get('cmdline') or []
             cmd_str = " ".join(cmdline)
-            if strat_cfg["process_keyword"] in cmd_str:
+            if strat_cfg["process_keyword"] in cmd_str or "unified_realtime_trader" in cmd_str:
                 running = True
                 pid = p.info['pid']
                 proc = psutil.Process(pid)
@@ -265,21 +265,41 @@ def get_strategy_trader_status(strategy_id: str):
     vnpy_pos_dict = state_data.get("positions", {})
     for sym, cfg in SYMBOL_CONFIGS.items():
         pos_val = 0.0
-        # 判断是字典持仓还是直接存储
+        entry_p = 0.0
+        entry_t = "-"
+        stop_l = 0.0
+
         if isinstance(vnpy_pos_dict, dict):
-            pos_val = vnpy_pos_dict.get(sym, 0.0)
-            if pos_val == 0.0:
+            p_raw = vnpy_pos_dict.get(sym)
+            if p_raw is None:
                 std_sym = sym.split("_")[0].lower()
                 for k, v in vnpy_pos_dict.items():
                     if k.lower().startswith(std_sym):
-                        pos_val = v
+                        p_raw = v
                         break
+            if isinstance(p_raw, dict):
+                pos_dir = 1 if p_raw.get("side") == "LONG" else (-1 if p_raw.get("side") == "SHORT" else 0)
+                lots = float(p_raw.get("lots", 0.0))
+                pos_val = pos_dir * lots
+                entry_p = float(p_raw.get("entry_price", 0.0))
+                entry_t = p_raw.get("entry_time", "-")
+                stop_l = float(p_raw.get("stop_price", 0.0))
+            elif isinstance(p_raw, (int, float)):
+                pos_val = float(p_raw)
+                pos_dir = 1 if pos_val > 0 else (-1 if pos_val < 0 else 0)
+                lots = abs(pos_val)
+            else:
+                pos_dir = 0
+                lots = 0.0
         else:
             s_entry = state_data.get(sym, {})
             pos_val = s_entry.get("pos", 0.0) * s_entry.get("lots", 1.0)
+            pos_dir = 1 if pos_val > 0 else (-1 if pos_val < 0 else 0)
+            lots = abs(pos_val)
+            entry_p = s_entry.get("entry_price", 0.0)
+            entry_t = s_entry.get("entry_time", "-")
+            stop_l = s_entry.get("stop_loss", 0.0)
         
-        pos_dir = 1 if pos_val > 0 else (-1 if pos_val < 0 else 0)
-        lots = abs(pos_val)
         if lots > 0:
             active_positions += 1
 
@@ -297,13 +317,13 @@ def get_strategy_trader_status(strategy_id: str):
             "category": cfg["category"],
             "pos": pos_dir,
             "lots": lots,
-            "entry_price": 0.0,
-            "entry_time": "-",
-            "stop_loss": 0.0,
+            "entry_price": entry_p,
+            "entry_time": entry_t,
+            "stop_loss": stop_l,
             "highest_price": 0.0,
             "lowest_price": 0.0,
             "breakeven_locked": False,
-            "last_processed_dt": "-",
+            "last_processed_dt": entry_t if entry_t != "-" else "-",
             "unrealized_pnl": 0.0,
             "benchmark_return_pct": bench.get("total_return_pct", 0.0),
             "benchmark_win_rate": bench.get("win_rate_pct", 0.0),
