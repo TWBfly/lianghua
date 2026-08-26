@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 
 from taiyin_calendar_spread_15m import CommodityCarryCostProfile
+import taiyin_calendar_spread_100pct_real as real_module
 from taiyin_calendar_spread_100pct_real import Taiyin100PctRealSpreadEngine
 
 
@@ -21,14 +22,11 @@ def make_leg(closes, opens=None, volumes=None):
     })
 
 
-def run_fixture(
+def fixture_inputs(
     spreads,
     *,
     near_opens=None,
     near_volumes=None,
-    initial_capital=1_000.0,
-    fee_rate=0.0,
-    slippage_ticks=0.0,
 ):
     far = np.full(len(spreads), 50.0)
     near = far + np.asarray(spreads, dtype=float)
@@ -50,13 +48,25 @@ def run_fixture(
         "name": "test",
         "days_between_contracts": 30,
     }
+    return make_leg(near, near_opens, near_volumes), make_leg(far), profile, pair
+
+
+def run_fixture(
+    spreads,
+    *,
+    near_opens=None,
+    near_volumes=None,
+    initial_capital=1_000.0,
+    fee_rate=0.0,
+    slippage_ticks=0.0,
+):
+    near, far, profile, pair = fixture_inputs(
+        spreads, near_opens=near_opens, near_volumes=near_volumes
+    )
     return Taiyin100PctRealSpreadEngine(
         z_entry=0.5, z_exit=0.2, z_stop=3.5, lookback_window=2
     ).run_pair_real_backtest(
-        make_leg(near, near_opens, near_volumes),
-        make_leg(far),
-        profile,
-        pair,
+        near, far, profile, pair,
         initial_capital=initial_capital,
         fee_rate=fee_rate,
         slippage_ticks=slippage_ticks,
@@ -129,3 +139,37 @@ def test_end_of_data_reports_unclosed_when_last_bar_is_illiquid():
 
     assert result["unclosed_position"] is True
     assert result["ledger_reconciled"] is False
+
+
+def test_validation_requires_enough_holdout_trades():
+    assert real_module.classify_validation(8, 1, 16, 1, True, False) == "INSUFFICIENT_EVIDENCE"
+
+
+def test_validation_rejects_observed_failure():
+    assert real_module.classify_validation(40, -1, 16, 1, True, False) == "REJECTED"
+    assert real_module.classify_validation(40, 1, 16, 1, False, False) == "REJECTED"
+    assert real_module.classify_validation(40, 1, 16, 1, True, True) == "REJECTED"
+
+
+def test_validation_passes_only_all_observed_gates():
+    assert real_module.classify_validation(40, 1, 12, 1, True, False) == "BACKTEST_VALIDATED"
+
+
+def test_validate_pair_reports_observed_fields():
+    spreads = ([50] * 10 + [30, 20, 50, 50]) * 20
+    near, far, profile, pair = fixture_inputs(spreads)
+
+    result = real_module.validate_pair(near, far, profile, pair)
+
+    assert set(result) >= {
+        "full",
+        "holdout",
+        "profitable_parameter_sets",
+        "triple_cost_net_profit",
+        "status",
+    }
+    assert result["status"] in {
+        "BACKTEST_VALIDATED",
+        "INSUFFICIENT_EVIDENCE",
+        "REJECTED",
+    }

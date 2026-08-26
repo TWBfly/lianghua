@@ -1,12 +1,12 @@
 """
-code/taiyin_calendar_spread_100pct_real.py — 【太阴·北斗】100% 原始真实双合约价差订单簿级跨期套利回测引擎
-Taiyin 100% Real Dual-Contract Spread Backtest & Audit Engine
+code/taiyin_calendar_spread_100pct_real.py — 【太阴·北斗】真实双合约 15m K 线级跨期回测
+Taiyin Dual-Contract 15m Bar-Level Backtest
 
 核心特性：
 1. 100% 纯原始真实双合约 K 线相减 (Real Spread = P_near - P_far)；
-2. 无任何合成曲线或人工平滑，真实反映盘口真实升贴水、流动性裂口与突发跳空；
-3. 严格逐 Bar 离散事件撮合，扣除真实双边手续费与双边滑点摩擦；
-4. 联动 StrategyEvaluatorAgent 输出 100 分量化审计评级与六大核心要素标准决策卡。
+2. 信号使用已完成 K 线，下一根 K 线开盘成交；
+3. 逐柱盯市，逐笔统计手续费、滑点和净利润；
+4. 输出真实样本外、参数扰动、成本压力和账本验证，不模拟订单簿。
 """
 
 from __future__ import annotations
@@ -15,9 +15,7 @@ import os
 import sys
 import math
 import sqlite3
-import datetime
 from typing import Dict, List, Tuple, Optional, Any
-from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
@@ -26,10 +24,29 @@ CODE_DIR = os.path.join(PROJECT_ROOT, "code")
 if CODE_DIR not in sys.path:
     sys.path.insert(0, CODE_DIR)
 
-from strategy_evaluator_agent import StrategyEvaluatorAgent, StrategyEvaluationDecision
 from backtest_metrics import calculate_performance
 from taiyin_calendar_spread_15m import CARRY_COST_REGISTRY, CommodityCarryCostProfile
 from sync_calendar_spread_pairs import CALENDAR_SPREAD_PAIRS, DB_PATH
+
+
+def classify_validation(
+    holdout_trades: int,
+    holdout_net_profit: float,
+    profitable_parameter_sets: int,
+    triple_cost_net_profit: float,
+    ledger_reconciled: bool,
+    unclosed_position: bool,
+) -> str:
+    if (
+        not ledger_reconciled
+        or unclosed_position
+        or holdout_net_profit <= 0
+        or triple_cost_net_profit <= 0
+    ):
+        return "REJECTED"
+    if holdout_trades < 30 or profitable_parameter_sets < 12:
+        return "INSUFFICIENT_EVIDENCE"
+    return "BACKTEST_VALIDATED"
 
 
 class Taiyin100PctRealSpreadEngine:
@@ -86,6 +103,7 @@ class Taiyin100PctRealSpreadEngine:
         df["far_open"] = df_far["open"]
         df["far_vol"] = df_far["volume"]
         df = df.dropna()
+        df = df.loc[df.index >= pair_info.get("not_before", "2025-01-01")]
         n = len(df)
         if n < self.window + 10:
             return {}
@@ -331,113 +349,169 @@ class Taiyin100PctRealSpreadEngine:
         }
 
 
+def validate_pair(
+    df_near: pd.DataFrame,
+    df_far: pd.DataFrame,
+    profile: CommodityCarryCostProfile,
+    pair_info: Dict[str, Any],
+    fee_rate: float = 0.00005,
+    slippage_ticks: float = 1.0,
+    min_leg_volume: float = 10.0,
+) -> Dict[str, Any]:
+    """Run only observed holdout, parameter, cost, and ledger checks."""
+    near = df_near.set_index("trade_time").sort_index()
+    far = df_far.set_index("trade_time").sort_index()
+    common = near.index.intersection(far.index).sort_values()
+    common = common[common >= pair_info.get("not_before", "2025-01-01")]
+    near = near.loc[common].reset_index()
+    far = far.loc[common].reset_index()
+    cut = int(len(common) * 0.70)
+    base_fee = float(pair_info.get("fee_rate", fee_rate))
+    base_slippage = float(pair_info.get("slippage_ticks", slippage_ticks))
+
+    def run(
+        near_frame: pd.DataFrame,
+        far_frame: pd.DataFrame,
+        *,
+        window: int = 40,
+        z_entry: float = 1.8,
+        cost_multiplier: int = 1,
+    ) -> Dict[str, Any]:
+        return Taiyin100PctRealSpreadEngine(
+            z_entry=z_entry, lookback_window=window
+        ).run_pair_real_backtest(
+            near_frame,
+            far_frame,
+            profile,
+            pair_info,
+            fee_rate=base_fee * cost_multiplier,
+            slippage_ticks=base_slippage * cost_multiplier,
+            min_leg_volume=min_leg_volume,
+        )
+
+    full = run(near, far)
+    holdout_near = near.iloc[cut:].reset_index(drop=True)
+    holdout_far = far.iloc[cut:].reset_index(drop=True)
+    holdout = run(holdout_near, holdout_far)
+
+    profitable_parameter_sets = 0
+    parameter_results = []
+    for window in (20, 40, 80, 120):
+        for z_entry in (1.4, 1.8, 2.2, 2.6):
+            result = run(
+                holdout_near,
+                holdout_far,
+                window=window,
+                z_entry=z_entry,
+            )
+            net_profit = float(result.get("net_profit_rmb", 0.0)) if result else 0.0
+            passed = bool(
+                result
+                and net_profit > 0
+                and result["ledger_reconciled"]
+                and not result["unclosed_position"]
+            )
+            profitable_parameter_sets += int(passed)
+            parameter_results.append({
+                "window": window,
+                "z_entry": z_entry,
+                "net_profit_rmb": net_profit,
+                "passed": passed,
+            })
+
+    cost_stress = {1: full, 2: run(near, far, cost_multiplier=2), 3: run(near, far, cost_multiplier=3)}
+    triple_cost_net_profit = float(cost_stress[3].get("net_profit_rmb", 0.0))
+    status = classify_validation(
+        int(holdout.get("total_trades", 0)) if holdout else 0,
+        float(holdout.get("net_profit_rmb", 0.0)) if holdout else 0.0,
+        profitable_parameter_sets,
+        triple_cost_net_profit,
+        bool(full and full["ledger_reconciled"]),
+        bool(not full or full["unclosed_position"]),
+    )
+    return {
+        "full": full,
+        "holdout": holdout,
+        "parameter_results": parameter_results,
+        "profitable_parameter_sets": profitable_parameter_sets,
+        "cost_stress": cost_stress,
+        "triple_cost_net_profit": triple_cost_net_profit,
+        "status": status,
+    }
+
+
 def run_100pct_real_calendar_research():
-    """读取真实双合约历史数据库，执行 100% 原始订单簿级跨期套利回测"""
-    print("=" * 95)
-    print("💎 【太阴·北斗】100% 原始真实双合约期货跨期套利回测与审计系统")
-    print("📌 真实性保障: 100% 纯原始合约 K 线相减 (P_near - P_far) | 零合成曲线 | 2x 滑点 + 2x 手续费")
-    print("=" * 95 + "\n")
+    """执行全部真实双合约的 K 线级回测和可复现验证。"""
+    print("=" * 132)
+    print("【太阴·北斗】真实双合约 15m K 线级回测")
+    print("信号: 完成柱收盘 | 成交: 下一柱开盘 | 成本: 双腿手续费+滑点 | 非 Tick/盘口/订单簿回测")
+    print("默认成本假设: fee_rate=0.00005, slippage=1 tick/leg；同时报告 3 倍成本压力")
+    print("=" * 132)
 
     conn = sqlite3.connect(DB_PATH)
-    engine = Taiyin100PctRealSpreadEngine()
-
-    results = []
-    
-    # 检查数据库中是否存在真实合约表
     cursor = conn.cursor()
     cursor.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='futures_contract_bars';")
     if cursor.fetchone()[0] == 0:
-        print("⚠️ 数据库中尚未发现 futures_contract_bars 表，请先运行 code/sync_calendar_spread_pairs.py 进行历史数据同步！")
+        print("数据库中没有 futures_contract_bars，请先运行 sync_calendar_spread_pairs.py")
         conn.close()
         return
 
+    validations = []
     for pair in CALENDAR_SPREAD_PAIRS:
         sym = pair["symbol"]
-        near = pair["near"]
-        far = pair["far"]
         profile = CARRY_COST_REGISTRY.get(sym)
         if not profile:
             continue
-
         df_near = pd.read_sql_query(
             "SELECT trade_time, open, high, low, close, volume FROM futures_contract_bars WHERE contract=? AND timeframe='15m' ORDER BY trade_time ASC",
-            conn, params=(near,)
+            conn, params=(pair["near"],)
         )
         df_far = pd.read_sql_query(
             "SELECT trade_time, open, high, low, close, volume FROM futures_contract_bars WHERE contract=? AND timeframe='15m' ORDER BY trade_time ASC",
-            conn, params=(far,)
+            conn, params=(pair["far"],)
         )
-
         if len(df_near) < 200 or len(df_far) < 200:
+            validations.append({"pair": pair, "status": "INSUFFICIENT_EVIDENCE"})
             continue
-
-        res = engine.run_pair_real_backtest(df_near, df_far, profile, pair)
-        if res and res["total_trades"] > 0:
-            results.append(res)
+        validation = validate_pair(df_near, df_far, profile, pair)
+        validation["pair"] = pair
+        validations.append(validation)
 
     conn.close()
-
-    if not results:
-        print("❌ 未能在本地数据库找到足够的真实双合约数据，请执行 sync_calendar_spread_pairs.py 同步！")
+    completed = [item for item in validations if item.get("full")]
+    if not completed:
+        print("没有足够的对齐双合约数据")
         return
 
-    df_res = pd.DataFrame(results)
-    total_trades_all = int(df_res["total_trades"].sum())
-    total_net_pnl = float(df_res["net_profit_rmb"].sum())
-    avg_win_rate = float(df_res["win_rate_pct"].mean())
-    avg_plr = float(df_res["profit_loss_ratio"].mean())
-    max_single_dd = float(df_res["max_drawdown_pct"].max())
-    start_dt = df_res["start_time"].min()
-    end_dt = df_res["end_time"].max()
+    print(
+        f"{'品种':<7} {'合约对':<20} {'交易':>5} {'净胜率':>8} {'M2M回撤':>9} "
+        f"{'净利润':>12} {'尾部交易':>8} {'尾部净利':>11} {'参数':>6} {'3倍成本':>11} {'状态':>23}"
+    )
+    print("-" * 132)
+    for item in validations:
+        pair = item["pair"]
+        if not item.get("full"):
+            print(f"{pair['symbol']:<7} {pair['name']:<20} {'-':>5} {'-':>8} {'-':>9} {'-':>12} {'-':>8} {'-':>11} {'-':>6} {'-':>11} {item['status']:>23}")
+            continue
+        full = item["full"]
+        holdout = item["holdout"] or {}
+        print(
+            f"{pair['symbol']:<7} {pair['name']:<20} {full['total_trades']:>5} "
+            f"{full['win_rate_pct']:>7.1f}% {full['max_drawdown_pct']:>8.2f}% "
+            f"{full['net_profit_rmb']:>12,.0f} {holdout.get('total_trades', 0):>8} "
+            f"{holdout.get('net_profit_rmb', 0):>11,.0f} "
+            f"{item['profitable_parameter_sets']:>4}/16 {item['triple_cost_net_profit']:>11,.0f} "
+            f"{item['status']:>23}"
+        )
 
-    print(f"📊 【100%真实回测区间】: {start_dt} 至 {end_dt}")
-    print(f"📈 【覆盖真实合约对】: {len(df_res)} 个真实大宗商品跨期对")
-    print(f"🎯 【真实综合胜率】: {avg_win_rate:.2f}%")
-    print(f"⚖️ 【真实平均盈亏比】: {avg_plr:.2f}:1")
-    print(f"🛡️ 【单品种最大回撤】: {max_single_dd:.2f}%")
-    print(f"📝 【总成交交易笔数】: {total_trades_all} 笔")
-    print(f"💰 【真实组合总净利润】: ¥{total_net_pnl:,.2f}\n")
-
-    print("-" * 95)
-    print(f"{'品种代号':<8} {'真实跨期合约对':<22} {'交易笔数':<8} {'真实胜率':<10} {'盈亏比':<8} {'最大回撤':<8} {'净利润(元)':<12}")
-    print("-" * 95)
-    for idx, r in df_res.iterrows():
-        print(f"{r['symbol']:<8} {r['pair_name']:<22} {r['total_trades']:<8} {r['win_rate_pct']:<8.1f}% {r['profit_loss_ratio']:<8.2f} {r['max_drawdown_pct']:<8.2f}% ¥{r['net_profit_rmb']:<12,.2f}")
-    print("-" * 95 + "\n")
-
-    # 100 分量化审计
-    metrics = {
-        "trading_period": f"{start_dt[:10]} ~ {end_dt[:10]}",
-        "asset_type": "商品期货 100% 真实双合约跨期套利",
-        "symbols_summary": f"{len(df_res)} 个真实双合约对",
-        "win_rate_pct": avg_win_rate,
-        "profit_loss_ratio": avg_plr,
-        "max_drawdown_pct": max_single_dd,
-        "total_trades_count": total_trades_all,
-        "sharpe_ratio": 2.15,
-        "sortino_ratio": 3.10,
-        "calmar_ratio": 3.45,
-        "mean_rank_ic": 0.048,
-        "rank_icir": 1.85,
-        "profitable_symbols_ratio": len(df_res[df_res["net_profit_rmb"] > 0]) / len(df_res),
-        "total_net_pnl": total_net_pnl
-    }
-    attack_results = {
-        "label_shuffle_pass": True,
-        "prefix_invariance_pass": True,
-        "ledger_reconciled": True,
-        "noise_features_pass": True,
-        "calendar_features_pass": True
-    }
-
-    decision = StrategyEvaluatorAgent.evaluate_strategy(metrics, attack_results, strategy_name="太阴·100%真实双合约跨期套利")
-
-    print("=" * 95)
-    print(f"🏆 【100 分量化审计评级】: {decision.grade} 级 ({decision.total_score:.1f} 分) | 准入状态: {decision.status}")
-    print("=" * 95)
-    for dim, sc in decision.dimension_scores.items():
-        print(f"  · {dim}: {sc:.1f} 分")
-    print(f"\n✅ 准入决策声明: {'【准予实盘执行 APPROVED】' if decision.execution_confirmed else '【需进一步孵化 INCUBATION】'}\n")
+    total_net = sum(item["full"]["net_profit_rmb"] for item in completed)
+    total_trades = sum(item["full"]["total_trades"] for item in completed)
+    profitable = sum(item["full"]["net_profit_rmb"] > 0 for item in completed)
+    statuses = pd.Series([item["status"] for item in validations]).value_counts()
+    print("-" * 132)
+    print(f"完整组合: {len(completed)} 对 | 盈利 {profitable}/{len(completed)} | 交易 {total_trades} | 净利润 ¥{total_net:,.2f}")
+    print("验证状态:", ", ".join(f"{name}={count}" for name, count in statuses.items()))
+    print("BACKTEST_VALIDATED 仅代表历史回测闸门通过，不代表模拟盘或实盘许可。")
 
 
 if __name__ == "__main__":
