@@ -152,7 +152,7 @@ def sync_contract_pair_bars(data_length: int = 8000):
 
             cursor = conn.cursor()
             cursor.executemany("""
-            INSERT OR REPLACE INTO futures_contract_bars 
+            INSERT OR REPLACE INTO futures_contract_bars
             (symbol, contract, timeframe, trade_time, open, high, low, close, volume, open_interest)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, records)

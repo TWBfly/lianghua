@@ -125,7 +125,7 @@ class TaiyinCalendarSpreadStrategy:
 
         returns_1h = pd.Series(c).pct_change(4).bfill().values
         returns_1d = pd.Series(c).pct_change(16).bfill().values
-        
+
         # 1. 根据品种物理结构区分价差模型
         if profile.structure_type == "BACKWARDATION_MOMENTUM":
             # 强贴水顺势结构 (如铁矿石 09-01)
@@ -136,7 +136,7 @@ class TaiyinCalendarSpreadStrategy:
             carry_cost = self.calculate_carrying_cost(c, profile)
             contango_bound = -carry_cost  # 刚性正套无风险底 (近月 - 远月)
             base_spread = -0.5 * carry_cost + returns_1h * c * 0.8 + np.sin(np.arange(n) / 32.0) * (0.3 * carry_cost)
-        
+
         # 2. 动态滚动 Z-Score
         spread_series = pd.Series(base_spread)
         spread_ma = spread_series.rolling(self.window).mean().bfill().values
@@ -219,10 +219,10 @@ class TaiyinCalendarSpreadStrategy:
             elif pos == 1:
                 # 动态浮亏监控 (单笔最大损失不得超过初始本金 1.5%)
                 unrealized_pnl = (s - entry_spread) * mult * lots
-                
+
                 # 正常平仓判定
                 exit_signal = (z <= self.z_exit) if profile.structure_type == "BACKWARDATION_MOMENTUM" else (z >= -self.z_exit)
-                
+
                 if exit_signal:
                     pnl = (s - entry_spread) * mult * lots
                     cash += pnl - (f_cost + s_cost)
@@ -253,10 +253,10 @@ class TaiyinCalendarSpreadStrategy:
             elif pos == -1:
                 # 动态浮亏监控
                 unrealized_pnl = (entry_spread - s) * mult * lots
-                
+
                 # 正常平仓判定
                 exit_signal = (z >= -self.z_exit) if profile.structure_type == "BACKWARDATION_MOMENTUM" else (z <= self.z_exit)
-                
+
                 if exit_signal:
                     pnl = (entry_spread - s) * mult * lots
                     cash += pnl - (f_cost + s_cost)
@@ -291,7 +291,7 @@ class TaiyinCalendarSpreadStrategy:
         total_trades = len(df_trades)
         wins = len(df_trades[df_trades["pnl"] > 0]) if total_trades > 0 else 0
         win_rate = (wins / total_trades * 100.0) if total_trades > 0 else 0.0
-        
+
         gross_profit = df_trades[df_trades["pnl"] > 0]["pnl"].sum() if total_trades > 0 else 0.0
         gross_loss = abs(df_trades[df_trades["pnl"] < 0]["pnl"].sum()) if total_trades > 0 else 1.0
         plr = round(gross_profit / (gross_loss + 1e-6), 2)
@@ -364,7 +364,7 @@ def run_full_calendar_spread_research():
     avg_win_rate = float(df_res["win_rate_pct"].mean())
     avg_plr = float(df_res["profit_loss_ratio"].mean())
     max_single_dd = float(df_res["max_drawdown_pct"].max())
-    
+
     start_dt = df_res["start_time"].min()
     end_dt = df_res["end_time"].max()
 
