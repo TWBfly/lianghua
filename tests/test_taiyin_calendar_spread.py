@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
+from pathlib import Path
 
 import sync_calendar_spread_pairs as sync_module
 from taiyin_calendar_spread_15m import CommodityCarryCostProfile
@@ -200,3 +201,8 @@ def test_tq_credentials_prefer_environment(monkeypatch, tmp_path):
         "environment-user",
         "environment-password",
     )
+
+
+def test_synthetic_runner_is_explicitly_labeled():
+    source = Path("code/taiyin_calendar_spread_15m.py").read_text(encoding="utf-8")
+    assert "SYNTHETIC RESEARCH ONLY" in source

@@ -442,11 +442,11 @@ def validate_pair(
 
 def run_100pct_real_calendar_research():
     """执行全部真实双合约的 K 线级回测和可复现验证。"""
-    print("=" * 132)
+    print("=" * 146)
     print("【太阴·北斗】真实双合约 15m K 线级回测")
     print("信号: 完成柱收盘 | 成交: 下一柱开盘 | 成本: 双腿手续费+滑点 | 非 Tick/盘口/订单簿回测")
     print("默认成本假设: fee_rate=0.00005, slippage=1 tick/leg；同时报告 3 倍成本压力")
-    print("=" * 132)
+    print("=" * 146)
 
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -485,13 +485,14 @@ def run_100pct_real_calendar_research():
 
     print(
         f"{'品种':<7} {'合约对':<20} {'交易':>5} {'净胜率':>8} {'M2M回撤':>9} "
-        f"{'净利润':>12} {'尾部交易':>8} {'尾部净利':>11} {'参数':>6} {'3倍成本':>11} {'状态':>23}"
+        f"{'净利润':>12} {'尾部交易':>8} {'尾部净利':>11} {'参数':>6} {'3倍成本':>11} "
+        f"{'账本':>5} {'未平':>5} {'状态':>23}"
     )
-    print("-" * 132)
+    print("-" * 146)
     for item in validations:
         pair = item["pair"]
         if not item.get("full"):
-            print(f"{pair['symbol']:<7} {pair['name']:<20} {'-':>5} {'-':>8} {'-':>9} {'-':>12} {'-':>8} {'-':>11} {'-':>6} {'-':>11} {item['status']:>23}")
+            print(f"{pair['symbol']:<7} {pair['name']:<20} {'-':>5} {'-':>8} {'-':>9} {'-':>12} {'-':>8} {'-':>11} {'-':>6} {'-':>11} {'-':>5} {'-':>5} {item['status']:>23}")
             continue
         full = item["full"]
         holdout = item["holdout"] or {}
@@ -501,6 +502,7 @@ def run_100pct_real_calendar_research():
             f"{full['net_profit_rmb']:>12,.0f} {holdout.get('total_trades', 0):>8} "
             f"{holdout.get('net_profit_rmb', 0):>11,.0f} "
             f"{item['profitable_parameter_sets']:>4}/16 {item['triple_cost_net_profit']:>11,.0f} "
+            f"{str(full['ledger_reconciled']):>5} {str(full['unclosed_position']):>5} "
             f"{item['status']:>23}"
         )
 
@@ -508,7 +510,7 @@ def run_100pct_real_calendar_research():
     total_trades = sum(item["full"]["total_trades"] for item in completed)
     profitable = sum(item["full"]["net_profit_rmb"] > 0 for item in completed)
     statuses = pd.Series([item["status"] for item in validations]).value_counts()
-    print("-" * 132)
+    print("-" * 146)
     print(f"完整组合: {len(completed)} 对 | 盈利 {profitable}/{len(completed)} | 交易 {total_trades} | 净利润 ¥{total_net:,.2f}")
     print("验证状态:", ", ".join(f"{name}={count}" for name, count in statuses.items()))
     print("BACKTEST_VALIDATED 仅代表历史回测闸门通过，不代表模拟盘或实盘许可。")
