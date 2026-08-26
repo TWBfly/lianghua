@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
+import pytest
 
+import sync_calendar_spread_pairs as sync_module
 from taiyin_calendar_spread_15m import CommodityCarryCostProfile
 import taiyin_calendar_spread_100pct_real as real_module
 from taiyin_calendar_spread_100pct_real import Taiyin100PctRealSpreadEngine
@@ -173,3 +175,28 @@ def test_validate_pair_reports_observed_fields():
         "INSUFFICIENT_EVIDENCE",
         "REJECTED",
     }
+
+
+def test_every_pair_has_real_contract_interval():
+    intervals = {pair["days_between_contracts"] for pair in sync_module.CALENDAR_SPREAD_PAIRS}
+    assert intervals <= {30, 92, 122, 183}
+
+
+def test_missing_tq_credentials_fail_closed(monkeypatch, tmp_path):
+    monkeypatch.delenv("TQ_ACCOUNT", raising=False)
+    monkeypatch.delenv("TQ_PASSWORD", raising=False)
+    monkeypatch.setattr(sync_module, "ENV_PATH", str(tmp_path / "missing.env"))
+
+    with pytest.raises(RuntimeError, match="TQ_ACCOUNT"):
+        sync_module.load_tq_credentials()
+
+
+def test_tq_credentials_prefer_environment(monkeypatch, tmp_path):
+    monkeypatch.setenv("TQ_ACCOUNT", "environment-user")
+    monkeypatch.setenv("TQ_PASSWORD", "environment-password")
+    monkeypatch.setattr(sync_module, "ENV_PATH", str(tmp_path / "missing.env"))
+
+    assert sync_module.load_tq_credentials() == (
+        "environment-user",
+        "environment-password",
+    )
