@@ -84,6 +84,17 @@ def sanitize_futures_database(db_path: Path = DB_PATH):
     conn.commit()
     print(f"  └─ 🧹 已成功清除大周期碎片行: {deleted_frag_rows} 根")
 
+    # 2.5 清理非交易时段异常小时数据（消除残留的未校准 UTC 偏移行）
+    cursor.execute("""
+        DELETE FROM futures_min_bars
+        WHERE strftime('%H', trade_time) IN ('03', '04', '05', '06', '07', '08', '12', '16', '17', '18', '19', '20');
+    """)
+    deleted_time_rows = cursor.rowcount
+    total_purged_rows += deleted_time_rows
+    conn.commit()
+    if deleted_time_rows > 0:
+        print(f"  └─ 🧹 已成功清除时区偏移非交易时段异常行: {deleted_time_rows} 根")
+
     # 3. 检查零成交量超过 50% 的僵尸品种（如 WR_IDX），进行标记清理
     cursor.execute("""
         SELECT symbol, timeframe, count(*) as total, sum(case when volume = 0 then 1 else 0 end) as zero_v

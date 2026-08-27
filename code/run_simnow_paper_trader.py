@@ -69,6 +69,10 @@ def load_simnow_credentials() -> dict:
                         creds["md_address"] = v or "tcp://180.168.146.187:10211"
                     elif k in {"SIMNOW_TD_ADDRESS", "SIMNOW_TD"}:
                         creds["td_address"] = v or "tcp://180.168.146.187:10201"
+                    elif k in {"TQ_ACCOUNT", "TQ_USER"}:
+                        creds["tq_account"] = v
+                    elif k in {"TQ_PASSWORD", "TQ_PASS", "TQ_PWD"}:
+                        creds["tq_password"] = v
                 elif "：" in line or ":" in line:
                     parts = line.replace("：", ":").split(":", 1)
                     k = parts[0].strip()
@@ -77,6 +81,10 @@ def load_simnow_credentials() -> dict:
                         creds["user_id"] = v
                     elif "SIMNOW" in k.upper() and ("密码" in k or "PASS" in k.upper()):
                         creds["password"] = v
+                    elif "TQ" in k.upper() and "账号" in k:
+                        creds["tq_account"] = v
+                    elif "TQ" in k.upper() and "密码" in k:
+                        creds["tq_password"] = v
 
     cfg_file = PROJECT_ROOT / "data/connect_simnow.json"
     if cfg_file.exists():
@@ -160,14 +168,55 @@ def start_simnow_paper_trader(symbol: str = "ag2612.SHFE", strategy_type: str = 
     engine.strategies[symbol] = strategy
 
     strat_logger.info(f"✅ 策略 [{strategy.strategy_name}] 已成功挂载并在事件循环中激活！")
-    strat_logger.info("🟢 正在全天候 24h 监听 CTP 实时行情推送与离散事件触发...")
+    strat_logger.info("🟢 正在全天候 24h 监听行情推送与离散事件触发...")
+
+    # 解析合约代码与交易周期
+    tq_user = creds.get("tq_account", "13800000000")
+    tq_pass = creds.get("tq_password", "redacted_password")
+    tf_seconds = 600 if "10m" in strat_key else 900
+
+    if "." in symbol:
+        raw_sym, raw_ex = symbol.split(".", 1)
+    else:
+        raw_sym, raw_ex = symbol, "SHFE"
+
+    tq_code = f"{raw_ex}.{raw_sym}" if raw_ex in {"SHFE", "DCE", "CZCE", "INE", "GFEX"} else f"KQ.m@SHFE.{raw_sym[:2]}"
+
+    api = None
+    try:
+        from tqsdk import TqApi, TqAuth
+        api = TqApi(auth=TqAuth(tq_user, tq_pass))
+        klines = api.get_kline_serial(tq_code, duration_seconds=tf_seconds, data_length=60)
+        strat_logger.info(f"📡 成功接入天勤行情流 [{tq_code} | {tf_seconds}s]，实时监听 Bar 完结事件...")
+    except Exception as e:
+        strat_logger.warning(f"⚠️ 天勤行情流初始化提示: {e}，将以纯事件仿真心跳模式运行")
 
     last_heartbeat = 0
     try:
         while True:
-            now_ts = time.time()
+            if api is not None:
+                api.wait_update(deadline=time.time() + 1.0)
+                if len(klines) >= 2 and api.is_changing(klines.iloc[-1], "datetime"):
+                    closed_bar = klines.iloc[-2]
+                    bar_dt = datetime.datetime.fromtimestamp(closed_bar["datetime"] / 1e9)
+                    bar = BarData(
+                        symbol=raw_sym,
+                        exchange=Exchange(raw_ex) if raw_ex in Exchange._value2member_map_ else Exchange.SHFE,
+                        datetime=bar_dt,
+                        interval=Interval.MINUTE,
+                        open_price=float(closed_bar["open"]),
+                        high_price=float(closed_bar["high"]),
+                        low_price=float(closed_bar["low"]),
+                        close_price=float(closed_bar["close"]),
+                        volume=float(closed_bar.get("volume", 0)),
+                        open_interest=float(closed_bar.get("open_oi", 0)),
+                        gateway_name="SIMNOW_FEED"
+                    )
+                    engine.on_bar(symbol, bar)
+            else:
+                time.sleep(1)
 
-            # 每隔 30 秒打印一次系统心跳与动态权益
+            now_ts = time.time()
             if now_ts - last_heartbeat >= 30:
                 last_heartbeat = now_ts
                 now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -179,11 +228,14 @@ def start_simnow_paper_trader(symbol: str = "ag2612.SHFE", strategy_type: str = 
                 )
                 engine.save_state()
 
-            time.sleep(1)
-
     except KeyboardInterrupt:
         strat_logger.info("\n👋 收到终止信号，正在保存状态...")
         engine.save_state()
+        if api is not None:
+            try:
+                api.close()
+            except Exception:
+                pass
         strat_logger.info("✅ 状态保存完毕，安全退出。")
 
 

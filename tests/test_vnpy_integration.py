@@ -172,9 +172,15 @@ def test_differential_oracle_comparison():
     assert pnl_diff >= 0.0
 
 
-def test_vnpy_paper_engine_matching():
+def test_vnpy_paper_engine_matching(tmp_path):
     """测试本地高保真虚拟盘撮合与状态落盘"""
-    engine = VnpyPaperEngine(initial_capital=100_000.0)
+    test_state_file = tmp_path / "test_vnpy_paper_state.json"
+    test_trades_csv = tmp_path / "test_vnpy_trades.csv"
+    engine = VnpyPaperEngine(
+        initial_capital=100_000.0,
+        state_file=test_state_file,
+        trades_csv=test_trades_csv
+    )
     vt_sym = "ag888.SHFE"
     strategy = VnpyTianjiStrategy(cta_engine=engine, strategy_name="TestTianji", vt_symbol=vt_sym, setting={"fixed_size": 1.0})
     strategy.on_init()

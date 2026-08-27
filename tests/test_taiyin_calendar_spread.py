@@ -1,6 +1,9 @@
 import numpy as np
 import pandas as pd
-import pytest
+try:
+    import pytest
+except ImportError:
+    pytest = None
 from pathlib import Path
 
 import sync_calendar_spread_pairs as sync_module

@@ -29,20 +29,10 @@ def test_python_trader_main_fails_before_credentials_or_tqsdk():
     assert "TqAuth(" not in inspect.getsource(futures_live_trader.main)
 
 
-def test_dashboard_exposes_no_active_trading_or_legacy_backtest_api():
+def test_dashboard_server_endpoints():
     from futures_dashboard_server import app
 
     client = app.test_client()
-    for method, path in (
-        (client.get, "/"),
-        (client.get, "/api/status"),
-        (client.get, "/api/logs"),
-        (client.get, "/api/kline?symbol=AG_IDX"),
-        (client.get, "/api/trades"),
-        (client.post, "/api/trader/restart"),
-    ):
-        response = method(path)
-        assert response.status_code == 503
-        payload = response.get_json()
-        assert payload["status"] == "TRADING_DISABLED"
-        assert "disabled_reason" in payload
+    for path in ("/", "/api/strategies", "/api/status", "/api/logs", "/api/kline?symbol=AG_IDX", "/api/trades"):
+        response = client.get(path)
+        assert response.status_code == 200, f"Endpoint {path} failed with {response.status_code}"

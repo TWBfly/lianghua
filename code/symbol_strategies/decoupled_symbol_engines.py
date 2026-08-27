@@ -342,14 +342,14 @@ class DecoupledSymbolStrategyRunner:
 
             X_pred = pred_slice[feature_cols].values
 
-            # LightGBM 极速分类器
+            # LightGBM 极速分类器 (使用 balanced 权重对齐实盘)
             if np.sum(y_train_l) >= 5:
-                clf_l = lgb.LGBMClassifier(n_estimators=30, max_depth=3, learning_rate=0.05, num_leaves=7, verbose=-1, random_state=42)
+                clf_l = lgb.LGBMClassifier(n_estimators=30, max_depth=3, learning_rate=0.05, num_leaves=7, class_weight="balanced", verbose=-1, random_state=42)
                 clf_l.fit(X_train, y_train_l)
                 prob_long[pred_s:pred_e] = clf_l.predict_proba(X_pred)[:, 1]
 
             if np.sum(y_train_s) >= 5:
-                clf_s = lgb.LGBMClassifier(n_estimators=30, max_depth=3, learning_rate=0.05, num_leaves=7, verbose=-1, random_state=42)
+                clf_s = lgb.LGBMClassifier(n_estimators=30, max_depth=3, learning_rate=0.05, num_leaves=7, class_weight="balanced", verbose=-1, random_state=42)
                 clf_s.fit(X_train, y_train_s)
                 prob_short[pred_s:pred_e] = clf_s.predict_proba(X_pred)[:, 1]
 

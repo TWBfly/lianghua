@@ -156,16 +156,26 @@ def init_db():
                 lots INTEGER,
                 pnl REAL,
                 pnl_pct REAL,
+                entry_reason TEXT,
+                exit_reason TEXT,
                 reason TEXT,
                 created_at TEXT
             );
         """)
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_trades_sym_strat ON futures_trade_records (strategy_id, symbol);")
+
+        # 动态迁移检查并补全字段
+        cursor.execute("PRAGMA table_info(futures_trade_records);")
+        cols = [c[1] for c in cursor.fetchall()]
+        if "entry_reason" not in cols:
+            cursor.execute("ALTER TABLE futures_trade_records ADD COLUMN entry_reason TEXT;")
+        if "exit_reason" not in cols:
+            cursor.execute("ALTER TABLE futures_trade_records ADD COLUMN exit_reason TEXT;")
         conn.commit()
 
 
 class StrategyState:
-    """策略状态机封装"""
+    """策略状态机封装 (支持单笔交易往返闭环 UPDATE 机制)"""
 
     def __init__(self, strat_id: str, name: str, initial_capital: float = 1_000_000.0):
         self.strat_id = strat_id
@@ -200,6 +210,146 @@ class StrategyState:
         with open(self.state_file, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
+    def log_entry_trade(
+        self,
+        symbol: str,
+        dominant_contract: str,
+        direction: str,
+        entry_time: str,
+        entry_price: float,
+        lots: int,
+        entry_reason: str
+    ) -> Optional[int]:
+        """开仓时插入单条记录，并返回该次交易的 trade_id 用于平仓关联"""
+        trade_id = None
+        try:
+            with sqlite3.connect(DB_PATH, timeout=10.0) as conn:
+                c = conn.cursor()
+                c.execute("""
+                    INSERT INTO futures_trade_records 
+                    (strategy_id, symbol, dominant_contract, direction, offset, action, 
+                     entry_time, entry_price, exit_time, exit_price, lots, pnl, pnl_pct, 
+                     entry_reason, exit_reason, reason, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """, (
+                    self.strat_id, symbol, dominant_contract, direction, "开仓", "ENTRY",
+                    entry_time, entry_price, "", 0.0, lots, 0.0, 0.0,
+                    entry_reason, "", entry_reason,
+                    datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                ))
+                conn.commit()
+                trade_id = c.lastrowid
+        except Exception as e:
+            logger.error(f"写入开仓记录数据库失败: {e}")
+
+        # 写策略独立日志
+        with open(self.strat_log, "a", encoding="utf-8") as f:
+            f.write(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [ENTRY] {symbol} {direction} 开仓 | 价格: {entry_price:.2f} | 手数: {lots} | 原因: {entry_reason} | trade_id: {trade_id}\n")
+
+        return trade_id
+
+    def log_exit_trade(
+        self,
+        symbol: str,
+        dominant_contract: str,
+        direction: str,
+        entry_time: str,
+        entry_price: float,
+        exit_time: str,
+        exit_price: float,
+        lots: int,
+        pnl: float,
+        exit_reason: str,
+        trade_id: Optional[int] = None,
+        entry_reason: str = ""
+    ):
+        """平仓时通过 trade_id 原位 UPDATE 交易记录，实现单笔往返闭环"""
+        pnl_pct = round((exit_price - entry_price) / (entry_price + 1e-8) * 100.0 if direction == "LONG" else (entry_price - exit_price) / (entry_price + 1e-8) * 100.0, 2)
+        
+        # 1. 优先根据 trade_id 执行 UPDATE
+        updated = False
+        try:
+            with sqlite3.connect(DB_PATH, timeout=10.0) as conn:
+                c = conn.cursor()
+                if trade_id:
+                    c.execute("""
+                        UPDATE futures_trade_records
+                        SET offset='平仓', action='EXIT', exit_time=?, exit_price=?, pnl=?, pnl_pct=?, exit_reason=?, reason=?
+                        WHERE id=?;
+                    """, (exit_time, exit_price, pnl, pnl_pct, exit_reason, exit_reason, trade_id))
+                    if c.rowcount > 0:
+                        updated = True
+                        conn.commit()
+
+                # 如果根据 trade_id 没有更新成功（例如重启前遗留记录或 trade_id 丢失），尝试更新最近同品种同方向的未平仓 ENTRY 记录
+                if not updated:
+                    c.execute("""
+                        SELECT id, entry_reason FROM futures_trade_records
+                        WHERE strategy_id=? AND symbol=? AND (action='ENTRY' OR offset='开仓')
+                        ORDER BY id DESC LIMIT 1;
+                    """, (self.strat_id, symbol))
+                    row = c.fetchone()
+                    if row:
+                        found_id = row[0]
+                        if not entry_reason and row[1]:
+                            entry_reason = row[1]
+                        c.execute("""
+                            UPDATE futures_trade_records
+                            SET offset='平仓', action='EXIT', exit_time=?, exit_price=?, pnl=?, pnl_pct=?, exit_reason=?, reason=?
+                            WHERE id=?;
+                        """, (exit_time, exit_price, pnl, pnl_pct, exit_reason, exit_reason, found_id))
+                        if c.rowcount > 0:
+                            updated = True
+                            conn.commit()
+
+                # 如果仍然没找到对应的开仓行，则回退为完整插入一条 EXIT 记录
+                if not updated:
+                    c.execute("""
+                        INSERT INTO futures_trade_records 
+                        (strategy_id, symbol, dominant_contract, direction, offset, action, 
+                         entry_time, entry_price, exit_time, exit_price, lots, pnl, pnl_pct, 
+                         entry_reason, exit_reason, reason, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                    """, (
+                        self.strat_id, symbol, dominant_contract, direction, "平仓", "EXIT",
+                        entry_time, entry_price, exit_time, exit_price, lots, pnl, pnl_pct,
+                        entry_reason, exit_reason, exit_reason,
+                        datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    ))
+                    conn.commit()
+        except Exception as e:
+            logger.error(f"更新/写入平仓交易记录数据库失败: {e}")
+
+        # 2. 写入台账 CSV (记录已平仓的对冲台账)
+        row = {
+            "datetime": exit_time,
+            "strategy_id": self.strat_id,
+            "symbol": symbol,
+            "dominant_contract": dominant_contract,
+            "direction": direction,
+            "offset": "平仓",
+            "action": "EXIT",
+            "entry_time": entry_time,
+            "entry_price": entry_price,
+            "exit_time": exit_time,
+            "exit_price": exit_price,
+            "lots": lots,
+            "pnl": pnl,
+            "pnl_pct": pnl_pct,
+            "entry_reason": entry_reason,
+            "exit_reason": exit_reason,
+            "reason": exit_reason
+        }
+        df_row = pd.DataFrame([row])
+        if not self.trades_csv.exists():
+            df_row.to_csv(self.trades_csv, index=False, encoding="utf-8-sig")
+        else:
+            df_row.to_csv(self.trades_csv, mode="a", header=False, index=False, encoding="utf-8-sig")
+
+        # 3. 写策略独立日志
+        with open(self.strat_log, "a", encoding="utf-8") as f:
+            f.write(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [EXIT] {symbol} {direction} 平仓 | 平仓价: {exit_price:.2f} | 盈亏: ¥{pnl:+,.2f} | 原因: {exit_reason} | trade_id: {trade_id}\n")
+
     def log_trade(
         self,
         symbol: str,
@@ -213,52 +363,14 @@ class StrategyState:
         exit_price: float,
         lots: int,
         pnl: float,
-        reason: str
+        reason: str,
+        trade_id: Optional[int] = None
     ):
-        pnl_pct = round((exit_price - entry_price) / (entry_price + 1e-8) * 100.0 if direction == "LONG" else (entry_price - exit_price) / (entry_price + 1e-8) * 100.0, 2)
-        row = {
-            "datetime": exit_time or entry_time,
-            "strategy_id": self.strat_id,
-            "symbol": symbol,
-            "dominant_contract": dominant_contract,
-            "direction": direction,
-            "offset": offset,
-            "action": action,
-            "entry_time": entry_time,
-            "entry_price": entry_price,
-            "exit_time": exit_time,
-            "exit_price": exit_price,
-            "lots": lots,
-            "pnl": pnl,
-            "pnl_pct": pnl_pct,
-            "reason": reason
-        }
-        df_row = pd.DataFrame([row])
-        if not self.trades_csv.exists():
-            df_row.to_csv(self.trades_csv, index=False, encoding="utf-8-sig")
+        """兼容老接口分发"""
+        if action == "ENTRY" or offset == "开仓":
+            return self.log_entry_trade(symbol, dominant_contract, direction, entry_time, entry_price, lots, reason)
         else:
-            df_row.to_csv(self.trades_csv, mode="a", header=False, index=False, encoding="utf-8-sig")
-
-        # 写入 SQLite
-        try:
-            with sqlite3.connect(DB_PATH, timeout=10.0) as conn:
-                c = conn.cursor()
-                c.execute("""
-                    INSERT INTO futures_trade_records 
-                    (strategy_id, symbol, dominant_contract, direction, offset, action, entry_time, entry_price, exit_time, exit_price, lots, pnl, pnl_pct, reason, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-                """, (
-                    self.strat_id, symbol, dominant_contract, direction, offset, action,
-                    entry_time, entry_price, exit_time, exit_price, lots, pnl, pnl_pct, reason,
-                    datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                ))
-                conn.commit()
-        except Exception as e:
-            logger.error(f"写入交易记录数据库失败: {e}")
-
-        # 写策略独立日志
-        with open(self.strat_log, "a", encoding="utf-8") as f:
-            f.write(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [TRADE] {symbol} {direction} {offset} | 价格: {exit_price or entry_price:.2f} | 手数: {lots} | 盈亏: ¥{pnl:+,.2f} | 原因: {reason}\n")
+            return self.log_exit_trade(symbol, dominant_contract, direction, entry_time, entry_price, exit_time, exit_price, lots, pnl, reason, trade_id=trade_id)
 
 
 class UnifiedRealtimeTrader:
@@ -326,6 +438,7 @@ class UnifiedRealtimeTrader:
 
                 last_heartbeat = time.time()
                 last_gc = time.time()
+                last_quote_dump = 0.0
 
                 while True:
                     api.wait_update()
@@ -376,6 +489,48 @@ class UnifiedRealtimeTrader:
 
                                 # 推进 10m 策略评估
                                 self.evaluate_10m_strategies(sym, bar_dict)
+
+                    # 2.5 实时生成盘中活跃跳动 Bar 与最新价快照 (供 Web 大屏实时波动渲染)
+                    if now_ts - last_quote_dump >= 1.0:
+                        last_quote_dump = now_ts
+                        active_quotes = {}
+                        for s_code in SYMBOL_MAP:
+                            k15 = kline_15m_map.get(s_code)
+                            k10 = kline_10m_map.get(s_code)
+                            if k15 is not None and len(k15) > 0 and k15.iloc[-1]["datetime"] > 0:
+                                cur15 = k15.iloc[-1]
+                                dt15 = pd.to_datetime(cur15["datetime"], unit="ns", utc=True).tz_convert("Asia/Shanghai").strftime("%Y-%m-%d %H:%M:%S")
+                                active_quotes[f"{s_code}_15m"] = {
+                                    "dt": dt15,
+                                    "open": float(cur15["open"]),
+                                    "high": float(cur15["high"]),
+                                    "low": float(cur15["low"]),
+                                    "close": float(cur15["close"]),
+                                    "volume": int(cur15.get("volume", 0)),
+                                    "oi": int(cur15.get("open_oi", 0)),
+                                    "last_price": float(cur15["close"])
+                                }
+                            if k10 is not None and len(k10) > 0 and k10.iloc[-1]["datetime"] > 0:
+                                cur10 = k10.iloc[-1]
+                                dt10 = pd.to_datetime(cur10["datetime"], unit="ns", utc=True).tz_convert("Asia/Shanghai").strftime("%Y-%m-%d %H:%M:%S")
+                                active_quotes[f"{s_code}_10m"] = {
+                                    "dt": dt10,
+                                    "open": float(cur10["open"]),
+                                    "high": float(cur10["high"]),
+                                    "low": float(cur10["low"]),
+                                    "close": float(cur10["close"]),
+                                    "volume": int(cur10.get("volume", 0)),
+                                    "oi": int(cur10.get("open_oi", 0)),
+                                    "last_price": float(cur10["close"])
+                                }
+                        try:
+                            tmp_f = PROJECT_ROOT / "data/realtime_quotes.json.tmp"
+                            dst_f = PROJECT_ROOT / "data/realtime_quotes.json"
+                            with open(tmp_f, "w", encoding="utf-8") as f:
+                                json.dump(active_quotes, f)
+                            tmp_f.replace(dst_f)
+                        except Exception:
+                            pass
 
                     # 3. 定时心跳报告 (每 60 秒)
                     if now_ts - last_heartbeat >= 60.0:
@@ -475,9 +630,10 @@ class UnifiedRealtimeTrader:
             if exit_trigger:
                 pnl = (curr_p - entry_p) * mult * lots if p_side == "LONG" else (entry_p - curr_p) * mult * lots
                 self.strat_tianji_15m.balance += pnl
-                self.strat_tianji_15m.log_trade(
-                    sym, curr_contract, p_side, "平仓", "EXIT",
-                    tianji_pos["entry_time"], entry_p, last_bar["dt"], curr_p, lots, pnl, exit_reason
+                self.strat_tianji_15m.log_exit_trade(
+                    sym, curr_contract, p_side,
+                    tianji_pos["entry_time"], entry_p, last_bar["dt"], curr_p, lots, pnl, exit_reason,
+                    trade_id=tianji_pos.get("trade_id"), entry_reason=tianji_pos.get("entry_reason", "")
                 )
                 del self.strat_tianji_15m.positions[sym]
                 self.strat_tianji_15m.save()
@@ -488,30 +644,32 @@ class UnifiedRealtimeTrader:
             if ker > 0.35 and don_pos > 0.75:
                 stop_p = curr_p - 1.5 * atr_14
                 lots = max(1, min(cfg.get("max_lots", 3), int(10000.0 / (1.5 * atr_14 * mult + 1e-6))))
+                reason = f"考夫曼突破 (KER={ker:.2f}>0.35, 唐奇安={don_pos:.1%})"
+                tid = self.strat_tianji_15m.log_entry_trade(
+                    sym, curr_contract, "LONG",
+                    last_bar["dt"], curr_p, lots, reason
+                )
                 self.strat_tianji_15m.positions[sym] = {
                     "side": "LONG", "lots": lots, "entry_price": curr_p, "entry_time": last_bar["dt"],
-                    "stop_price": stop_p, "highest_p": curr_p
+                    "stop_price": stop_p, "highest_p": curr_p, "trade_id": tid, "entry_reason": reason
                 }
                 self.strat_tianji_15m.save()
-                self.strat_tianji_15m.log_trade(
-                    sym, curr_contract, "LONG", "开仓", "ENTRY",
-                    last_bar["dt"], curr_p, "", 0.0, lots, 0.0, f"考夫曼突破 (KER={ker:.2f}>0.35, 唐奇安={don_pos:.1%})"
-                )
-                logger.info(f"⚡ [天玑 15m 买多] {sym:<8} | 价格: {curr_p:.2f} | 手数: {lots} | 止损: {stop_p:.2f} | KER: {ker:.2f}")
+                logger.info(f"⚡ [天玑 15m 买多] {sym:<8} | 价格: {curr_p:.2f} | 手数: {lots} | 止损: {stop_p:.2f} | KER: {ker:.2f} | trade_id: {tid}")
 
             elif ker < -0.35 and don_pos < 0.25:
                 stop_p = curr_p + 1.5 * atr_14
                 lots = max(1, min(cfg.get("max_lots", 3), int(10000.0 / (1.5 * atr_14 * mult + 1e-6))))
+                reason = f"考夫曼跌破 (KER={ker:.2f}<-0.35, 唐奇安={don_pos:.1%})"
+                tid = self.strat_tianji_15m.log_entry_trade(
+                    sym, curr_contract, "SHORT",
+                    last_bar["dt"], curr_p, lots, reason
+                )
                 self.strat_tianji_15m.positions[sym] = {
                     "side": "SHORT", "lots": lots, "entry_price": curr_p, "entry_time": last_bar["dt"],
-                    "stop_price": stop_p, "lowest_p": curr_p
+                    "stop_price": stop_p, "lowest_p": curr_p, "trade_id": tid, "entry_reason": reason
                 }
                 self.strat_tianji_15m.save()
-                self.strat_tianji_15m.log_trade(
-                    sym, curr_contract, "SHORT", "开仓", "ENTRY",
-                    last_bar["dt"], curr_p, "", 0.0, lots, 0.0, f"考夫曼跌破 (KER={ker:.2f}<-0.35, 唐奇安={don_pos:.1%})"
-                )
-                logger.info(f"⚡ [天玑 15m 做空] {sym:<8} | 价格: {curr_p:.2f} | 手数: {lots} | 止损: {stop_p:.2f} | KER: {ker:.2f}")
+                logger.info(f"⚡ [天玑 15m 做空] {sym:<8} | 价格: {curr_p:.2f} | 手数: {lots} | 止损: {stop_p:.2f} | KER: {ker:.2f} | trade_id: {tid}")
 
         # -------------------------------------------------------------
         # 2. 策略 B: 15m 极值 Z-Score 均值回归
@@ -566,9 +724,10 @@ class UnifiedRealtimeTrader:
             if exit_trigger:
                 pnl = (curr_p - entry_p) * mult * lots if p_side == "LONG" else (entry_p - curr_p) * mult * lots
                 self.strat_zscore_15m.balance += pnl
-                self.strat_zscore_15m.log_trade(
-                    sym, curr_contract, p_side, "平仓", "EXIT",
-                    z_pos["entry_time"], entry_p, last_bar["dt"], curr_p, lots, pnl, exit_reason
+                self.strat_zscore_15m.log_exit_trade(
+                    sym, curr_contract, p_side,
+                    z_pos["entry_time"], entry_p, last_bar["dt"], curr_p, lots, pnl, exit_reason,
+                    trade_id=z_pos.get("trade_id"), entry_reason=z_pos.get("entry_reason", "")
                 )
                 del self.strat_zscore_15m.positions[sym]
                 self.strat_zscore_15m.save()
@@ -582,30 +741,32 @@ class UnifiedRealtimeTrader:
             if zscore <= -2.0 and rsi_2 <= 15.0 and is_bull_reversal:
                 stop_p = curr_p - 1.2 * atr_14
                 lots = max(1, min(cfg.get("max_lots", 3), int(10000.0 / (1.2 * atr_14 * mult + 1e-6))))
+                reason = f"极值超跌回归 (Z={zscore:.2f}, RSI2={rsi_2:.1f})"
+                tid = self.strat_zscore_15m.log_entry_trade(
+                    sym, curr_contract, "LONG",
+                    last_bar["dt"], curr_p, lots, reason
+                )
                 self.strat_zscore_15m.positions[sym] = {
                     "side": "LONG", "lots": lots, "entry_price": curr_p, "entry_time": last_bar["dt"],
-                    "stop_price": stop_p, "bars_held": 0
+                    "stop_price": stop_p, "bars_held": 0, "trade_id": tid, "entry_reason": reason
                 }
                 self.strat_zscore_15m.save()
-                self.strat_zscore_15m.log_trade(
-                    sym, curr_contract, "LONG", "开仓", "ENTRY",
-                    last_bar["dt"], curr_p, "", 0.0, lots, 0.0, f"极值超跌回归 (Z={zscore:.2f}, RSI2={rsi_2:.1f})"
-                )
-                logger.info(f"🎯 [Z-Score 15m 极值做多] {sym:<8} | 价格: {curr_p:.2f} | 手数: {lots} | 止损: {stop_p:.2f} | Z-Score: {zscore:.2f} | RSI2: {rsi_2:.1f}")
+                logger.info(f"🎯 [Z-Score 15m 极值做多] {sym:<8} | 价格: {curr_p:.2f} | 手数: {lots} | 止损: {stop_p:.2f} | Z-Score: {zscore:.2f} | RSI2: {rsi_2:.1f} | trade_id: {tid}")
 
             elif zscore >= 2.0 and rsi_2 >= 85.0 and is_bear_reversal:
                 stop_p = curr_p + 1.2 * atr_14
                 lots = max(1, min(cfg.get("max_lots", 3), int(10000.0 / (1.2 * atr_14 * mult + 1e-6))))
+                reason = f"极值超涨回归 (Z={zscore:.2f}, RSI2={rsi_2:.1f})"
+                tid = self.strat_zscore_15m.log_entry_trade(
+                    sym, curr_contract, "SHORT",
+                    last_bar["dt"], curr_p, lots, reason
+                )
                 self.strat_zscore_15m.positions[sym] = {
                     "side": "SHORT", "lots": lots, "entry_price": curr_p, "entry_time": last_bar["dt"],
-                    "stop_price": stop_p, "bars_held": 0
+                    "stop_price": stop_p, "bars_held": 0, "trade_id": tid, "entry_reason": reason
                 }
                 self.strat_zscore_15m.save()
-                self.strat_zscore_15m.log_trade(
-                    sym, curr_contract, "SHORT", "开仓", "ENTRY",
-                    last_bar["dt"], curr_p, "", 0.0, lots, 0.0, f"极值超涨回归 (Z={zscore:.2f}, RSI2={rsi_2:.1f})"
-                )
-                logger.info(f"🎯 [Z-Score 15m 极值做空] {sym:<8} | 价格: {curr_p:.2f} | 手数: {lots} | 止损: {stop_p:.2f} | Z-Score: {zscore:.2f} | RSI2: {rsi_2:.1f}")
+                logger.info(f"🎯 [Z-Score 15m 极值做空] {sym:<8} | 价格: {curr_p:.2f} | 手数: {lots} | 止损: {stop_p:.2f} | Z-Score: {zscore:.2f} | RSI2: {rsi_2:.1f} | trade_id: {tid}")
 
     def evaluate_10m_strategies(self, sym: str, last_bar: dict):
         """评估 10m Z-Score 高胜率策略"""
@@ -677,9 +838,10 @@ class UnifiedRealtimeTrader:
             if exit_trigger:
                 pnl = (curr_p - entry_p) * mult * lots if p_side == "LONG" else (entry_p - curr_p) * mult * lots
                 self.strat_zscore_10m.balance += pnl
-                self.strat_zscore_10m.log_trade(
-                    sym, curr_contract, p_side, "平仓", "EXIT",
-                    z10_pos["entry_time"], entry_p, last_bar["dt"], curr_p, lots, pnl, exit_reason
+                self.strat_zscore_10m.log_exit_trade(
+                    sym, curr_contract, p_side,
+                    z10_pos["entry_time"], entry_p, last_bar["dt"], curr_p, lots, pnl, exit_reason,
+                    trade_id=z10_pos.get("trade_id"), entry_reason=z10_pos.get("entry_reason", "")
                 )
                 del self.strat_zscore_10m.positions[sym]
                 self.strat_zscore_10m.save()
@@ -693,29 +855,32 @@ class UnifiedRealtimeTrader:
             if zscore <= -2.0 and rsi_2 <= 15.0 and is_bull_reversal:
                 stop_p = curr_p - 1.2 * atr_14
                 lots = max(1, min(cfg.get("max_lots", 3), int(10000.0 / (1.2 * atr_14 * mult + 1e-6))))
+                reason = f"10m极值超跌 (Z={zscore:.2f}, RSI2={rsi_2:.1f})"
+                tid = self.strat_zscore_10m.log_entry_trade(
+                    sym, curr_contract, "LONG",
+                    last_bar["dt"], curr_p, lots, reason
+                )
                 self.strat_zscore_10m.positions[sym] = {
                     "side": "LONG", "lots": lots, "entry_price": curr_p, "entry_time": last_bar["dt"],
-                    "stop_price": stop_p, "bars_held": 0
+                    "stop_price": stop_p, "bars_held": 0, "trade_id": tid, "entry_reason": reason
                 }
                 self.strat_zscore_10m.save()
-                self.strat_zscore_10m.log_trade(
-                    sym, curr_contract, "LONG", "开仓", "ENTRY",
-                    last_bar["dt"], curr_p, "", 0.0, lots, 0.0, f"10m极值超跌 (Z={zscore:.2f}, RSI2={rsi_2:.1f})"
-                )
-                logger.info(f"🎯 [Z-Score 10m 极值做多] {sym:<8} | 价格: {curr_p:.2f} | 手数: {lots} | 止损: {stop_p:.2f} | Z={zscore:.2f} | RSI2={rsi_2:.1f}")
+                logger.info(f"🎯 [Z-Score 10m 极值做多] {sym:<8} | 价格: {curr_p:.2f} | 手数: {lots} | 止损: {stop_p:.2f} | Z={zscore:.2f} | RSI2={rsi_2:.1f} | trade_id: {tid}")
 
             elif zscore >= 2.0 and rsi_2 >= 85.0 and is_bear_reversal:
                 stop_p = curr_p + 1.2 * atr_14
                 lots = max(1, min(cfg.get("max_lots", 3), int(10000.0 / (1.2 * atr_14 * mult + 1e-6))))
+                reason = f"10m极值超涨 (Z={zscore:.2f}, RSI2={rsi_2:.1f})"
+                tid = self.strat_zscore_10m.log_entry_trade(
+                    sym, curr_contract, "SHORT",
+                    last_bar["dt"], curr_p, lots, reason
+                )
                 self.strat_zscore_10m.positions[sym] = {
                     "side": "SHORT", "lots": lots, "entry_price": curr_p, "entry_time": last_bar["dt"],
-                    "stop_price": stop_p, "bars_held": 0
+                    "stop_price": stop_p, "bars_held": 0, "trade_id": tid, "entry_reason": reason
                 }
                 self.strat_zscore_10m.save()
-                self.strat_zscore_10m.log_trade(
-                    sym, curr_contract, "SHORT", "开仓", "ENTRY",
-                    last_bar["dt"], curr_p, "", 0.0, lots, 0.0, f"10m极值超涨 (Z={zscore:.2f}, RSI2={rsi_2:.1f})"
-                )
+                logger.info(f"🎯 [Z-Score 10m 极值做空] {sym:<8} | 价格: {curr_p:.2f} | 手数: {lots} | 止损: {stop_p:.2f} | Z={zscore:.2f} | RSI2={rsi_2:.1f} | trade_id: {tid}")
                 logger.info(f"🎯 [Z-Score 10m 极值做空] {sym:<8} | 价格: {curr_p:.2f} | 手数: {lots} | 止损: {stop_p:.2f} | Z={zscore:.2f} | RSI2={rsi_2:.1f}")
 
     def print_heartbeat(self):

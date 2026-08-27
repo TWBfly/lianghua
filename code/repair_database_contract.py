@@ -111,6 +111,16 @@ def repair_database(db_path: Path | str = DEFAULT_DB_PATH, make_backup: bool = T
         """)
         print("[Repair] Reconciled stock_daily_catalog with 100% accurate rows, dates, and asset_type='STOCK'.")
 
+        # 3e. Reconcile futures_series_metadata with actual row counts and dates from futures_min_bars
+        conn.execute("""
+            UPDATE futures_series_metadata
+            SET row_count = (SELECT count(*) FROM futures_min_bars WHERE futures_min_bars.symbol = futures_series_metadata.symbol AND futures_min_bars.timeframe = futures_series_metadata.timeframe),
+                start_time = (SELECT min(trade_time) FROM futures_min_bars WHERE futures_min_bars.symbol = futures_series_metadata.symbol AND futures_min_bars.timeframe = futures_series_metadata.timeframe),
+                end_time = (SELECT max(trade_time) FROM futures_min_bars WHERE futures_min_bars.symbol = futures_series_metadata.symbol AND futures_min_bars.timeframe = futures_series_metadata.timeframe)
+            WHERE EXISTS (SELECT 1 FROM futures_min_bars WHERE futures_min_bars.symbol = futures_series_metadata.symbol AND futures_min_bars.timeframe = futures_series_metadata.timeframe);
+        """)
+        print("[Repair] Reconciled futures_series_metadata with exact futures_min_bars counts and timestamps.")
+
     # 4. Audit after
     after_audit = audit_database(target_path)
     print(f"\n=== Database Audit AFTER Repair ({target_path.name}) ===")

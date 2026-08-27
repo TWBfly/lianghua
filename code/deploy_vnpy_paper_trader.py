@@ -14,6 +14,7 @@ import os
 import sys
 import json
 import time
+import sqlite3
 import datetime
 import logging
 from pathlib import Path
@@ -34,6 +35,13 @@ LOG_DIR = PROJECT_ROOT / "data/logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = LOG_DIR / "vnpy_paper_trader.log"
 TRADES_CSV = LOG_DIR / "vnpy_daily_trades.csv"
+
+CONTRACT_SIZES = {
+    "AG": 15.0, "AU": 1000.0, "CU": 5.0, "AL": 5.0, "ZN": 5.0, "SN": 1.0,
+    "RB": 10.0, "HC": 10.0, "I": 100.0, "J": 100.0, "JM": 60.0, "SA": 20.0,
+    "SC": 1000.0, "MA": 10.0, "TA": 5.0, "RU": 10.0, "M": 10.0, "P": 10.0,
+    "Y": 10.0, "SR": 10.0, "CF": 5.0, "FG": 20.0, "LC": 1.0, "SI": 5.0, "C": 10.0
+}
 
 # 日志记录器
 logger = logging.getLogger("VnpyPaperTrader")
@@ -253,9 +261,11 @@ class VnpyPaperEngine:
                 )
                 order.traded = order.volume
                 order.status = Status.ALLTRADED
-                del self.active_orders[orderid]
-
-                turnover = trade.price * trade.volume * 15.0  # 默认按乘数
+                if orderid in self.active_orders:
+                    del self.active_orders[orderid]
+                sym_prefix = "".join([c for c in trade.symbol.upper().split(".")[0] if c.isalpha()]).replace("_IDX", "")
+                contract_size = CONTRACT_SIZES.get(sym_prefix, 10.0)
+                turnover = trade.price * trade.volume * contract_size
                 commission = turnover * self.rate
                 self.balance -= commission
 

@@ -1,8 +1,9 @@
 """
 code/taiyin_calendar_spread_15m.py — 【太阴·北斗】15m 跨期持有成本与期限结构套利量化策略引擎
-Taiyin 15m Calendar Spread & Carry Arbitrage Engine
+[SYNTHETIC RESEARCH ONLY / 仅供合成价差研究，非真实独立双合约回测]
+真实独立双合约回测请运行: code/taiyin_calendar_spread_100pct_real.py
 
-SYNTHETIC RESEARCH ONLY — 本文件用单一指数价格合成价差，不是真实双合约回测。
+核心逻辑：SYNTHETIC RESEARCH ONLY — 本文件用单一指数价格合成价差，不是真实双合约回测。
 
 核心逻辑：
 1. 理论无套利持仓成本模型 (Cost of Carry Model): 资金利息 + 仓储堆存费 + 交割出入库质检费 + 增值税资金占用；

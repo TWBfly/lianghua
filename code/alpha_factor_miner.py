@@ -322,6 +322,57 @@ def factor_momentum_acceleration_5_20(df: pd.DataFrame) -> pd.Series:
     return ret5 - (ret20 / 4.0)
 
 
+@FactorRegistry.register("vol_squeeze_energy", "regime", "20-day Bollinger Bandwidth to ATR Volatility Squeeze Energy Ratio")
+def factor_vol_squeeze_energy(df: pd.DataFrame) -> pd.Series:
+    close = df["close"].astype(float)
+    high = df["high"].astype(float)
+    low = df["low"].astype(float)
+    prev_close = close.shift(1)
+    std20 = close.rolling(20).std(ddof=0)
+    bb_width = 4.0 * std20
+    tr = pd.concat([high - low, (high - prev_close).abs(), (low - prev_close).abs()], axis=1).max(axis=1)
+    atr20 = tr.rolling(20).mean()
+    return bb_width / (atr20 * 2.0 + 1e-8)
+
+
+@FactorRegistry.register("connors_rsi_2", "oscillator", "2-day Connors High-Sensitivity RSI")
+def factor_connors_rsi_2(df: pd.DataFrame) -> pd.Series:
+    close = df["close"].astype(float)
+    delta = close.diff()
+    gain = delta.clip(lower=0.0)
+    loss = (-delta).clip(lower=0.0)
+    avg_gain = gain.rolling(2).mean()
+    avg_loss = loss.rolling(2).mean().replace(0, np.nan)
+    rs = avg_gain / avg_loss
+    return 100.0 - (100.0 / (1.0 + rs))
+
+
+@FactorRegistry.register("pinbar_absorption_ratio", "geometry", "Signed Pin Bar Absorption Shadow-to-Body Ratio")
+def factor_pinbar_absorption_ratio(df: pd.DataFrame) -> pd.Series:
+    close = df["close"].astype(float)
+    open_p = df["open"].astype(float)
+    high = df["high"].astype(float)
+    low = df["low"].astype(float)
+    body = (close - open_p).abs() + 1e-8
+    lower_shadow = np.where(close >= open_p, open_p - low, close - low)
+    upper_shadow = np.where(close >= open_p, high - close, high - open_p)
+    bull_ratio = lower_shadow / body
+    bear_ratio = upper_shadow / body
+    return pd.Series(np.where(bull_ratio >= bear_ratio, bull_ratio, -bear_ratio), index=df.index)
+
+
+@FactorRegistry.register("oi_momentum_surge", "volume", "Open Interest and Volume Momentum Surge Acceleration")
+def factor_oi_momentum_surge(df: pd.DataFrame) -> pd.Series:
+    vol = df["volume"].astype(float)
+    vol_ma20 = vol.rolling(20).mean().replace(0, np.nan)
+    vol_ratio = vol / vol_ma20
+    if "open_interest" in df.columns:
+        oi = df["open_interest"].astype(float)
+        oi_diff = oi.diff().fillna(0)
+        return vol_ratio * np.sign(oi_diff)
+    return vol_ratio
+
+
 # ==============================================================================
 # Pipeline Calculation Helper
 # ==============================================================================

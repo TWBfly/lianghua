@@ -22,7 +22,7 @@ def load_env_server_config():
         "port": 22,
         "user": "root",
         "password": "",
-        "remote_dir": "/root/lianghua"
+        "remote_dir": "/opt/lianghua"
     }
     if env_file.exists():
         with open(env_file, "r", encoding="utf-8") as f:

@@ -1,0 +1,290 @@
+{
+  "timeframe": "30m",
+  "decision": {
+    "total_score": 0.0,
+    "grade": "C",
+    "status": "REJECTED",
+    "dimension_scores": {
+      "1. 预测质量与因子Alpha (25分)": 20.5,
+      "2. 风险调整后收益 (25分)": 22.0,
+      "3. 回撤与尾部风控 (20分)": 18.0,
+      "4. 抗过拟合与对抗鲁棒性 (20分)": 0.0,
+      "5. 实盘可行性与摩擦成本 (10分)": 10.0
+    },
+    "hard_fail_reasons": [
+      "全市场累计净利润为负 (Total PnL <= 0) - 无法覆盖摩擦成本"
+    ]
+  },
+  "gates": {
+    "gate1_lln": true,
+    "gate2_oos": false,
+    "gate3_plateau": false,
+    "gate4_stress_3x": false,
+    "gate5_ledger": true
+  },
+  "single_symbol_lln": {
+    "AU_IDX": {
+      "name": "黄金",
+      "total_trades": 1903,
+      "real_trades": 20,
+      "synth_trades": 1883,
+      "total_win_rate": 79.1907514450867,
+      "total_pnl": 2153796.6964607798,
+      "profit_loss_ratio": 2.878097966117134,
+      "max_drawdown_pct": 1.6649158299496758,
+      "regimes": {
+        "BULL_TREND": {
+          "trades": 487,
+          "win_rate": 79.05544147843942,
+          "pnl": 422857.73514777026
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 506,
+          "win_rate": 83.399209486166,
+          "pnl": 1006223.0520900006
+        },
+        "PANIC_CRASH": {
+          "trades": 553,
+          "win_rate": 77.21518987341773,
+          "pnl": 511304.7001405372
+        },
+        "GRINDING_CHOP": {
+          "trades": 337,
+          "win_rate": 78.93175074183976,
+          "pnl": 225584.78004751145
+        }
+      }
+    },
+    "AG_IDX": {
+      "name": "白银",
+      "total_trades": 1732,
+      "real_trades": 10,
+      "synth_trades": 1722,
+      "total_win_rate": 78.52193995381063,
+      "total_pnl": 932663.8142630551,
+      "profit_loss_ratio": 2.645884573219088,
+      "max_drawdown_pct": 1.3589866118587866,
+      "regimes": {
+        "BULL_TREND": {
+          "trades": 442,
+          "win_rate": 80.76923076923077,
+          "pnl": 277175.238748346
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 484,
+          "win_rate": 78.92561983471074,
+          "pnl": 286017.571860434
+        },
+        "PANIC_CRASH": {
+          "trades": 484,
+          "win_rate": 76.44628099173553,
+          "pnl": 284915.5607788919
+        },
+        "GRINDING_CHOP": {
+          "trades": 311,
+          "win_rate": 78.45659163987139,
+          "pnl": 77327.17725968361
+        }
+      }
+    },
+    "SC_IDX": {
+      "name": "原油",
+      "total_trades": 1696,
+      "real_trades": 26,
+      "synth_trades": 1670,
+      "total_win_rate": 76.06132075471697,
+      "total_pnl": 1518857.5996837197,
+      "profit_loss_ratio": 2.275979732361814,
+      "max_drawdown_pct": 2.137931361854182,
+      "regimes": {
+        "BULL_TREND": {
+          "trades": 439,
+          "win_rate": 77.90432801822324,
+          "pnl": 283325.7441115449
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 465,
+          "win_rate": 80.64516129032258,
+          "pnl": 762360.7682371384
+        },
+        "PANIC_CRASH": {
+          "trades": 552,
+          "win_rate": 73.73188405797102,
+          "pnl": 410844.6322381636
+        },
+        "GRINDING_CHOP": {
+          "trades": 213,
+          "win_rate": 69.95305164319248,
+          "pnl": 66130.97248486034
+        }
+      }
+    },
+    "TA_IDX": {
+      "name": "PTA",
+      "total_trades": 1300,
+      "real_trades": 12,
+      "synth_trades": 1288,
+      "total_win_rate": 75.0,
+      "total_pnl": 247565.164401495,
+      "profit_loss_ratio": 2.0676690747666595,
+      "max_drawdown_pct": 0.6704720432863562,
+      "regimes": {
+        "BULL_TREND": {
+          "trades": 344,
+          "win_rate": 70.93023255813954,
+          "pnl": 40301.12780719367
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 449,
+          "win_rate": 79.28730512249443,
+          "pnl": 145538.64898940618
+        },
+        "PANIC_CRASH": {
+          "trades": 471,
+          "win_rate": 75.15923566878982,
+          "pnl": 59493.99372794875
+        },
+        "GRINDING_CHOP": {
+          "trades": 24,
+          "win_rate": 58.333333333333336,
+          "pnl": -646.9107271680841
+        }
+      }
+    },
+    "MA_IDX": {
+      "name": "甲醇",
+      "total_trades": 1421,
+      "real_trades": 5,
+      "synth_trades": 1416,
+      "total_win_rate": 74.66572836030963,
+      "total_pnl": 264043.6843920918,
+      "profit_loss_ratio": 1.9624590275027078,
+      "max_drawdown_pct": 0.9144752131928211,
+      "regimes": {
+        "BULL_TREND": {
+          "trades": 392,
+          "win_rate": 75.51020408163265,
+          "pnl": 39012.99309248908
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 465,
+          "win_rate": 78.06451612903226,
+          "pnl": 145245.69355538883
+        },
+        "PANIC_CRASH": {
+          "trades": 488,
+          "win_rate": 73.97540983606558,
+          "pnl": 83025.81999475602
+        },
+        "GRINDING_CHOP": {
+          "trades": 71,
+          "win_rate": 54.929577464788736,
+          "pnl": -2643.2124511471484
+        }
+      }
+    },
+    "SA_IDX": {
+      "name": "纯碱",
+      "total_trades": 1016,
+      "real_trades": 4,
+      "synth_trades": 1012,
+      "total_win_rate": 70.96456692913385,
+      "total_pnl": 222323.20113290614,
+      "profit_loss_ratio": 1.774594550353872,
+      "max_drawdown_pct": 1.2355368683953447,
+      "regimes": {
+        "BULL_TREND": {
+          "trades": 260,
+          "win_rate": 63.46153846153846,
+          "pnl": 1926.6624086964875
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 366,
+          "win_rate": 75.68306010928961,
+          "pnl": 152527.07312428323
+        },
+        "PANIC_CRASH": {
+          "trades": 386,
+          "win_rate": 71.24352331606218,
+          "pnl": 66301.68679992552
+        },
+        "GRINDING_CHOP": {
+          "trades": 0,
+          "win_rate": 0.0,
+          "pnl": 0.0
+        }
+      }
+    },
+    "HC_IDX": {
+      "name": "热卷",
+      "total_trades": 1699,
+      "real_trades": 9,
+      "synth_trades": 1690,
+      "total_win_rate": 76.51559741024133,
+      "total_pnl": 620841.0016675424,
+      "profit_loss_ratio": 2.5333793398203435,
+      "max_drawdown_pct": 0.9643617024264602,
+      "regimes": {
+        "BULL_TREND": {
+          "trades": 418,
+          "win_rate": 72.96650717703349,
+          "pnl": 50764.11169012403
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 512,
+          "win_rate": 78.90625,
+          "pnl": 362729.0604613868
+        },
+        "PANIC_CRASH": {
+          "trades": 504,
+          "win_rate": 78.17460317460318,
+          "pnl": 184536.60717712552
+        },
+        "GRINDING_CHOP": {
+          "trades": 256,
+          "win_rate": 74.609375,
+          "pnl": 22117.734000798082
+        }
+      }
+    },
+    "P_IDX": {
+      "name": "棕榈油",
+      "total_trades": 1539,
+      "real_trades": 16,
+      "synth_trades": 1523,
+      "total_win_rate": 76.15334632878492,
+      "total_pnl": 594920.6312403828,
+      "profit_loss_ratio": 2.0393374147904306,
+      "max_drawdown_pct": 1.9629535491575996,
+      "regimes": {
+        "BULL_TREND": {
+          "trades": 367,
+          "win_rate": 73.56948228882834,
+          "pnl": 108823.74479351891
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 419,
+          "win_rate": 81.14558472553699,
+          "pnl": 219959.30385941733
+        },
+        "PANIC_CRASH": {
+          "trades": 522,
+          "win_rate": 75.09578544061303,
+          "pnl": 232211.07587609277
+        },
+        "GRINDING_CHOP": {
+          "trades": 214,
+          "win_rate": 75.23364485981308,
+          "pnl": 39952.77514895995
+        }
+      }
+    }
+  },
+  "portfolio_real_summary": {
+    "total_trades": 272,
+    "win_rate_pct": 51.83823529411765,
+    "net_pnl": -28077.674114568974,
+    "profitable_symbols": 11,
+    "total_symbols": 25
+  }
+}

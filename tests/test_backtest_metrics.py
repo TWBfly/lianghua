@@ -51,7 +51,9 @@ def test_performance_metrics_are_finite():
     )
 
     assert set(metrics) == {
+        "annualized_return_pct",
         "annualized_volatility_pct",
+        "max_drawdown_pct",
         "sharpe_ratio",
         "sortino_ratio",
         "calmar_ratio",

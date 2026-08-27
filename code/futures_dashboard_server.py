@@ -424,6 +424,23 @@ def api_logs():
 
 
 
+def find_matching_category(dt_val: str, categories: list[str]) -> str | None:
+    if not dt_val or not categories:
+        return None
+    dt_str = str(dt_val).strip()
+    if dt_str in categories:
+        return dt_str
+    dt_short = dt_str[:16]
+    if dt_short in categories:
+        return dt_short
+    for cat in reversed(categories):
+        if cat.startswith(dt_str[:13]) and cat <= dt_str[:16]:
+            return cat
+    if dt_str[:16] >= categories[-1]:
+        return categories[-1]
+    return None
+
+
 @app.route("/api/kline")
 def api_kline():
     symbol = request.args.get("symbol", "AG_IDX")
@@ -447,50 +464,207 @@ def api_kline():
     squeezes = [round(float(x), 3) if not np.isnan(x) else 1.0 for x in recent_df.get("squeeze", pd.Series(np.ones(len(recent_df))))]
     atr_14 = [round(float(x), 2) if not np.isnan(x) else 0.0 for x in recent_df.get("atr_14", pd.Series(np.zeros(len(recent_df))))]
 
-    recent_start_dt = recent_df["datetime"].iloc[0].strftime("%Y-%m-%d %H:%M:%S")
-    recent_end_dt = recent_df["datetime"].iloc[-1].strftime("%Y-%m-%d %H:%M:%S")
+    # 0. 尝试从 realtime_quotes.json 动态合并当前未完结实时跳动 Bar
+    strat_key = ALIAS_MAP.get(strat, strat)
+    strat_cfg = STRATEGY_REGISTRY.get(strat_key, STRATEGY_REGISTRY["vnpy_tianji_15m"])
+    tf = strat_cfg.get("timeframe", "15m")
+    quote_key = f"{symbol}_{tf}"
+    
+    live_quote = None
+    quotes_file = PROJECT_ROOT / "data/realtime_quotes.json"
+    if quotes_file.exists():
+        try:
+            with open(quotes_file, "r", encoding="utf-8") as f:
+                quotes_data = json.load(f)
+                active_bar = quotes_data.get(quote_key)
+                if active_bar:
+                    active_dt = active_bar["dt"][:16]
+                    active_open = float(active_bar["open"])
+                    active_close = float(active_bar["close"])
+                    active_low = float(active_bar["low"])
+                    active_high = float(active_bar["high"])
+                    active_vol = int(active_bar.get("volume", 0))
+                    
+                    if len(categories) > 0 and active_dt == categories[-1]:
+                        k_values[-1] = [active_open, active_close, active_low, active_high]
+                        volumes[-1] = active_vol
+                    elif len(categories) > 0 and active_dt > categories[-1]:
+                        categories.append(active_dt)
+                        k_values.append([active_open, active_close, active_low, active_high])
+                        volumes.append(active_vol)
+                        squeezes.append(squeezes[-1] if squeezes else 1.0)
+                        atr_14.append(atr_14[-1] if atr_14 else 0.0)
+                    
+                    prev_c = k_values[-2][1] if len(k_values) >= 2 else active_open
+                    chg_val = round(active_close - prev_c, 2)
+                    chg_pct = round(chg_val / (prev_c + 1e-6) * 100, 2)
+                    live_quote = {
+                        "last_price": active_close,
+                        "change_val": chg_val,
+                        "change_pct": chg_pct,
+                        "open": active_open,
+                        "high": active_high,
+                        "low": active_low,
+                        "volume": active_vol,
+                        "dt": active_dt,
+                        "is_live": True
+                    }
+        except Exception:
+            pass
+
+    if not live_quote and len(k_values) > 0:
+        cur_c = k_values[-1][1]
+        prev_c = k_values[-2][1] if len(k_values) >= 2 else k_values[-1][0]
+        chg_val = round(cur_c - prev_c, 2)
+        chg_pct = round(chg_val / (prev_c + 1e-6) * 100, 2)
+        live_quote = {
+            "last_price": cur_c,
+            "change_val": chg_val,
+            "change_pct": chg_pct,
+            "open": k_values[-1][0],
+            "high": k_values[-1][3],
+            "low": k_values[-1][2],
+            "volume": volumes[-1] if volumes else 0,
+            "dt": categories[-1] if categories else "",
+            "is_live": False
+        }
 
     trades = res.get("trades", []) if res else []
     trade_markers = []
+    seen_marker_keys = set()
 
+    # 1. 优先从 SQLite 实时数据库中读取实盘/虚拟盘最新成交
+    try:
+        with sqlite3.connect(DB_PATH, timeout=5.0) as conn:
+            clean_sym = symbol.replace("_IDX", "")
+            c = conn.cursor()
+            c.execute("""
+                SELECT strategy_id, symbol, dominant_contract, direction, offset, action,
+                       entry_time, entry_price, exit_time, exit_price, lots, pnl, pnl_pct, reason
+                FROM futures_trade_records
+                WHERE (symbol = ? OR symbol LIKE ? OR dominant_contract LIKE ?)
+                ORDER BY id DESC LIMIT 50;
+            """, (symbol, f"{clean_sym}%", f"{clean_sym.lower()}%"))
+            for r in c.fetchall():
+                strat_id, sym_db, dom_db, direction, offset, action, e_t, e_p, x_t, x_p, lots, pnl, pnl_pct, reason = r
+                e_p = float(e_p or 0.0)
+                x_p = float(x_p or 0.0)
+                lots = int(lots or 1)
+                is_long = ("多" in str(direction) or "LONG" in str(direction).upper() or "买" in str(direction))
+
+                if e_t:
+                    cat_match = find_matching_category(e_t, categories)
+                    if cat_match:
+                        m_key = f"LIVE_ENTRY_{cat_match}_{e_p}"
+                        if m_key not in seen_marker_keys:
+                            seen_marker_keys.add(m_key)
+                            trade_markers.append({
+                                "coord": [cat_match, e_p],
+                                "name": "🟢 买多" if is_long else "🔴 卖空",
+                                "value": f"{'买多' if is_long else '卖空'} {lots}手",
+                                "action": "ENTRY",
+                                "side": "LONG" if is_long else "SHORT",
+                                "price": e_p,
+                                "time": e_t,
+                                "reason": reason or ("考夫曼突破" if is_long else "考夫曼跌破"),
+                                "lots": lots,
+                                "strategy_id": strat_id or "vnpy_tianji_15m",
+                                "symbol": "arrow",
+                                "symbolRotate": 0 if is_long else 180,
+                                "symbolOffset": [0, 18] if is_long else [0, -18],
+                                "symbolSize": 24,
+                                "itemStyle": {"color": "#3fb950" if is_long else "#f85149"}
+                            })
+
+                if x_t and x_p > 0:
+                    cat_match = find_matching_category(x_t, categories)
+                    if cat_match:
+                        m_key = f"LIVE_EXIT_{cat_match}_{x_p}"
+                        if m_key not in seen_marker_keys:
+                            seen_marker_keys.add(m_key)
+                            pnl_val = float(pnl or 0.0)
+                            is_win = pnl_val >= 0
+                            val_str = f"🎯 止盈 +¥{pnl_val:,.0f}" if is_win else f"🛑 止损 ¥{pnl_val:,.0f}"
+                            trade_markers.append({
+                                "coord": [cat_match, x_p],
+                                "name": "平仓",
+                                "value": val_str,
+                                "action": "EXIT",
+                                "side": "LONG" if is_long else "SHORT",
+                                "price": x_p,
+                                "time": x_t,
+                                "reason": reason or ("均值止盈" if is_win else "触发止损"),
+                                "pnl": pnl_val,
+                                "lots": lots,
+                                "strategy_id": strat_id or "vnpy_tianji_15m",
+                                "symbol": "pin",
+                                "symbolOffset": [0, 0],
+                                "symbolSize": 28,
+                                "itemStyle": {"color": "#3fb950" if is_win else "#da3633"}
+                            })
+    except Exception as e:
+        pass
+
+    # 2. 结合历史回测交易记录 (若在最近 200 根内)
     for t in trades:
         e_dt = t.get("entry_dt", "")
         x_dt = t.get("exit_dt", "")
-        e_dt_short = e_dt[:16] if len(e_dt) >= 16 else e_dt
-        x_dt_short = x_dt[:16] if len(x_dt) >= 16 else x_dt
+        e_p = float(t.get("entry_p", t.get("entry_price", 0.0)))
+        x_p = float(t.get("exit_p", t.get("exit_price", 0.0)))
+        is_long = "LONG" in t.get("side", "")
 
-        if e_dt and recent_start_dt <= e_dt <= recent_end_dt:
-            trade_markers.append({
-                "coord": [e_dt_short, t.get("entry_p", t.get("entry_price", 0.0))],
-                "value": "🟢 买多" if "LONG" in t.get("side", "") else "🔴 买空",
-                "action": "ENTRY",
-                "side": t.get("side", ""),
-                "price": t.get("entry_p", t.get("entry_price", 0.0)),
-                "time": e_dt,
-                "reason": t.get("reason", "极值偏离 + Pin Bar吸收 + Meta置信度过滤"),
-                "lots": t.get("lots", 1),
-                "itemStyle": {"color": "#3fb950" if "LONG" in t.get("side", "") else "#f85149"}
-            })
+        if e_dt:
+            cat_match = find_matching_category(e_dt, categories)
+            if cat_match:
+                m_key = f"BT_ENTRY_{cat_match}_{e_p}"
+                if m_key not in seen_marker_keys:
+                    seen_marker_keys.add(m_key)
+                    trade_markers.append({
+                        "coord": [cat_match, e_p],
+                        "name": "🟢 买多" if is_long else "🔴 卖空",
+                        "value": f"{'买多' if is_long else '卖空'} {t.get('lots', 1)}手",
+                        "action": "ENTRY",
+                        "side": t.get("side", ""),
+                        "price": e_p,
+                        "time": e_dt,
+                        "reason": t.get("reason", "极值偏离 + Meta置信度过滤"),
+                        "lots": t.get("lots", 1),
+                        "strategy_id": strat,
+                        "symbol": "arrow",
+                        "symbolRotate": 0 if is_long else 180,
+                        "symbolOffset": [0, 18] if is_long else [0, -18],
+                        "symbolSize": 24,
+                        "itemStyle": {"color": "#3fb950" if is_long else "#f85149"}
+                    })
 
-        if x_dt and recent_start_dt <= x_dt <= recent_end_dt:
-            pnl = t.get("pnl", 0.0)
-            reason = t.get("reason", "")
-            val_str = "🎯 SMA5止盈" if "SMA" in reason or pnl > 0 else ("🛑 止损" if "止损" in reason else "⏱️ 超时清仓")
-            color = "#3fb950" if pnl > 0 else "#da3633"
-
-            trade_markers.append({
-                "coord": [x_dt_short, t.get("exit_p", t.get("exit_price", 0.0))],
-                "value": val_str,
-                "action": "EXIT",
-                "side": t.get("side", ""),
-                "price": t.get("exit_p", t.get("exit_price", 0.0)),
-                "time": x_dt,
-                "reason": reason,
-                "pnl": pnl,
-                "return_pct": t.get("ret_pct", 0.0),
-                "lots": t.get("lots", 1),
-                "itemStyle": {"color": color}
-            })
+        if x_dt and x_p > 0:
+            cat_match = find_matching_category(x_dt, categories)
+            if cat_match:
+                m_key = f"BT_EXIT_{cat_match}_{x_p}"
+                if m_key not in seen_marker_keys:
+                    seen_marker_keys.add(m_key)
+                    pnl = t.get("pnl", 0.0)
+                    reason = t.get("reason", "")
+                    val_str = "🎯 SMA5止盈" if "SMA" in reason or pnl > 0 else ("🛑 止损" if "止损" in reason else "⏱️ 超时清仓")
+                    color = "#3fb950" if pnl > 0 else "#da3633"
+                    trade_markers.append({
+                        "coord": [cat_match, x_p],
+                        "name": "平仓",
+                        "value": val_str,
+                        "action": "EXIT",
+                        "side": t.get("side", ""),
+                        "price": x_p,
+                        "time": x_dt,
+                        "reason": reason,
+                        "pnl": pnl,
+                        "return_pct": t.get("ret_pct", 0.0),
+                        "lots": t.get("lots", 1),
+                        "strategy_id": strat,
+                        "symbol": "pin",
+                        "symbolOffset": [0, 0],
+                        "symbolSize": 28,
+                        "itemStyle": {"color": color}
+                    })
 
     dom_code = DOMINANT_CONTRACT_MAP.get(symbol, symbol)
     return jsonify({
@@ -504,6 +678,7 @@ def api_kline():
         "squeezes": squeezes,
         "atr_14": atr_14,
         "trade_markers": trade_markers,
+        "live_quote": live_quote,
         "summary": {
             "win_rate": res.get("win_rate_pct", 0.0) if res else 0.0,
             "pl_ratio": res.get("profit_loss_ratio", 0.0) if res else 0.0,
@@ -519,29 +694,36 @@ def api_kline():
 @app.route("/api/trades")
 def api_trades():
     symbol_filter = request.args.get("symbol", "ALL")
-    strat = request.args.get("strategy", "vnpy_tianji_15m")
+    strat = request.args.get("strategy", "ALL")
     all_trades = []
 
     try:
         with sqlite3.connect(DB_PATH) as conn:
+            c = conn.cursor()
+            c.execute("PRAGMA table_info(futures_trade_records);")
+            cols = [col[1] for col in c.fetchall()]
+            has_entry_reason = "entry_reason" in cols
+            has_exit_reason = "exit_reason" in cols
+
+            entry_reason_col = "entry_reason" if has_entry_reason else "reason as entry_reason"
+            exit_reason_col = "exit_reason" if has_exit_reason else "reason as exit_reason"
+
+            query = (
+                f"SELECT strategy_id, symbol, dominant_contract, direction as side, offset, action, "
+                f"entry_time as entry_dt, entry_price as entry_p, exit_time as exit_dt, exit_price as exit_p, "
+                f"lots, pnl, {entry_reason_col}, {exit_reason_col}, reason FROM futures_trade_records WHERE 1=1"
+            )
+            params = []
             if symbol_filter != "ALL":
-                df_t = pd.read_sql_query(
-                    "SELECT symbol, dominant_contract, direction as side, entry_time as entry_dt, entry_price as entry_p, "
-                    "exit_time as exit_dt, exit_price as exit_p, lots, pnl, reason FROM futures_trade_records "
-                    "WHERE symbol=? ORDER BY exit_time DESC LIMIT 150",
-                    conn, params=(symbol_filter,)
-                )
-            else:
-                df_t = pd.read_sql_query(
-                    "SELECT symbol, dominant_contract, direction as side, entry_time as entry_dt, entry_price as entry_p, "
-                    "exit_time as exit_dt, exit_price as exit_p, lots, pnl, reason FROM futures_trade_records "
-                    "ORDER BY exit_time DESC LIMIT 150",
-                    conn
-                )
+                query += " AND (symbol=? OR symbol LIKE ? OR dominant_contract LIKE ?)"
+                clean_s = symbol_filter.replace("_IDX", "")
+                params.extend([symbol_filter, f"{clean_s}%", f"{clean_s.lower()}%"])
+            query += " ORDER BY id DESC LIMIT 150"
+            df_t = pd.read_sql_query(query, conn, params=params)
             if not df_t.empty:
                 all_trades = df_t.to_dict(orient="records")
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"查询交易记录失败: {e}")
 
     if not all_trades:
         symbols_to_query = [symbol_filter] if symbol_filter in SYMBOL_CONFIGS else list(SYMBOL_CONFIGS.keys())
@@ -551,6 +733,7 @@ def api_trades():
                 trades_sub = data["backtest"].get("trades", [])
                 for t in trades_sub:
                     t_copy = dict(t)
+                    t_copy["strategy_id"] = strat
                     t_copy["dominant_contract"] = DOMINANT_CONTRACT_MAP.get(sym, sym)
                     all_trades.append(t_copy)
 
@@ -713,6 +896,11 @@ DASHBOARD_HTML = """
       </div>
 
       <div class="chart-info-bar" id="chartInfoBar">
+        <div style="background: rgba(56, 139, 253, 0.12); padding: 3px 10px; border-radius: 4px; border: 1px solid rgba(56,139,253,0.3); display: flex; align-items: center; gap: 6px;">
+          <span>⚡ 盘中现价:</span>
+          <b id="livePrice" style="font-size: 15px; color: #58a6ff; font-family: monospace;">-</b>
+          <span id="liveChange" style="font-size: 11px; font-weight: 600; padding: 1px 4px; border-radius: 3px;"></span>
+        </div>
         <div><span>品种胜率:</span> <b id="symWinRate">-%</b></div>
         <div><span>盈亏比:</span> <b id="symPLRatio">-</b></div>
         <div><span>策略净利润:</span> <b id="symReturn">-</b></div>
@@ -737,6 +925,7 @@ DASHBOARD_HTML = """
       <table class="trades-table">
         <thead>
           <tr>
+            <th>策略</th>
             <th>品种</th>
             <th>方向</th>
             <th>开仓时间</th>
@@ -827,6 +1016,19 @@ DASHBOARD_HTML = """
         document.getElementById('symMaxDD').innerText = (data.summary.max_dd || 0).toFixed(2) + "%";
         document.getElementById('symSharpe').innerText = (data.summary.sharpe || 0).toFixed(2);
 
+        if (data.live_quote) {
+          const lq = data.live_quote;
+          const isPos = (lq.change_val >= 0);
+          const color = isPos ? 'var(--green-bright)' : 'var(--red-bright)';
+          const lpElem = document.getElementById('livePrice');
+          const lcElem = document.getElementById('liveChange');
+          lpElem.innerText = `¥${Number(lq.last_price).toFixed(2)}`;
+          lpElem.style.color = color;
+          lcElem.innerText = `${isPos ? '+' : ''}${Number(lq.change_val).toFixed(2)} (${isPos ? '+' : ''}${Number(lq.change_pct).toFixed(2)}%)`;
+          lcElem.style.color = color;
+          lcElem.style.background = isPos ? 'rgba(63,185,80,0.15)' : 'rgba(248,81,73,0.15)';
+        }
+
         renderKlineChart(data);
       } catch (e) {
         console.error("加载 K 线失败:", e);
@@ -834,6 +1036,8 @@ DASHBOARD_HTML = """
     }
 
     function renderKlineChart(data) {
+      const livePriceVal = data.live_quote ? data.live_quote.last_price : (data.k_values.length > 0 ? data.k_values[data.k_values.length-1][1] : 0);
+      const isPosChange = (data.live_quote && data.live_quote.change_val >= 0);
       const option = {
         backgroundColor: 'transparent',
         animation: false,
@@ -845,8 +1049,8 @@ DASHBOARD_HTML = """
           textStyle: { color: '#c5d1de', fontSize: 12 }
         },
         grid: [
-          { left: '4%', right: '3%', top: '6%', height: '62%' },
-          { left: '4%', right: '3%', top: '74%', height: '18%' }
+          { left: '4%', right: '4%', top: '6%', height: '62%' },
+          { left: '4%', right: '4%', top: '74%', height: '18%' }
         ],
         xAxis: [
           { type: 'category', data: data.categories, scale: true, boundaryGap: false, axisLine: { lineStyle: { color: '#232f3e' } }, splitLine: { show: false } },
@@ -871,13 +1075,71 @@ DASHBOARD_HTML = """
               borderColor: '#3fb950',
               borderColor0: '#f85149'
             },
+            markLine: {
+              symbol: ['none', 'none'],
+              silent: true,
+              data: [
+                {
+                  yAxis: livePriceVal,
+                  lineStyle: {
+                    color: isPosChange ? '#3fb950' : '#f85149',
+                    type: 'dashed',
+                    width: 1.5
+                  },
+                  label: {
+                    show: true,
+                    position: 'end',
+                    formatter: () => ` 现价 ¥${Number(livePriceVal).toFixed(2)} `,
+                    backgroundColor: isPosChange ? '#3fb950' : '#f85149',
+                    color: '#fff',
+                    padding: [2, 6],
+                    borderRadius: 3,
+                    fontSize: 10,
+                    fontWeight: 'bold'
+                  }
+                }
+              ]
+            },
             markPoint: {
-              data: data.trade_markers.map(m => ({
-                name: m.value,
-                coord: m.coord,
-                value: m.value,
-                itemStyle: m.itemStyle
-              }))
+              data: data.trade_markers.map(m => {
+                const isLong = (m.side === 'LONG');
+                const isEntry = (m.action === 'ENTRY');
+                return {
+                  name: m.name || m.value,
+                  coord: m.coord,
+                  value: m.value,
+                  symbol: m.symbol || (isEntry ? 'arrow' : 'pin'),
+                  symbolRotate: m.symbolRotate !== undefined ? m.symbolRotate : (isLong ? 0 : 180),
+                  symbolOffset: m.symbolOffset || (isLong ? [0, 18] : [0, -18]),
+                  symbolSize: m.symbolSize || (isEntry ? 26 : 28),
+                  itemStyle: m.itemStyle || { color: isLong ? '#3fb950' : '#f85149' },
+                  label: {
+                    show: true,
+                    formatter: m.value,
+                    position: isLong ? 'bottom' : 'top',
+                    color: m.itemStyle ? m.itemStyle.color : (isLong ? '#3fb950' : '#f85149'),
+                    fontSize: 11,
+                    fontWeight: 'bold',
+                    backgroundColor: 'rgba(17, 23, 34, 0.85)',
+                    padding: [2, 5],
+                    borderRadius: 3,
+                    borderColor: m.itemStyle ? m.itemStyle.color : (isLong ? '#3fb950' : '#f85149'),
+                    borderWidth: 1
+                  }
+                };
+              }),
+              tooltip: {
+                formatter: (param) => {
+                  const m = data.trade_markers.find(t => t.coord[0] === param.data.coord[0] && Math.abs(t.coord[1] - param.data.coord[1]) < 1e-4);
+                  if (!m) return param.name;
+                  return `
+                    <div style="font-weight:bold; color:#58a6ff; margin-bottom:4px;">${m.name} (${m.time})</div>
+                    <div>价格: <b>¥${Number(m.price).toFixed(2)}</b> | 手数: <b>${m.lots}手</b></div>
+                    <div>信号原因: <span style="color:#d29922;">${m.reason || '-'}</span></div>
+                    ${m.pnl !== undefined ? `<div>实现盈亏: <b style="color:${m.pnl>=0?'#3fb950':'#f85149'}">${m.pnl>=0?'+':''}¥${Number(m.pnl).toLocaleString()}</b></div>` : ''}
+                  `;
+                }
+              }
             }
           },
           {
@@ -902,22 +1164,38 @@ DASHBOARD_HTML = """
 
         data.trades.forEach(t => {
           const row = document.createElement('tr');
+          const isClosed = (t.action === 'EXIT' || t.offset === '平仓' || (t.exit_dt && t.exit_dt !== '-' && t.exit_dt !== ''));
           const pnl = Number(t.pnl || t.pnl_rmb || 0);
-          const pnlColor = pnl >= 0 ? 'var(--green-bright)' : 'var(--red-bright)';
-          const sideText = (t.side || "").includes("LONG") ? '<span style="color:var(--green-bright);">多头</span>' : '<span style="color:var(--red-bright);">空头</span>';
+          const pnlColor = isClosed ? (pnl >= 0 ? 'var(--green-bright)' : 'var(--red-bright)') : 'var(--blue)';
+          const sideText = (t.side || "").includes("LONG") || (t.side || "").includes("多") ? '<span style="color:var(--green-bright);">多头</span>' : '<span style="color:var(--red-bright);">空头</span>';
+
+          let stratBadge = '<span style="font-size:10px; padding:2px 5px; border-radius:3px; background:rgba(88,166,255,0.15); color:#58a6ff;">天玑 15m</span>';
+          if (t.strategy_id && t.strategy_id.includes("zscore_15m")) {
+            stratBadge = '<span style="font-size:10px; padding:2px 5px; border-radius:3px; background:rgba(210,153,34,0.15); color:#d29922;">ZScore 15m</span>';
+          } else if (t.strategy_id && t.strategy_id.includes("zscore_10m")) {
+            stratBadge = '<span style="font-size:10px; padding:2px 5px; border-radius:3px; background:rgba(219,109,40,0.15); color:#db6d28;">ZScore 10m</span>';
+          }
 
           const domBadge = (t.dominant_contract && t.dominant_contract !== t.symbol) ? `<br><span style="font-size:10px; color:#58a6ff; font-weight:normal;">${t.dominant_contract}</span>` : '';
+          
+          const entryReason = t.entry_reason || (t.action === 'ENTRY' ? t.reason : '') || "信号突破入场";
+          const exitDtStr = isClosed ? (t.exit_dt || t.exit_time || "-") : '<span style="color:var(--blue); font-weight:600;">持仓中...</span>';
+          const exitPriceStr = isClosed ? Number(t.exit_p || t.exit_price || 0).toFixed(2) : '-';
+          const exitReasonStr = isClosed ? (t.exit_reason || t.reason || "-") : '<span style="color:var(--text-muted);">运行中(未触发止损/止盈)</span>';
+          const pnlStr = isClosed ? `${pnl >= 0 ? "+" : ""}¥${pnl.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : '<span style="color:var(--blue);">浮动持仓</span>';
+
           row.innerHTML = `
+            <td>${stratBadge}</td>
             <td><b>${t.symbol}</b>${domBadge}</td>
             <td>${sideText}</td>
             <td>${t.entry_dt || t.entry_time || "-"}</td>
             <td>${Number(t.entry_p || t.entry_price || 0).toFixed(2)}</td>
-            <td style="font-size:11px; color:#58a6ff;">${t.reason || "极值偏离 + Pin Bar吸收 + Meta置信度过滤"}</td>
-            <td>${t.exit_dt || t.exit_time || "-"}</td>
-            <td>${Number(t.exit_p || t.exit_price || 0).toFixed(2)}</td>
-            <td style="font-size:11px; color:#d29922;">${t.reason || "-"}</td>
+            <td style="font-size:11px; color:#58a6ff;">${entryReason}</td>
+            <td>${exitDtStr}</td>
+            <td>${exitPriceStr}</td>
+            <td style="font-size:11px; color:#d29922;">${exitReasonStr}</td>
             <td>${t.lots || 1}手</td>
-            <td style="color:${pnlColor}; font-weight:600;">${pnl >= 0 ? "+" : ""}¥${pnl.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            <td style="color:${pnlColor}; font-weight:600;">${pnlStr}</td>
           `;
           tbody.appendChild(row);
         });
@@ -942,15 +1220,15 @@ DASHBOARD_HTML = """
     window.onload = () => {
       initChart();
       refreshAll();
-      // 5 秒自动高频刷新状态与 K 线跳动
+      // 2 秒高频刷新状态与盘中实时 K 线跳动
       setInterval(() => {
         loadStatus();
         loadKline(currentSymbol);
-      }, 5000);
-      // 15 秒更新一次底部明细流水
+      }, 2000);
+      // 10 秒更新一次底部明细流水
       setInterval(() => {
         loadTrades(currentSymbol);
-      }, 15000);
+      }, 10000);
     };
   </script>
 </body>

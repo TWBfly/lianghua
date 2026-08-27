@@ -74,6 +74,13 @@ class StrategyEvaluatorAgent:
         if not attack_results.get("ledger_reconciled", True):
             hard_fails.append("账本资金流水未闭环对账 (Ledger Reconciliation Failure)")
 
+        profitable_ratio = float(metrics.get("profitable_symbols_ratio", 1.0))
+        total_pnl = float(metrics.get("total_net_pnl", 1.0))
+        if profitable_ratio < 0.80:
+            hard_fails.append(f"全市场品种盈利覆盖率过低 ({profitable_ratio*100:.1f}% < 80.0%) - 多数标的处于亏损磨损状态，严禁准入")
+        if total_pnl <= 0:
+            hard_fails.append("全市场累计净利润为负 (Total PnL <= 0) - 无法覆盖摩擦成本")
+
         # ----------------------------------------------------------------------
         # 1. Prediction Quality & Alpha (25 pt)
         # ----------------------------------------------------------------------
