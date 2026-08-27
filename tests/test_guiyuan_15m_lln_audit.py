@@ -12,8 +12,10 @@ if str(CODE_DIR) not in sys.path:
     sys.path.insert(0, str(CODE_DIR))
 
 from run_guiyuan_15m_lln_audit import (  # noqa: E402
+    audit_bars,
     lln_gate,
     simulate_guiyuan,
+    summarize_simulation,
     summarize_portfolio,
 )
 
@@ -89,3 +91,26 @@ def test_track_summaries_never_mix() -> None:
     assert summary["net_pnl"] == -10.0
     assert summary["trade_count"] == 2
 
+
+def test_simulation_summary_contains_statistical_and_cost_metrics() -> None:
+    df, signals = deterministic_long_fixture()
+    result = simulate_guiyuan(df, signals, SPEC, initial_capital=100_000.0)
+
+    summary = summarize_simulation("TEST", "测试", "real", result, len(df))
+
+    assert summary["trade_count"] == 1
+    assert 0.0 <= summary["win_rate_ci95_low"] <= summary["win_rate_ci95_high"] <= 100.0
+    assert summary["fees"] > 0.0
+    assert summary["slippage"] > 0.0
+    assert summary["ledger_reconciled"]
+
+
+def test_data_quality_detects_duplicate_and_invalid_ohlc() -> None:
+    df, _ = deterministic_long_fixture()
+    duplicate = pd.concat([df, df.iloc[[-1]]])
+    duplicate.iloc[0, duplicate.columns.get_loc("high")] = 98.0
+
+    quality = audit_bars("TEST", "real", duplicate)
+
+    assert quality["duplicate_timestamps"] == 1
+    assert quality["ohlc_errors"] == 1
