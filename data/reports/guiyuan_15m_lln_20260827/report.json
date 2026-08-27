@@ -1,0 +1,5441 @@
+{
+  "summary": {
+    "status": "REJECTED",
+    "real": {
+      "track": "real",
+      "net_pnl": -525133.5232767864,
+      "trade_count": 579,
+      "symbols": 25,
+      "profitable_symbols": 5,
+      "win_rate_pct": 6.390328151986183,
+      "profit_factor": 0.39976465808816586,
+      "expectancy": -906.9663614452252,
+      "fees": 33610.13041964286,
+      "slippage": 163030.0
+    },
+    "synthetic": {
+      "track": "synthetic",
+      "net_pnl": -10087907.066678569,
+      "trade_count": 27851,
+      "symbols": 25,
+      "min_symbol_trades": 1001,
+      "all_symbols_over_1000": true,
+      "holdout_profitable_symbols": 0,
+      "stress_profitable_symbols": 0,
+      "plateau_pass_symbols": 0,
+      "win_rate_pct": 5.877706366019173,
+      "profit_factor": 0.5719908327129924,
+      "expectancy": -362.2098691852564,
+      "fees": 616044.9238214286,
+      "slippage": 3364970.0
+    }
+  },
+  "symbol_metrics": [
+    {
+      "symbol": "AU_IDX",
+      "name": "沪金",
+      "track": "real",
+      "bars": 8136,
+      "trade_count": 36,
+      "win_rate_pct": 8.333333333333334,
+      "win_rate_ci95_low": 2.87480892712918,
+      "win_rate_ci95_high": 21.82701027691885,
+      "profit_factor": 0.1826478811545927,
+      "expectancy": -1815.0665168650419,
+      "net_pnl": -65342.394607141265,
+      "return_pct": -6.534239460714126,
+      "max_drawdown_pct": 7.2355930773791215,
+      "sharpe": -1.6911411312483393,
+      "sortino": -0.5014142440215412,
+      "avg_holding_hours": 2.0625,
+      "fees": 3528.823178571429,
+      "slippage": 1440.0,
+      "cost_to_gross_pct": 34.02930273484905,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "AU_IDX",
+      "name": "沪金",
+      "track": "synthetic",
+      "bars": 480000,
+      "trade_count": 1117,
+      "win_rate_pct": 6.714413607878245,
+      "win_rate_ci95_low": 5.39008539018094,
+      "win_rate_ci95_high": 8.335457987224038,
+      "profit_factor": 0.6154006777193665,
+      "expectancy": -938.4345812124068,
+      "net_pnl": -1048231.4272142585,
+      "return_pct": -26.205785680356463,
+      "max_drawdown_pct": 26.44817159750682,
+      "sharpe": -0.6151268693482053,
+      "sortino": -0.28868048911151334,
+      "avg_holding_hours": 2.812891674127126,
+      "fees": 64901.427214285715,
+      "slippage": 44680.0,
+      "cost_to_gross_pct": 6.533265698734245,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 573.0,
+      "holdout_net_pnl": -828376.9542857015,
+      "parameter_profitable": 0.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -1256147.7167499433
+    },
+    {
+      "symbol": "AG_IDX",
+      "name": "沪银",
+      "track": "real",
+      "bars": 8136,
+      "trade_count": 51,
+      "win_rate_pct": 11.764705882352942,
+      "win_rate_ci95_low": 5.504998764172768,
+      "win_rate_ci95_high": 23.381102297794786,
+      "profit_factor": 1.3784605784117865,
+      "expectancy": 514.1323056722678,
+      "net_pnl": 26220.747589285835,
+      "return_pct": 2.6220747589285835,
+      "max_drawdown_pct": 3.1279910738331225,
+      "sharpe": 0.6757744408253986,
+      "sortino": 0.2896156677614374,
+      "avg_holding_hours": 2.588235294117647,
+      "fees": 1501.395267857143,
+      "slippage": 1830.0,
+      "cost_to_gross_pct": 3.4882483130376167,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "AG_IDX",
+      "name": "沪银",
+      "track": "synthetic",
+      "bars": 480000,
+      "trade_count": 1037,
+      "win_rate_pct": 4.532304725168756,
+      "win_rate_ci95_low": 3.425303948145849,
+      "win_rate_ci95_high": 5.974935242908775,
+      "profit_factor": 0.35361278312160666,
+      "expectancy": -367.25259603595555,
+      "net_pnl": -380840.9420892878,
+      "return_pct": -9.521023552232196,
+      "max_drawdown_pct": 9.685121101951943,
+      "sharpe": -1.1121333100532067,
+      "sortino": -0.5009530990746605,
+      "avg_holding_hours": 2.377049180327869,
+      "fees": 19023.799232142857,
+      "slippage": 54450.0,
+      "cost_to_gross_pct": 35.26579422981629,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 525.0,
+      "holdout_net_pnl": -177661.95559821627,
+      "parameter_profitable": 0.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -512128.25844642776
+    },
+    {
+      "symbol": "RB_IDX",
+      "name": "螺纹钢",
+      "track": "real",
+      "bars": 8211,
+      "trade_count": 6,
+      "win_rate_pct": 0.0,
+      "win_rate_ci95_low": 0.0,
+      "win_rate_ci95_high": 39.03430336530645,
+      "profit_factor": 0.0,
+      "expectancy": -2468.393625000006,
+      "net_pnl": -14810.361750000156,
+      "return_pct": -1.4810361750000156,
+      "max_drawdown_pct": 1.904839004286076,
+      "sharpe": -1.6983173932029103,
+      "sortino": -0.2064441545582914,
+      "avg_holding_hours": 2.2916666666666665,
+      "fees": 445.36175000000003,
+      "slippage": 2840.0,
+      "cost_to_gross_pct": 3.28536175e+17,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "RB_IDX",
+      "name": "螺纹钢",
+      "track": "synthetic",
+      "bars": 600000,
+      "trade_count": 1142,
+      "win_rate_pct": 6.042031523642732,
+      "win_rate_ci95_low": 4.801961126229541,
+      "win_rate_ci95_high": 7.576852838981705,
+      "profit_factor": 0.4986362899305637,
+      "expectancy": -366.679861740055,
+      "net_pnl": -418748.40210713993,
+      "return_pct": -8.374968042142799,
+      "max_drawdown_pct": 8.415250275488736,
+      "sharpe": -0.9912299170708017,
+      "sortino": -0.505155047275564,
+      "avg_holding_hours": 2.7399299474605954,
+      "fees": 22669.83067857143,
+      "slippage": 134640.0,
+      "cost_to_gross_pct": 37.772150695515705,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 446.0,
+      "holdout_net_pnl": -190945.08885714132,
+      "parameter_profitable": 0.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -666914.2881607136
+    },
+    {
+      "symbol": "HC_IDX",
+      "name": "热卷",
+      "track": "real",
+      "bars": 8015,
+      "trade_count": 11,
+      "win_rate_pct": 18.181818181818183,
+      "win_rate_ci95_low": 5.136660067100063,
+      "win_rate_ci95_high": 47.69861375782448,
+      "profit_factor": 2.4174492232131737,
+      "expectancy": 923.4983863636412,
+      "net_pnl": 10158.482250000001,
+      "return_pct": 1.015848225,
+      "max_drawdown_pct": 1.4451862463894538,
+      "sharpe": 0.4823409135131306,
+      "sortino": 0.12713721523028182,
+      "avg_holding_hours": 7.545454545454546,
+      "fees": 1043.6606071428573,
+      "slippage": 6400.0,
+      "cost_to_gross_pct": 42.9643144703678,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "HC_IDX",
+      "name": "热卷",
+      "track": "synthetic",
+      "bars": 600000,
+      "trade_count": 1134,
+      "win_rate_pct": 5.379188712522046,
+      "win_rate_ci95_low": 4.210318279831938,
+      "win_rate_ci95_high": 6.849358216439599,
+      "profit_factor": 0.4852928284590244,
+      "expectancy": -349.79452261274906,
+      "net_pnl": -396666.9886428572,
+      "return_pct": -7.933339772857143,
+      "max_drawdown_pct": 8.123601235559663,
+      "sharpe": -0.9378818928217103,
+      "sortino": -0.49410499281911174,
+      "avg_holding_hours": 2.807980599647266,
+      "fees": 21981.98864285714,
+      "slippage": 134820.0,
+      "cost_to_gross_pct": 41.92584776914765,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 457.0,
+      "holdout_net_pnl": -156692.74685714126,
+      "parameter_profitable": 0.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -681033.7055357178
+    },
+    {
+      "symbol": "I_IDX",
+      "name": "铁矿石",
+      "track": "real",
+      "bars": 8015,
+      "trade_count": 11,
+      "win_rate_pct": 0.0,
+      "win_rate_ci95_low": 2.7755575615628914e-15,
+      "win_rate_ci95_high": 25.88400172488141,
+      "profit_factor": 0.0,
+      "expectancy": -929.7461363636364,
+      "net_pnl": -10227.207499999902,
+      "return_pct": -1.0227207499999902,
+      "max_drawdown_pct": 1.3991433798211006,
+      "sharpe": -1.20711447914226,
+      "sortino": -0.1592655084186528,
+      "avg_holding_hours": 1.0,
+      "fees": 577.2075,
+      "slippage": 7400.0,
+      "cost_to_gross_pct": 7.9772075e+17,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "I_IDX",
+      "name": "铁矿石",
+      "track": "synthetic",
+      "bars": 840000,
+      "trade_count": 1151,
+      "win_rate_pct": 5.212858384013901,
+      "win_rate_ci95_low": 4.071158365890577,
+      "win_rate_ci95_high": 6.652528761417618,
+      "profit_factor": 0.5263390110692914,
+      "expectancy": -255.09935071987096,
+      "net_pnl": -293619.3526785688,
+      "return_pct": -4.194562181122412,
+      "max_drawdown_pct": 4.214247934910365,
+      "sharpe": -0.8319809588742412,
+      "sortino": -0.416250274883029,
+      "avg_holding_hours": 2.667897480451781,
+      "fees": 15097.924107142857,
+      "slippage": 193700.0,
+      "cost_to_gross_pct": 63.994633607379875,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 494.0,
+      "holdout_net_pnl": -79342.11312499875,
+      "parameter_profitable": 0.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -722814.90973214
+    },
+    {
+      "symbol": "J_IDX",
+      "name": "焦炭",
+      "track": "real",
+      "bars": 8015,
+      "trade_count": 30,
+      "win_rate_pct": 3.3333333333333335,
+      "win_rate_ci95_low": 0.590843799485738,
+      "win_rate_ci95_high": 16.670751396958874,
+      "profit_factor": 0.04785333740933004,
+      "expectancy": -2267.342157738095,
+      "net_pnl": -68020.26473214303,
+      "return_pct": -6.802026473214302,
+      "max_drawdown_pct": 6.936085723214318,
+      "sharpe": -1.8604142363142973,
+      "sortino": -0.31188720892583016,
+      "avg_holding_hours": 2.525,
+      "fees": 864.9075892857143,
+      "slippage": 5200.0,
+      "cost_to_gross_pct": 177.4097515212265,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "J_IDX",
+      "name": "焦炭",
+      "track": "synthetic",
+      "bars": 600000,
+      "trade_count": 1227,
+      "win_rate_pct": 6.927465362673186,
+      "win_rate_ci95_low": 5.636966935503168,
+      "win_rate_ci95_high": 8.486832585085022,
+      "profit_factor": 0.5544862057961424,
+      "expectancy": -429.46729341308657,
+      "net_pnl": -526956.3690178586,
+      "return_pct": -10.539127380357174,
+      "max_drawdown_pct": 10.600346787500028,
+      "sharpe": -0.7477633872409407,
+      "sortino": -0.3917720552916914,
+      "avg_holding_hours": 3.0535859820700897,
+      "fees": 29147.440446428573,
+      "slippage": 140100.0,
+      "cost_to_gross_pct": 25.805831695048475,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 500.0,
+      "holdout_net_pnl": -251000.96758928732,
+      "parameter_profitable": 0.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -859999.71026786
+    },
+    {
+      "symbol": "JM_IDX",
+      "name": "焦煤",
+      "track": "real",
+      "bars": 8015,
+      "trade_count": 33,
+      "win_rate_pct": 3.0303030303030303,
+      "win_rate_ci95_low": 0.5369272089651724,
+      "win_rate_ci95_high": 15.319061673168067,
+      "profit_factor": 0.06500334725414993,
+      "expectancy": -1534.786623376622,
+      "net_pnl": -50647.95857142878,
+      "return_pct": -5.064795857142879,
+      "max_drawdown_pct": 5.52348550714287,
+      "sharpe": -3.059946102803528,
+      "sortino": -0.6935066410036617,
+      "avg_holding_hours": 1.6363636363636365,
+      "fees": 830.8157142857142,
+      "slippage": 7560.0,
+      "cost_to_gross_pct": 238.29590163186197,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "JM_IDX",
+      "name": "焦煤",
+      "track": "synthetic",
+      "bars": 600000,
+      "trade_count": 1023,
+      "win_rate_pct": 5.571847507331379,
+      "win_rate_ci95_low": 4.325259396977316,
+      "win_rate_ci95_high": 7.150863113057339,
+      "profit_factor": 0.5576305513985051,
+      "expectancy": -261.64595721617104,
+      "net_pnl": -267663.8142321423,
+      "return_pct": -5.353276284642846,
+      "max_drawdown_pct": 5.918131123303721,
+      "sharpe": -0.751017378063931,
+      "sortino": -0.38112609194101726,
+      "avg_holding_hours": 2.8391984359726297,
+      "fees": 16423.457089285715,
+      "slippage": 122880.0,
+      "cost_to_gross_pct": 41.28675953404346,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 385.0,
+      "holdout_net_pnl": -61692.474053570186,
+      "parameter_profitable": 0.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -531690.1090178561
+    },
+    {
+      "symbol": "CU_IDX",
+      "name": "沪铜",
+      "track": "real",
+      "bars": 8223,
+      "trade_count": 36,
+      "win_rate_pct": 5.555555555555555,
+      "win_rate_ci95_low": 1.5369663767066846,
+      "win_rate_ci95_high": 18.144974107611212,
+      "profit_factor": 0.8808268744446913,
+      "expectancy": -127.77110863095231,
+      "net_pnl": -4599.7599107142305,
+      "return_pct": -0.45997599107142306,
+      "max_drawdown_pct": 3.283961276397206,
+      "sharpe": -0.1791766917713538,
+      "sortino": -0.04704399433898168,
+      "avg_holding_hours": 1.6597222222222223,
+      "fees": 3151.5456249999997,
+      "slippage": 7200.0,
+      "cost_to_gross_pct": 30.447932620150926,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "CU_IDX",
+      "name": "沪铜",
+      "track": "synthetic",
+      "bars": 480000,
+      "trade_count": 1023,
+      "win_rate_pct": 6.940371456500489,
+      "win_rate_ci95_low": 5.538691621159645,
+      "win_rate_ci95_high": 8.66423899637669,
+      "profit_factor": 0.87775207424861,
+      "expectancy": -182.14932472769186,
+      "net_pnl": -186338.75919642823,
+      "return_pct": -4.658468979910706,
+      "max_drawdown_pct": 7.54894710594508,
+      "sharpe": -0.15057264643409293,
+      "sortino": -0.07276175949542109,
+      "avg_holding_hours": 3.138318670576735,
+      "fees": 40129.830625,
+      "slippage": 107000.0,
+      "cost_to_gross_pct": 10.996821363369254,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 517.0,
+      "holdout_net_pnl": -142954.5208035705,
+      "parameter_profitable": 0.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -515472.6042857128
+    },
+    {
+      "symbol": "AL_IDX",
+      "name": "沪铝",
+      "track": "real",
+      "bars": 8015,
+      "trade_count": 26,
+      "win_rate_pct": 7.6923076923076925,
+      "win_rate_ci95_low": 2.135463918337556,
+      "win_rate_ci95_high": 24.141947480515054,
+      "profit_factor": 0.441223199145988,
+      "expectancy": -1049.5097733516468,
+      "net_pnl": -27287.2541071428,
+      "return_pct": -2.7287254107142798,
+      "max_drawdown_pct": 4.619445502146483,
+      "sharpe": -1.0939826173642513,
+      "sortino": -0.19852810504456148,
+      "avg_holding_hours": 2.0384615384615383,
+      "fees": 2558.6826785714284,
+      "slippage": 11550.0,
+      "cost_to_gross_pct": 65.47969657268794,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "AL_IDX",
+      "name": "沪铝",
+      "track": "synthetic",
+      "bars": 600000,
+      "trade_count": 1193,
+      "win_rate_pct": 6.538139145012574,
+      "win_rate_ci95_low": 5.270214948770705,
+      "win_rate_ci95_high": 8.085069493213934,
+      "profit_factor": 0.6485248245406748,
+      "expectancy": -196.63176094180338,
+      "net_pnl": -234581.69080357032,
+      "return_pct": -4.691633816071406,
+      "max_drawdown_pct": 4.839235861141972,
+      "sharpe": -0.5993158349440367,
+      "sortino": -0.3096889306566788,
+      "avg_holding_hours": 2.7598491198658843,
+      "fees": 20979.90508928572,
+      "slippage": 112350.0,
+      "cost_to_gross_pct": 30.803602413583175,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 470.0,
+      "holdout_net_pnl": -107467.19513392833,
+      "parameter_profitable": 0.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -461547.1908928583
+    },
+    {
+      "symbol": "ZN_IDX",
+      "name": "沪锌",
+      "track": "real",
+      "bars": 8015,
+      "trade_count": 25,
+      "win_rate_pct": 0.0,
+      "win_rate_ci95_low": 0.0,
+      "win_rate_ci95_high": 13.319649395317873,
+      "profit_factor": 0.0,
+      "expectancy": -1307.2883732142818,
+      "net_pnl": -32682.20933035668,
+      "return_pct": -3.268220933035668,
+      "max_drawdown_pct": 3.3770765185071037,
+      "sharpe": -2.109459829649176,
+      "sortino": -0.35485702153686866,
+      "avg_holding_hours": 1.52,
+      "fees": 2174.1736160714286,
+      "slippage": 9350.0,
+      "cost_to_gross_pct": 1.1524173616071428e+18,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "ZN_IDX",
+      "name": "沪锌",
+      "track": "synthetic",
+      "bars": 480000,
+      "trade_count": 1001,
+      "win_rate_pct": 5.694305694305695,
+      "win_rate_ci95_low": 4.420876645361461,
+      "win_rate_ci95_high": 7.306504068175874,
+      "profit_factor": 0.4800858565565549,
+      "expectancy": -306.7932980412447,
+      "net_pnl": -307100.09133928455,
+      "return_pct": -7.677502283482114,
+      "max_drawdown_pct": 8.348653123518067,
+      "sharpe": -0.8272280571168489,
+      "sortino": -0.3960138763193322,
+      "avg_holding_hours": 2.808191808191808,
+      "fees": 17739.377053571432,
+      "slippage": 78600.0,
+      "cost_to_gross_pct": 33.97321192865066,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 505.0,
+      "holdout_net_pnl": -164632.16343749862,
+      "parameter_profitable": 0.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -486228.7948660734
+    },
+    {
+      "symbol": "SN_IDX",
+      "name": "沪锡",
+      "track": "real",
+      "bars": 8015,
+      "trade_count": 39,
+      "win_rate_pct": 10.256410256410257,
+      "win_rate_ci95_low": 4.061265558286986,
+      "win_rate_ci95_high": 23.57915870224483,
+      "profit_factor": 0.2701865647171377,
+      "expectancy": -1243.5469065934085,
+      "net_pnl": -48498.32935714314,
+      "return_pct": -4.849832935714314,
+      "max_drawdown_pct": 5.211529978887791,
+      "sharpe": -1.4319721353145112,
+      "sortino": -0.4130428064474908,
+      "avg_holding_hours": 2.0384615384615383,
+      "fees": 2120.4722142857145,
+      "slippage": 1300.0,
+      "cost_to_gross_pct": 19.050544490383587,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "SN_IDX",
+      "name": "沪锡",
+      "track": "synthetic",
+      "bars": 480000,
+      "trade_count": 1098,
+      "win_rate_pct": 7.741347905282331,
+      "win_rate_ci95_low": 6.303815626711705,
+      "win_rate_ci95_high": 9.473552009434902,
+      "profit_factor": 0.6682803148841676,
+      "expectancy": -328.76268735363016,
+      "net_pnl": -360981.43071428454,
+      "return_pct": -9.024535767857113,
+      "max_drawdown_pct": 9.024535767857103,
+      "sharpe": -0.4619689393104875,
+      "sortino": -0.2303630059533806,
+      "avg_holding_hours": 3.0068306010928962,
+      "fees": 31313.573571428573,
+      "slippage": 25160.0,
+      "cost_to_gross_pct": 7.765563658031333,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 560.0,
+      "holdout_net_pnl": -108178.4534107144,
+      "parameter_profitable": 2.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -466319.70116071554
+    },
+    {
+      "symbol": "SC_IDX",
+      "name": "原油",
+      "track": "real",
+      "bars": 8015,
+      "trade_count": 38,
+      "win_rate_pct": 0.0,
+      "win_rate_ci95_low": 0.0,
+      "win_rate_ci95_high": 9.181293258383999,
+      "profit_factor": 0.0,
+      "expectancy": -2467.302593984994,
+      "net_pnl": -93757.49857142975,
+      "return_pct": -9.375749857142976,
+      "max_drawdown_pct": 10.345194943670892,
+      "sharpe": -1.5337669146416675,
+      "sortino": -0.3664759851708957,
+      "avg_holding_hours": 1.9342105263157894,
+      "fees": 2086.0699999999997,
+      "slippage": 7800.0,
+      "cost_to_gross_pct": 9.88607e+17,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "SC_IDX",
+      "name": "原油",
+      "track": "synthetic",
+      "bars": 480000,
+      "trade_count": 1028,
+      "win_rate_pct": 6.906614785992218,
+      "win_rate_ci95_low": 5.511574752975406,
+      "win_rate_ci95_high": 8.622532652657398,
+      "profit_factor": 0.771539035312339,
+      "expectancy": -536.4734269038664,
+      "net_pnl": -551494.6828571754,
+      "return_pct": -13.787367071429383,
+      "max_drawdown_pct": 16.69934168762237,
+      "sharpe": -0.282770027343029,
+      "sortino": -0.13231458847600597,
+      "avg_holding_hours": 2.915612840466926,
+      "fees": 63044.68285714286,
+      "slippage": 205600.0,
+      "cost_to_gross_pct": 14.424176309519689,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 503.0,
+      "holdout_net_pnl": -313553.8923214439,
+      "parameter_profitable": 2.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -1055641.9146428173
+    },
+    {
+      "symbol": "RU_IDX",
+      "name": "橡胶",
+      "track": "real",
+      "bars": 8015,
+      "trade_count": 23,
+      "win_rate_pct": 8.695652173913043,
+      "win_rate_ci95_low": 2.417949540723341,
+      "win_rate_ci95_high": 26.796404298094018,
+      "profit_factor": 1.8223052879580064,
+      "expectancy": 977.3078843167731,
+      "net_pnl": 22478.08133928594,
+      "return_pct": 2.247808133928594,
+      "max_drawdown_pct": 3.1960288233027643,
+      "sharpe": 0.9272592180591284,
+      "sortino": 0.3673582199102948,
+      "avg_holding_hours": 4.489130434782608,
+      "fees": 1059.4186607142856,
+      "slippage": 6400.0,
+      "cost_to_gross_pct": 14.974684873855434,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "RU_IDX",
+      "name": "橡胶",
+      "track": "synthetic",
+      "bars": 600000,
+      "trade_count": 1074,
+      "win_rate_pct": 5.865921787709497,
+      "win_rate_ci95_low": 4.611552532190307,
+      "win_rate_ci95_high": 7.434892882423491,
+      "profit_factor": 0.5551516606158834,
+      "expectancy": -341.7812514132746,
+      "net_pnl": -367073.06401785824,
+      "return_pct": -7.341461280357164,
+      "max_drawdown_pct": 7.402252325025188,
+      "sharpe": -0.7849884580858953,
+      "sortino": -0.37555545690661035,
+      "avg_holding_hours": 2.7327746741154564,
+      "fees": 19321.27830357143,
+      "slippage": 134500.0,
+      "cost_to_gross_pct": 33.57872715670317,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 422.0,
+      "holdout_net_pnl": -156189.47196428606,
+      "parameter_profitable": 0.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -656825.4566071444
+    },
+    {
+      "symbol": "TA_IDX",
+      "name": "PTA",
+      "track": "real",
+      "bars": 8015,
+      "trade_count": 24,
+      "win_rate_pct": 8.333333333333334,
+      "win_rate_ci95_low": 2.31583278429735,
+      "win_rate_ci95_high": 25.849215201450598,
+      "profit_factor": 0.2676805414601906,
+      "expectancy": -758.9323377976194,
+      "net_pnl": -18214.37610714289,
+      "return_pct": -1.821437610714289,
+      "max_drawdown_pct": 2.6554490254674454,
+      "sharpe": -0.8975248628517057,
+      "sortino": -0.22181236507713759,
+      "avg_holding_hours": 2.9479166666666665,
+      "fees": 1019.3761071428572,
+      "slippage": 8140.0,
+      "cost_to_gross_pct": 137.57368314690282,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "TA_IDX",
+      "name": "PTA",
+      "track": "synthetic",
+      "bars": 600000,
+      "trade_count": 1091,
+      "win_rate_pct": 6.049495875343721,
+      "win_rate_ci95_low": 4.783136372437448,
+      "win_rate_ci95_high": 7.624284025179887,
+      "profit_factor": 0.48152984199986176,
+      "expectancy": -413.8028703024746,
+      "net_pnl": -451458.931499999,
+      "return_pct": -9.029178629999981,
+      "max_drawdown_pct": 9.069968769035816,
+      "sharpe": -1.0560277488670038,
+      "sortino": -0.5315484235220077,
+      "avg_holding_hours": 2.810724106324473,
+      "fees": 21605.36007142857,
+      "slippage": 167280.0,
+      "cost_to_gross_pct": 45.048528193818356,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 426.0,
+      "holdout_net_pnl": -217591.54901785636,
+      "parameter_profitable": 0.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -792818.4166607116
+    },
+    {
+      "symbol": "MA_IDX",
+      "name": "甲醇",
+      "track": "real",
+      "bars": 8015,
+      "trade_count": 18,
+      "win_rate_pct": 22.22222222222222,
+      "win_rate_ci95_low": 9.000781913382,
+      "win_rate_ci95_high": 45.21502645230549,
+      "profit_factor": 1.9147774388828787,
+      "expectancy": 1217.670843253967,
+      "net_pnl": 21918.07517857116,
+      "return_pct": 2.191807517857116,
+      "max_drawdown_pct": 1.890589526860325,
+      "sharpe": 0.8699607864143553,
+      "sortino": 0.2673679540153539,
+      "avg_holding_hours": 4.111111111111111,
+      "fees": 756.9248214285715,
+      "slippage": 6240.0,
+      "cost_to_gross_pct": 15.251127043354472,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "MA_IDX",
+      "name": "甲醇",
+      "track": "synthetic",
+      "bars": 600000,
+      "trade_count": 1043,
+      "win_rate_pct": 4.697986577181208,
+      "win_rate_ci95_low": 3.571689303209011,
+      "win_rate_ci95_high": 6.156773914148801,
+      "profit_factor": 0.37908625241063953,
+      "expectancy": -458.4950024482947,
+      "net_pnl": -478210.28755357186,
+      "return_pct": -9.564205751071437,
+      "max_drawdown_pct": 9.651289915202542,
+      "sharpe": -1.177206205814361,
+      "sortino": -0.5468614914776332,
+      "avg_holding_hours": 2.419942473633749,
+      "fees": 19981.35898214286,
+      "slippage": 172060.0,
+      "cost_to_gross_pct": 65.776247947303,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 423.0,
+      "holdout_net_pnl": -218393.3086428569,
+      "parameter_profitable": 0.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -810236.4056785714
+    },
+    {
+      "symbol": "SA_IDX",
+      "name": "纯碱",
+      "track": "real",
+      "bars": 8015,
+      "trade_count": 15,
+      "win_rate_pct": 6.666666666666667,
+      "win_rate_ci95_low": 1.1866588606194854,
+      "win_rate_ci95_high": 29.81707755242399,
+      "profit_factor": 0.2506577014537838,
+      "expectancy": -869.1179833333349,
+      "net_pnl": -13036.76975000021,
+      "return_pct": -1.303676975000021,
+      "max_drawdown_pct": 2.673814633797573,
+      "sharpe": -0.9336718939462751,
+      "sortino": -0.2404151752115605,
+      "avg_holding_hours": 3.683333333333333,
+      "fees": 557.4840357142857,
+      "slippage": 9200.0,
+      "cost_to_gross_pct": 223.7520636352202,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "SA_IDX",
+      "name": "纯碱",
+      "track": "synthetic",
+      "bars": 720000,
+      "trade_count": 1086,
+      "win_rate_pct": 6.077348066298343,
+      "win_rate_ci95_low": 4.805288877617247,
+      "win_rate_ci95_high": 7.6590545645857295,
+      "profit_factor": 0.5191156970570182,
+      "expectancy": -366.25506777821613,
+      "net_pnl": -397753.0036071425,
+      "return_pct": -6.6292167267857085,
+      "max_drawdown_pct": 6.697137180181954,
+      "sharpe": -1.022238455211524,
+      "sortino": -0.4972796773479195,
+      "avg_holding_hours": 2.5589318600368323,
+      "fees": 17252.289321428572,
+      "slippage": 188360.0,
+      "cost_to_gross_pct": 47.88638363210521,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 380.0,
+      "holdout_net_pnl": -204116.44167857151,
+      "parameter_profitable": 0.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -791623.145928573
+    },
+    {
+      "symbol": "FG_IDX",
+      "name": "玻璃",
+      "track": "real",
+      "bars": 8015,
+      "trade_count": 18,
+      "win_rate_pct": 11.11111111111111,
+      "win_rate_ci95_low": 3.101886845358279,
+      "win_rate_ci95_high": 32.80024486660421,
+      "profit_factor": 0.3044904113444423,
+      "expectancy": -785.0574900793658,
+      "net_pnl": -14131.034821428708,
+      "return_pct": -1.4131034821428707,
+      "max_drawdown_pct": 2.107724339433275,
+      "sharpe": -0.7601501949199561,
+      "sortino": -0.1907672455811432,
+      "avg_holding_hours": 4.388888888888889,
+      "fees": 480.3205357142857,
+      "slippage": 8480.0,
+      "cost_to_gross_pct": 144.83685307932927,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "FG_IDX",
+      "name": "玻璃",
+      "track": "synthetic",
+      "bars": 840000,
+      "trade_count": 1138,
+      "win_rate_pct": 5.272407732864675,
+      "win_rate_ci95_low": 4.117912280084967,
+      "win_rate_ci95_high": 6.727865277853015,
+      "profit_factor": 0.4302331805914436,
+      "expectancy": -463.5356998493597,
+      "net_pnl": -527503.6264285697,
+      "return_pct": -7.53576609183671,
+      "max_drawdown_pct": 7.5357660918367095,
+      "sharpe": -1.2679696604515165,
+      "sortino": -0.6365146067579815,
+      "avg_holding_hours": 2.633567662565905,
+      "fees": 17929.340714285714,
+      "slippage": 235840.0,
+      "cost_to_gross_pct": 63.70990462761848,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 498.0,
+      "holdout_net_pnl": -267683.71257142816,
+      "parameter_profitable": 0.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -1025343.8545714269
+    },
+    {
+      "symbol": "LC_IDX",
+      "name": "碳酸锂",
+      "track": "real",
+      "bars": 8015,
+      "trade_count": 25,
+      "win_rate_pct": 0.0,
+      "win_rate_ci95_low": 0.0,
+      "win_rate_ci95_high": 13.319649395317873,
+      "profit_factor": 0.0,
+      "expectancy": -1086.60321,
+      "net_pnl": -27165.080250000115,
+      "return_pct": -2.7165080250000115,
+      "max_drawdown_pct": 3.0562763167805853,
+      "sharpe": -1.8697596550945317,
+      "sortino": -0.3177718082442608,
+      "avg_holding_hours": 1.39,
+      "fees": 611.5088214285715,
+      "slippage": 7700.0,
+      "cost_to_gross_pct": 8.311508821428572e+17,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "LC_IDX",
+      "name": "碳酸锂",
+      "track": "synthetic",
+      "bars": 840000,
+      "trade_count": 1182,
+      "win_rate_pct": 5.752961082910321,
+      "win_rate_ci95_low": 4.563248104752678,
+      "win_rate_ci95_high": 7.229355561706654,
+      "profit_factor": 0.43710967957092667,
+      "expectancy": -379.3562903372008,
+      "net_pnl": -448399.1351785704,
+      "return_pct": -6.405701931122434,
+      "max_drawdown_pct": 6.449902786696349,
+      "sharpe": -1.2044500356841052,
+      "sortino": -0.6173251578019754,
+      "avg_holding_hours": 2.669839255499154,
+      "fees": 16549.13517857143,
+      "slippage": 189000.0,
+      "cost_to_gross_pct": 59.031557823672166,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 515.0,
+      "holdout_net_pnl": -123078.28410714387,
+      "parameter_profitable": 0.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -844202.6918750008
+    },
+    {
+      "symbol": "SI_IDX",
+      "name": "工业硅",
+      "track": "real",
+      "bars": 8015,
+      "trade_count": 20,
+      "win_rate_pct": 0.0,
+      "win_rate_ci95_low": 0.0,
+      "win_rate_ci95_high": 16.113012549493323,
+      "profit_factor": 0.0,
+      "expectancy": -2384.9979419642823,
+      "net_pnl": -47699.958839286,
+      "return_pct": -4.7699958839286,
+      "max_drawdown_pct": 4.925189349597567,
+      "sharpe": -3.651971669881816,
+      "sortino": -0.6277727912941036,
+      "avg_holding_hours": 1.5625,
+      "fees": 667.8159821428571,
+      "slippage": 7100.0,
+      "cost_to_gross_pct": 7.767815982142857e+17,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "SI_IDX",
+      "name": "工业硅",
+      "track": "synthetic",
+      "bars": 720000,
+      "trade_count": 1193,
+      "win_rate_pct": 5.699916177703269,
+      "win_rate_ci95_low": 4.520941790167182,
+      "win_rate_ci95_high": 7.163277742308962,
+      "profit_factor": 0.5345426368454747,
+      "expectancy": -273.12968787420675,
+      "net_pnl": -325843.71763392957,
+      "return_pct": -5.430728627232159,
+      "max_drawdown_pct": 5.677849380231119,
+      "sharpe": -0.8035809623968005,
+      "sortino": -0.4215692376815604,
+      "avg_holding_hours": 2.8363369656328583,
+      "fees": 20417.824776785717,
+      "slippage": 179950.0,
+      "cost_to_gross_pct": 53.54466238837749,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 391.0,
+      "holdout_net_pnl": -73294.99705357291,
+      "parameter_profitable": 0.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -664142.5601785731
+    },
+    {
+      "symbol": "CF_IDX",
+      "name": "棉花",
+      "track": "real",
+      "bars": 8015,
+      "trade_count": 15,
+      "win_rate_pct": 6.666666666666667,
+      "win_rate_ci95_low": 1.1866588606194854,
+      "win_rate_ci95_high": 29.81707755242399,
+      "profit_factor": 0.08707028643316589,
+      "expectancy": -521.5776666666683,
+      "net_pnl": -7823.66500000027,
+      "return_pct": -0.782366500000027,
+      "max_drawdown_pct": 1.3548029753496114,
+      "sharpe": -0.5089315492776378,
+      "sortino": -0.15081038767260005,
+      "avg_holding_hours": 4.516666666666667,
+      "fees": 1116.5221428571429,
+      "slippage": 7700.0,
+      "cost_to_gross_pct": 1181.5563151399606,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "CF_IDX",
+      "name": "棉花",
+      "track": "synthetic",
+      "bars": 600000,
+      "trade_count": 1111,
+      "win_rate_pct": 4.59045904590459,
+      "win_rate_ci95_low": 3.5085141225540304,
+      "win_rate_ci95_high": 5.985354782230292,
+      "profit_factor": 0.39501691048625476,
+      "expectancy": -367.6515776890189,
+      "net_pnl": -408460.9028124999,
+      "return_pct": -8.16921805625,
+      "max_drawdown_pct": 8.249150869302174,
+      "sharpe": -1.1846230636572768,
+      "sortino": -0.5515895595346801,
+      "avg_holding_hours": 2.407065706570657,
+      "fees": 18824.29566964286,
+      "slippage": 138200.0,
+      "cost_to_gross_pct": 58.876760802491916,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 442.0,
+      "holdout_net_pnl": -182579.60165178578,
+      "parameter_profitable": 0.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -683241.6281696436
+    },
+    {
+      "symbol": "SR_IDX",
+      "name": "白糖",
+      "track": "real",
+      "bars": 8015,
+      "trade_count": 17,
+      "win_rate_pct": 5.882352941176471,
+      "win_rate_ci95_low": 1.046013064516424,
+      "win_rate_ci95_high": 26.9825452035628,
+      "profit_factor": 0.1450592881009394,
+      "expectancy": -1104.0298382352858,
+      "net_pnl": -18768.50724999956,
+      "return_pct": -1.8768507249999558,
+      "max_drawdown_pct": 1.9793111322745482,
+      "sharpe": -1.157805709567989,
+      "sortino": -0.2788792926615297,
+      "avg_holding_hours": 2.3088235294117645,
+      "fees": 2090.6501071428575,
+      "slippage": 7560.0,
+      "cost_to_gross_pct": 303.05209765102194,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "SR_IDX",
+      "name": "白糖",
+      "track": "synthetic",
+      "bars": 600000,
+      "trade_count": 1239,
+      "win_rate_pct": 5.891848264729621,
+      "win_rate_ci95_low": 4.711961138550071,
+      "win_rate_ci95_high": 7.344410325037886,
+      "profit_factor": 0.6019511024318696,
+      "expectancy": -241.59343154041295,
+      "net_pnl": -299334.2616785711,
+      "return_pct": -5.986685233571422,
+      "max_drawdown_pct": 6.441617530718652,
+      "sharpe": -0.690206257956267,
+      "sortino": -0.39199550343146905,
+      "avg_holding_hours": 3.0494350282485874,
+      "fees": 22913.547392857145,
+      "slippage": 83200.0,
+      "cost_to_gross_pct": 23.441727638869068,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 499.0,
+      "holdout_net_pnl": -191897.63649999874,
+      "parameter_profitable": 0.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -491334.46748214273
+    },
+    {
+      "symbol": "C_IDX",
+      "name": "玉米",
+      "track": "real",
+      "bars": 8015,
+      "trade_count": 5,
+      "win_rate_pct": 20.0,
+      "win_rate_ci95_low": 3.6223160969787447,
+      "win_rate_ci95_high": 62.44717358814613,
+      "profit_factor": 2.300996641660829,
+      "expectancy": 661.2740857142987,
+      "net_pnl": 3306.3704285714775,
+      "return_pct": 0.33063704285714773,
+      "max_drawdown_pct": 1.0488996182253987,
+      "sharpe": 0.36207739144149836,
+      "sortino": 0.05083808103614404,
+      "avg_holding_hours": 2.85,
+      "fees": 507.9152857142857,
+      "slippage": 4440.0,
+      "cost_to_gross_pct": 84.61180074625244,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "C_IDX",
+      "name": "玉米",
+      "track": "synthetic",
+      "bars": 720000,
+      "trade_count": 1163,
+      "win_rate_pct": 5.674978503869304,
+      "win_rate_ci95_low": 4.485379144245968,
+      "win_rate_ci95_high": 7.156440962270633,
+      "profit_factor": 0.42403827878219524,
+      "expectancy": -434.4733175439134,
+      "net_pnl": -505292.4683035696,
+      "return_pct": -8.421541138392826,
+      "max_drawdown_pct": 8.499061056252126,
+      "sharpe": -1.1491252444749829,
+      "sortino": -0.5924814447880581,
+      "avg_holding_hours": 2.6951848667239897,
+      "fees": 20481.396875000002,
+      "slippage": 173780.0,
+      "cost_to_gross_pct": 52.21944362960528,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 405.0,
+      "holdout_net_pnl": -201151.6912857131,
+      "parameter_profitable": 0.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -857357.5209821434
+    },
+    {
+      "symbol": "M_IDX",
+      "name": "豆粕",
+      "track": "real",
+      "bars": 8015,
+      "trade_count": 16,
+      "win_rate_pct": 0.0,
+      "win_rate_ci95_low": 0.0,
+      "win_rate_ci95_high": 19.361341827271993,
+      "profit_factor": 0.0,
+      "expectancy": -2005.2598303571435,
+      "net_pnl": -32084.15728571464,
+      "return_pct": -3.2084157285714636,
+      "max_drawdown_pct": 3.374279228571465,
+      "sharpe": -3.198890009768944,
+      "sortino": -0.41489067059162255,
+      "avg_holding_hours": 1.0,
+      "fees": 1118.4430000000002,
+      "slippage": 7480.0,
+      "cost_to_gross_pct": 8.598443e+17,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "M_IDX",
+      "name": "豆粕",
+      "track": "synthetic",
+      "bars": 600000,
+      "trade_count": 1095,
+      "win_rate_pct": 5.570776255707763,
+      "win_rate_ci95_low": 4.361111894472104,
+      "win_rate_ci95_high": 7.091093773751597,
+      "profit_factor": 0.5223490874669716,
+      "expectancy": -307.0491251467708,
+      "net_pnl": -336218.7920357147,
+      "return_pct": -6.724375840714294,
+      "max_drawdown_pct": 6.932210148134649,
+      "sharpe": -0.8008053689468554,
+      "sortino": -0.40930531022701055,
+      "avg_holding_hours": 2.7015981735159817,
+      "fees": 20470.22060714286,
+      "slippage": 139300.0,
+      "cost_to_gross_pct": 43.453385936146304,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 437.0,
+      "holdout_net_pnl": -140341.99357142835,
+      "parameter_profitable": 0.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -589442.5482857128
+    },
+    {
+      "symbol": "Y_IDX",
+      "name": "豆油",
+      "track": "real",
+      "bars": 8015,
+      "trade_count": 16,
+      "win_rate_pct": 6.25,
+      "win_rate_ci95_low": 1.1119057308331208,
+      "win_rate_ci95_high": 28.32926836802987,
+      "profit_factor": 0.9948434331664201,
+      "expectancy": -3.4419866071481238,
+      "net_pnl": -55.07178571424447,
+      "return_pct": -0.005507178571424447,
+      "max_drawdown_pct": 1.9160352603530075,
+      "sharpe": 0.006301607076401197,
+      "sortino": 0.0012977181394490318,
+      "avg_holding_hours": 2.5625,
+      "fees": 1362.214642857143,
+      "slippage": 6560.0,
+      "cost_to_gross_pct": 74.56299763257461,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "Y_IDX",
+      "name": "豆油",
+      "track": "synthetic",
+      "bars": 600000,
+      "trade_count": 1077,
+      "win_rate_pct": 6.035283194057567,
+      "win_rate_ci95_low": 4.763240261813497,
+      "win_rate_ci95_high": 7.619850840527493,
+      "profit_factor": 0.651161430354656,
+      "expectancy": -181.30168795596236,
+      "net_pnl": -195261.91792857135,
+      "return_pct": -3.9052383585714265,
+      "max_drawdown_pct": 4.907906851582712,
+      "sharpe": -0.526495172278602,
+      "sortino": -0.27077578372988925,
+      "avg_holding_hours": 2.884401114206128,
+      "fees": 18397.632214285713,
+      "slippage": 101000.0,
+      "cost_to_gross_pct": 32.75774456965833,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 441.0,
+      "holdout_net_pnl": -92405.9124642855,
+      "parameter_profitable": 0.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -414134.7008571442
+    },
+    {
+      "symbol": "P_IDX",
+      "name": "棕榈油",
+      "track": "real",
+      "bars": 8015,
+      "trade_count": 25,
+      "win_rate_pct": 4.0,
+      "win_rate_ci95_low": 0.7096050386699165,
+      "win_rate_ci95_high": 19.544472405022525,
+      "profit_factor": 0.37387958542334804,
+      "expectancy": -574.5368214285751,
+      "net_pnl": -14363.420535714482,
+      "return_pct": -1.4363420535714482,
+      "max_drawdown_pct": 2.402875745727273,
+      "sharpe": -0.7805674726286086,
+      "sortino": -0.21322051200722014,
+      "avg_holding_hours": 1.98,
+      "fees": 1378.4205357142857,
+      "slippage": 6160.0,
+      "cost_to_gross_pct": 87.89184817354518,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": null,
+      "holdout_net_pnl": null,
+      "parameter_profitable": null,
+      "parameter_total": null,
+      "stress_3x_net_pnl": null
+    },
+    {
+      "symbol": "P_IDX",
+      "name": "棕榈油",
+      "track": "synthetic",
+      "bars": 600000,
+      "trade_count": 1185,
+      "win_rate_pct": 5.485232067510548,
+      "win_rate_ci95_low": 4.326788444819759,
+      "win_rate_ci95_high": 6.931364028983311,
+      "profit_factor": 0.4442031608172427,
+      "expectancy": -315.50464734779973,
+      "net_pnl": -373873.007107144,
+      "return_pct": -7.47746014214288,
+      "max_drawdown_pct": 7.6605744155884254,
+      "sharpe": -1.0043183907454287,
+      "sortino": -0.49942723133598954,
+      "avg_holding_hours": 2.5105485232067513,
+      "fees": 19448.00710714286,
+      "slippage": 108520.0,
+      "cost_to_gross_pct": 42.82641524201257,
+      "ledger_reconciled": true,
+      "status": "REJECTED",
+      "holdout_trades": 481.0,
+      "holdout_net_pnl": -124218.13021428604,
+      "parameter_profitable": 0.0,
+      "parameter_total": 16.0,
+      "stress_3x_net_pnl": -602945.4261428574
+    }
+  ],
+  "data_quality": [
+    {
+      "symbol": "AU_IDX",
+      "track": "real",
+      "bars": 8136,
+      "start": "2025-09-23 11:15:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "AU_IDX",
+      "track": "synthetic",
+      "bars": 480000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2028-09-09 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "AG_IDX",
+      "track": "real",
+      "bars": 8136,
+      "start": "2025-09-23 11:15:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "AG_IDX",
+      "track": "synthetic",
+      "bars": 480000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2028-09-09 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "RB_IDX",
+      "track": "real",
+      "bars": 8211,
+      "start": "2025-03-17 09:15:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "RB_IDX",
+      "track": "synthetic",
+      "bars": 600000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2032-02-11 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "HC_IDX",
+      "track": "real",
+      "bars": 8015,
+      "start": "2025-03-17 09:15:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "HC_IDX",
+      "track": "synthetic",
+      "bars": 600000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2032-02-11 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "I_IDX",
+      "track": "real",
+      "bars": 8015,
+      "start": "2025-03-17 09:15:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "I_IDX",
+      "track": "synthetic",
+      "bars": 840000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2038-12-16 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "J_IDX",
+      "track": "real",
+      "bars": 8015,
+      "start": "2025-03-17 09:15:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "J_IDX",
+      "track": "synthetic",
+      "bars": 600000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2032-02-11 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "JM_IDX",
+      "track": "real",
+      "bars": 8015,
+      "start": "2025-03-17 09:15:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "JM_IDX",
+      "track": "synthetic",
+      "bars": 600000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2032-02-11 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "CU_IDX",
+      "track": "real",
+      "bars": 8223,
+      "start": "2025-07-25 23:45:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "CU_IDX",
+      "track": "synthetic",
+      "bars": 480000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2028-09-09 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "AL_IDX",
+      "track": "real",
+      "bars": 8015,
+      "start": "2025-07-25 23:45:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "AL_IDX",
+      "track": "synthetic",
+      "bars": 600000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2032-02-11 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "ZN_IDX",
+      "track": "real",
+      "bars": 8015,
+      "start": "2025-07-25 23:45:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "ZN_IDX",
+      "track": "synthetic",
+      "bars": 480000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2028-09-09 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "SN_IDX",
+      "track": "real",
+      "bars": 8015,
+      "start": "2025-07-25 23:45:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "SN_IDX",
+      "track": "synthetic",
+      "bars": 480000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2028-09-09 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "SC_IDX",
+      "track": "real",
+      "bars": 8015,
+      "start": "2025-09-23 11:15:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "SC_IDX",
+      "track": "synthetic",
+      "bars": 480000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2028-09-09 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "RU_IDX",
+      "track": "real",
+      "bars": 8015,
+      "start": "2025-03-17 09:15:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "RU_IDX",
+      "track": "synthetic",
+      "bars": 600000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2032-02-11 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "TA_IDX",
+      "track": "real",
+      "bars": 8015,
+      "start": "2025-03-17 09:15:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "TA_IDX",
+      "track": "synthetic",
+      "bars": 600000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2032-02-11 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "MA_IDX",
+      "track": "real",
+      "bars": 8015,
+      "start": "2025-03-17 09:15:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "MA_IDX",
+      "track": "synthetic",
+      "bars": 600000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2032-02-11 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "SA_IDX",
+      "track": "real",
+      "bars": 8015,
+      "start": "2025-03-17 09:15:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "SA_IDX",
+      "track": "synthetic",
+      "bars": 720000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2035-07-15 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "FG_IDX",
+      "track": "real",
+      "bars": 8015,
+      "start": "2025-03-17 09:15:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "FG_IDX",
+      "track": "synthetic",
+      "bars": 840000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2038-12-16 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "LC_IDX",
+      "track": "real",
+      "bars": 8015,
+      "start": "2024-06-13 13:45:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "LC_IDX",
+      "track": "synthetic",
+      "bars": 840000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2038-12-16 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "SI_IDX",
+      "track": "real",
+      "bars": 8015,
+      "start": "2024-06-13 13:45:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "SI_IDX",
+      "track": "synthetic",
+      "bars": 720000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2035-07-15 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "CF_IDX",
+      "track": "real",
+      "bars": 8015,
+      "start": "2025-03-17 09:15:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "CF_IDX",
+      "track": "synthetic",
+      "bars": 600000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2032-02-11 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "SR_IDX",
+      "track": "real",
+      "bars": 8015,
+      "start": "2025-03-17 09:15:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "SR_IDX",
+      "track": "synthetic",
+      "bars": 600000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2032-02-11 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "C_IDX",
+      "track": "real",
+      "bars": 8015,
+      "start": "2025-03-17 09:15:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "C_IDX",
+      "track": "synthetic",
+      "bars": 720000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2035-07-15 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "M_IDX",
+      "track": "real",
+      "bars": 8015,
+      "start": "2025-03-17 09:15:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "M_IDX",
+      "track": "synthetic",
+      "bars": 600000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2032-02-11 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "Y_IDX",
+      "track": "real",
+      "bars": 8015,
+      "start": "2025-03-17 09:15:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "Y_IDX",
+      "track": "synthetic",
+      "bars": 600000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2032-02-11 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "P_IDX",
+      "track": "real",
+      "bars": 8015,
+      "start": "2025-03-17 09:15:00",
+      "end": "2026-08-24 14:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    },
+    {
+      "symbol": "P_IDX",
+      "track": "synthetic",
+      "bars": 600000,
+      "start": "2015-01-01 09:00:00",
+      "end": "2032-02-11 08:45:00",
+      "duplicate_timestamps": 0,
+      "missing_values": 0,
+      "ohlc_errors": 0
+    }
+  ],
+  "regime_metrics": [
+    {
+      "symbol": "AU_IDX",
+      "regime": "BULL_TREND",
+      "trades": 289,
+      "win_rate_pct": 7.958477508650519,
+      "net_pnl": -246870.3937857073
+    },
+    {
+      "symbol": "AU_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 206,
+      "win_rate_pct": 4.368932038834951,
+      "net_pnl": -90969.53696428066
+    },
+    {
+      "symbol": "AU_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 323,
+      "win_rate_pct": 6.811145510835913,
+      "net_pnl": -249579.1078214205
+    },
+    {
+      "symbol": "AU_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 299,
+      "win_rate_pct": 7.023411371237458,
+      "net_pnl": -460812.38864284975
+    },
+    {
+      "symbol": "AG_IDX",
+      "regime": "BULL_TREND",
+      "trades": 265,
+      "win_rate_pct": 4.150943396226415,
+      "net_pnl": -118852.55804464304
+    },
+    {
+      "symbol": "AG_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 173,
+      "win_rate_pct": 2.8901734104046244,
+      "net_pnl": -66210.82384821423
+    },
+    {
+      "symbol": "AG_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 342,
+      "win_rate_pct": 5.263157894736842,
+      "net_pnl": -110581.83222321427
+    },
+    {
+      "symbol": "AG_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 257,
+      "win_rate_pct": 5.058365758754864,
+      "net_pnl": -85195.72797321432
+    },
+    {
+      "symbol": "RB_IDX",
+      "regime": "BULL_TREND",
+      "trades": 310,
+      "win_rate_pct": 4.193548387096775,
+      "net_pnl": -177982.55882142848
+    },
+    {
+      "symbol": "RB_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 160,
+      "win_rate_pct": 4.375,
+      "net_pnl": -84551.06053571434
+    },
+    {
+      "symbol": "RB_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 333,
+      "win_rate_pct": 5.405405405405405,
+      "net_pnl": -80362.21553571426
+    },
+    {
+      "symbol": "RB_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 339,
+      "win_rate_pct": 9.144542772861357,
+      "net_pnl": -75852.56721428572
+    },
+    {
+      "symbol": "HC_IDX",
+      "regime": "BULL_TREND",
+      "trades": 313,
+      "win_rate_pct": 4.792332268370607,
+      "net_pnl": -90724.5857142857
+    },
+    {
+      "symbol": "HC_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 146,
+      "win_rate_pct": 6.8493150684931505,
+      "net_pnl": -78426.14573214302
+    },
+    {
+      "symbol": "HC_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 344,
+      "win_rate_pct": 4.941860465116279,
+      "net_pnl": -153366.25464285724
+    },
+    {
+      "symbol": "HC_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 331,
+      "win_rate_pct": 5.740181268882175,
+      "net_pnl": -74150.00255357138
+    },
+    {
+      "symbol": "I_IDX",
+      "regime": "BULL_TREND",
+      "trades": 284,
+      "win_rate_pct": 4.929577464788732,
+      "net_pnl": -73419.63294642861
+    },
+    {
+      "symbol": "I_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 29,
+      "win_rate_pct": 3.4482758620689653,
+      "net_pnl": -13434.352499999972
+    },
+    {
+      "symbol": "I_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 429,
+      "win_rate_pct": 4.895104895104895,
+      "net_pnl": -143334.3364285715
+    },
+    {
+      "symbol": "I_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 409,
+      "win_rate_pct": 5.8679706601467,
+      "net_pnl": -63431.03080357141
+    },
+    {
+      "symbol": "J_IDX",
+      "regime": "BULL_TREND",
+      "trades": 296,
+      "win_rate_pct": 5.743243243243244,
+      "net_pnl": -188834.82008928567
+    },
+    {
+      "symbol": "J_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 165,
+      "win_rate_pct": 8.484848484848486,
+      "net_pnl": -33306.86803571436
+    },
+    {
+      "symbol": "J_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 383,
+      "win_rate_pct": 6.005221932114883,
+      "net_pnl": -173223.2249107143
+    },
+    {
+      "symbol": "J_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 383,
+      "win_rate_pct": 8.093994778067886,
+      "net_pnl": -131591.45598214288
+    },
+    {
+      "symbol": "JM_IDX",
+      "regime": "BULL_TREND",
+      "trades": 266,
+      "win_rate_pct": 3.7593984962406015,
+      "net_pnl": -63598.51864285719
+    },
+    {
+      "symbol": "JM_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 100,
+      "win_rate_pct": 7.000000000000001,
+      "net_pnl": -29727.249910714425
+    },
+    {
+      "symbol": "JM_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 342,
+      "win_rate_pct": 5.847953216374268,
+      "net_pnl": -87061.98567857142
+    },
+    {
+      "symbol": "JM_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 315,
+      "win_rate_pct": 6.349206349206349,
+      "net_pnl": -87276.05999999997
+    },
+    {
+      "symbol": "CU_IDX",
+      "regime": "BULL_TREND",
+      "trades": 257,
+      "win_rate_pct": 7.003891050583658,
+      "net_pnl": 23720.320535714076
+    },
+    {
+      "symbol": "CU_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 178,
+      "win_rate_pct": 3.932584269662921,
+      "net_pnl": -49562.85241071425
+    },
+    {
+      "symbol": "CU_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 308,
+      "win_rate_pct": 5.51948051948052,
+      "net_pnl": -83096.13973214276
+    },
+    {
+      "symbol": "CU_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 280,
+      "win_rate_pct": 10.357142857142858,
+      "net_pnl": -77400.08758928583
+    },
+    {
+      "symbol": "AL_IDX",
+      "regime": "BULL_TREND",
+      "trades": 316,
+      "win_rate_pct": 5.379746835443038,
+      "net_pnl": -120307.18924107138
+    },
+    {
+      "symbol": "AL_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 156,
+      "win_rate_pct": 2.564102564102564,
+      "net_pnl": -66769.97312500003
+    },
+    {
+      "symbol": "AL_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 389,
+      "win_rate_pct": 7.969151670951156,
+      "net_pnl": -45156.67772321431
+    },
+    {
+      "symbol": "AL_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 332,
+      "win_rate_pct": 7.83132530120482,
+      "net_pnl": -2347.8507142857197
+    },
+    {
+      "symbol": "ZN_IDX",
+      "regime": "BULL_TREND",
+      "trades": 266,
+      "win_rate_pct": 6.015037593984962,
+      "net_pnl": -34992.50910714292
+    },
+    {
+      "symbol": "ZN_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 139,
+      "win_rate_pct": 2.877697841726619,
+      "net_pnl": -74265.55504464296
+    },
+    {
+      "symbol": "ZN_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 306,
+      "win_rate_pct": 7.18954248366013,
+      "net_pnl": -98584.09781250003
+    },
+    {
+      "symbol": "ZN_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 290,
+      "win_rate_pct": 5.172413793103448,
+      "net_pnl": -99257.92937500005
+    },
+    {
+      "symbol": "SN_IDX",
+      "regime": "BULL_TREND",
+      "trades": 275,
+      "win_rate_pct": 5.818181818181818,
+      "net_pnl": -93431.73673214279
+    },
+    {
+      "symbol": "SN_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 207,
+      "win_rate_pct": 8.212560386473431,
+      "net_pnl": -57361.22133928577
+    },
+    {
+      "symbol": "SN_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 329,
+      "win_rate_pct": 7.598784194528875,
+      "net_pnl": -99445.83310714293
+    },
+    {
+      "symbol": "SN_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 287,
+      "win_rate_pct": 9.40766550522648,
+      "net_pnl": -110742.6395357144
+    },
+    {
+      "symbol": "SC_IDX",
+      "regime": "BULL_TREND",
+      "trades": 272,
+      "win_rate_pct": 6.61764705882353,
+      "net_pnl": -282412.8296428656
+    },
+    {
+      "symbol": "SC_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 150,
+      "win_rate_pct": 3.3333333333333335,
+      "net_pnl": -56256.670178575914
+    },
+    {
+      "symbol": "SC_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 326,
+      "win_rate_pct": 8.895705521472392,
+      "net_pnl": -100298.97089286752
+    },
+    {
+      "symbol": "SC_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 280,
+      "win_rate_pct": 6.785714285714286,
+      "net_pnl": -112526.21214286551
+    },
+    {
+      "symbol": "RU_IDX",
+      "regime": "BULL_TREND",
+      "trades": 285,
+      "win_rate_pct": 5.964912280701754,
+      "net_pnl": -86604.05616071424
+    },
+    {
+      "symbol": "RU_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 102,
+      "win_rate_pct": 4.901960784313726,
+      "net_pnl": -52395.21116071429
+    },
+    {
+      "symbol": "RU_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 356,
+      "win_rate_pct": 5.617977528089887,
+      "net_pnl": -107580.26624999997
+    },
+    {
+      "symbol": "RU_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 331,
+      "win_rate_pct": 6.3444108761329305,
+      "net_pnl": -120493.53044642849
+    },
+    {
+      "symbol": "TA_IDX",
+      "regime": "BULL_TREND",
+      "trades": 292,
+      "win_rate_pct": 3.767123287671233,
+      "net_pnl": -185296.37073214285
+    },
+    {
+      "symbol": "TA_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 138,
+      "win_rate_pct": 5.072463768115942,
+      "net_pnl": -75088.21026785704
+    },
+    {
+      "symbol": "TA_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 322,
+      "win_rate_pct": 5.900621118012422,
+      "net_pnl": -83482.63808928576
+    },
+    {
+      "symbol": "TA_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 339,
+      "win_rate_pct": 8.55457227138643,
+      "net_pnl": -107591.71241071424
+    },
+    {
+      "symbol": "MA_IDX",
+      "regime": "BULL_TREND",
+      "trades": 290,
+      "win_rate_pct": 2.7586206896551726,
+      "net_pnl": -211300.68124999997
+    },
+    {
+      "symbol": "MA_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 106,
+      "win_rate_pct": 2.8301886792452833,
+      "net_pnl": -58719.46201785722
+    },
+    {
+      "symbol": "MA_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 350,
+      "win_rate_pct": 5.428571428571429,
+      "net_pnl": -130350.87164285714
+    },
+    {
+      "symbol": "MA_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 297,
+      "win_rate_pct": 6.397306397306397,
+      "net_pnl": -77839.27264285713
+    },
+    {
+      "symbol": "SA_IDX",
+      "regime": "BULL_TREND",
+      "trades": 289,
+      "win_rate_pct": 4.844290657439446,
+      "net_pnl": -126292.62928571418
+    },
+    {
+      "symbol": "SA_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 37,
+      "win_rate_pct": 2.7027027027027026,
+      "net_pnl": -20019.10557142858
+    },
+    {
+      "symbol": "SA_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 371,
+      "win_rate_pct": 6.199460916442049,
+      "net_pnl": -191743.32985714287
+    },
+    {
+      "symbol": "SA_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 389,
+      "win_rate_pct": 7.197943444730077,
+      "net_pnl": -59697.938892857084
+    },
+    {
+      "symbol": "FG_IDX",
+      "regime": "BULL_TREND",
+      "trades": 288,
+      "win_rate_pct": 4.166666666666666,
+      "net_pnl": -122850.31885714279
+    },
+    {
+      "symbol": "FG_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 28,
+      "win_rate_pct": 3.571428571428571,
+      "net_pnl": -21708.922357142852
+    },
+    {
+      "symbol": "FG_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 388,
+      "win_rate_pct": 4.381443298969072,
+      "net_pnl": -237152.5296428572
+    },
+    {
+      "symbol": "FG_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 434,
+      "win_rate_pct": 6.912442396313365,
+      "net_pnl": -145791.85557142852
+    },
+    {
+      "symbol": "LC_IDX",
+      "regime": "BULL_TREND",
+      "trades": 308,
+      "win_rate_pct": 5.51948051948052,
+      "net_pnl": -137599.14160714278
+    },
+    {
+      "symbol": "LC_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 38,
+      "win_rate_pct": 2.631578947368421,
+      "net_pnl": -21306.666071428535
+    },
+    {
+      "symbol": "LC_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 422,
+      "win_rate_pct": 6.872037914691943,
+      "net_pnl": -121954.19669642858
+    },
+    {
+      "symbol": "LC_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 414,
+      "win_rate_pct": 5.072463768115942,
+      "net_pnl": -167539.13080357143
+    },
+    {
+      "symbol": "SI_IDX",
+      "regime": "BULL_TREND",
+      "trades": 306,
+      "win_rate_pct": 5.228758169934641,
+      "net_pnl": -82195.00602678573
+    },
+    {
+      "symbol": "SI_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 128,
+      "win_rate_pct": 3.90625,
+      "net_pnl": -53115.82566964279
+    },
+    {
+      "symbol": "SI_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 395,
+      "win_rate_pct": 4.556962025316456,
+      "net_pnl": -145618.82700892864
+    },
+    {
+      "symbol": "SI_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 364,
+      "win_rate_pct": 7.967032967032966,
+      "net_pnl": -44914.058928571445
+    },
+    {
+      "symbol": "CF_IDX",
+      "regime": "BULL_TREND",
+      "trades": 299,
+      "win_rate_pct": 3.3444816053511706,
+      "net_pnl": -188464.5780357143
+    },
+    {
+      "symbol": "CF_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 134,
+      "win_rate_pct": 1.4925373134328357,
+      "net_pnl": -78473.06017857142
+    },
+    {
+      "symbol": "CF_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 370,
+      "win_rate_pct": 5.405405405405405,
+      "net_pnl": -99513.84477678571
+    },
+    {
+      "symbol": "CF_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 308,
+      "win_rate_pct": 6.1688311688311686,
+      "net_pnl": -42009.41982142856
+    },
+    {
+      "symbol": "SR_IDX",
+      "regime": "BULL_TREND",
+      "trades": 317,
+      "win_rate_pct": 7.570977917981073,
+      "net_pnl": -21701.422964285826
+    },
+    {
+      "symbol": "SR_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 177,
+      "win_rate_pct": 5.649717514124294,
+      "net_pnl": -55556.842142857306
+    },
+    {
+      "symbol": "SR_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 387,
+      "win_rate_pct": 4.909560723514212,
+      "net_pnl": -132258.63005357137
+    },
+    {
+      "symbol": "SR_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 358,
+      "win_rate_pct": 5.58659217877095,
+      "net_pnl": -89817.36651785715
+    },
+    {
+      "symbol": "C_IDX",
+      "regime": "BULL_TREND",
+      "trades": 295,
+      "win_rate_pct": 5.084745762711865,
+      "net_pnl": -148600.95673214283
+    },
+    {
+      "symbol": "C_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 78,
+      "win_rate_pct": 5.128205128205128,
+      "net_pnl": -47808.34214285712
+    },
+    {
+      "symbol": "C_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 405,
+      "win_rate_pct": 5.679012345679013,
+      "net_pnl": -191816.217
+    },
+    {
+      "symbol": "C_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 385,
+      "win_rate_pct": 6.233766233766234,
+      "net_pnl": -117066.95242857141
+    },
+    {
+      "symbol": "M_IDX",
+      "regime": "BULL_TREND",
+      "trades": 255,
+      "win_rate_pct": 5.098039215686274,
+      "net_pnl": -103690.58067857144
+    },
+    {
+      "symbol": "M_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 128,
+      "win_rate_pct": 3.90625,
+      "net_pnl": -73654.39542857127
+    },
+    {
+      "symbol": "M_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 347,
+      "win_rate_pct": 5.475504322766571,
+      "net_pnl": -75936.63596428571
+    },
+    {
+      "symbol": "M_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 365,
+      "win_rate_pct": 6.575342465753424,
+      "net_pnl": -82937.17996428566
+    },
+    {
+      "symbol": "Y_IDX",
+      "regime": "BULL_TREND",
+      "trades": 277,
+      "win_rate_pct": 6.137184115523466,
+      "net_pnl": -21683.16400000001
+    },
+    {
+      "symbol": "Y_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 136,
+      "win_rate_pct": 5.147058823529411,
+      "net_pnl": -44184.69978571426
+    },
+    {
+      "symbol": "Y_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 314,
+      "win_rate_pct": 4.45859872611465,
+      "net_pnl": -84675.6300357143
+    },
+    {
+      "symbol": "Y_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 350,
+      "win_rate_pct": 7.7142857142857135,
+      "net_pnl": -44718.42410714289
+    },
+    {
+      "symbol": "P_IDX",
+      "regime": "BULL_TREND",
+      "trades": 313,
+      "win_rate_pct": 5.7507987220447285,
+      "net_pnl": -119625.17475000002
+    },
+    {
+      "symbol": "P_IDX",
+      "regime": "GRINDING_CHOP",
+      "trades": 127,
+      "win_rate_pct": 5.511811023622047,
+      "net_pnl": -31126.18228571425
+    },
+    {
+      "symbol": "P_IDX",
+      "regime": "PANIC_CRASH",
+      "trades": 375,
+      "win_rate_pct": 5.6000000000000005,
+      "net_pnl": -136464.89307142847
+    },
+    {
+      "symbol": "P_IDX",
+      "regime": "WHIPSAW_RANGE",
+      "trades": 370,
+      "win_rate_pct": 5.135135135135135,
+      "net_pnl": -86656.75700000001
+    }
+  ],
+  "parameter_metrics": [
+    {
+      "symbol": "AU_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 575,
+      "net_pnl": -937791.4868571289
+    },
+    {
+      "symbol": "AU_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 573,
+      "net_pnl": -857792.4499285581
+    },
+    {
+      "symbol": "AU_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 571,
+      "net_pnl": -835177.2602857018
+    },
+    {
+      "symbol": "AU_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 570,
+      "net_pnl": -912572.6597857025
+    },
+    {
+      "symbol": "AU_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 575,
+      "net_pnl": -908375.9912142724
+    },
+    {
+      "symbol": "AU_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 573,
+      "net_pnl": -828376.9542857015
+    },
+    {
+      "symbol": "AU_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 571,
+      "net_pnl": -805761.7646428451
+    },
+    {
+      "symbol": "AU_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 570,
+      "net_pnl": -883157.164142846
+    },
+    {
+      "symbol": "AU_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 574,
+      "net_pnl": -839320.4234285569
+    },
+    {
+      "symbol": "AU_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 572,
+      "net_pnl": -761155.6912142716
+    },
+    {
+      "symbol": "AU_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 570,
+      "net_pnl": -738540.5015714153
+    },
+    {
+      "symbol": "AU_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 569,
+      "net_pnl": -815935.9010714159
+    },
+    {
+      "symbol": "AU_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 574,
+      "net_pnl": -721699.3125714133
+    },
+    {
+      "symbol": "AU_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 572,
+      "net_pnl": -657651.9716428425
+    },
+    {
+      "symbol": "AU_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 570,
+      "net_pnl": -635036.7819999859
+    },
+    {
+      "symbol": "AU_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 569,
+      "net_pnl": -712432.181499987
+    },
+    {
+      "symbol": "AG_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 527,
+      "net_pnl": -197874.24192857253
+    },
+    {
+      "symbol": "AG_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 527,
+      "net_pnl": -221803.71744643
+    },
+    {
+      "symbol": "AG_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 526,
+      "net_pnl": -233489.43750000163
+    },
+    {
+      "symbol": "AG_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 526,
+      "net_pnl": -236583.91119642986
+    },
+    {
+      "symbol": "AG_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 525,
+      "net_pnl": -154079.98561607325
+    },
+    {
+      "symbol": "AG_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 525,
+      "net_pnl": -177661.95559821627
+    },
+    {
+      "symbol": "AG_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 524,
+      "net_pnl": -183684.103151788
+    },
+    {
+      "symbol": "AG_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 524,
+      "net_pnl": -182429.65379464487
+    },
+    {
+      "symbol": "AG_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 525,
+      "net_pnl": -130486.75558928773
+    },
+    {
+      "symbol": "AG_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 525,
+      "net_pnl": -154292.70026785927
+    },
+    {
+      "symbol": "AG_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 524,
+      "net_pnl": -158914.4206607167
+    },
+    {
+      "symbol": "AG_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 524,
+      "net_pnl": -156694.56589285925
+    },
+    {
+      "symbol": "AG_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 525,
+      "net_pnl": -114945.99141964596
+    },
+    {
+      "symbol": "AG_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 525,
+      "net_pnl": -137181.75969643204
+    },
+    {
+      "symbol": "AG_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 524,
+      "net_pnl": -141522.75176786073
+    },
+    {
+      "symbol": "AG_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 524,
+      "net_pnl": -139302.89700000337
+    },
+    {
+      "symbol": "RB_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 449,
+      "net_pnl": -222686.65971428726
+    },
+    {
+      "symbol": "RB_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 448,
+      "net_pnl": -270512.2218928592
+    },
+    {
+      "symbol": "RB_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 448,
+      "net_pnl": -301253.7498571455
+    },
+    {
+      "symbol": "RB_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 447,
+      "net_pnl": -317468.26332143066
+    },
+    {
+      "symbol": "RB_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 447,
+      "net_pnl": -152099.77057142684
+    },
+    {
+      "symbol": "RB_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 446,
+      "net_pnl": -190945.08885714132
+    },
+    {
+      "symbol": "RB_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 446,
+      "net_pnl": -214848.56792856986
+    },
+    {
+      "symbol": "RB_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 445,
+      "net_pnl": -226487.87467856985
+    },
+    {
+      "symbol": "RB_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 447,
+      "net_pnl": -124103.21474999783
+    },
+    {
+      "symbol": "RB_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 446,
+      "net_pnl": -156592.85907142656
+    },
+    {
+      "symbol": "RB_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 446,
+      "net_pnl": -176274.0803214264
+    },
+    {
+      "symbol": "RB_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 445,
+      "net_pnl": -187113.2343214266
+    },
+    {
+      "symbol": "RB_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 446,
+      "net_pnl": -85174.79391071468
+    },
+    {
+      "symbol": "RB_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 445,
+      "net_pnl": -109835.82608928601
+    },
+    {
+      "symbol": "RB_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 445,
+      "net_pnl": -126749.84112500038
+    },
+    {
+      "symbol": "RB_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 444,
+      "net_pnl": -137761.67612500046
+    },
+    {
+      "symbol": "HC_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 459,
+      "net_pnl": -232296.46921428596
+    },
+    {
+      "symbol": "HC_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 458,
+      "net_pnl": -236024.6316071425
+    },
+    {
+      "symbol": "HC_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 456,
+      "net_pnl": -267325.1568571426
+    },
+    {
+      "symbol": "HC_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 455,
+      "net_pnl": -288567.5291071427
+    },
+    {
+      "symbol": "HC_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 458,
+      "net_pnl": -156497.52932142757
+    },
+    {
+      "symbol": "HC_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 457,
+      "net_pnl": -156692.74685714126
+    },
+    {
+      "symbol": "HC_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 455,
+      "net_pnl": -178690.0669107132
+    },
+    {
+      "symbol": "HC_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 454,
+      "net_pnl": -197890.75808928488
+    },
+    {
+      "symbol": "HC_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 456,
+      "net_pnl": -129299.08310714306
+    },
+    {
+      "symbol": "HC_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 455,
+      "net_pnl": -127989.30817857117
+    },
+    {
+      "symbol": "HC_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 453,
+      "net_pnl": -149670.82242857164
+    },
+    {
+      "symbol": "HC_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 452,
+      "net_pnl": -166248.57617857167
+    },
+    {
+      "symbol": "HC_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 456,
+      "net_pnl": -111577.92399999988
+    },
+    {
+      "symbol": "HC_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 455,
+      "net_pnl": -112989.16776785662
+    },
+    {
+      "symbol": "HC_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 453,
+      "net_pnl": -130625.57319642848
+    },
+    {
+      "symbol": "HC_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 452,
+      "net_pnl": -144170.88362500013
+    },
+    {
+      "symbol": "I_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 496,
+      "net_pnl": -125612.07999999891
+    },
+    {
+      "symbol": "I_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 496,
+      "net_pnl": -158319.09357142774
+    },
+    {
+      "symbol": "I_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 495,
+      "net_pnl": -195830.0403571421
+    },
+    {
+      "symbol": "I_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 493,
+      "net_pnl": -165461.3342857135
+    },
+    {
+      "symbol": "I_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 494,
+      "net_pnl": -48610.24401785596
+    },
+    {
+      "symbol": "I_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 494,
+      "net_pnl": -79342.11312499875
+    },
+    {
+      "symbol": "I_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 493,
+      "net_pnl": -108001.23973214184
+    },
+    {
+      "symbol": "I_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 491,
+      "net_pnl": -73717.2336607133
+    },
+    {
+      "symbol": "I_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 493,
+      "net_pnl": -38345.76749999868
+    },
+    {
+      "symbol": "I_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 493,
+      "net_pnl": -62742.04910714156
+    },
+    {
+      "symbol": "I_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 492,
+      "net_pnl": -89436.79964285623
+    },
+    {
+      "symbol": "I_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 490,
+      "net_pnl": -51369.021607141825
+    },
+    {
+      "symbol": "I_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 493,
+      "net_pnl": -25068.24517857039
+    },
+    {
+      "symbol": "I_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 493,
+      "net_pnl": -44607.35107142711
+    },
+    {
+      "symbol": "I_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 492,
+      "net_pnl": -68973.54160714196
+    },
+    {
+      "symbol": "I_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 490,
+      "net_pnl": -29316.481249999022
+    },
+    {
+      "symbol": "J_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 503,
+      "net_pnl": -241886.1439285722
+    },
+    {
+      "symbol": "J_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 501,
+      "net_pnl": -258336.1826785726
+    },
+    {
+      "symbol": "J_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 500,
+      "net_pnl": -298785.04035714304
+    },
+    {
+      "symbol": "J_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 498,
+      "net_pnl": -310175.16803571465
+    },
+    {
+      "symbol": "J_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 502,
+      "net_pnl": -237633.06580357254
+    },
+    {
+      "symbol": "J_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 500,
+      "net_pnl": -251000.96758928732
+    },
+    {
+      "symbol": "J_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 499,
+      "net_pnl": -290460.50580357213
+    },
+    {
+      "symbol": "J_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 497,
+      "net_pnl": -299696.9950892866
+    },
+    {
+      "symbol": "J_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 502,
+      "net_pnl": -244809.64375000005
+    },
+    {
+      "symbol": "J_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 500,
+      "net_pnl": -257220.3280357148
+    },
+    {
+      "symbol": "J_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 499,
+      "net_pnl": -294751.29660714243
+    },
+    {
+      "symbol": "J_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 497,
+      "net_pnl": -301469.87857142824
+    },
+    {
+      "symbol": "J_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 501,
+      "net_pnl": -220523.66821428598
+    },
+    {
+      "symbol": "J_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 499,
+      "net_pnl": -236459.26857142942
+    },
+    {
+      "symbol": "J_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 498,
+      "net_pnl": -273000.9176785713
+    },
+    {
+      "symbol": "J_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 496,
+      "net_pnl": -283441.155
+    },
+    {
+      "symbol": "JM_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 385,
+      "net_pnl": -81460.47192856972
+    },
+    {
+      "symbol": "JM_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 385,
+      "net_pnl": -94897.01828571223
+    },
+    {
+      "symbol": "JM_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 385,
+      "net_pnl": -108851.88514285476
+    },
+    {
+      "symbol": "JM_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 385,
+      "net_pnl": -100139.66142856807
+    },
+    {
+      "symbol": "JM_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 385,
+      "net_pnl": -48425.414089284604
+    },
+    {
+      "symbol": "JM_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 385,
+      "net_pnl": -61692.474053570186
+    },
+    {
+      "symbol": "JM_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 385,
+      "net_pnl": -67913.92687499837
+    },
+    {
+      "symbol": "JM_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 385,
+      "net_pnl": -60692.8278749981
+    },
+    {
+      "symbol": "JM_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 385,
+      "net_pnl": -32559.564535712474
+    },
+    {
+      "symbol": "JM_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 385,
+      "net_pnl": -46383.70221428445
+    },
+    {
+      "symbol": "JM_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 385,
+      "net_pnl": -55223.547535712714
+    },
+    {
+      "symbol": "JM_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 385,
+      "net_pnl": -49135.91528571292
+    },
+    {
+      "symbol": "JM_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 385,
+      "net_pnl": -27697.915178570314
+    },
+    {
+      "symbol": "JM_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 385,
+      "net_pnl": -46008.914035713766
+    },
+    {
+      "symbol": "JM_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 385,
+      "net_pnl": -51403.11342857045
+    },
+    {
+      "symbol": "JM_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 385,
+      "net_pnl": -47284.56449999963
+    },
+    {
+      "symbol": "CU_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 519,
+      "net_pnl": -157314.34857142658
+    },
+    {
+      "symbol": "CU_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 518,
+      "net_pnl": -225800.92589285516
+    },
+    {
+      "symbol": "CU_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 517,
+      "net_pnl": -363053.8089285698
+    },
+    {
+      "symbol": "CU_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 516,
+      "net_pnl": -390061.73678571254
+    },
+    {
+      "symbol": "CU_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 518,
+      "net_pnl": -75471.5650892841
+    },
+    {
+      "symbol": "CU_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 517,
+      "net_pnl": -142954.5208035705
+    },
+    {
+      "symbol": "CU_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 516,
+      "net_pnl": -279203.7822321425
+    },
+    {
+      "symbol": "CU_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 515,
+      "net_pnl": -305783.11723214213
+    },
+    {
+      "symbol": "CU_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 518,
+      "net_pnl": -36212.94124999887
+    },
+    {
+      "symbol": "CU_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 517,
+      "net_pnl": -102920.86749999959
+    },
+    {
+      "symbol": "CU_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 516,
+      "net_pnl": -238287.9419642859
+    },
+    {
+      "symbol": "CU_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 515,
+      "net_pnl": -264660.1237499998
+    },
+    {
+      "symbol": "CU_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 518,
+      "net_pnl": -31743.43874999869
+    },
+    {
+      "symbol": "CU_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 517,
+      "net_pnl": -98451.36499999999
+    },
+    {
+      "symbol": "CU_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 516,
+      "net_pnl": -233818.43946428632
+    },
+    {
+      "symbol": "CU_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 515,
+      "net_pnl": -260190.62125000032
+    },
+    {
+      "symbol": "AL_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 470,
+      "net_pnl": -122152.7176785717
+    },
+    {
+      "symbol": "AL_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 470,
+      "net_pnl": -154473.51223214238
+    },
+    {
+      "symbol": "AL_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 468,
+      "net_pnl": -193669.52821428538
+    },
+    {
+      "symbol": "AL_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 467,
+      "net_pnl": -230643.00857142825
+    },
+    {
+      "symbol": "AL_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 470,
+      "net_pnl": -77736.02665178583
+    },
+    {
+      "symbol": "AL_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 470,
+      "net_pnl": -107467.19513392833
+    },
+    {
+      "symbol": "AL_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 468,
+      "net_pnl": -138159.56218749983
+    },
+    {
+      "symbol": "AL_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 467,
+      "net_pnl": -168668.7454017856
+    },
+    {
+      "symbol": "AL_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 470,
+      "net_pnl": -31029.934910713928
+    },
+    {
+      "symbol": "AL_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 470,
+      "net_pnl": -57737.85883928486
+    },
+    {
+      "symbol": "AL_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 468,
+      "net_pnl": -90160.36758928502
+    },
+    {
+      "symbol": "AL_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 467,
+      "net_pnl": -119505.20687499933
+    },
+    {
+      "symbol": "AL_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 469,
+      "net_pnl": -22051.304151785327
+    },
+    {
+      "symbol": "AL_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 469,
+      "net_pnl": -47647.56223214208
+    },
+    {
+      "symbol": "AL_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 467,
+      "net_pnl": -79823.6324107137
+    },
+    {
+      "symbol": "AL_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 466,
+      "net_pnl": -109007.74937499943
+    },
+    {
+      "symbol": "ZN_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 507,
+      "net_pnl": -188801.3987499989
+    },
+    {
+      "symbol": "ZN_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 505,
+      "net_pnl": -220828.74017857015
+    },
+    {
+      "symbol": "ZN_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 504,
+      "net_pnl": -250906.99928571284
+    },
+    {
+      "symbol": "ZN_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 504,
+      "net_pnl": -241714.4777678561
+    },
+    {
+      "symbol": "ZN_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 507,
+      "net_pnl": -140758.2237053559
+    },
+    {
+      "symbol": "ZN_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 505,
+      "net_pnl": -164632.16343749862
+    },
+    {
+      "symbol": "ZN_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 504,
+      "net_pnl": -189608.854598213
+    },
+    {
+      "symbol": "ZN_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 504,
+      "net_pnl": -185316.8495089272
+    },
+    {
+      "symbol": "ZN_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 507,
+      "net_pnl": -108630.37741071195
+    },
+    {
+      "symbol": "ZN_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 505,
+      "net_pnl": -130831.35874999757
+    },
+    {
+      "symbol": "ZN_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 504,
+      "net_pnl": -155365.21491071198
+    },
+    {
+      "symbol": "ZN_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 504,
+      "net_pnl": -151073.2098214262
+    },
+    {
+      "symbol": "ZN_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 507,
+      "net_pnl": -95819.0722767848
+    },
+    {
+      "symbol": "ZN_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 505,
+      "net_pnl": -116630.75736607052
+    },
+    {
+      "symbol": "ZN_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 504,
+      "net_pnl": -139957.45102678472
+    },
+    {
+      "symbol": "ZN_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 504,
+      "net_pnl": -145283.79968749906
+    },
+    {
+      "symbol": "SN_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 564,
+      "net_pnl": -65827.43971428624
+    },
+    {
+      "symbol": "SN_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 563,
+      "net_pnl": -136260.81660714303
+    },
+    {
+      "symbol": "SN_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 562,
+      "net_pnl": -192829.154571429
+    },
+    {
+      "symbol": "SN_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 560,
+      "net_pnl": -239838.20632142946
+    },
+    {
+      "symbol": "SN_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 561,
+      "net_pnl": -43006.26728571451
+    },
+    {
+      "symbol": "SN_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 560,
+      "net_pnl": -108178.4534107144
+    },
+    {
+      "symbol": "SN_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 559,
+      "net_pnl": -166631.99348214292
+    },
+    {
+      "symbol": "SN_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 557,
+      "net_pnl": -210160.78632142907
+    },
+    {
+      "symbol": "SN_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 561,
+      "net_pnl": 11533.872214286006
+    },
+    {
+      "symbol": "SN_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 560,
+      "net_pnl": -50986.457107142196
+    },
+    {
+      "symbol": "SN_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 559,
+      "net_pnl": -112865.9162499992
+    },
+    {
+      "symbol": "SN_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 557,
+      "net_pnl": -159559.1937142854
+    },
+    {
+      "symbol": "SN_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 561,
+      "net_pnl": 25321.64896428585
+    },
+    {
+      "symbol": "SN_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 560,
+      "net_pnl": -42379.33358928538
+    },
+    {
+      "symbol": "SN_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 559,
+      "net_pnl": -102757.36344642832
+    },
+    {
+      "symbol": "SN_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 557,
+      "net_pnl": -147949.21162500023
+    },
+    {
+      "symbol": "SC_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 504,
+      "net_pnl": -128699.36000001442
+    },
+    {
+      "symbol": "SC_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 503,
+      "net_pnl": -360680.2264285848
+    },
+    {
+      "symbol": "SC_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 501,
+      "net_pnl": -539695.1521428699
+    },
+    {
+      "symbol": "SC_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 501,
+      "net_pnl": -677025.4821428698
+    },
+    {
+      "symbol": "SC_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 504,
+      "net_pnl": -81573.0258928733
+    },
+    {
+      "symbol": "SC_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 503,
+      "net_pnl": -313553.8923214439
+    },
+    {
+      "symbol": "SC_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 501,
+      "net_pnl": -492568.81803572865
+    },
+    {
+      "symbol": "SC_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 501,
+      "net_pnl": -629899.1480357287
+    },
+    {
+      "symbol": "SC_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 504,
+      "net_pnl": 907.5224999834318
+    },
+    {
+      "symbol": "SC_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 503,
+      "net_pnl": -231073.34392858867
+    },
+    {
+      "symbol": "SC_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 501,
+      "net_pnl": -410088.26964287215
+    },
+    {
+      "symbol": "SC_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 501,
+      "net_pnl": -547418.5996428721
+    },
+    {
+      "symbol": "SC_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 504,
+      "net_pnl": 17768.478749983362
+    },
+    {
+      "symbol": "SC_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 503,
+      "net_pnl": -210044.12428573146
+    },
+    {
+      "symbol": "SC_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 501,
+      "net_pnl": -389059.0500000154
+    },
+    {
+      "symbol": "SC_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 501,
+      "net_pnl": -526389.3800000153
+    },
+    {
+      "symbol": "RU_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 424,
+      "net_pnl": -137382.56392857083
+    },
+    {
+      "symbol": "RU_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 424,
+      "net_pnl": -166114.34767857066
+    },
+    {
+      "symbol": "RU_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 423,
+      "net_pnl": -179436.55964285647
+    },
+    {
+      "symbol": "RU_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 423,
+      "net_pnl": -189929.38928571378
+    },
+    {
+      "symbol": "RU_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 422,
+      "net_pnl": -132389.95517857198
+    },
+    {
+      "symbol": "RU_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 422,
+      "net_pnl": -156189.47196428606
+    },
+    {
+      "symbol": "RU_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 421,
+      "net_pnl": -164115.10803571495
+    },
+    {
+      "symbol": "RU_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 421,
+      "net_pnl": -173640.15464285773
+    },
+    {
+      "symbol": "RU_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 421,
+      "net_pnl": -118181.43660714349
+    },
+    {
+      "symbol": "RU_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 421,
+      "net_pnl": -141448.78392857185
+    },
+    {
+      "symbol": "RU_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 420,
+      "net_pnl": -148810.10607142933
+    },
+    {
+      "symbol": "RU_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 420,
+      "net_pnl": -158270.86375000072
+    },
+    {
+      "symbol": "RU_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 421,
+      "net_pnl": -110472.32928571454
+    },
+    {
+      "symbol": "RU_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 421,
+      "net_pnl": -135393.2641071427
+    },
+    {
+      "symbol": "RU_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 420,
+      "net_pnl": -142597.43553571438
+    },
+    {
+      "symbol": "RU_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 420,
+      "net_pnl": -152751.08500000008
+    },
+    {
+      "symbol": "TA_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 429,
+      "net_pnl": -266004.4994999999
+    },
+    {
+      "symbol": "TA_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 428,
+      "net_pnl": -306461.44385714247
+    },
+    {
+      "symbol": "TA_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 428,
+      "net_pnl": -335580.9346428573
+    },
+    {
+      "symbol": "TA_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 427,
+      "net_pnl": -363308.8729999997
+    },
+    {
+      "symbol": "TA_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 427,
+      "net_pnl": -185862.81755357084
+    },
+    {
+      "symbol": "TA_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 426,
+      "net_pnl": -217591.54901785636
+    },
+    {
+      "symbol": "TA_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 426,
+      "net_pnl": -239745.85248214216
+    },
+    {
+      "symbol": "TA_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 425,
+      "net_pnl": -261407.19808928517
+    },
+    {
+      "symbol": "TA_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 427,
+      "net_pnl": -153857.55210714228
+    },
+    {
+      "symbol": "TA_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 426,
+      "net_pnl": -180905.43239285646
+    },
+    {
+      "symbol": "TA_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 426,
+      "net_pnl": -199741.04121428495
+    },
+    {
+      "symbol": "TA_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 425,
+      "net_pnl": -218100.0843571421
+    },
+    {
+      "symbol": "TA_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 426,
+      "net_pnl": -118258.21721428377
+    },
+    {
+      "symbol": "TA_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 425,
+      "net_pnl": -136734.7330178552
+    },
+    {
+      "symbol": "TA_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 425,
+      "net_pnl": -151750.95344642643
+    },
+    {
+      "symbol": "TA_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 424,
+      "net_pnl": -167192.13212499814
+    },
+    {
+      "symbol": "MA_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 423,
+      "net_pnl": -265586.933071428
+    },
+    {
+      "symbol": "MA_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 423,
+      "net_pnl": -300455.7403571425
+    },
+    {
+      "symbol": "MA_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 422,
+      "net_pnl": -308094.35421428515
+    },
+    {
+      "symbol": "MA_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 421,
+      "net_pnl": -304339.799464285
+    },
+    {
+      "symbol": "MA_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 423,
+      "net_pnl": -192277.66649999993
+    },
+    {
+      "symbol": "MA_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 423,
+      "net_pnl": -218393.3086428569
+    },
+    {
+      "symbol": "MA_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 422,
+      "net_pnl": -224795.05228571396
+    },
+    {
+      "symbol": "MA_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 421,
+      "net_pnl": -221059.46132142819
+    },
+    {
+      "symbol": "MA_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 423,
+      "net_pnl": -160315.14035714336
+    },
+    {
+      "symbol": "MA_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 423,
+      "net_pnl": -182849.7922500004
+    },
+    {
+      "symbol": "MA_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 422,
+      "net_pnl": -187971.0631428575
+    },
+    {
+      "symbol": "MA_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 421,
+      "net_pnl": -185194.79178571468
+    },
+    {
+      "symbol": "MA_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 423,
+      "net_pnl": -129877.00985714339
+    },
+    {
+      "symbol": "MA_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 423,
+      "net_pnl": -146509.47321428603
+    },
+    {
+      "symbol": "MA_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 422,
+      "net_pnl": -149605.7862857147
+    },
+    {
+      "symbol": "MA_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 421,
+      "net_pnl": -148307.46875000035
+    },
+    {
+      "symbol": "SA_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 381,
+      "net_pnl": -254521.90028571337
+    },
+    {
+      "symbol": "SA_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 381,
+      "net_pnl": -263272.157214285
+    },
+    {
+      "symbol": "SA_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 380,
+      "net_pnl": -279528.15257142787
+    },
+    {
+      "symbol": "SA_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 378,
+      "net_pnl": -300750.8867142851
+    },
+    {
+      "symbol": "SA_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 380,
+      "net_pnl": -195131.99217857153
+    },
+    {
+      "symbol": "SA_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 380,
+      "net_pnl": -204116.44167857151
+    },
+    {
+      "symbol": "SA_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 379,
+      "net_pnl": -218379.4711785717
+    },
+    {
+      "symbol": "SA_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 377,
+      "net_pnl": -235107.4911071431
+    },
+    {
+      "symbol": "SA_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 380,
+      "net_pnl": -148446.30828571366
+    },
+    {
+      "symbol": "SA_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 380,
+      "net_pnl": -152706.42585714243
+    },
+    {
+      "symbol": "SA_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 379,
+      "net_pnl": -162466.5233571427
+    },
+    {
+      "symbol": "SA_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 377,
+      "net_pnl": -175725.94871428527
+    },
+    {
+      "symbol": "SA_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 379,
+      "net_pnl": -118554.21874999953
+    },
+    {
+      "symbol": "SA_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 379,
+      "net_pnl": -117861.07003571384
+    },
+    {
+      "symbol": "SA_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 378,
+      "net_pnl": -127296.85653571377
+    },
+    {
+      "symbol": "SA_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 376,
+      "net_pnl": -138743.02824999928
+    },
+    {
+      "symbol": "FG_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 499,
+      "net_pnl": -391399.6948571437
+    },
+    {
+      "symbol": "FG_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 498,
+      "net_pnl": -359315.7113571436
+    },
+    {
+      "symbol": "FG_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 498,
+      "net_pnl": -360831.77571428625
+    },
+    {
+      "symbol": "FG_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 498,
+      "net_pnl": -369442.8605000004
+    },
+    {
+      "symbol": "FG_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 499,
+      "net_pnl": -291633.70128571393
+    },
+    {
+      "symbol": "FG_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 498,
+      "net_pnl": -267683.71257142816
+    },
+    {
+      "symbol": "FG_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 498,
+      "net_pnl": -269906.89314285666
+    },
+    {
+      "symbol": "FG_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 498,
+      "net_pnl": -277202.0598571426
+    },
+    {
+      "symbol": "FG_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 499,
+      "net_pnl": -230621.2500714293
+    },
+    {
+      "symbol": "FG_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 498,
+      "net_pnl": -209087.45607142942
+    },
+    {
+      "symbol": "FG_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 498,
+      "net_pnl": -210947.6993571435
+    },
+    {
+      "symbol": "FG_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 498,
+      "net_pnl": -217346.96900000086
+    },
+    {
+      "symbol": "FG_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 498,
+      "net_pnl": -183305.6309642865
+    },
+    {
+      "symbol": "FG_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 497,
+      "net_pnl": -187275.12578571483
+    },
+    {
+      "symbol": "FG_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 497,
+      "net_pnl": -187282.44371428678
+    },
+    {
+      "symbol": "FG_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 497,
+      "net_pnl": -190378.71550000098
+    },
+    {
+      "symbol": "LC_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 518,
+      "net_pnl": -117029.57499999925
+    },
+    {
+      "symbol": "LC_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 517,
+      "net_pnl": -196233.13749999867
+    },
+    {
+      "symbol": "LC_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 517,
+      "net_pnl": -197185.8482142844
+    },
+    {
+      "symbol": "LC_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 515,
+      "net_pnl": -211466.66285714204
+    },
+    {
+      "symbol": "LC_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 516,
+      "net_pnl": -54992.57678571588
+    },
+    {
+      "symbol": "LC_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 515,
+      "net_pnl": -123078.28410714387
+    },
+    {
+      "symbol": "LC_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 515,
+      "net_pnl": -125091.18000000133
+    },
+    {
+      "symbol": "LC_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 513,
+      "net_pnl": -133559.89285714424
+    },
+    {
+      "symbol": "LC_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 515,
+      "net_pnl": -47933.90982143092
+    },
+    {
+      "symbol": "LC_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 514,
+      "net_pnl": -108466.19410714449
+    },
+    {
+      "symbol": "LC_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 514,
+      "net_pnl": -105354.24482143077
+    },
+    {
+      "symbol": "LC_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 512,
+      "net_pnl": -111065.85553571617
+    },
+    {
+      "symbol": "LC_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 515,
+      "net_pnl": -33086.530446430086
+    },
+    {
+      "symbol": "LC_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 514,
+      "net_pnl": -89991.95089285786
+    },
+    {
+      "symbol": "LC_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 514,
+      "net_pnl": -93904.40892857243
+    },
+    {
+      "symbol": "LC_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 512,
+      "net_pnl": -96668.29500000109
+    },
+    {
+      "symbol": "SI_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 394,
+      "net_pnl": -96303.8766071425
+    },
+    {
+      "symbol": "SI_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 392,
+      "net_pnl": -104547.625
+    },
+    {
+      "symbol": "SI_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 391,
+      "net_pnl": -147457.88160714298
+    },
+    {
+      "symbol": "SI_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 391,
+      "net_pnl": -167539.22357142856
+    },
+    {
+      "symbol": "SI_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 393,
+      "net_pnl": -66941.03142857284
+    },
+    {
+      "symbol": "SI_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 391,
+      "net_pnl": -73294.99705357291
+    },
+    {
+      "symbol": "SI_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 390,
+      "net_pnl": -105710.7396428585
+    },
+    {
+      "symbol": "SI_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 390,
+      "net_pnl": -119063.56946428702
+    },
+    {
+      "symbol": "SI_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 393,
+      "net_pnl": -62039.16446428641
+    },
+    {
+      "symbol": "SI_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 391,
+      "net_pnl": -64276.926250000135
+    },
+    {
+      "symbol": "SI_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 390,
+      "net_pnl": -87962.45392857201
+    },
+    {
+      "symbol": "SI_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 390,
+      "net_pnl": -96901.23553571478
+    },
+    {
+      "symbol": "SI_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 393,
+      "net_pnl": -44044.44763392978
+    },
+    {
+      "symbol": "SI_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 391,
+      "net_pnl": -48723.389151786454
+    },
+    {
+      "symbol": "SI_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 390,
+      "net_pnl": -70635.7187053581
+    },
+    {
+      "symbol": "SI_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 390,
+      "net_pnl": -78238.80781250098
+    },
+    {
+      "symbol": "CF_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 442,
+      "net_pnl": -243733.86660714308
+    },
+    {
+      "symbol": "CF_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 442,
+      "net_pnl": -274190.11544642865
+    },
+    {
+      "symbol": "CF_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 442,
+      "net_pnl": -284566.0292857144
+    },
+    {
+      "symbol": "CF_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 442,
+      "net_pnl": -274317.9742857147
+    },
+    {
+      "symbol": "CF_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 442,
+      "net_pnl": -163419.8113839284
+    },
+    {
+      "symbol": "CF_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 442,
+      "net_pnl": -182579.60165178578
+    },
+    {
+      "symbol": "CF_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 442,
+      "net_pnl": -188859.1815624996
+    },
+    {
+      "symbol": "CF_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 442,
+      "net_pnl": -186172.8282589285
+    },
+    {
+      "symbol": "CF_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 442,
+      "net_pnl": -144224.05223214335
+    },
+    {
+      "symbol": "CF_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 442,
+      "net_pnl": -164587.03410714364
+    },
+    {
+      "symbol": "CF_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 442,
+      "net_pnl": -166188.14723214332
+    },
+    {
+      "symbol": "CF_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 442,
+      "net_pnl": -162782.08866071492
+    },
+    {
+      "symbol": "CF_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 442,
+      "net_pnl": -114613.20968750061
+    },
+    {
+      "symbol": "CF_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 442,
+      "net_pnl": -132445.84816964308
+    },
+    {
+      "symbol": "CF_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 442,
+      "net_pnl": -135341.71459821437
+    },
+    {
+      "symbol": "CF_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 442,
+      "net_pnl": -129740.90343750024
+    },
+    {
+      "symbol": "SR_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 502,
+      "net_pnl": -231761.82478571346
+    },
+    {
+      "symbol": "SR_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 500,
+      "net_pnl": -262171.1890357133
+    },
+    {
+      "symbol": "SR_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 500,
+      "net_pnl": -258629.37242857052
+    },
+    {
+      "symbol": "SR_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 500,
+      "net_pnl": -218224.4703571417
+    },
+    {
+      "symbol": "SR_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 501,
+      "net_pnl": -171456.44505357044
+    },
+    {
+      "symbol": "SR_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 499,
+      "net_pnl": -191897.63649999874
+    },
+    {
+      "symbol": "SR_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 499,
+      "net_pnl": -188023.00574999908
+    },
+    {
+      "symbol": "SR_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 499,
+      "net_pnl": -159452.9787857132
+    },
+    {
+      "symbol": "SR_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 501,
+      "net_pnl": -116621.75928571378
+    },
+    {
+      "symbol": "SR_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 499,
+      "net_pnl": -133625.44167857047
+    },
+    {
+      "symbol": "SR_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 499,
+      "net_pnl": -134016.20346428477
+    },
+    {
+      "symbol": "SR_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 499,
+      "net_pnl": -110096.58039285627
+    },
+    {
+      "symbol": "SR_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 501,
+      "net_pnl": -99411.70425000193
+    },
+    {
+      "symbol": "SR_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 499,
+      "net_pnl": -112853.06544642989
+    },
+    {
+      "symbol": "SR_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 499,
+      "net_pnl": -113583.9610892873
+    },
+    {
+      "symbol": "SR_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 499,
+      "net_pnl": -94844.64437500155
+    },
+    {
+      "symbol": "C_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 406,
+      "net_pnl": -235095.82664285856
+    },
+    {
+      "symbol": "C_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 406,
+      "net_pnl": -257178.43246428703
+    },
+    {
+      "symbol": "C_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 406,
+      "net_pnl": -294887.38471428724
+    },
+    {
+      "symbol": "C_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 406,
+      "net_pnl": -286237.163678573
+    },
+    {
+      "symbol": "C_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 405,
+      "net_pnl": -184247.06221428467
+    },
+    {
+      "symbol": "C_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 405,
+      "net_pnl": -201151.6912857131
+    },
+    {
+      "symbol": "C_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 405,
+      "net_pnl": -230879.697357142
+    },
+    {
+      "symbol": "C_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 405,
+      "net_pnl": -222162.43139285618
+    },
+    {
+      "symbol": "C_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 404,
+      "net_pnl": -141736.70285714255
+    },
+    {
+      "symbol": "C_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 404,
+      "net_pnl": -156865.62928571377
+    },
+    {
+      "symbol": "C_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 404,
+      "net_pnl": -181299.19978571392
+    },
+    {
+      "symbol": "C_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 404,
+      "net_pnl": -175185.7173571426
+    },
+    {
+      "symbol": "C_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 404,
+      "net_pnl": -108116.27337499894
+    },
+    {
+      "symbol": "C_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 404,
+      "net_pnl": -120486.54873214185
+    },
+    {
+      "symbol": "C_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 404,
+      "net_pnl": -141671.4376607131
+    },
+    {
+      "symbol": "C_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 404,
+      "net_pnl": -135775.842624999
+    },
+    {
+      "symbol": "M_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 437,
+      "net_pnl": -156407.79607142927
+    },
+    {
+      "symbol": "M_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 437,
+      "net_pnl": -189197.05271428602
+    },
+    {
+      "symbol": "M_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 437,
+      "net_pnl": -231497.10242857202
+    },
+    {
+      "symbol": "M_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 437,
+      "net_pnl": -237704.8841428575
+    },
+    {
+      "symbol": "M_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 437,
+      "net_pnl": -113812.55699999991
+    },
+    {
+      "symbol": "M_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 437,
+      "net_pnl": -140341.99357142835
+    },
+    {
+      "symbol": "M_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 437,
+      "net_pnl": -174684.89649999992
+    },
+    {
+      "symbol": "M_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 437,
+      "net_pnl": -180646.1288214284
+    },
+    {
+      "symbol": "M_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 437,
+      "net_pnl": -92277.61939285777
+    },
+    {
+      "symbol": "M_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 437,
+      "net_pnl": -113179.21557142958
+    },
+    {
+      "symbol": "M_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 437,
+      "net_pnl": -140089.93989285827
+    },
+    {
+      "symbol": "M_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 437,
+      "net_pnl": -144180.3900357152
+    },
+    {
+      "symbol": "M_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 437,
+      "net_pnl": -82005.67407142965
+    },
+    {
+      "symbol": "M_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 437,
+      "net_pnl": -102051.7286071442
+    },
+    {
+      "symbol": "M_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 437,
+      "net_pnl": -125676.02953571558
+    },
+    {
+      "symbol": "M_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 437,
+      "net_pnl": -129389.2572500013
+    },
+    {
+      "symbol": "Y_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 441,
+      "net_pnl": -137433.06085714255
+    },
+    {
+      "symbol": "Y_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 441,
+      "net_pnl": -141801.44878571364
+    },
+    {
+      "symbol": "Y_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 441,
+      "net_pnl": -139407.37471428502
+    },
+    {
+      "symbol": "Y_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 440,
+      "net_pnl": -135283.86178571347
+    },
+    {
+      "symbol": "Y_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 441,
+      "net_pnl": -93971.92239285668
+    },
+    {
+      "symbol": "Y_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 441,
+      "net_pnl": -92405.9124642855
+    },
+    {
+      "symbol": "Y_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 441,
+      "net_pnl": -92243.72910714254
+    },
+    {
+      "symbol": "Y_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 440,
+      "net_pnl": -86797.6214642853
+    },
+    {
+      "symbol": "Y_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 441,
+      "net_pnl": -70216.92049999989
+    },
+    {
+      "symbol": "Y_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 441,
+      "net_pnl": -77383.14464285749
+    },
+    {
+      "symbol": "Y_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 441,
+      "net_pnl": -74719.50050000031
+    },
+    {
+      "symbol": "Y_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 440,
+      "net_pnl": -67109.09178571473
+    },
+    {
+      "symbol": "Y_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 441,
+      "net_pnl": -58844.431107143406
+    },
+    {
+      "symbol": "Y_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 441,
+      "net_pnl": -67776.49296428612
+    },
+    {
+      "symbol": "Y_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 441,
+      "net_pnl": -74343.31032142916
+    },
+    {
+      "symbol": "Y_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 440,
+      "net_pnl": -70564.52175000065
+    },
+    {
+      "symbol": "P_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 4.0,
+      "trades": 481,
+      "net_pnl": -112646.81571428583
+    },
+    {
+      "symbol": "P_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 5.0,
+      "trades": 481,
+      "net_pnl": -148890.42999999993
+    },
+    {
+      "symbol": "P_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 6.0,
+      "trades": 481,
+      "net_pnl": -195001.5371428571
+    },
+    {
+      "symbol": "P_IDX",
+      "stop_atr": 2.0,
+      "trail_atr": 7.0,
+      "trades": 481,
+      "net_pnl": -193829.51764285716
+    },
+    {
+      "symbol": "P_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 4.0,
+      "trades": 481,
+      "net_pnl": -95100.50557142927
+    },
+    {
+      "symbol": "P_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 5.0,
+      "trades": 481,
+      "net_pnl": -124218.13021428604
+    },
+    {
+      "symbol": "P_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 6.0,
+      "trades": 481,
+      "net_pnl": -157349.4212142859
+    },
+    {
+      "symbol": "P_IDX",
+      "stop_atr": 2.5,
+      "trail_atr": 7.0,
+      "trades": 481,
+      "net_pnl": -165179.23732142895
+    },
+    {
+      "symbol": "P_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 4.0,
+      "trades": 480,
+      "net_pnl": -81804.4717857152
+    },
+    {
+      "symbol": "P_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 5.0,
+      "trades": 480,
+      "net_pnl": -106547.77792857203
+    },
+    {
+      "symbol": "P_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 6.0,
+      "trades": 480,
+      "net_pnl": -134191.85300000047
+    },
+    {
+      "symbol": "P_IDX",
+      "stop_atr": 3.0,
+      "trail_atr": 7.0,
+      "trades": 480,
+      "net_pnl": -137415.1163571435
+    },
+    {
+      "symbol": "P_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 4.0,
+      "trades": 480,
+      "net_pnl": -69814.65203571401
+    },
+    {
+      "symbol": "P_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 5.0,
+      "trades": 480,
+      "net_pnl": -91564.66078571382
+    },
+    {
+      "symbol": "P_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 6.0,
+      "trades": 480,
+      "net_pnl": -117920.97667857085
+    },
+    {
+      "symbol": "P_IDX",
+      "stop_atr": 3.5,
+      "trail_atr": 7.0,
+      "trades": 480,
+      "net_pnl": -119597.1772499996
+    }
+  ]
+}

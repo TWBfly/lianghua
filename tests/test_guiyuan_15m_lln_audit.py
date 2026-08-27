@@ -13,10 +13,12 @@ if str(CODE_DIR) not in sys.path:
 
 from run_guiyuan_15m_lln_audit import (  # noqa: E402
     audit_bars,
+    combine_simulations,
     lln_gate,
     simulate_guiyuan,
     summarize_simulation,
     summarize_portfolio,
+    write_report,
 )
 
 
@@ -114,3 +116,55 @@ def test_data_quality_detects_duplicate_and_invalid_ohlc() -> None:
 
     assert quality["duplicate_timestamps"] == 1
     assert quality["ohlc_errors"] == 1
+
+
+def test_independent_regime_batches_keep_every_trade_and_reconcile() -> None:
+    df, signals = deterministic_long_fixture()
+    first = simulate_guiyuan(df, signals, SPEC, initial_capital=100_000.0)
+    second = simulate_guiyuan(df, signals, SPEC, initial_capital=100_000.0)
+
+    combined = combine_simulations([first, second], initial_capital=100_000.0)
+
+    assert len(combined["trades"]) == 2
+    assert combined["net_pnl"] == pytest.approx(first["net_pnl"] + second["net_pnl"])
+    assert combined["final_equity"] == pytest.approx(200_000.0 + combined["net_pnl"])
+    assert combined["ledger_reconciled"]
+
+
+def test_report_labels_synthetic_results(tmp_path: Path) -> None:
+    result = {
+        "metrics": pd.DataFrame(
+            [
+                {"symbol": "TEST", "name": "测试", "track": "real", "trade_count": 2,
+                 "win_rate_pct": 50.0, "profit_factor": 0.8, "net_pnl": -10.0,
+                 "max_drawdown_pct": 1.0, "sharpe": -0.2, "status": "REJECTED"},
+                {"symbol": "TEST", "name": "测试", "track": "synthetic", "trade_count": 1_001,
+                 "win_rate_pct": 55.0, "profit_factor": 1.2, "net_pnl": 999.0,
+                 "max_drawdown_pct": 2.0, "sharpe": 0.5, "status": "REJECTED",
+                 "holdout_net_pnl": 10.0, "stress_3x_net_pnl": 2.0,
+                 "parameter_profitable": 12},
+            ]
+        ),
+        "trades": pd.DataFrame(),
+        "quality": pd.DataFrame(),
+        "regime_metrics": pd.DataFrame(),
+        "parameter_metrics": pd.DataFrame(),
+        "summary": {
+            "status": "REJECTED",
+            "real": {"net_pnl": -10.0, "trade_count": 2},
+            "synthetic": {
+                "net_pnl": 999.0,
+                "trade_count": 1_001,
+                "min_symbol_trades": 1_001,
+                "all_symbols_over_1000": True,
+            },
+        },
+    }
+
+    write_report(tmp_path, result)
+    report = (tmp_path / "report.md").read_text(encoding="utf-8")
+
+    assert "合成压力轨，不是历史绩效" in report
+    assert "REJECTED" in report
+    assert (tmp_path / "report.json").exists()
+    assert (tmp_path / "symbol_metrics.csv").exists()
