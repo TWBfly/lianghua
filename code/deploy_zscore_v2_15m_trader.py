@@ -22,10 +22,13 @@ from tqsdk import TqApi, TqAuth, TqSim, TargetPosTask
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.append(str(PROJECT_ROOT / "code"))
+sys.path.insert(0, str(PROJECT_ROOT))
+sys.path.insert(0, str(PROJECT_ROOT / "code"))
+sys.path.insert(0, str(PROJECT_ROOT / "strategies"))
 
 from symbol_strategies.decoupled_symbol_engines import SYMBOL_CONFIGS, DB_PATH
 from technical_indicators import calculate_atr, calculate_ema, calculate_rsi
+from strategies.zscore_mean_reversion_meta import calculate_signal
 
 STATE_FILE = PROJECT_ROOT / "data/zscore_v2_15m_virtual_state.json"
 LOG_DIR = PROJECT_ROOT / "data/logs"
@@ -73,33 +76,16 @@ class ZScore15mVirtualTrader:
         self.initial_balance = initial_balance
         self.timeframe_sec = 900  # 15分钟 = 900秒
 
-        # 核心主力映射
+        # 第一梯队核心高活跃主力合约映射 (修正为 KQ.m@ 可真实报单撮合的主力连续合约)
         self.symbol_mapping = {
-            "AU_IDX": "KQ.i@SHFE.au",
-            "AG_IDX": "KQ.i@SHFE.ag",
-            "SC_IDX": "KQ.i@INE.sc",
-            "TA_IDX": "KQ.i@CZCE.TA",
-            "CU_IDX": "KQ.i@SHFE.cu",
-            "RB_IDX": "KQ.i@SHFE.rb",
-            "HC_IDX": "KQ.i@SHFE.hc",
-            "I_IDX":  "KQ.i@DCE.i",
-            "SA_IDX": "KQ.i@CZCE.SA",
-            "MA_IDX": "KQ.i@CZCE.MA",
-            "J_IDX":  "KQ.i@DCE.j",
-            "JM_IDX": "KQ.i@DCE.jm",
-            "AL_IDX": "KQ.i@SHFE.al",
-            "ZN_IDX": "KQ.i@SHFE.zn",
-            "SN_IDX": "KQ.i@SHFE.sn",
-            "RU_IDX": "KQ.i@SHFE.ru",
-            "M_IDX":  "KQ.i@DCE.m",
-            "P_IDX":  "KQ.i@DCE.p",
-            "LC_IDX": "KQ.i@GFEX.lc",
-            "SR_IDX": "KQ.i@CZCE.SR",
-            "CF_IDX": "KQ.i@CZCE.CF",
-            "FG_IDX": "KQ.i@CZCE.FG",
-            "SI_IDX": "KQ.i@GFEX.si",
-            "C_IDX":  "KQ.i@DCE.c",
-            "Y_IDX":  "KQ.i@DCE.y"
+            "AU_IDX": "KQ.m@SHFE.au",  # 黄金主力
+            "AG_IDX": "KQ.m@SHFE.ag",  # 白银主力
+            "SC_IDX": "KQ.m@INE.sc",   # 原油主力
+            "TA_IDX": "KQ.m@CZCE.TA",  # PTA主力
+            "MA_IDX": "KQ.m@CZCE.MA",  # 甲醇主力
+            "SA_IDX": "KQ.m@CZCE.SA",  # 纯碱主力
+            "HC_IDX": "KQ.m@SHFE.hc",  # 热卷主力
+            "P_IDX":  "KQ.m@DCE.p",    # 棕榈油主力
         }
 
         self.strategy_state = {}
@@ -133,6 +119,11 @@ class ZScore15mVirtualTrader:
 
     def log_trade_to_csv(self, trade_record: dict):
         file_exists = TRADES_CSV.exists()
+        # 兼容 net_pnl 和 pnl 两个字段，确保看板端与审计端对账一致
+        if "pnl" in trade_record and "net_pnl" not in trade_record:
+            trade_record["net_pnl"] = trade_record["pnl"]
+        elif "net_pnl" in trade_record and "pnl" not in trade_record:
+            trade_record["pnl"] = trade_record["net_pnl"]
         df = pd.DataFrame([trade_record])
         df.to_csv(TRADES_CSV, mode="a", header=not file_exists, index=False, encoding="utf-8-sig")
 
@@ -151,7 +142,7 @@ class ZScore15mVirtualTrader:
                     "WHERE symbol=? AND timeframe='15m' ORDER BY trade_time ASC",
                     conn, params=(sym,)
                 )
-                if len(df) >= 2000:
+                if len(df) >= 500:
                     from run_zscore_meta_backtest import compute_zscore_features_and_meta_labels
                     cfg = SYMBOL_CONFIGS.get(sym, {"multiplier": 10.0})
                     df_feat = compute_zscore_features_and_meta_labels(df, multiplier=cfg["multiplier"], macro_freq="60min")
@@ -172,8 +163,8 @@ class ZScore15mVirtualTrader:
 
     def run(self):
         logger.info("=" * 80)
-        logger.info(f"🚀 启动 15m 极值 Z-Score + ML Meta-Labeling 虚拟盘守护引擎")
-        logger.info(f"📌 覆盖 25 大真实主力合约 | 周期: 15m | 初始本金: ¥{self.initial_balance:,.2f}")
+        logger.info(f"🚀 启动「归元·极值策略 (15m)」第一梯队核心品种虚拟盘守护引擎 (TqSim)")
+        logger.info(f"📌 覆盖第一梯队 8 大主力合约 (AU, AG, SC, TA, MA, SA, HC, P) | 周期: 15m | 初始本金: ¥{self.initial_balance:,.2f}")
         logger.info("=" * 80)
 
         sim = TqSim(init_balance=self.initial_balance)
@@ -301,7 +292,6 @@ class ZScore15mVirtualTrader:
                                 "open_interest": klines.get("open_interest", pd.Series(np.zeros(len(klines)))).astype(float)
                             })
 
-                            from strategies.zscore_mean_reversion_meta import calculate_signal
                             sig_series = calculate_signal(df_k)
                             sig = int(sig_series.iloc[-2]) if len(sig_series) >= 2 else 0
 

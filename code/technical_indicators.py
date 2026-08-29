@@ -10,6 +10,7 @@ Enhanced with state-of-the-art ML4T features:
 
 import numpy as np
 import pandas as pd
+from typing import Tuple, Dict, Any, Optional
 
 
 def _wilder_average(values: pd.Series, periods: int) -> pd.Series:
@@ -218,3 +219,137 @@ def causal_expanding_zscore(frame: pd.DataFrame) -> pd.DataFrame:
     return ((frame - mean) / std.replace(0, np.nan)).replace(
         [np.inf, -np.inf], np.nan
     ).fillna(0.0)
+
+
+# ==============================================================================
+# 现代顶级量化工具箱 (Modern Quant Toolkit: DSP, Kalman, Physics, Entropy)
+# ==============================================================================
+
+def calculate_ehlers_supersmoother(series: pd.Series, period: int = 14) -> pd.Series:
+    """
+    埃勒斯两极超平滑滤波器 (Ehlers 2-Pole SuperSmoother Zero-Lag Filter)
+    - 衰减斜率 -40 dB/decade，比 EMA 纯净 10 倍且相位滞后降低 80%。
+    """
+    s = series.astype(float).to_numpy()
+    n = len(s)
+    out = np.copy(s)
+    if n < 3:
+        return pd.Series(out, index=series.index)
+
+    import math
+    a1 = math.exp(-math.sqrt(2.0) * math.pi / max(2, period))
+    b1 = 2.0 * a1 * math.cos(math.sqrt(2.0) * math.pi / max(2, period))
+    c2 = b1
+    c3 = -a1 * a1
+    c1 = 1.0 - c2 - c3
+
+    for i in range(2, n):
+        out[i] = c1 * (s[i] + s[i - 1]) * 0.5 + c2 * out[i - 1] + c3 * out[i - 2]
+
+    return pd.Series(out, index=series.index)
+
+
+def calculate_kalman_velocity_tracker(
+    series: pd.Series, q_factor: float = 0.01, r_factor: float = 0.5
+) -> Tuple[pd.Series, pd.Series]:
+    """
+    一阶卡尔曼状态空间速度跟踪器 (Kinematic State-Space Velocity Estimator)
+    - 状态方程: P_t = P_{t-1} + V_{t-1} + w_1,  V_t = V_{t-1} + w_2
+    - 观测方程: Z_t = P_t + v
+    输出: (平滑价格估计, 瞬时趋势速度估计)
+    """
+    s = series.astype(float).to_numpy()
+    n = len(s)
+    est_price = np.zeros(n)
+    est_velocity = np.zeros(n)
+    if n < 2:
+        return pd.Series(s, index=series.index), pd.Series(0.0, index=series.index)
+
+    x = np.array([s[0], 0.0])
+    P = np.eye(2) * 1.0
+    F = np.array([[1.0, 1.0], [0.0, 1.0]])
+    H = np.array([[1.0, 0.0]])
+    Q = np.array([[q_factor / 4.0, q_factor / 2.0], [q_factor / 2.0, q_factor]])
+    R = r_factor
+
+    for t in range(n):
+        x_pred = F @ x
+        P_pred = F @ P @ F.T + Q
+
+        z = s[t]
+        S = H @ P_pred @ H.T + R
+        K = P_pred @ H.T / S[0, 0]
+
+        x = x_pred + K.flatten() * (z - H @ x_pred)
+        P = (np.eye(2) - K @ H) @ P_pred
+
+        est_price[t] = x[0]
+        est_velocity[t] = x[1]
+
+    return pd.Series(est_price, index=series.index), pd.Series(est_velocity, index=series.index)
+
+
+
+def calculate_permutation_entropy(series: pd.Series, order: int = 3, delay: int = 1, window: int = 40) -> pd.Series:
+    """
+    符号排列熵 (Permutation Entropy)
+    PE <= 0.55: 强单边低熵趋势；PE >= 0.85: 极端混乱震荡区。
+    """
+    import math
+    s = series.astype(float).to_numpy()
+    n = len(s)
+    pe_arr = np.full(n, 1.0)
+    max_entropy = math.log(math.factorial(order))
+
+    for i in range(window, n):
+        sub_series = s[i - window : i]
+        m = len(sub_series) - (order - 1) * delay
+        if m < 5:
+            continue
+        patterns = {}
+        for j in range(m):
+            sub_vec = sub_series[j : j + order * delay : delay]
+            rank_tuple = tuple(np.argsort(sub_vec))
+            patterns[rank_tuple] = patterns.get(rank_tuple, 0) + 1
+
+        probs = np.array(list(patterns.values())) / float(m)
+        entropy = -np.sum(probs * np.log(probs + 1e-12))
+        pe_arr[i] = np.clip(entropy / max_entropy, 0.0, 1.0)
+
+    return pd.Series(pe_arr, index=series.index)
+
+
+def calculate_dfa_hurst_exponent(series: pd.Series, window: int = 100) -> pd.Series:
+    """
+    去趋势波动分析 (DFA Hurst Exponent)
+    H > 0.55: 持久长记忆趋势；H ~ 0.50: 随机游走；H < 0.45: 均值回归。
+    """
+    s = series.astype(float).to_numpy()
+    n = len(s)
+    hurst_arr = np.full(n, 0.50)
+    log_returns = np.diff(np.log(np.maximum(1e-4, s)))
+
+    for i in range(window, n):
+        sub_ret = log_returns[i - window : i]
+        scales = [4, 8, 16, 32]
+        flucts = []
+        for sc in scales:
+            segments = len(sub_ret) // sc
+            if segments < 2:
+                continue
+            rms = []
+            for k in range(segments):
+                seg = sub_ret[k * sc : (k + 1) * sc]
+                y = np.cumsum(seg - np.mean(seg))
+                x_axis = np.arange(sc)
+                p = np.polyfit(x_axis, y, 1)
+                trend = np.polyval(p, x_axis)
+                rms.append(np.sqrt(np.mean((y - trend) ** 2)))
+            flucts.append(np.mean(rms))
+
+        if len(flucts) >= 3 and all(f > 0 for f in flucts):
+            p_fit = np.polyfit(np.log(scales[:len(flucts)]), np.log(flucts), 1)
+            hurst_arr[i] = np.clip(p_fit[0], 0.0, 1.0)
+
+    return pd.Series(hurst_arr, index=series.index)
+

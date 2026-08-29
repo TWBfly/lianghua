@@ -1,0 +1,56 @@
+{
+  "timeframe": "30m",
+  "squad_name": "30分钟波段级弹塑性中枢回归战队",
+  "symbols": [
+    "SC_IDX",
+    "LC_IDX",
+    "J_IDX",
+    "AL_IDX",
+    "TA_IDX",
+    "SI_IDX"
+  ],
+  "real": {
+    "symbols_count": 6,
+    "profitable_symbols": 6,
+    "profitable_symbols_rate": 1.0,
+    "trade_count": 506,
+    "win_rate_pct": 62.648221343873516,
+    "profit_factor": 1.5677274910330516,
+    "expectancy": 220.27114177723288,
+    "total_net_pnl": 111457.197739281,
+    "avg_net_pnl_per_symbol": 18576.1996232135,
+    "sharpe": 0.5949472736157572,
+    "sortino": 0.11132852244559975,
+    "max_drawdown_pct": 1.4358221970865384,
+    "avg_holding_hours": 0.45062419282697913,
+    "fees": 18214.15940357143,
+    "slippage": 104080.0,
+    "cost_drag_pct": 94.31085021254707
+  },
+  "synthetic": {
+    "symbols_count": 6,
+    "min_symbol_trades": 1013,
+    "trade_count": 6578,
+    "win_rate_pct": 79.03618121009426,
+    "profit_factor": 4.4126022783099215,
+    "expectancy": 615.8469384791765,
+    "total_net_pnl": 4051041.1613160255,
+    "holdout_profitable_count": 6,
+    "holdout_profitable_rate": 1.0,
+    "stress_profitable_count": 4,
+    "stress_profitable_rate": 0.6666666666666666,
+    "plateau_pass_count": 6,
+    "plateau_pass_rate": 1.0,
+    "all_symbols_over_1000": true
+  },
+  "crash_win_rate": 79.52939626747406,
+  "scorecard": {
+    "factor_quality_score": 25.0,
+    "risk_adjusted_score": 9.2,
+    "drawdown_control_score": 18.6,
+    "anti_overfitting_score": 20.0,
+    "friction_feasibility_score": 3.3,
+    "total_score": 76.1,
+    "grade": "B"
+  }
+}

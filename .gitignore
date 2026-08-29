@@ -13,8 +13,7 @@ qlib/
 data/logs/
 data/export/
 data/*.xls
-data/futures_live_state.json
+data/*_state.json
 scratch/
 .DS_Store
 vnpy/
-

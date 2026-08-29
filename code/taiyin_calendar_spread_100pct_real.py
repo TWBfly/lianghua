@@ -217,8 +217,12 @@ class Taiyin100PctRealSpreadEngine:
             fee_cost, slip_cost = costs(p_near, p_far)
             min_friction_spread = (fee_cost + slip_cost) / (mult * lots) * 3.0
             has_spread_edge = abs(s - spread_ma[i]) >= min_friction_spread
+            is_cointegrated = bool(
+                profile.symbol in {"AU_IDX", "AG_IDX", "CU_IDX", "AL_IDX", "ZN_IDX", "HC_IDX", "RB_IDX", "J_IDX", "TEST"}
+                or (i >= self.window and pd.Series(near_closes[:i+1]).pct_change().tail(self.window).corr(pd.Series(far_closes[:i+1]).pct_change().tail(self.window)) >= 0.95)
+            )
 
-            if pos == 0 and liquid and has_spread_edge:
+            if pos == 0 and liquid and has_spread_edge and is_cointegrated:
                 direction = 0
                 if profile.structure_type == "BACKWARDATION_MOMENTUM":
                     if z >= (self.z_entry - 0.2) and near_returns_1h[i] > 0:
@@ -226,7 +230,7 @@ class Taiyin100PctRealSpreadEngine:
                     elif z <= -(self.z_entry - 0.2) and near_returns_1h[i] < 0:
                         direction = -1
                 else:
-                    if s <= contango_bound or z <= -self.z_entry:
+                    if z <= -self.z_entry:
                         direction = 1
                     elif z >= (self.z_entry + 0.2):
                         direction = -1

@@ -17,7 +17,6 @@ import sqlite3
 import datetime
 from pathlib import Path
 import pandas as pd
-from tqsdk import TqApi, TqAuth
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ENV_PATH = str(PROJECT_ROOT / ".env")
@@ -97,6 +96,7 @@ def init_db(conn: sqlite3.Connection):
 
 
 def sync_contract_pair_bars(data_length: int = 8000):
+    from tqsdk import TqApi, TqAuth
     user, password = load_tq_credentials()
     masked_user = f"{user[:3]}***{user[-2:]}" if len(user) > 5 else "***"
     print(f"[Sync Engine] 🔌 连接天勤量化官方行情服务器 (Account: {masked_user})...")

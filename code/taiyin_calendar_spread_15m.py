@@ -203,7 +203,7 @@ class TaiyinCalendarSpreadStrategy:
                         cash -= (f_cost + s_cost)
                 else:
                     # 标准持有成本均值回归开仓
-                    if s <= c_bound or z <= -self.z_entry:
+                    if z <= -self.z_entry:
                         pos = 1
                         entry_spread = s
                         entry_time = dt_str

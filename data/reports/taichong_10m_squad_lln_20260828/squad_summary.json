@@ -1,0 +1,55 @@
+{
+  "timeframe": "10m",
+  "squad_name": "10分钟微观弹性超短战队",
+  "symbols": [
+    "SN_IDX",
+    "AU_IDX",
+    "AG_IDX",
+    "MA_IDX",
+    "P_IDX"
+  ],
+  "real": {
+    "symbols_count": 5,
+    "profitable_symbols": 5,
+    "profitable_symbols_rate": 1.0,
+    "trade_count": 464,
+    "win_rate_pct": 66.8103448275862,
+    "profit_factor": 1.754473535745409,
+    "expectancy": 219.12219478910777,
+    "total_net_pnl": 101672.69838214363,
+    "avg_net_pnl_per_symbol": 20334.539676428725,
+    "sharpe": 1.5782374582699608,
+    "sortino": 0.30477758801956506,
+    "max_drawdown_pct": 0.8350664375453924,
+    "avg_holding_hours": 0.11991835112043733,
+    "fees": 27764.230189285714,
+    "slippage": 58580.0,
+    "cost_drag_pct": 66.70757035279567
+  },
+  "synthetic": {
+    "symbols_count": 5,
+    "min_symbol_trades": 1058,
+    "trade_count": 5604,
+    "win_rate_pct": 78.2298358315489,
+    "profit_factor": 3.9347734114133797,
+    "expectancy": 396.6699501561453,
+    "total_net_pnl": 2222938.400675041,
+    "holdout_profitable_count": 5,
+    "holdout_profitable_rate": 1.0,
+    "stress_profitable_count": 3,
+    "stress_profitable_rate": 0.6,
+    "plateau_pass_count": 5,
+    "plateau_pass_rate": 1.0,
+    "all_symbols_over_1000": true
+  },
+  "crash_win_rate": 78.05214517470488,
+  "scorecard": {
+    "factor_quality_score": 25.0,
+    "risk_adjusted_score": 17.0,
+    "drawdown_control_score": 19.2,
+    "anti_overfitting_score": 20.0,
+    "friction_feasibility_score": 3.0,
+    "total_score": 84.2,
+    "grade": "A"
+  }
+}
