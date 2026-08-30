@@ -1,3 +1,11 @@
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+for p in (PROJECT_ROOT / "code", PROJECT_ROOT / "strategies"):
+    if str(p) not in sys.path:
+        sys.path.insert(0, str(p))
+
 from run_optimized_macro_trend_island_audit import (
     _result_reconciles,
     evaluate_macro_audit_gates,

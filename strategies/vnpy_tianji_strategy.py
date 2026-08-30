@@ -7,16 +7,8 @@ vnpy_tianji_strategy.py — 天玑 (Tianji) 非预测高胜率趋势动量策略
 3. 动态 ATR 吊灯止盈与保本安全垫保护。
 """
 
-from __future__ import annotations
-
-import sys
-from pathlib import Path
 from collections import deque
 import numpy as np
-
-CODE_DIR = Path(__file__).resolve().parent.parent / "code"
-if str(CODE_DIR) not in sys.path:
-    sys.path.insert(0, str(CODE_DIR))
 
 from vnpy_data_adapter import BarData
 from vnpy_strategy_template import CtaTemplate, Direction, Offset

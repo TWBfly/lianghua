@@ -7,16 +7,8 @@ vnpy_zscore_strategy.py — 极值 Z-Score 均值回归策略 (vn.py CTA 标准�
 3. 出场在触及均线中轨 (SMA 20) 或触发 ATR 硬止损时平仓。
 """
 
-from __future__ import annotations
-
-import sys
-from pathlib import Path
 from collections import deque
 import numpy as np
-
-CODE_DIR = Path(__file__).resolve().parent.parent / "code"
-if str(CODE_DIR) not in sys.path:
-    sys.path.insert(0, str(CODE_DIR))
 
 from vnpy_data_adapter import BarData
 from vnpy_strategy_template import CtaTemplate

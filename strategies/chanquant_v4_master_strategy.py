@@ -20,19 +20,10 @@ strategies/chanquant_v4_master_strategy.py — 「因果缠论 4.0·终极全息
    - 15m 执行层严格与 1h 宏观顺势大方向对齐，过滤 70% 假反弹诱多。
 """
 
-from __future__ import annotations
-
 import math
-import sys
-from pathlib import Path
 from typing import Dict, Any, Tuple
 import numpy as np
 import pandas as pd
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-CODE_DIR = PROJECT_ROOT / "code"
-if str(CODE_DIR) not in sys.path:
-    sys.path.insert(0, str(CODE_DIR))
 
 from causal_chan_engine import CausalChanEngine
 from chan_regime_classifier import classify_kinetic_regime, calculate_ehlers_supersmoother_2pole

@@ -1,6 +1,12 @@
 import ast
+import sys
 import warnings
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+for p in (ROOT / "code", ROOT / "strategies"):
+    if str(p) not in sys.path:
+        sys.path.insert(0, str(p))
 
 import pytest
 

@@ -1,3 +1,11 @@
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+for p in (PROJECT_ROOT / "code", PROJECT_ROOT / "strategies"):
+    if str(p) not in sys.path:
+        sys.path.insert(0, str(p))
+
 import numpy as np
 import pandas as pd
 import importlib.util

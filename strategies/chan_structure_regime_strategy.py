@@ -16,19 +16,9 @@ strategies/chan_structure_regime_strategy.py — 「因果缠论·市场结构�
    - 动态吊灯跟踪止盈：浮盈扩大后启动 3.0 * ATR 动态吊灯跟踪，捕获右尾宏观暴利。
 """
 
-from __future__ import annotations
-
-import sys
-from pathlib import Path
 from typing import Dict, Any, Tuple, Optional
 import numpy as np
 import pandas as pd
-
-# 确保 code 目录可被正常导入
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-CODE_DIR = PROJECT_ROOT / "code"
-if str(CODE_DIR) not in sys.path:
-    sys.path.insert(0, str(CODE_DIR))
 
 from causal_chan_engine import CausalChanEngine, CausalBuySellEvent
 from technical_indicators import calculate_atr, calculate_ema
