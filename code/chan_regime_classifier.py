@@ -54,40 +54,29 @@ def calculate_ehlers_supersmoother_2pole(prices: np.ndarray, period: int = 14) -
 
 def calculate_causal_hurst(prices: np.ndarray, window: int = 60) -> np.ndarray:
     """
-    向量化纯因果方差比率 Hurst 指数估计器
+    向量化纯因果方差比率 Hurst 指数估计器 (全向量化极速版)
     H > 0.5: 长程正自相关 (趋势动量)
     H < 0.5: 均值反转 (均值回归)
     H ≈ 0.5: 几何布朗运动 (随机游走)
     """
     n = len(prices)
-    hurst_arr = np.full(n, 0.50)
     if n < window + 4:
-        return hurst_arr
+        return np.full(n, 0.50)
 
-    # 计算 1 步对数收益率与 2 步对数收益率
     log_p = np.log(np.maximum(prices, 1e-8))
-    ret1 = np.diff(log_p, prepend=log_p[0])
-    ret2 = np.zeros(n)
-    for t in range(2, n):
-        ret2[t] = log_p[t] - log_p[t - 2]
+    s_log_p = pd.Series(log_p)
+    ret1 = s_log_p.diff(1)
+    ret2 = s_log_p.diff(2)
 
-    # 滑动窗口计算方差比率
-    for t in range(window, n):
-        w_ret1 = ret1[t - window + 1:t + 1]
-        w_ret2 = ret2[t - window + 1:t + 1]
+    var1 = ret1.rolling(window).var(ddof=1).values
+    var2 = ret2.rolling(window).var(ddof=1).values
 
-        var1 = np.var(w_ret1, ddof=1)
-        var2 = np.var(w_ret2, ddof=1)
-
-        if var1 > 1e-12 and var2 > 1e-12:
-            vr = var2 / (2.0 * var1 + 1e-12)
-            # H = 0.5 + 0.5 * log2(VR)
-            h = 0.5 + 0.5 * (math.log(max(1e-4, vr)) / math.log(2.0))
-            hurst_arr[t] = np.clip(h, 0.10, 0.90)
-        else:
-            hurst_arr[t] = 0.50
-
-    return hurst_arr
+    valid = (var1 > 1e-12) & (var2 > 1e-12)
+    vr = np.where(valid, var2 / (2.0 * np.maximum(var1, 1e-12)), 1.0)
+    vr = np.maximum(1e-4, vr)
+    h = 0.5 + 0.5 * (np.log(vr) / math.log(2.0))
+    hurst_arr = np.where(valid, np.clip(h, 0.10, 0.90), 0.50)
+    return np.nan_to_num(hurst_arr, nan=0.50)
 
 
 def classify_kinetic_regime(

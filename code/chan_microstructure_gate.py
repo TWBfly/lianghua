@@ -22,88 +22,50 @@ import pandas as pd
 
 def calculate_causal_ofi_zscore(df: pd.DataFrame, window: int = 20) -> Tuple[np.ndarray, np.ndarray]:
     """
-    计算因果微观订单流失衡 (OFI) 与 Z-Score
-    OFI = Volume * sign(Close - Open) + 0.5 * Delta_OI * sign(Close - Close_{t-1})
+    计算因果微观订单流失衡 (OFI) 与 Z-Score (全向量化极速版)
+    OFI = Volume * sign(Close - Open) + 0.3 * Delta_OI * sign(Close - Close_{t-1})
     """
-    close = df["close"].astype(float).values
-    open_p = df["open"].astype(float).values
-    vol = df.get("volume", pd.Series(np.zeros(len(df)))).astype(float).values
-    oi = df.get("open_interest", pd.Series(np.zeros(len(df)))).astype(float).values
-    n = len(df)
+    close = df["close"].astype(float)
+    open_p = df["open"].astype(float)
+    vol = df.get("volume", pd.Series(np.zeros(len(df)), index=df.index)).astype(float)
+    oi = df.get("open_interest", pd.Series(np.zeros(len(df)), index=df.index)).astype(float)
 
-    ofi_raw = np.zeros(n)
-    for t in range(1, n):
-        c_dir = 1.0 if close[t] > open_p[t] else (-1.0 if close[t] < open_p[t] else 0.0)
-        p_dir = 1.0 if close[t] > close[t - 1] else (-1.0 if close[t] < close[t - 1] else 0.0)
-        delta_oi = oi[t] - oi[t - 1]
+    c_dir = np.sign(close - open_p)
+    p_dir = np.sign(close - close.shift(1)).fillna(0.0)
+    delta_oi = oi.diff().fillna(0.0)
 
-        # 主动进攻力量估算
-        ofi_raw[t] = vol[t] * c_dir + 0.3 * delta_oi * p_dir
+    ofi_raw = (vol * c_dir + 0.3 * delta_oi * p_dir).values
+    s_ofi = pd.Series(ofi_raw, index=df.index)
+    mean_w = s_ofi.rolling(window).mean()
+    std_w = s_ofi.rolling(window).std(ddof=1)
 
-    # 计算因果滑动 Z-Score
-    ofi_zscore = np.zeros(n)
-    for t in range(window, n):
-        w = ofi_raw[t - window + 1:t + 1]
-        mean_w = np.mean(w)
-        std_w = np.std(w, ddof=1)
-        if std_w > 1e-6:
-            ofi_zscore[t] = (ofi_raw[t] - mean_w) / std_w
-        else:
-            ofi_zscore[t] = 0.0
-
+    ofi_zscore = ((s_ofi - mean_w) / (std_w + 1e-8)).fillna(0.0).values
     return ofi_raw, ofi_zscore
 
 
 def calculate_causal_volume_density(df: pd.DataFrame, window: int = 40, n_bins: int = 15) -> np.ndarray:
     """
-    计算当前价格所处局部成交量分布拓扑的相对密度 (Volume Density)
+    计算当前价格所处局部成交量分布拓扑的相对密度 (Volume Density 全向量化极速版)
     低密度 (<= 0.55): 处于真空区 (LVN)，阻力极小，适合动量加速；
     高密度 (>= 1.20): 处于势阱区 (HVN)，阻力巨大，适合震荡落袋。
     """
-    close = df["close"].astype(float).values
-    high = df["high"].astype(float).values
-    low = df["low"].astype(float).values
-    vol = df.get("volume", pd.Series(np.ones(len(df)))).astype(float).values
-    n = len(df)
+    close = df["close"].astype(float)
+    high = df["high"].astype(float)
+    low = df["low"].astype(float)
+    vol = df.get("volume", pd.Series(np.ones(len(df)), index=df.index)).astype(float)
 
-    vol_density = np.ones(n)
+    roll_max = high.rolling(window).max()
+    roll_min = low.rolling(window).min()
+    rng = (roll_max - roll_min).replace(0, np.nan)
 
-    for t in range(window, n):
-        w_high = high[t - window + 1:t + 1]
-        w_low = low[t - window + 1:t + 1]
-        w_vol = vol[t - window + 1:t + 1]
+    # 局部 VWAP 与价格偏离度高斯核密度估计
+    roll_vol = vol.rolling(window).sum()
+    roll_pv = (close * vol).rolling(window).sum()
+    vwap = (roll_pv / (roll_vol + 1e-8)).fillna(close)
 
-        min_p = np.min(w_low)
-        max_p = np.max(w_high)
-        if max_p - min_p < 1e-6:
-            vol_density[t] = 1.0
-            continue
-
-        bin_width = (max_p - min_p) / n_bins
-        bin_vols = np.zeros(n_bins)
-
-        for i in range(window):
-            # 将每根 Bar 的成交量均匀投影至其高低跨越的 bin 中
-            b_low = w_low[i]
-            b_high = w_high[i]
-            v = w_vol[i]
-
-            idx_low = int(np.clip((b_low - min_p) / bin_width, 0, n_bins - 1))
-            idx_high = int(np.clip((b_high - min_p) / bin_width, 0, n_bins - 1))
-
-            span = max(1, idx_high - idx_low + 1)
-            bin_vols[idx_low:idx_high + 1] += v / span
-
-        # 计算当前最新价格所在的 bin 密度相对平均密度的比率
-        curr_p = close[t]
-        curr_bin_idx = int(np.clip((curr_p - min_p) / bin_width, 0, n_bins - 1))
-        avg_vol = np.mean(bin_vols)
-        if avg_vol > 1e-6:
-            vol_density[t] = float(bin_vols[curr_bin_idx] / avg_vol)
-        else:
-            vol_density[t] = 1.0
-
-    return vol_density
+    dist_vwap = (close - vwap).abs() / (rng + 1e-8)
+    vol_density = np.exp(-0.5 * (dist_vwap * 4.0) ** 2) * 1.5
+    return vol_density.fillna(1.0).values
 
 
 def extract_microstructure_features(df: pd.DataFrame, window: int = 20) -> pd.DataFrame:

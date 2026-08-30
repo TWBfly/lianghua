@@ -1,0 +1,319 @@
+{
+  "strategy_name": "ChanQuant_4.0_LLN_Master",
+  "timestamp": "2026-08-31 02:22:47",
+  "total_trades": 4505,
+  "total_1x_pnl_rmb": -3780252.71,
+  "total_3x_pnl_rmb": -6372222.06,
+  "details": [
+    {
+      "symbol": "RB_IDX",
+      "name": "螺纹钢",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "RB_IDX",
+        "name": "螺纹钢",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": true,
+        "real_bars": 8211,
+        "total_bars": 68211,
+        "start_time": "2015-01-01 09:00:00",
+        "end_time": "2026-08-24 14:45:00",
+        "regime_distribution": {
+          "BULL_TREND": 15000,
+          "WHIPSAW_RANGE": 15000,
+          "PANIC_CRASH": 15000,
+          "GRINDING_CHOP": 15000,
+          "REAL_HISTORY": 8211
+        }
+      },
+      "normal_1x": {
+        "symbol": "RB_IDX",
+        "name": "螺纹钢",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 828,
+        "win_rate": 0.3527,
+        "wilson_95_ci": [
+          0.3209,
+          0.3858
+        ],
+        "profit_factor": 0.26,
+        "net_pnl": -1005639.73,
+        "total_win_rmb": 344392.51,
+        "total_loss_rmb": 1350032.23,
+        "max_drawdown": 1012594.82,
+        "total_fees": 124489.73,
+        "total_slippage": 408000.0,
+        "bankruptcy_events": 528,
+        "force_liquidations": 572,
+        "regime_attribution": {
+          "BULL_TREND": -253371.43,
+          "WHIPSAW_RANGE": -186955.35,
+          "PANIC_CRASH": -80896.01,
+          "GRINDING_CHOP": -132410.67,
+          "REAL_HISTORY": -352006.28
+        }
+      },
+      "stress_3x": {
+        "symbol": "RB_IDX",
+        "name": "螺纹钢",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 981,
+        "win_rate": 0.1702,
+        "wilson_95_ci": [
+          0.148,
+          0.195
+        ],
+        "profit_factor": 0.1,
+        "net_pnl": -2095505.61,
+        "total_win_rmb": 243182.94,
+        "total_loss_rmb": 2338688.55,
+        "max_drawdown": 2096152.71,
+        "total_fees": 393055.61,
+        "total_slippage": 1293720.0,
+        "bankruptcy_events": 782,
+        "force_liquidations": 803,
+        "regime_attribution": {
+          "BULL_TREND": -334634.28,
+          "WHIPSAW_RANGE": -210977.83,
+          "PANIC_CRASH": -178182.65,
+          "GRINDING_CHOP": -333412.01,
+          "REAL_HISTORY": -1038298.84
+        }
+      }
+    },
+    {
+      "symbol": "CU_IDX",
+      "name": "沪铜",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "CU_IDX",
+        "name": "沪铜",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": true,
+        "real_bars": 8223,
+        "total_bars": 68223,
+        "start_time": "2015-01-01 09:00:00",
+        "end_time": "2026-08-24 14:45:00",
+        "regime_distribution": {
+          "BULL_TREND": 15000,
+          "WHIPSAW_RANGE": 15000,
+          "PANIC_CRASH": 15000,
+          "GRINDING_CHOP": 15000,
+          "REAL_HISTORY": 8223
+        }
+      },
+      "normal_1x": {
+        "symbol": "CU_IDX",
+        "name": "沪铜",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 1300,
+        "win_rate": 0.4308,
+        "wilson_95_ci": [
+          0.4041,
+          0.4579
+        ],
+        "profit_factor": 0.58,
+        "net_pnl": -977936.12,
+        "total_win_rmb": 1323700.07,
+        "total_loss_rmb": 2301636.2,
+        "max_drawdown": 1028487.3,
+        "total_fees": 105986.12,
+        "total_slippage": 227900.0,
+        "bankruptcy_events": 1107,
+        "force_liquidations": 1162,
+        "regime_attribution": {
+          "BULL_TREND": -224936.11,
+          "WHIPSAW_RANGE": -329316.3,
+          "PANIC_CRASH": -167544.58,
+          "GRINDING_CHOP": -49520.76,
+          "REAL_HISTORY": -206618.37
+        }
+      },
+      "stress_3x": {
+        "symbol": "CU_IDX",
+        "name": "沪铜",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 1323,
+        "win_rate": 0.3311,
+        "wilson_95_ci": [
+          0.3062,
+          0.3569
+        ],
+        "profit_factor": 0.41,
+        "net_pnl": -1632410.43,
+        "total_win_rmb": 1152318.03,
+        "total_loss_rmb": 2784728.46,
+        "max_drawdown": 1681363.96,
+        "total_fees": 322610.43,
+        "total_slippage": 690600.0,
+        "bankruptcy_events": 1141,
+        "force_liquidations": 1190,
+        "regime_attribution": {
+          "BULL_TREND": -259108.34,
+          "WHIPSAW_RANGE": -353350.95,
+          "PANIC_CRASH": -299933.75,
+          "GRINDING_CHOP": -132762.28,
+          "REAL_HISTORY": -587255.11
+        }
+      }
+    },
+    {
+      "symbol": "AU_IDX",
+      "name": "沪金",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "AU_IDX",
+        "name": "沪金",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": true,
+        "real_bars": 8136,
+        "total_bars": 68136,
+        "start_time": "2015-01-01 09:00:00",
+        "end_time": "2026-08-24 14:45:00",
+        "regime_distribution": {
+          "BULL_TREND": 15000,
+          "WHIPSAW_RANGE": 15000,
+          "PANIC_CRASH": 15000,
+          "GRINDING_CHOP": 15000,
+          "REAL_HISTORY": 8136
+        }
+      },
+      "normal_1x": {
+        "symbol": "AU_IDX",
+        "name": "沪金",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 1105,
+        "win_rate": 0.4733,
+        "wilson_95_ci": [
+          0.444,
+          0.5028
+        ],
+        "profit_factor": 0.73,
+        "net_pnl": -723249.29,
+        "total_win_rmb": 1977589.76,
+        "total_loss_rmb": 2700839.05,
+        "max_drawdown": 779284.34,
+        "total_fees": 42489.29,
+        "total_slippage": 45720.0,
+        "bankruptcy_events": 907,
+        "force_liquidations": 1004,
+        "regime_attribution": {
+          "BULL_TREND": -405859.57,
+          "WHIPSAW_RANGE": -293873.1,
+          "PANIC_CRASH": -42619.52,
+          "REAL_HISTORY": 19102.91
+        }
+      },
+      "stress_3x": {
+        "symbol": "AU_IDX",
+        "name": "沪金",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 1112,
+        "win_rate": 0.4505,
+        "wilson_95_ci": [
+          0.4215,
+          0.4799
+        ],
+        "profit_factor": 0.69,
+        "net_pnl": -873182.25,
+        "total_win_rmb": 1907434.04,
+        "total_loss_rmb": 2780616.29,
+        "max_drawdown": 865384.32,
+        "total_fees": 128482.25,
+        "total_slippage": 138000.0,
+        "bankruptcy_events": 908,
+        "force_liquidations": 1014,
+        "regime_attribution": {
+          "BULL_TREND": -407453.11,
+          "WHIPSAW_RANGE": -309339.31,
+          "PANIC_CRASH": -97218.56,
+          "REAL_HISTORY": -59171.27
+        }
+      }
+    },
+    {
+      "symbol": "SC_IDX",
+      "name": "原油",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "SC_IDX",
+        "name": "原油",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": true,
+        "real_bars": 8015,
+        "total_bars": 68015,
+        "start_time": "2015-01-01 09:00:00",
+        "end_time": "2026-08-24 14:45:00",
+        "regime_distribution": {
+          "BULL_TREND": 15000,
+          "WHIPSAW_RANGE": 15000,
+          "PANIC_CRASH": 15000,
+          "GRINDING_CHOP": 15000,
+          "REAL_HISTORY": 8015
+        }
+      },
+      "normal_1x": {
+        "symbol": "SC_IDX",
+        "name": "原油",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 1272,
+        "win_rate": 0.4324,
+        "wilson_95_ci": [
+          0.4054,
+          0.4598
+        ],
+        "profit_factor": 0.61,
+        "net_pnl": -1073427.57,
+        "total_win_rmb": 1678300.82,
+        "total_loss_rmb": 2751728.39,
+        "max_drawdown": 1114764.14,
+        "total_fees": 83827.57,
+        "total_slippage": 287000.0,
+        "bankruptcy_events": 1087,
+        "force_liquidations": 1134,
+        "regime_attribution": {
+          "BULL_TREND": -205900.96,
+          "WHIPSAW_RANGE": -441100.18,
+          "PANIC_CRASH": -192857.2,
+          "GRINDING_CHOP": -74699.2,
+          "REAL_HISTORY": -158870.04
+        }
+      },
+      "stress_3x": {
+        "symbol": "SC_IDX",
+        "name": "原油",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 1287,
+        "win_rate": 0.3225,
+        "wilson_95_ci": [
+          0.2975,
+          0.3485
+        ],
+        "profit_factor": 0.45,
+        "net_pnl": -1771123.77,
+        "total_win_rmb": 1458039.87,
+        "total_loss_rmb": 3229163.64,
+        "max_drawdown": 1800733.48,
+        "total_fees": 254923.77,
+        "total_slippage": 870000.0,
+        "bankruptcy_events": 1103,
+        "force_liquidations": 1161,
+        "regime_attribution": {
+          "BULL_TREND": -265302.88,
+          "WHIPSAW_RANGE": -495141.59,
+          "PANIC_CRASH": -443971.59,
+          "GRINDING_CHOP": -146497.6,
+          "REAL_HISTORY": -420210.12
+        }
+      }
+    }
+  ]
+}
