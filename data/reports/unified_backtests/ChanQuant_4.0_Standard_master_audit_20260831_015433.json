@@ -1,0 +1,233 @@
+{
+  "strategy_name": "ChanQuant_4.0_Standard",
+  "timestamp": "2026-08-31 01:54:33",
+  "total_trades": 238,
+  "total_1x_pnl_rmb": -372539.31,
+  "total_3x_pnl_rmb": -612759.61,
+  "details": [
+    {
+      "symbol": "RB_IDX",
+      "name": "螺纹钢",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "RB_IDX",
+        "name": "螺纹钢",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": false,
+        "real_bars": 8211,
+        "total_bars": 8211,
+        "start_time": "2025-03-17 09:15:00",
+        "end_time": "2026-08-24 14:45:00",
+        "regime_distribution": {}
+      },
+      "normal_1x": {
+        "symbol": "RB_IDX",
+        "name": "螺纹钢",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 50,
+        "win_rate": 0.26,
+        "wilson_95_ci": [
+          0.1587,
+          0.3955
+        ],
+        "profit_factor": 0.45,
+        "net_pnl": -89709.25,
+        "max_drawdown": 110806.68,
+        "total_fees": 13183.68,
+        "total_slippage": 42640.0,
+        "regime_attribution": {
+          "REAL_HISTORY": -89709.25
+        }
+      },
+      "stress_3x": {
+        "symbol": "RB_IDX",
+        "name": "螺纹钢",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 50,
+        "win_rate": 0.18,
+        "wilson_95_ci": [
+          0.0977,
+          0.308
+        ],
+        "profit_factor": 0.2,
+        "net_pnl": -201356.61,
+        "max_drawdown": 192894.39,
+        "total_fees": 39551.04,
+        "total_slippage": 127920.0,
+        "regime_attribution": {
+          "REAL_HISTORY": -201356.61
+        }
+      }
+    },
+    {
+      "symbol": "CU_IDX",
+      "name": "沪铜",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "CU_IDX",
+        "name": "沪铜",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": false,
+        "real_bars": 8223,
+        "total_bars": 8223,
+        "start_time": "2025-07-25 23:45:00",
+        "end_time": "2026-08-24 14:45:00",
+        "regime_distribution": {}
+      },
+      "normal_1x": {
+        "symbol": "CU_IDX",
+        "name": "沪铜",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 90,
+        "win_rate": 0.3,
+        "wilson_95_ci": [
+          0.2151,
+          0.4013
+        ],
+        "profit_factor": 0.44,
+        "net_pnl": -133716.81,
+        "max_drawdown": 161990.4,
+        "total_fees": 10388.02,
+        "total_slippage": 22500.0,
+        "regime_attribution": {
+          "REAL_HISTORY": -133716.81
+        }
+      },
+      "stress_3x": {
+        "symbol": "CU_IDX",
+        "name": "沪铜",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 90,
+        "win_rate": 0.2,
+        "wilson_95_ci": [
+          0.1304,
+          0.2941
+        ],
+        "profit_factor": 0.32,
+        "net_pnl": -199492.84,
+        "max_drawdown": 207650.79,
+        "total_fees": 31164.05,
+        "total_slippage": 67500.0,
+        "regime_attribution": {
+          "REAL_HISTORY": -199492.84
+        }
+      }
+    },
+    {
+      "symbol": "AU_IDX",
+      "name": "沪金",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "AU_IDX",
+        "name": "沪金",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": false,
+        "real_bars": 8136,
+        "total_bars": 8136,
+        "start_time": "2025-09-23 11:15:00",
+        "end_time": "2026-08-24 14:45:00",
+        "regime_distribution": {}
+      },
+      "normal_1x": {
+        "symbol": "AU_IDX",
+        "name": "沪金",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 66,
+        "win_rate": 0.4697,
+        "wilson_95_ci": [
+          0.3543,
+          0.5884
+        ],
+        "profit_factor": 0.67,
+        "net_pnl": -60976.19,
+        "max_drawdown": 93016.58,
+        "total_fees": 2706.45,
+        "total_slippage": 2760.0,
+        "regime_attribution": {
+          "REAL_HISTORY": -60976.19
+        }
+      },
+      "stress_3x": {
+        "symbol": "AU_IDX",
+        "name": "沪金",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 66,
+        "win_rate": 0.3939,
+        "wilson_95_ci": [
+          0.285,
+          0.5145
+        ],
+        "profit_factor": 0.63,
+        "net_pnl": -71909.08,
+        "max_drawdown": 96353.81,
+        "total_fees": 8119.34,
+        "total_slippage": 8280.0,
+        "regime_attribution": {
+          "REAL_HISTORY": -71909.08
+        }
+      }
+    },
+    {
+      "symbol": "TA_IDX",
+      "name": "PTA",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "TA_IDX",
+        "name": "PTA",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": false,
+        "real_bars": 8015,
+        "total_bars": 8015,
+        "start_time": "2025-03-17 09:15:00",
+        "end_time": "2026-08-24 14:45:00",
+        "regime_distribution": {}
+      },
+      "normal_1x": {
+        "symbol": "TA_IDX",
+        "name": "PTA",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 32,
+        "win_rate": 0.1562,
+        "wilson_95_ci": [
+          0.0686,
+          0.3175
+        ],
+        "profit_factor": 0.34,
+        "net_pnl": -88137.06,
+        "max_drawdown": 103577.6,
+        "total_fees": 3352.01,
+        "total_slippage": 22580.0,
+        "regime_attribution": {
+          "REAL_HISTORY": -88137.06
+        }
+      },
+      "stress_3x": {
+        "symbol": "TA_IDX",
+        "name": "PTA",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 32,
+        "win_rate": 0.1562,
+        "wilson_95_ci": [
+          0.0686,
+          0.3175
+        ],
+        "profit_factor": 0.22,
+        "net_pnl": -140001.08,
+        "max_drawdown": 148184.04,
+        "total_fees": 10056.02,
+        "total_slippage": 67740.0,
+        "regime_attribution": {
+          "REAL_HISTORY": -140001.08
+        }
+      }
+    }
+  ]
+}
