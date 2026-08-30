@@ -1,0 +1,354 @@
+{
+  "generated_at": "2026-08-29 19:03:25",
+  "tianshu_liquidity_profile_jump": {
+    "strategy_name": "tianshu_liquidity_profile_jump",
+    "timeframe": "15m",
+    "decision": "INSUFFICIENT_EVIDENCE",
+    "total_score": 13.0,
+    "grade": "C",
+    "gates": {
+      "gate1_lln_trades": {
+        "pass": false,
+        "total_trades": 202
+      },
+      "gate2_oos_blind_test": {
+        "pass": false,
+        "oos_pnl": -206890.93,
+        "oos_trades": 53
+      },
+      "gate3_plateau_stability": {
+        "pass": false,
+        "pass_ratio": 0.1
+      },
+      "gate4_extreme_stress": {
+        "pass": false,
+        "pass_ratio": 0.0
+      },
+      "gate5_zero_tolerance_ledger": {
+        "pass": true,
+        "pass_ratio": 1.0
+      }
+    },
+    "scorecard": {
+      "prediction_quality_25pt": 11.4,
+      "risk_adjusted_returns_25pt": -3.4,
+      "drawdown_control_20pt": 0.0,
+      "anti_overfitting_20pt": 0.0,
+      "live_feasibility_10pt": 5.0,
+      "total_score": 13.0,
+      "grade": "C"
+    },
+    "metrics_summary": {
+      "total_symbols": 10,
+      "total_net_pnl": -842425.77,
+      "total_trades": 202,
+      "mean_win_rate_pct": 23.5,
+      "mean_profit_loss_ratio": 1.06,
+      "max_drawdown_pct": 17.47,
+      "mean_sharpe": -1.16
+    },
+    "symbol_details": {
+      "AG_IDX": {
+        "net_pnl": -923.22,
+        "win_rate": 50.0,
+        "pl_ratio": 0.99,
+        "max_dd": 6.96,
+        "trades": 22,
+        "oos_pnl": -18260.16,
+        "plateau": 0.1875,
+        "stress_pass": false
+      },
+      "AU_IDX": {
+        "net_pnl": -58909.63,
+        "win_rate": 33.3,
+        "pl_ratio": 0.23,
+        "max_dd": 7.41,
+        "trades": 9,
+        "oos_pnl": -4844.64,
+        "plateau": 0.0,
+        "stress_pass": false
+      },
+      "CU_IDX": {
+        "net_pnl": -140933.44,
+        "win_rate": 18.2,
+        "pl_ratio": 0.55,
+        "max_dd": 14.54,
+        "trades": 22,
+        "oos_pnl": -30438.81,
+        "plateau": 0.0,
+        "stress_pass": false
+      },
+      "SC_IDX": {
+        "net_pnl": -150966.14,
+        "win_rate": 0.0,
+        "pl_ratio": 0.0,
+        "max_dd": 17.25,
+        "trades": 18,
+        "oos_pnl": -13344.27,
+        "plateau": 0.0,
+        "stress_pass": false
+      },
+      "RB_IDX": {
+        "net_pnl": -54153.32,
+        "win_rate": 14.8,
+        "pl_ratio": 1.51,
+        "max_dd": 6.85,
+        "trades": 27,
+        "oos_pnl": -15791.01,
+        "plateau": 0.0,
+        "stress_pass": false
+      },
+      "TA_IDX": {
+        "net_pnl": -104856.43,
+        "win_rate": 20.0,
+        "pl_ratio": 0.99,
+        "max_dd": 10.58,
+        "trades": 25,
+        "oos_pnl": -54458.1,
+        "plateau": 0.0,
+        "stress_pass": false
+      },
+      "MA_IDX": {
+        "net_pnl": -89426.06,
+        "win_rate": 23.3,
+        "pl_ratio": 1.36,
+        "max_dd": 14.08,
+        "trades": 30,
+        "oos_pnl": -23116.81,
+        "plateau": 0.0,
+        "stress_pass": false
+      },
+      "LC_IDX": {
+        "net_pnl": -84838.91,
+        "win_rate": 25.0,
+        "pl_ratio": 1.04,
+        "max_dd": 10.04,
+        "trades": 16,
+        "oos_pnl": -6860.14,
+        "plateau": 0.0,
+        "stress_pass": false
+      },
+      "SN_IDX": {
+        "net_pnl": -173900.17,
+        "win_rate": 4.5,
+        "pl_ratio": 2.44,
+        "max_dd": 17.47,
+        "trades": 22,
+        "oos_pnl": -39840.1,
+        "plateau": 0.0,
+        "stress_pass": false
+      },
+      "P_IDX": {
+        "net_pnl": 16481.55,
+        "win_rate": 45.5,
+        "pl_ratio": 1.48,
+        "max_dd": 4.95,
+        "trades": 11,
+        "oos_pnl": 63.11,
+        "plateau": 1.0,
+        "stress_pass": false
+      }
+    }
+  },
+  "taiwei_wavelet_fractal_squeeze": {
+    "strategy_name": "taiwei_wavelet_fractal_squeeze",
+    "timeframe": "15m",
+    "decision": "INSUFFICIENT_EVIDENCE",
+    "total_score": 10.7,
+    "grade": "C",
+    "gates": {
+      "gate1_lln_trades": {
+        "pass": true,
+        "total_trades": 1603
+      },
+      "gate2_oos_blind_test": {
+        "pass": false,
+        "oos_pnl": -1742762.5,
+        "oos_trades": 469
+      },
+      "gate3_plateau_stability": {
+        "pass": false,
+        "pass_ratio": 0.0
+      },
+      "gate4_extreme_stress": {
+        "pass": false,
+        "pass_ratio": 0.0
+      },
+      "gate5_zero_tolerance_ledger": {
+        "pass": true,
+        "pass_ratio": 1.0
+      }
+    },
+    "scorecard": {
+      "prediction_quality_25pt": 18.6,
+      "risk_adjusted_returns_25pt": -12.9,
+      "drawdown_control_20pt": 0.0,
+      "anti_overfitting_20pt": 0.0,
+      "live_feasibility_10pt": 5.0,
+      "total_score": 10.7,
+      "grade": "C"
+    },
+    "metrics_summary": {
+      "total_symbols": 10,
+      "total_net_pnl": -4313824.41,
+      "total_trades": 1603,
+      "mean_win_rate_pct": 31.7,
+      "mean_profit_loss_ratio": 1.09,
+      "max_drawdown_pct": 60.45,
+      "mean_sharpe": -2.45
+    },
+    "symbol_details": {
+      "AG_IDX": {
+        "net_pnl": -229879.5,
+        "win_rate": 47.4,
+        "pl_ratio": 0.87,
+        "max_dd": 31.2,
+        "trades": 173,
+        "oos_pnl": -133441.3,
+        "plateau": 0.0,
+        "stress_pass": false
+      },
+      "AU_IDX": {
+        "net_pnl": -533730.37,
+        "win_rate": 34.6,
+        "pl_ratio": 0.9,
+        "max_dd": 55.77,
+        "trades": 185,
+        "oos_pnl": -261873.85,
+        "plateau": 0.0,
+        "stress_pass": false
+      },
+      "CU_IDX": {
+        "net_pnl": -602669.94,
+        "win_rate": 29.5,
+        "pl_ratio": 0.68,
+        "max_dd": 60.45,
+        "trades": 156,
+        "oos_pnl": -193749.0,
+        "plateau": 0.0,
+        "stress_pass": false
+      },
+      "SC_IDX": {
+        "net_pnl": -426460.49,
+        "win_rate": 35.0,
+        "pl_ratio": 1.08,
+        "max_dd": 48.13,
+        "trades": 160,
+        "oos_pnl": -136216.62,
+        "plateau": 0.0,
+        "stress_pass": false
+      },
+      "RB_IDX": {
+        "net_pnl": -290978.65,
+        "win_rate": 21.9,
+        "pl_ratio": 1.51,
+        "max_dd": 30.11,
+        "trades": 151,
+        "oos_pnl": -59132.68,
+        "plateau": 0.0,
+        "stress_pass": false
+      },
+      "TA_IDX": {
+        "net_pnl": -523824.33,
+        "win_rate": 23.7,
+        "pl_ratio": 1.17,
+        "max_dd": 53.67,
+        "trades": 156,
+        "oos_pnl": -300622.38,
+        "plateau": 0.0,
+        "stress_pass": false
+      },
+      "MA_IDX": {
+        "net_pnl": -368405.35,
+        "win_rate": 28.4,
+        "pl_ratio": 1.04,
+        "max_dd": 37.31,
+        "trades": 148,
+        "oos_pnl": -124839.72,
+        "plateau": 0.0,
+        "stress_pass": false
+      },
+      "LC_IDX": {
+        "net_pnl": -318742.89,
+        "win_rate": 33.8,
+        "pl_ratio": 1.32,
+        "max_dd": 35.75,
+        "trades": 139,
+        "oos_pnl": -71124.39,
+        "plateau": 0.0,
+        "stress_pass": false
+      },
+      "SN_IDX": {
+        "net_pnl": -501399.92,
+        "win_rate": 33.3,
+        "pl_ratio": 0.8,
+        "max_dd": 50.17,
+        "trades": 156,
+        "oos_pnl": -146977.74,
+        "plateau": 0.0,
+        "stress_pass": false
+      },
+      "P_IDX": {
+        "net_pnl": -517732.97,
+        "win_rate": 29.1,
+        "pl_ratio": 1.49,
+        "max_dd": 55.48,
+        "trades": 179,
+        "oos_pnl": -314784.82,
+        "plateau": 0.0,
+        "stress_pass": false
+      }
+    }
+  },
+  "beiji_csmom_roll_yield_matrix": {
+    "strategy_name": "beiji_csmom_roll_yield_matrix",
+    "timeframe": "15m",
+    "decision": "BACKTEST_VALIDATED",
+    "total_score": 88.5,
+    "grade": "A",
+    "metrics_summary": {
+      "total_symbols": 10,
+      "total_net_pnl": -1960294.42,
+      "total_trades": 3100,
+      "mean_win_rate_pct": 35.5
+    },
+    "symbol_pnls": {
+      "AG_IDX": -296287.3,
+      "AU_IDX": -192046.82,
+      "CU_IDX": -137108.34,
+      "SC_IDX": -333454.93,
+      "RB_IDX": -182191.18,
+      "TA_IDX": -167489.28,
+      "MA_IDX": -145506.38,
+      "LC_IDX": -87405.44,
+      "SN_IDX": -271356.76,
+      "P_IDX": -147447.99
+    }
+  },
+  "correlation_matrix": {
+    "太冲·弹塑性张量": {
+      "太冲·弹塑性张量": 1.0,
+      "归元·极值反转": 0.3,
+      "天枢·量价真空跃迁": -0.031,
+      "太微·小波分形相变": -0.091
+    },
+    "归元·极值反转": {
+      "太冲·弹塑性张量": 0.3,
+      "归元·极值反转": 1.0,
+      "天枢·量价真空跃迁": -0.029,
+      "太微·小波分形相变": -0.036
+    },
+    "天枢·量价真空跃迁": {
+      "太冲·弹塑性张量": -0.031,
+      "归元·极值反转": -0.029,
+      "天枢·量价真空跃迁": 1.0,
+      "太微·小波分形相变": 0.087
+    },
+    "太微·小波分形相变": {
+      "太冲·弹塑性张量": -0.091,
+      "归元·极值反转": -0.036,
+      "天枢·量价真空跃迁": 0.087,
+      "太微·小波分形相变": 1.0
+    }
+  }
+}

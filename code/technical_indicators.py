@@ -129,18 +129,6 @@ def calculate_skip_momentum(series: pd.Series, horizon: int = 21, skip: int = 1)
     return ((s.shift(skip) / s.shift(horizon + skip)) - 1.0).fillna(0.0)
 
 
-def calculate_atr(frame: pd.DataFrame, n: int = 14) -> pd.Series:
-    high = frame["high"].astype(float)
-    low = frame["low"].astype(float)
-    close = frame["close"].astype(float)
-    true_range = pd.concat([
-        high - low,
-        (high - close.shift(1)).abs(),
-        (low - close.shift(1)).abs(),
-    ], axis=1).max(axis=1)
-    return _wilder_average(true_range, n)
-
-
 def calculate_adx(frame: pd.DataFrame, n: int = 14) -> pd.Series:
     """Average Directional Index — trend strength (0-100). ADX >= 25 = trending."""
     high = frame["high"].astype(float)

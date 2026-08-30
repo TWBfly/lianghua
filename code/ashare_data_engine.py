@@ -100,6 +100,7 @@ class AShareDataEngine:
                 pct_chg REAL,
                 change_amount REAL,
                 turnover_rate REAL,
+                CHECK (open > 0 AND high >= low AND close > 0 AND volume >= 0),
                 PRIMARY KEY (symbol, trade_date)
             );
             """)
@@ -330,7 +331,8 @@ class AShareDataEngine:
                             amp_s = ((high_s - low_s) / prev_close.replace(0, 1.0) * 100.0).round(2).fillna(0.0)
                             pct_s = (close_s.pct_change() * 100.0).round(2).fillna(0.0)
                             chg_s = (close_s - close_s.shift(1)).round(2).fillna(0.0)
-                            turn_s = (to_s * 100.0 if (to_s.max() <= 1.0) else to_s).round(2)
+                            # ponytail: 逐行判断避免未来函数，升级路径 = 数据源统一单位后去掉此逻辑
+                            turn_s = to_s.where(to_s > 1.0, to_s * 100.0).round(2)
                             
                             df_hist = pd.DataFrame({
                                 '股票代码': sym,

@@ -40,6 +40,7 @@ from technical_indicators import (
     calculate_permutation_entropy
 )
 from run_ek_supertrend_v7_lln_audit import compute_v7_dynamic_supertrend
+from runtime_credentials import load_required_credentials
 
 DATA_DIR = PROJECT_ROOT / "data"
 LOG_DIR = DATA_DIR / "logs"
@@ -94,18 +95,7 @@ EK_V7_SYMBOLS_CONFIG = {
 
 
 def get_tq_credentials():
-    env_path = PROJECT_ROOT / ".env"
-    account = "13800000000"
-    password = "redacted_password"
-    if env_path.exists():
-        with open(env_path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line.startswith("TQ_ACCOUNT="):
-                    account = line.split("=", 1)[1].strip()
-                elif line.startswith("TQ_PASSWORD="):
-                    password = line.split("=", 1)[1].strip()
-    return account, password
+    return load_required_credentials(PROJECT_ROOT / ".env")
 
 
 class EKSupretrendV7Trader:

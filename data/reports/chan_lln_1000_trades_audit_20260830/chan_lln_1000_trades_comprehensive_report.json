@@ -1,0 +1,1611 @@
+{
+  "benchmark_timestamp": "2026-08-30 16:21:36",
+  "total_portfolio_trades": 22800,
+  "overall_win_rate": 0.2363,
+  "overall_profit_factor": 0.62,
+  "overall_net_pnl_rmb": -4020662.73,
+  "annualized_sharpe": -3.45,
+  "portfolio_max_drawdown_rmb": 4041833.97,
+  "symbol_reports": [
+    {
+      "symbol": "AG_IDX",
+      "name": "沪银",
+      "total_bars": 34430,
+      "trade_count": 1553,
+      "lln_pass": true,
+      "win_rate": 0.3979,
+      "wilson_95_ci": [
+        0.3739,
+        0.4225
+      ],
+      "net_pnl": -625295.8,
+      "profit_factor": 0.54,
+      "avg_trade_pnl": -402.64,
+      "expectancy_atr": -0.1579,
+      "total_fees": 61481.36,
+      "total_slippage": 93180.0,
+      "max_drawdown_rmb": 646467.04,
+      "max_drawdown_pct": 1.2929,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 112,
+          "win_rate": 0.4018,
+          "net_pnl": -31898.68,
+          "profit_factor": 0.56,
+          "avg_trade_pnl": -284.81
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 484,
+          "win_rate": 0.436,
+          "net_pnl": -80377.13,
+          "profit_factor": 0.71,
+          "avg_trade_pnl": -166.07
+        },
+        "B3 (三买突破)": {
+          "trade_count": 198,
+          "win_rate": 0.3384,
+          "net_pnl": -234707.52,
+          "profit_factor": 0.33,
+          "avg_trade_pnl": -1185.39
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 126,
+          "win_rate": 0.4286,
+          "net_pnl": -1149.71,
+          "profit_factor": 0.98,
+          "avg_trade_pnl": -9.12
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 477,
+          "win_rate": 0.3795,
+          "net_pnl": -141328.15,
+          "profit_factor": 0.58,
+          "avg_trade_pnl": -296.29
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 156,
+          "win_rate": 0.3846,
+          "net_pnl": -135834.61,
+          "profit_factor": 0.49,
+          "avg_trade_pnl": -870.73
+        }
+      }
+    },
+    {
+      "symbol": "AU_IDX",
+      "name": "沪金",
+      "total_bars": 26903,
+      "trade_count": 1144,
+      "lln_pass": true,
+      "win_rate": 0.4187,
+      "wilson_95_ci": [
+        0.3904,
+        0.4475
+      ],
+      "net_pnl": 126208.96,
+      "profit_factor": 1.08,
+      "avg_trade_pnl": 110.32,
+      "expectancy_atr": 0.0011,
+      "total_fees": 85250.07,
+      "total_slippage": 91520.0,
+      "max_drawdown_rmb": 180838.31,
+      "max_drawdown_pct": 0.3617,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 76,
+          "win_rate": 0.4868,
+          "net_pnl": 7181.73,
+          "profit_factor": 1.15,
+          "avg_trade_pnl": 94.5
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 370,
+          "win_rate": 0.3838,
+          "net_pnl": -71710.99,
+          "profit_factor": 0.82,
+          "avg_trade_pnl": -193.81
+        },
+        "B3 (三买突破)": {
+          "trade_count": 136,
+          "win_rate": 0.5,
+          "net_pnl": 185096.73,
+          "profit_factor": 1.58,
+          "avg_trade_pnl": 1361.01
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 112,
+          "win_rate": 0.4018,
+          "net_pnl": -50264.54,
+          "profit_factor": 0.5,
+          "avg_trade_pnl": -448.79
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 333,
+          "win_rate": 0.4294,
+          "net_pnl": 132813.96,
+          "profit_factor": 1.43,
+          "avg_trade_pnl": 398.84
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 117,
+          "win_rate": 0.3761,
+          "net_pnl": -76907.92,
+          "profit_factor": 0.82,
+          "avg_trade_pnl": -657.33
+        }
+      }
+    },
+    {
+      "symbol": "SC_IDX",
+      "name": "原油",
+      "total_bars": 26497,
+      "trade_count": 1010,
+      "lln_pass": true,
+      "win_rate": 0.299,
+      "wilson_95_ci": [
+        0.2716,
+        0.328
+      ],
+      "net_pnl": -352826.6,
+      "profit_factor": 0.8,
+      "avg_trade_pnl": -349.33,
+      "expectancy_atr": -0.0374,
+      "total_fees": 110746.23,
+      "total_slippage": 404000.0,
+      "max_drawdown_rmb": 597212.12,
+      "max_drawdown_pct": 1.1944,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 79,
+          "win_rate": 0.3165,
+          "net_pnl": -15899.47,
+          "profit_factor": 0.77,
+          "avg_trade_pnl": -201.26
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 299,
+          "win_rate": 0.3077,
+          "net_pnl": -19089.52,
+          "profit_factor": 0.95,
+          "avg_trade_pnl": -63.84
+        },
+        "B3 (三买突破)": {
+          "trade_count": 140,
+          "win_rate": 0.2286,
+          "net_pnl": -35311.51,
+          "profit_factor": 0.9,
+          "avg_trade_pnl": -252.23
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 79,
+          "win_rate": 0.3924,
+          "net_pnl": -15532.1,
+          "profit_factor": 0.79,
+          "avg_trade_pnl": -196.61
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 295,
+          "win_rate": 0.3322,
+          "net_pnl": -83303.29,
+          "profit_factor": 0.84,
+          "avg_trade_pnl": -282.38
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 118,
+          "win_rate": 0.2034,
+          "net_pnl": -183690.7,
+          "profit_factor": 0.51,
+          "avg_trade_pnl": -1556.7
+        }
+      }
+    },
+    {
+      "symbol": "CU_IDX",
+      "name": "沪铜",
+      "total_bars": 27120,
+      "trade_count": 1079,
+      "lln_pass": true,
+      "win_rate": 0.2715,
+      "wilson_95_ci": [
+        0.2459,
+        0.2989
+      ],
+      "net_pnl": -324256.69,
+      "profit_factor": 0.59,
+      "avg_trade_pnl": -300.52,
+      "expectancy_atr": -0.0439,
+      "total_fees": 103875.58,
+      "total_slippage": 215800.0,
+      "max_drawdown_rmb": 348394.29,
+      "max_drawdown_pct": 0.6968,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 82,
+          "win_rate": 0.3902,
+          "net_pnl": -6100.03,
+          "profit_factor": 0.86,
+          "avg_trade_pnl": -74.39
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 344,
+          "win_rate": 0.2762,
+          "net_pnl": -54721.96,
+          "profit_factor": 0.72,
+          "avg_trade_pnl": -159.08
+        },
+        "B3 (三买突破)": {
+          "trade_count": 122,
+          "win_rate": 0.2541,
+          "net_pnl": -33109.95,
+          "profit_factor": 0.73,
+          "avg_trade_pnl": -271.39
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 86,
+          "win_rate": 0.3023,
+          "net_pnl": -33011.77,
+          "profit_factor": 0.33,
+          "avg_trade_pnl": -383.86
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 332,
+          "win_rate": 0.2651,
+          "net_pnl": -42886.19,
+          "profit_factor": 0.76,
+          "avg_trade_pnl": -129.18
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 113,
+          "win_rate": 0.1858,
+          "net_pnl": -154426.79,
+          "profit_factor": 0.19,
+          "avg_trade_pnl": -1366.61
+        }
+      }
+    },
+    {
+      "symbol": "AL_IDX",
+      "name": "沪铝",
+      "total_bars": 26473,
+      "trade_count": 880,
+      "lln_pass": false,
+      "win_rate": 0.1602,
+      "wilson_95_ci": [
+        0.1375,
+        0.1859
+      ],
+      "net_pnl": -130636.84,
+      "profit_factor": 0.26,
+      "avg_trade_pnl": -148.45,
+      "expectancy_atr": -0.0837,
+      "total_fees": 12044.17,
+      "total_slippage": 88000.0,
+      "max_drawdown_rmb": 131125.25,
+      "max_drawdown_pct": 0.2623,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 66,
+          "win_rate": 0.1818,
+          "net_pnl": -1896.62,
+          "profit_factor": 0.74,
+          "avg_trade_pnl": -28.74
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 268,
+          "win_rate": 0.1642,
+          "net_pnl": -33424.71,
+          "profit_factor": 0.21,
+          "avg_trade_pnl": -124.72
+        },
+        "B3 (三买突破)": {
+          "trade_count": 111,
+          "win_rate": 0.1081,
+          "net_pnl": -27932.92,
+          "profit_factor": 0.24,
+          "avg_trade_pnl": -251.65
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 81,
+          "win_rate": 0.1975,
+          "net_pnl": -9173.49,
+          "profit_factor": 0.22,
+          "avg_trade_pnl": -113.25
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 266,
+          "win_rate": 0.1805,
+          "net_pnl": -36801.96,
+          "profit_factor": 0.3,
+          "avg_trade_pnl": -138.35
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 88,
+          "win_rate": 0.1023,
+          "net_pnl": -21407.15,
+          "profit_factor": 0.19,
+          "avg_trade_pnl": -243.26
+        }
+      }
+    },
+    {
+      "symbol": "ZN_IDX",
+      "name": "沪锌",
+      "total_bars": 26473,
+      "trade_count": 880,
+      "lln_pass": false,
+      "win_rate": 0.1977,
+      "wilson_95_ci": [
+        0.1728,
+        0.2253
+      ],
+      "net_pnl": -142368.05,
+      "profit_factor": 0.32,
+      "avg_trade_pnl": -161.78,
+      "expectancy_atr": -0.1062,
+      "total_fees": 12773.81,
+      "total_slippage": 88000.0,
+      "max_drawdown_rmb": 144671.45,
+      "max_drawdown_pct": 0.2893,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 70,
+          "win_rate": 0.3143,
+          "net_pnl": -3281.28,
+          "profit_factor": 0.66,
+          "avg_trade_pnl": -46.88
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 269,
+          "win_rate": 0.1896,
+          "net_pnl": -37652.96,
+          "profit_factor": 0.33,
+          "avg_trade_pnl": -139.97
+        },
+        "B3 (三买突破)": {
+          "trade_count": 112,
+          "win_rate": 0.1071,
+          "net_pnl": -33410.38,
+          "profit_factor": 0.26,
+          "avg_trade_pnl": -298.31
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 62,
+          "win_rate": 0.371,
+          "net_pnl": 149.77,
+          "profit_factor": 1.02,
+          "avg_trade_pnl": 2.42
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 274,
+          "win_rate": 0.208,
+          "net_pnl": -31863.05,
+          "profit_factor": 0.34,
+          "avg_trade_pnl": -116.29
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 93,
+          "win_rate": 0.0968,
+          "net_pnl": -36310.15,
+          "profit_factor": 0.18,
+          "avg_trade_pnl": -390.43
+        }
+      }
+    },
+    {
+      "symbol": "SN_IDX",
+      "name": "沪锡",
+      "total_bars": 26485,
+      "trade_count": 1123,
+      "lln_pass": true,
+      "win_rate": 0.3954,
+      "wilson_95_ci": [
+        0.3672,
+        0.4243
+      ],
+      "net_pnl": -206425.33,
+      "profit_factor": 0.74,
+      "avg_trade_pnl": -183.82,
+      "expectancy_atr": -0.0731,
+      "total_fees": 49251.5,
+      "total_slippage": 44920.0,
+      "max_drawdown_rmb": 234673.1,
+      "max_drawdown_pct": 0.4693,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 82,
+          "win_rate": 0.4512,
+          "net_pnl": 9932.95,
+          "profit_factor": 1.37,
+          "avg_trade_pnl": 121.13
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 344,
+          "win_rate": 0.4302,
+          "net_pnl": -22520.46,
+          "profit_factor": 0.85,
+          "avg_trade_pnl": -65.47
+        },
+        "B3 (三买突破)": {
+          "trade_count": 144,
+          "win_rate": 0.4236,
+          "net_pnl": -66444.84,
+          "profit_factor": 0.68,
+          "avg_trade_pnl": -461.42
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 84,
+          "win_rate": 0.3571,
+          "net_pnl": -16643.93,
+          "profit_factor": 0.58,
+          "avg_trade_pnl": -198.14
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 357,
+          "win_rate": 0.3669,
+          "net_pnl": -32253.62,
+          "profit_factor": 0.83,
+          "avg_trade_pnl": -90.35
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 112,
+          "win_rate": 0.3304,
+          "net_pnl": -78495.42,
+          "profit_factor": 0.57,
+          "avg_trade_pnl": -700.85
+        }
+      }
+    },
+    {
+      "symbol": "RB_IDX",
+      "name": "螺纹钢",
+      "total_bars": 27033,
+      "trade_count": 753,
+      "lln_pass": false,
+      "win_rate": 0.1726,
+      "wilson_95_ci": [
+        0.1473,
+        0.2013
+      ],
+      "net_pnl": -39674.43,
+      "profit_factor": 0.37,
+      "avg_trade_pnl": -52.69,
+      "expectancy_atr": -0.0456,
+      "total_fees": 9645.84,
+      "total_slippage": 30120.0,
+      "max_drawdown_rmb": 39983.81,
+      "max_drawdown_pct": 0.08,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 67,
+          "win_rate": 0.209,
+          "net_pnl": -2699.24,
+          "profit_factor": 0.41,
+          "avg_trade_pnl": -40.29
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 228,
+          "win_rate": 0.1711,
+          "net_pnl": -12233.14,
+          "profit_factor": 0.2,
+          "avg_trade_pnl": -53.65
+        },
+        "B3 (三买突破)": {
+          "trade_count": 73,
+          "win_rate": 0.1233,
+          "net_pnl": -8121.65,
+          "profit_factor": 0.22,
+          "avg_trade_pnl": -111.26
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 50,
+          "win_rate": 0.16,
+          "net_pnl": -3225.71,
+          "profit_factor": 0.06,
+          "avg_trade_pnl": -64.51
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 245,
+          "win_rate": 0.1959,
+          "net_pnl": -14607.94,
+          "profit_factor": 0.23,
+          "avg_trade_pnl": -59.62
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 90,
+          "win_rate": 0.1333,
+          "net_pnl": 1213.24,
+          "profit_factor": 1.12,
+          "avg_trade_pnl": 13.48
+        }
+      }
+    },
+    {
+      "symbol": "HC_IDX",
+      "name": "热卷",
+      "total_bars": 26419,
+      "trade_count": 753,
+      "lln_pass": false,
+      "win_rate": 0.174,
+      "wilson_95_ci": [
+        0.1486,
+        0.2027
+      ],
+      "net_pnl": -31967.41,
+      "profit_factor": 0.49,
+      "avg_trade_pnl": -42.45,
+      "expectancy_atr": -0.0166,
+      "total_fees": 10172.73,
+      "total_slippage": 30120.0,
+      "max_drawdown_rmb": 40245.91,
+      "max_drawdown_pct": 0.0805,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 77,
+          "win_rate": 0.1948,
+          "net_pnl": -4019.48,
+          "profit_factor": 0.24,
+          "avg_trade_pnl": -52.2
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 221,
+          "win_rate": 0.2127,
+          "net_pnl": -9070.49,
+          "profit_factor": 0.38,
+          "avg_trade_pnl": -41.04
+        },
+        "B3 (三买突破)": {
+          "trade_count": 82,
+          "win_rate": 0.1098,
+          "net_pnl": 1575.62,
+          "profit_factor": 1.15,
+          "avg_trade_pnl": 19.21
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 56,
+          "win_rate": 0.2321,
+          "net_pnl": -2412.69,
+          "profit_factor": 0.19,
+          "avg_trade_pnl": -43.08
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 230,
+          "win_rate": 0.1609,
+          "net_pnl": -12212.89,
+          "profit_factor": 0.35,
+          "avg_trade_pnl": -53.1
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 87,
+          "win_rate": 0.1149,
+          "net_pnl": -5827.48,
+          "profit_factor": 0.46,
+          "avg_trade_pnl": -66.98
+        }
+      }
+    },
+    {
+      "symbol": "I_IDX",
+      "name": "铁矿石",
+      "total_bars": 26431,
+      "trade_count": 720,
+      "lln_pass": false,
+      "win_rate": 0.1375,
+      "wilson_95_ci": [
+        0.1143,
+        0.1646
+      ],
+      "net_pnl": -207278.74,
+      "profit_factor": 0.23,
+      "avg_trade_pnl": -287.89,
+      "expectancy_atr": -0.0734,
+      "total_fees": 22458.61,
+      "total_slippage": 144000.0,
+      "max_drawdown_rmb": 207441.65,
+      "max_drawdown_pct": 0.4149,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 66,
+          "win_rate": 0.1515,
+          "net_pnl": -12157.71,
+          "profit_factor": 0.42,
+          "avg_trade_pnl": -184.21
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 223,
+          "win_rate": 0.1704,
+          "net_pnl": -43788.42,
+          "profit_factor": 0.35,
+          "avg_trade_pnl": -196.36
+        },
+        "B3 (三买突破)": {
+          "trade_count": 63,
+          "win_rate": 0.0635,
+          "net_pnl": -29514.09,
+          "profit_factor": 0.19,
+          "avg_trade_pnl": -468.48
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 56,
+          "win_rate": 0.1607,
+          "net_pnl": -24156.52,
+          "profit_factor": 0.08,
+          "avg_trade_pnl": -431.37
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 235,
+          "win_rate": 0.1319,
+          "net_pnl": -66383.06,
+          "profit_factor": 0.18,
+          "avg_trade_pnl": -282.48
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 77,
+          "win_rate": 0.0909,
+          "net_pnl": -31278.93,
+          "profit_factor": 0.17,
+          "avg_trade_pnl": -406.22
+        }
+      }
+    },
+    {
+      "symbol": "JM_IDX",
+      "name": "焦煤",
+      "total_bars": 26419,
+      "trade_count": 945,
+      "lln_pass": false,
+      "win_rate": 0.2508,
+      "wilson_95_ci": [
+        0.2242,
+        0.2794
+      ],
+      "net_pnl": -203329.53,
+      "profit_factor": 0.48,
+      "avg_trade_pnl": -215.16,
+      "expectancy_atr": -0.0543,
+      "total_fees": 43324.21,
+      "total_slippage": 113400.0,
+      "max_drawdown_rmb": 208308.48,
+      "max_drawdown_pct": 0.4166,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 91,
+          "win_rate": 0.2747,
+          "net_pnl": -16787.88,
+          "profit_factor": 0.4,
+          "avg_trade_pnl": -184.48
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 279,
+          "win_rate": 0.2652,
+          "net_pnl": -53204.04,
+          "profit_factor": 0.41,
+          "avg_trade_pnl": -190.7
+        },
+        "B3 (三买突破)": {
+          "trade_count": 102,
+          "win_rate": 0.1667,
+          "net_pnl": -26507.77,
+          "profit_factor": 0.62,
+          "avg_trade_pnl": -259.88
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 75,
+          "win_rate": 0.3467,
+          "net_pnl": -3729.04,
+          "profit_factor": 0.8,
+          "avg_trade_pnl": -49.72
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 288,
+          "win_rate": 0.2674,
+          "net_pnl": -59408.52,
+          "profit_factor": 0.5,
+          "avg_trade_pnl": -206.28
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 110,
+          "win_rate": 0.1636,
+          "net_pnl": -43692.29,
+          "profit_factor": 0.37,
+          "avg_trade_pnl": -397.2
+        }
+      }
+    },
+    {
+      "symbol": "J_IDX",
+      "name": "焦炭",
+      "total_bars": 26431,
+      "trade_count": 976,
+      "lln_pass": false,
+      "win_rate": 0.2439,
+      "wilson_95_ci": [
+        0.218,
+        0.2718
+      ],
+      "net_pnl": -346817.23,
+      "profit_factor": 0.48,
+      "avg_trade_pnl": -355.35,
+      "expectancy_atr": -0.0362,
+      "total_fees": 107752.91,
+      "total_slippage": 195200.0,
+      "max_drawdown_rmb": 348857.03,
+      "max_drawdown_pct": 0.6977,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 98,
+          "win_rate": 0.3061,
+          "net_pnl": -25276.43,
+          "profit_factor": 0.52,
+          "avg_trade_pnl": -257.92
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 290,
+          "win_rate": 0.2655,
+          "net_pnl": -92433.84,
+          "profit_factor": 0.38,
+          "avg_trade_pnl": -318.74
+        },
+        "B3 (三买突破)": {
+          "trade_count": 106,
+          "win_rate": 0.2075,
+          "net_pnl": -2636.52,
+          "profit_factor": 0.98,
+          "avg_trade_pnl": -24.87
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 74,
+          "win_rate": 0.2297,
+          "net_pnl": -23449.7,
+          "profit_factor": 0.4,
+          "avg_trade_pnl": -316.89
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 293,
+          "win_rate": 0.2594,
+          "net_pnl": -110638.37,
+          "profit_factor": 0.42,
+          "avg_trade_pnl": -377.61
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 115,
+          "win_rate": 0.1391,
+          "net_pnl": -92382.38,
+          "profit_factor": 0.19,
+          "avg_trade_pnl": -803.33
+        }
+      }
+    },
+    {
+      "symbol": "MA_IDX",
+      "name": "甲醇",
+      "total_bars": 26431,
+      "trade_count": 935,
+      "lln_pass": false,
+      "win_rate": 0.2075,
+      "wilson_95_ci": [
+        0.1827,
+        0.2346
+      ],
+      "net_pnl": -52933.47,
+      "profit_factor": 0.37,
+      "avg_trade_pnl": -56.61,
+      "expectancy_atr": -0.0558,
+      "total_fees": 7630.86,
+      "total_slippage": 37400.0,
+      "max_drawdown_rmb": 52745.46,
+      "max_drawdown_pct": 0.1055,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 78,
+          "win_rate": 0.2949,
+          "net_pnl": -5897.85,
+          "profit_factor": 0.18,
+          "avg_trade_pnl": -75.61
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 297,
+          "win_rate": 0.1919,
+          "net_pnl": -15217.9,
+          "profit_factor": 0.32,
+          "avg_trade_pnl": -51.24
+        },
+        "B3 (三买突破)": {
+          "trade_count": 101,
+          "win_rate": 0.1683,
+          "net_pnl": -6541.46,
+          "profit_factor": 0.55,
+          "avg_trade_pnl": -64.77
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 75,
+          "win_rate": 0.28,
+          "net_pnl": -3032.83,
+          "profit_factor": 0.31,
+          "avg_trade_pnl": -40.44
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 286,
+          "win_rate": 0.2308,
+          "net_pnl": -11156.17,
+          "profit_factor": 0.46,
+          "avg_trade_pnl": -39.01
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 98,
+          "win_rate": 0.102,
+          "net_pnl": -11087.26,
+          "profit_factor": 0.29,
+          "avg_trade_pnl": -113.14
+        }
+      }
+    },
+    {
+      "symbol": "TA_IDX",
+      "name": "PTA",
+      "total_bars": 26431,
+      "trade_count": 927,
+      "lln_pass": false,
+      "win_rate": 0.2157,
+      "wilson_95_ci": [
+        0.1905,
+        0.2434
+      ],
+      "net_pnl": -58344.64,
+      "profit_factor": 0.34,
+      "avg_trade_pnl": -62.94,
+      "expectancy_atr": -0.0654,
+      "total_fees": 6118.79,
+      "total_slippage": 37080.0,
+      "max_drawdown_rmb": 59741.33,
+      "max_drawdown_pct": 0.1195,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 72,
+          "win_rate": 0.2917,
+          "net_pnl": -2729.39,
+          "profit_factor": 0.44,
+          "avg_trade_pnl": -37.91
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 283,
+          "win_rate": 0.2438,
+          "net_pnl": -17214.37,
+          "profit_factor": 0.31,
+          "avg_trade_pnl": -60.83
+        },
+        "B3 (三买突破)": {
+          "trade_count": 103,
+          "win_rate": 0.1262,
+          "net_pnl": -10513.34,
+          "profit_factor": 0.37,
+          "avg_trade_pnl": -102.07
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 77,
+          "win_rate": 0.2597,
+          "net_pnl": -3348.48,
+          "profit_factor": 0.43,
+          "avg_trade_pnl": -43.49
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 292,
+          "win_rate": 0.2123,
+          "net_pnl": -17127.83,
+          "profit_factor": 0.27,
+          "avg_trade_pnl": -58.66
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 100,
+          "win_rate": 0.15,
+          "net_pnl": -7411.23,
+          "profit_factor": 0.43,
+          "avg_trade_pnl": -74.11
+        }
+      }
+    },
+    {
+      "symbol": "SA_IDX",
+      "name": "纯碱",
+      "total_bars": 26431,
+      "trade_count": 727,
+      "lln_pass": false,
+      "win_rate": 0.1472,
+      "wilson_95_ci": [
+        0.1233,
+        0.1748
+      ],
+      "net_pnl": -82227.26,
+      "profit_factor": 0.35,
+      "avg_trade_pnl": -113.1,
+      "expectancy_atr": -0.0671,
+      "total_fees": 7789.71,
+      "total_slippage": 58160.0,
+      "max_drawdown_rmb": 81435.48,
+      "max_drawdown_pct": 0.1629,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 91,
+          "win_rate": 0.1648,
+          "net_pnl": -8133.88,
+          "profit_factor": 0.24,
+          "avg_trade_pnl": -89.38
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 215,
+          "win_rate": 0.1628,
+          "net_pnl": -31335.88,
+          "profit_factor": 0.21,
+          "avg_trade_pnl": -145.75
+        },
+        "B3 (三买突破)": {
+          "trade_count": 63,
+          "win_rate": 0.254,
+          "net_pnl": 4162.9,
+          "profit_factor": 1.32,
+          "avg_trade_pnl": 66.08
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 50,
+          "win_rate": 0.18,
+          "net_pnl": -5448.17,
+          "profit_factor": 0.1,
+          "avg_trade_pnl": -108.96
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 212,
+          "win_rate": 0.1368,
+          "net_pnl": -17208.84,
+          "profit_factor": 0.39,
+          "avg_trade_pnl": -81.17
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 96,
+          "win_rate": 0.0312,
+          "net_pnl": -24263.39,
+          "profit_factor": 0.13,
+          "avg_trade_pnl": -252.74
+        }
+      }
+    },
+    {
+      "symbol": "FG_IDX",
+      "name": "玻璃",
+      "total_bars": 26431,
+      "trade_count": 718,
+      "lln_pass": false,
+      "win_rate": 0.1546,
+      "wilson_95_ci": [
+        0.13,
+        0.1829
+      ],
+      "net_pnl": -83740.45,
+      "profit_factor": 0.24,
+      "avg_trade_pnl": -116.63,
+      "expectancy_atr": -0.0709,
+      "total_fees": 6661.22,
+      "total_slippage": 57440.0,
+      "max_drawdown_rmb": 84334.22,
+      "max_drawdown_pct": 0.1687,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 81,
+          "win_rate": 0.1481,
+          "net_pnl": -7583.07,
+          "profit_factor": 0.25,
+          "avg_trade_pnl": -93.62
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 194,
+          "win_rate": 0.1907,
+          "net_pnl": -17779.58,
+          "profit_factor": 0.2,
+          "avg_trade_pnl": -91.65
+        },
+        "B3 (三买突破)": {
+          "trade_count": 70,
+          "win_rate": 0.1143,
+          "net_pnl": -13980.34,
+          "profit_factor": 0.24,
+          "avg_trade_pnl": -199.72
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 51,
+          "win_rate": 0.2549,
+          "net_pnl": -2211.55,
+          "profit_factor": 0.64,
+          "avg_trade_pnl": -43.36
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 226,
+          "win_rate": 0.1637,
+          "net_pnl": -20810.9,
+          "profit_factor": 0.35,
+          "avg_trade_pnl": -92.08
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 96,
+          "win_rate": 0.0417,
+          "net_pnl": -21375.01,
+          "profit_factor": 0.03,
+          "avg_trade_pnl": -222.66
+        }
+      }
+    },
+    {
+      "symbol": "M_IDX",
+      "name": "豆粕",
+      "total_bars": 26431,
+      "trade_count": 840,
+      "lln_pass": false,
+      "win_rate": 0.1988,
+      "wilson_95_ci": [
+        0.1732,
+        0.2271
+      ],
+      "net_pnl": -53276.15,
+      "profit_factor": 0.34,
+      "avg_trade_pnl": -63.42,
+      "expectancy_atr": -0.0555,
+      "total_fees": 5112.68,
+      "total_slippage": 33600.0,
+      "max_drawdown_rmb": 54334.3,
+      "max_drawdown_pct": 0.1087,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 72,
+          "win_rate": 0.2083,
+          "net_pnl": -5397.34,
+          "profit_factor": 0.26,
+          "avg_trade_pnl": -74.96
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 257,
+          "win_rate": 0.1712,
+          "net_pnl": -13217.21,
+          "profit_factor": 0.33,
+          "avg_trade_pnl": -51.43
+        },
+        "B3 (三买突破)": {
+          "trade_count": 86,
+          "win_rate": 0.1163,
+          "net_pnl": -14057.94,
+          "profit_factor": 0.28,
+          "avg_trade_pnl": -163.46
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 78,
+          "win_rate": 0.2051,
+          "net_pnl": -3821.58,
+          "profit_factor": 0.28,
+          "avg_trade_pnl": -48.99
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 255,
+          "win_rate": 0.2627,
+          "net_pnl": -10064.99,
+          "profit_factor": 0.4,
+          "avg_trade_pnl": -39.47
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 92,
+          "win_rate": 0.163,
+          "net_pnl": -6717.08,
+          "profit_factor": 0.41,
+          "avg_trade_pnl": -73.01
+        }
+      }
+    },
+    {
+      "symbol": "Y_IDX",
+      "name": "豆油",
+      "total_bars": 26419,
+      "trade_count": 933,
+      "lln_pass": false,
+      "win_rate": 0.1865,
+      "wilson_95_ci": [
+        0.1628,
+        0.2128
+      ],
+      "net_pnl": -87630.98,
+      "profit_factor": 0.45,
+      "avg_trade_pnl": -93.92,
+      "expectancy_atr": -0.0251,
+      "total_fees": 15405.0,
+      "total_slippage": 74640.0,
+      "max_drawdown_rmb": 87861.06,
+      "max_drawdown_pct": 0.1757,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 67,
+          "win_rate": 0.2537,
+          "net_pnl": -6622.82,
+          "profit_factor": 0.36,
+          "avg_trade_pnl": -98.85
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 301,
+          "win_rate": 0.196,
+          "net_pnl": -26699.12,
+          "profit_factor": 0.39,
+          "avg_trade_pnl": -88.7
+        },
+        "B3 (三买突破)": {
+          "trade_count": 107,
+          "win_rate": 0.1869,
+          "net_pnl": -3472.56,
+          "profit_factor": 0.86,
+          "avg_trade_pnl": -32.45
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 93,
+          "win_rate": 0.1613,
+          "net_pnl": -11707.34,
+          "profit_factor": 0.12,
+          "avg_trade_pnl": -125.89
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 266,
+          "win_rate": 0.188,
+          "net_pnl": -24885.64,
+          "profit_factor": 0.41,
+          "avg_trade_pnl": -93.56
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 99,
+          "win_rate": 0.1313,
+          "net_pnl": -14243.51,
+          "profit_factor": 0.42,
+          "avg_trade_pnl": -143.87
+        }
+      }
+    },
+    {
+      "symbol": "P_IDX",
+      "name": "棕榈油",
+      "total_bars": 26419,
+      "trade_count": 1012,
+      "lln_pass": true,
+      "win_rate": 0.2263,
+      "wilson_95_ci": [
+        0.2016,
+        0.2531
+      ],
+      "net_pnl": -150821.71,
+      "profit_factor": 0.36,
+      "avg_trade_pnl": -149.03,
+      "expectancy_atr": -0.0755,
+      "total_fees": 18344.08,
+      "total_slippage": 80960.0,
+      "max_drawdown_rmb": 151162.47,
+      "max_drawdown_pct": 0.3023,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 72,
+          "win_rate": 0.2222,
+          "net_pnl": -20139.91,
+          "profit_factor": 0.24,
+          "avg_trade_pnl": -279.72
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 315,
+          "win_rate": 0.2286,
+          "net_pnl": -35105.06,
+          "profit_factor": 0.34,
+          "avg_trade_pnl": -111.44
+        },
+        "B3 (三买突破)": {
+          "trade_count": 125,
+          "win_rate": 0.192,
+          "net_pnl": -19886.09,
+          "profit_factor": 0.54,
+          "avg_trade_pnl": -159.09
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 103,
+          "win_rate": 0.2816,
+          "net_pnl": -14660.53,
+          "profit_factor": 0.31,
+          "avg_trade_pnl": -142.34
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 294,
+          "win_rate": 0.2449,
+          "net_pnl": -32778.73,
+          "profit_factor": 0.42,
+          "avg_trade_pnl": -111.49
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 103,
+          "win_rate": 0.1553,
+          "net_pnl": -28251.39,
+          "profit_factor": 0.22,
+          "avg_trade_pnl": -274.29
+        }
+      }
+    },
+    {
+      "symbol": "C_IDX",
+      "name": "玉米",
+      "total_bars": 26374,
+      "trade_count": 581,
+      "lln_pass": false,
+      "win_rate": 0.1119,
+      "wilson_95_ci": [
+        0.0888,
+        0.1401
+      ],
+      "net_pnl": -24567.35,
+      "profit_factor": 0.25,
+      "avg_trade_pnl": -42.28,
+      "expectancy_atr": -0.0061,
+      "total_fees": 2134.09,
+      "total_slippage": 23240.0,
+      "max_drawdown_rmb": 24163.27,
+      "max_drawdown_pct": 0.0483,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 51,
+          "win_rate": 0.1569,
+          "net_pnl": -1669.42,
+          "profit_factor": 0.2,
+          "avg_trade_pnl": -32.73
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 182,
+          "win_rate": 0.1264,
+          "net_pnl": -7476.04,
+          "profit_factor": 0.18,
+          "avg_trade_pnl": -41.08
+        },
+        "B3 (三买突破)": {
+          "trade_count": 65,
+          "win_rate": 0.1538,
+          "net_pnl": -2704.49,
+          "profit_factor": 0.48,
+          "avg_trade_pnl": -41.61
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 42,
+          "win_rate": 0.1667,
+          "net_pnl": -1393.37,
+          "profit_factor": 0.26,
+          "avg_trade_pnl": -33.18
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 170,
+          "win_rate": 0.0765,
+          "net_pnl": -6899.88,
+          "profit_factor": 0.22,
+          "avg_trade_pnl": -40.59
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 71,
+          "win_rate": 0.0563,
+          "net_pnl": -4424.15,
+          "profit_factor": 0.23,
+          "avg_trade_pnl": -62.31
+        }
+      }
+    },
+    {
+      "symbol": "CF_IDX",
+      "name": "棉花",
+      "total_bars": 26419,
+      "trade_count": 807,
+      "lln_pass": false,
+      "win_rate": 0.1388,
+      "wilson_95_ci": [
+        0.1166,
+        0.1644
+      ],
+      "net_pnl": -126483.14,
+      "profit_factor": 0.17,
+      "avg_trade_pnl": -156.73,
+      "expectancy_atr": -0.1297,
+      "total_fees": 14599.21,
+      "total_slippage": 80700.0,
+      "max_drawdown_rmb": 126446.32,
+      "max_drawdown_pct": 0.2529,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 62,
+          "win_rate": 0.1452,
+          "net_pnl": -6562.64,
+          "profit_factor": 0.25,
+          "avg_trade_pnl": -105.85
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 259,
+          "win_rate": 0.1737,
+          "net_pnl": -29272.09,
+          "profit_factor": 0.21,
+          "avg_trade_pnl": -113.02
+        },
+        "B3 (三买突破)": {
+          "trade_count": 87,
+          "win_rate": 0.0575,
+          "net_pnl": -25194.3,
+          "profit_factor": 0.08,
+          "avg_trade_pnl": -289.59
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 69,
+          "win_rate": 0.1884,
+          "net_pnl": -13125.03,
+          "profit_factor": 0.18,
+          "avg_trade_pnl": -190.22
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 258,
+          "win_rate": 0.1357,
+          "net_pnl": -38059.21,
+          "profit_factor": 0.08,
+          "avg_trade_pnl": -147.52
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 72,
+          "win_rate": 0.0694,
+          "net_pnl": -14269.87,
+          "profit_factor": 0.35,
+          "avg_trade_pnl": -198.19
+        }
+      }
+    },
+    {
+      "symbol": "SR_IDX",
+      "name": "白糖",
+      "total_bars": 26419,
+      "trade_count": 889,
+      "lln_pass": false,
+      "win_rate": 0.2025,
+      "wilson_95_ci": [
+        0.1774,
+        0.2301
+      ],
+      "net_pnl": -41132.37,
+      "profit_factor": 0.49,
+      "avg_trade_pnl": -46.27,
+      "expectancy_atr": -0.0004,
+      "total_fees": 9847.64,
+      "total_slippage": 35560.0,
+      "max_drawdown_rmb": 48095.66,
+      "max_drawdown_pct": 0.0962,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 67,
+          "win_rate": 0.2985,
+          "net_pnl": -2061.32,
+          "profit_factor": 0.45,
+          "avg_trade_pnl": -30.77
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 279,
+          "win_rate": 0.2258,
+          "net_pnl": -15455.16,
+          "profit_factor": 0.3,
+          "avg_trade_pnl": -55.39
+        },
+        "B3 (三买突破)": {
+          "trade_count": 90,
+          "win_rate": 0.1556,
+          "net_pnl": -5236.19,
+          "profit_factor": 0.62,
+          "avg_trade_pnl": -58.18
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 83,
+          "win_rate": 0.2289,
+          "net_pnl": -3513.92,
+          "profit_factor": 0.28,
+          "avg_trade_pnl": -42.34
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 268,
+          "win_rate": 0.1828,
+          "net_pnl": -15007.38,
+          "profit_factor": 0.33,
+          "avg_trade_pnl": -56.0
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 102,
+          "win_rate": 0.1471,
+          "net_pnl": 141.6,
+          "profit_factor": 1.01,
+          "avg_trade_pnl": 1.39
+        }
+      }
+    },
+    {
+      "symbol": "RU_IDX",
+      "name": "橡胶",
+      "total_bars": 26419,
+      "trade_count": 870,
+      "lln_pass": false,
+      "win_rate": 0.1931,
+      "wilson_95_ci": [
+        0.1682,
+        0.2207
+      ],
+      "net_pnl": -421456.17,
+      "profit_factor": 0.19,
+      "avg_trade_pnl": -484.43,
+      "expectancy_atr": -0.1607,
+      "total_fees": 45321.07,
+      "total_slippage": 174000.0,
+      "max_drawdown_rmb": 419687.84,
+      "max_drawdown_pct": 0.8394,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 62,
+          "win_rate": 0.2581,
+          "net_pnl": -33052.8,
+          "profit_factor": 0.21,
+          "avg_trade_pnl": -533.11
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 271,
+          "win_rate": 0.1845,
+          "net_pnl": -79215.29,
+          "profit_factor": 0.27,
+          "avg_trade_pnl": -292.31
+        },
+        "B3 (三买突破)": {
+          "trade_count": 111,
+          "win_rate": 0.1171,
+          "net_pnl": -73041.6,
+          "profit_factor": 0.19,
+          "avg_trade_pnl": -658.03
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 84,
+          "win_rate": 0.2619,
+          "net_pnl": -25969.02,
+          "profit_factor": 0.16,
+          "avg_trade_pnl": -309.16
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 251,
+          "win_rate": 0.2231,
+          "net_pnl": -111885.99,
+          "profit_factor": 0.2,
+          "avg_trade_pnl": -445.76
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 91,
+          "win_rate": 0.1209,
+          "net_pnl": -98291.47,
+          "profit_factor": 0.12,
+          "avg_trade_pnl": -1080.13
+        }
+      }
+    },
+    {
+      "symbol": "LC_IDX",
+      "name": "碳酸锂",
+      "total_bars": 24290,
+      "trade_count": 965,
+      "lln_pass": false,
+      "win_rate": 0.257,
+      "wilson_95_ci": [
+        0.2304,
+        0.2855
+      ],
+      "net_pnl": -239385.83,
+      "profit_factor": 0.58,
+      "avg_trade_pnl": -248.07,
+      "expectancy_atr": -0.0333,
+      "total_fees": 38665.78,
+      "total_slippage": 193000.0,
+      "max_drawdown_rmb": 240649.18,
+      "max_drawdown_pct": 0.4813,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 85,
+          "win_rate": 0.2588,
+          "net_pnl": -23804.95,
+          "profit_factor": 0.31,
+          "avg_trade_pnl": -280.06
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 295,
+          "win_rate": 0.261,
+          "net_pnl": -89223.57,
+          "profit_factor": 0.36,
+          "avg_trade_pnl": -302.45
+        },
+        "B3 (三买突破)": {
+          "trade_count": 112,
+          "win_rate": 0.1875,
+          "net_pnl": -20169.85,
+          "profit_factor": 0.84,
+          "avg_trade_pnl": -180.09
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 80,
+          "win_rate": 0.35,
+          "net_pnl": -15594.3,
+          "profit_factor": 0.5,
+          "avg_trade_pnl": -194.93
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 271,
+          "win_rate": 0.2583,
+          "net_pnl": -65691.33,
+          "profit_factor": 0.46,
+          "avg_trade_pnl": -242.4
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 122,
+          "win_rate": 0.2459,
+          "net_pnl": -24901.84,
+          "profit_factor": 0.78,
+          "avg_trade_pnl": -204.11
+        }
+      }
+    },
+    {
+      "symbol": "SI_IDX",
+      "name": "工业硅",
+      "total_bars": 25394,
+      "trade_count": 780,
+      "lln_pass": false,
+      "win_rate": 0.1885,
+      "wilson_95_ci": [
+        0.1626,
+        0.2174
+      ],
+      "net_pnl": -113995.53,
+      "profit_factor": 0.36,
+      "avg_trade_pnl": -146.15,
+      "expectancy_atr": -0.06,
+      "total_fees": 9376.97,
+      "total_slippage": 78000.0,
+      "max_drawdown_rmb": 113573.92,
+      "max_drawdown_pct": 0.2271,
+      "setup_breakdown": {
+        "B1 (一买背驰)": {
+          "trade_count": 63,
+          "win_rate": 0.2222,
+          "net_pnl": -8552.68,
+          "profit_factor": 0.29,
+          "avg_trade_pnl": -135.76
+        },
+        "B2 (二买回踩)": {
+          "trade_count": 253,
+          "win_rate": 0.2292,
+          "net_pnl": -25476.7,
+          "profit_factor": 0.49,
+          "avg_trade_pnl": -100.7
+        },
+        "B3 (三买突破)": {
+          "trade_count": 69,
+          "win_rate": 0.087,
+          "net_pnl": -24538.12,
+          "profit_factor": 0.11,
+          "avg_trade_pnl": -355.62
+        },
+        "S1 (一卖背驰)": {
+          "trade_count": 55,
+          "win_rate": 0.2,
+          "net_pnl": -6220.68,
+          "profit_factor": 0.31,
+          "avg_trade_pnl": -113.1
+        },
+        "S2 (二卖回抽)": {
+          "trade_count": 245,
+          "win_rate": 0.1878,
+          "net_pnl": -26290.42,
+          "profit_factor": 0.35,
+          "avg_trade_pnl": -107.31
+        },
+        "S3 (三卖跌破)": {
+          "trade_count": 95,
+          "win_rate": 0.1263,
+          "net_pnl": -22916.93,
+          "profit_factor": 0.4,
+          "avg_trade_pnl": -241.23
+        }
+      }
+    }
+  ]
+}

@@ -15,8 +15,9 @@ import paramiko
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
-def load_env_server_config():
-    env_file = PROJECT_ROOT / ".env"
+def load_env_server_config(env_file=None):
+    env_file = Path(env_file) if env_file else PROJECT_ROOT / ".env"
+    # ponytail: 硬编码配置仅作为 fallback，优先从 .env 读取
     cfg = {
         "host": "127.0.0.1",
         "port": 22,
@@ -36,6 +37,8 @@ def load_env_server_config():
                     cfg["user"] = line.split("=", 1)[1].strip()
                 elif line.startswith("SERVER_PASSWORD="):
                     cfg["password"] = line.split("=", 1)[1].strip()
+    if not cfg["password"]:
+        raise RuntimeError("missing required credentials: SERVER_PASSWORD")
     return cfg
 
 
@@ -72,7 +75,8 @@ def deploy_and_run():
 
     # 1. 建立 SSH 连接
     ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.load_system_host_keys()
+    ssh.set_missing_host_key_policy(paramiko.RejectPolicy())
     ssh.connect(
         hostname=cfg["host"],
         port=cfg["port"],
@@ -123,6 +127,8 @@ def deploy_and_run():
 
     # 6. 重启 Web Dashboard 与各策略守护进程 (包括太阴 15m 跨期、归元 15m 极值、太冲 V7、太冲双战队)
     print("🟢 正在远程启动 Web 监控大屏 (8090 / 739265.xyz) 与交易守护引擎...", flush=True)
+    # ponytail: pkill+nohup 进程管理仅适合开发阶段；
+    # 升级路径 = systemd unit 文件 + ExecStart/Restart=on-failure
     cmd_start = (
         f"cd {remote_dir} && "
         f"pkill -f 'futures_dashboard_server.py' 2>/dev/null || true && "

@@ -29,7 +29,7 @@ class AShareHybridBacktester:
 
         # A 股交易摩擦参数
         self.commission_rate = 0.00025  # 双边佣金 0.025%
-        self.stamp_duty_rate = 0.0010   # 卖出印花税 0.1%
+        self.stamp_duty_rate = 0.0005  # 2023年8月减半后的A股印花税
         self.slippage = 0.0010          # 预估滑点 0.1%
 
     def run_full_pipeline(self, top_k=5, enable_ai_audit=True):

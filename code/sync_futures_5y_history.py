@@ -145,7 +145,8 @@ def sync_all_timeframe_futures_data(db_path=DB_PATH):
 
                     sub_1m = df_1m[['symbol', 'timeframe', 'trade_time', 'open', 'high', 'low', 'close', 'volume', 'amount', 'open_interest', 'settlement']]
                     c.executemany("""
-                        INSERT OR REPLACE INTO futures_min_bars (symbol, timeframe, trade_time, open, high, low, close, volume, amount, open_interest, settlement)
+                        INSERT OR IGNORE INTO futures_min_bars (symbol, timeframe, trade_time, open, high, low, close, volume, amount, open_interest, settlement)
+                        -- # ponytail: INSERT OR IGNORE 让 tqsdk 数据优先，新浪仅补缺
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                     """, sub_1m.values.tolist())
 
@@ -175,7 +176,8 @@ def sync_all_timeframe_futures_data(db_path=DB_PATH):
 
                     sub_5m = df_5m[['symbol', 'timeframe', 'trade_time', 'open', 'high', 'low', 'close', 'volume', 'amount', 'open_interest', 'settlement']]
                     c.executemany("""
-                        INSERT OR REPLACE INTO futures_min_bars (symbol, timeframe, trade_time, open, high, low, close, volume, amount, open_interest, settlement)
+                        INSERT OR IGNORE INTO futures_min_bars (symbol, timeframe, trade_time, open, high, low, close, volume, amount, open_interest, settlement)
+                        -- # ponytail: INSERT OR IGNORE 让 tqsdk 数据优先，新浪仅补缺
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                     """, sub_5m.values.tolist())
 
@@ -192,7 +194,8 @@ def sync_all_timeframe_futures_data(db_path=DB_PATH):
 
                         sub_res = df_res[['symbol', 'timeframe', 'trade_time', 'open', 'high', 'low', 'close', 'volume', 'amount', 'open_interest', 'settlement']]
                         c.executemany("""
-                            INSERT OR REPLACE INTO futures_min_bars (symbol, timeframe, trade_time, open, high, low, close, volume, amount, open_interest, settlement)
+                            INSERT OR IGNORE INTO futures_min_bars (symbol, timeframe, trade_time, open, high, low, close, volume, amount, open_interest, settlement)
+                            -- # ponytail: INSERT OR IGNORE 让 tqsdk 数据优先，新浪仅补缺
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                         """, sub_res.values.tolist())
 

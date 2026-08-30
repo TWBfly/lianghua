@@ -493,6 +493,8 @@ class KLineBacktestEngine:
                     "symbol": symbol,
                     "action": action,
                     "target_fraction": effective_fraction,
+                    # ponytail: 用 close 估算目标股数，次日 open 实际成交时可能因跳空导致资金不足；
+                    # 升级路径 = 在执行循环中用 next_open 重算并 clip 到可用资金
                     "desired_shares": _buy_quantity(
                         symbol,
                         initial_capital * effective_fraction,
@@ -603,6 +605,8 @@ class KLineBacktestEngine:
                 "symbol": symbol,
                 "action": action,
                 "target_fraction": effective_fraction,
+                # ponytail: 用 close 估算目标股数，次日 open 实际成交时可能因跳空导致资金不足；
+                # 升级路径 = 在执行循环中用 next_open 重算并 clip 到可用资金
                 "desired_shares": _buy_quantity(
                     symbol,
                     initial_capital * effective_fraction,

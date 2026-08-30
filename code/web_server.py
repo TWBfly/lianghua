@@ -104,24 +104,11 @@ def strategies():
 
 @app.route("/api/register_strategy", methods=["POST"])
 def register_strategy():
-    """在线提交或热注册新的 Python 策略代码脚本"""
-    data = request.json or {}
-    strategy_name = str(data.get("strategy_name", "")).strip()
-    code_content = str(data.get("code_content", "")).strip()
-    description = str(data.get("description", "动态热插拔因果策略")).strip()
-
-    if not strategy_name or not code_content:
-        return jsonify({"error": "策略名称 (strategy_name) 与 代码 (code_content) 不能为空"}), 400
-
-    try:
-        filepath = hot_plugger.save_custom_strategy_code(strategy_name, code_content, description)
-        return jsonify({
-            "status": "SUCCESS",
-            "message": f"🚀 策略 [{strategy_name}] 已成功注册并生效！",
-            "filepath": filepath
-        })
-    except Exception as e:
-        return jsonify({"error": f"注册策略失败: {str(e)}"}), 500
+    """Remote Python execution is intentionally disabled."""
+    return jsonify({
+        "error": "远程策略代码注册已禁用",
+        "error_code": "REMOTE_STRATEGY_REGISTRATION_DISABLED",
+    }), 403
 
 
 

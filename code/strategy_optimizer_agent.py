@@ -161,10 +161,10 @@ class StrategyOptimizerAgent:
         prev_c[0] = o[0]
         tr = np.maximum(h - l, np.maximum(np.abs(h - prev_c), np.abs(l - prev_c)))
         tr_series = pd.Series(tr, index=df.index)
-        atr14 = tr_series.rolling(14).mean().bfill().to_numpy(dtype=float)
-
-        c_series = pd.Series(c, index=df.index)
-        std20 = c_series.rolling(20).std(ddof=0).bfill().to_numpy(dtype=float)
+        atr14 = tr_series.rolling(14).mean().fillna(0).to_numpy(dtype=float)
+        
+        c_series = pd.Series(c)
+        std20 = c_series.rolling(20).std(ddof=0).fillna(0).to_numpy(dtype=float)
         bb_width = 4.0 * std20
         squeeze = bb_width / (2.0 * atr14 + 1e-8)
         had_squeeze = pd.Series(squeeze).rolling(5).min().fillna(1.0).to_numpy(dtype=float) <= sq_th
@@ -179,19 +179,19 @@ class StrategyOptimizerAgent:
         c_shift20 = np.roll(c, 20)
         c_shift20[:20] = c[0]
         net_chg = c - c_shift20
-        path = pd.Series(np.abs(np.diff(np.insert(c, 0, c[0])))).rolling(20).sum().bfill().to_numpy(dtype=float)
+        net = np.abs(net_chg)
+        path = pd.Series(np.abs(np.diff(np.insert(c, 0, c[0])))).rolling(20).sum().fillna(0).to_numpy(dtype=float)
         ker = (np.abs(net_chg) / (path + 1e-8)) * np.sign(net_chg)
-
-        # Donchian
-        don_hi = pd.Series(h).rolling(20).max().bfill().to_numpy(dtype=float)
-        don_lo = pd.Series(l).rolling(20).min().bfill().to_numpy(dtype=float)
+        
+        don_hi = pd.Series(h).rolling(20).max().fillna(0).to_numpy(dtype=float)
+        don_lo = pd.Series(l).rolling(20).min().fillna(0).to_numpy(dtype=float)
         don_pos = (c - don_lo) / ((don_hi - don_lo) + 1e-8)
 
         # Close position
         bar_span = (h - l) + 1e-8
         close_pos = (c - l) / bar_span
 
-        vol_ma = pd.Series(v).rolling(20).mean().bfill().to_numpy(dtype=float)
+        vol_ma = pd.Series(v).rolling(20).mean().fillna(0).to_numpy(dtype=float)
         vol_ok = v >= vol_ma * vol_ratio_th
 
         oi_diff = np.diff(np.insert(oi, 0, oi[0]))

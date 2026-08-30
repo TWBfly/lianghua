@@ -123,8 +123,8 @@ def calculate_factors(
     # 滚动均值与标准差计算
     c_series = pd.Series(c, index=df.index)
     tr_series = pd.Series(tr, index=df.index)
-    atr = tr_series.rolling(window, min_periods=window // 2).mean().bfill().values + 1e-8
-    sma = c_series.rolling(window, min_periods=window // 2).mean().bfill().values
+    atr = tr_series.rolling(window, min_periods=window // 2).mean().fillna(0).values + 1e-8
+    sma = c_series.rolling(window, min_periods=window // 2).mean().fillna(0).values
 
     # 特征 0: 价格位移度量
     f0 = (c - sma) / atr
@@ -135,14 +135,14 @@ def calculate_factors(
     f1 = c_diff3
 
     # 特征 2: 波动率挤压比率
-    c_std = c_series.rolling(window, min_periods=window // 2).std(ddof=0).bfill().values + 1e-8
+    c_std = c_series.rolling(window, min_periods=window // 2).std(ddof=0).fillna(0).values + 1e-8
     f2 = (4.0 * c_std) / (2.0 * atr) - 1.0
 
     # 特征 3: 考夫曼效率比率
     abs_diff = np.abs(c[1:] - c[:-1])
     abs_diff = np.insert(abs_diff, 0, 0.0)
     abs_diff_series = pd.Series(abs_diff, index=df.index)
-    path_len = abs_diff_series.rolling(window, min_periods=window // 2).sum().bfill().values + 1e-8
+    path_len = abs_diff_series.rolling(window, min_periods=window // 2).sum().fillna(0).values + 1e-8
     net_len = np.zeros(n)
     net_len[window:] = np.abs(c[window:] - c[:-window])
     f3 = (net_len / path_len)
@@ -155,12 +155,12 @@ def calculate_factors(
 
     # 2. 向量化滚动 Ledoit-Wolf 收缩协方差与马氏距离平方 (纯因果 shift(1))
     F_df = pd.DataFrame(feature_matrix, index=df.index)
-    means = F_df.shift(1).rolling(window, min_periods=window).mean().bfill().values
+    means = F_df.shift(1).rolling(window, min_periods=window).mean().fillna(0).values
     
     # 构造外积张量 (N, K, K)
     outer_products = np.einsum('ni,nj->nij', feature_matrix, feature_matrix)
     outer_df = pd.DataFrame(outer_products.reshape(n, k_features * k_features), index=df.index)
-    roll_sec_moments = outer_df.shift(1).rolling(window, min_periods=window).mean().bfill().values.reshape(n, k_features, k_features)
+    roll_sec_moments = outer_df.shift(1).rolling(window, min_periods=window).mean().fillna(0).values.reshape(n, k_features, k_features)
     mean_outer = np.einsum('ni,nj->nij', means, means)
     
     sample_covs = (window / (window - 1.0)) * (roll_sec_moments - mean_outer)
@@ -206,7 +206,7 @@ def calculate_factors(
     tau2 = c_diff2.rolling(window, min_periods=window // 2).std(ddof=0)
     tau8 = c_diff8.rolling(window, min_periods=window // 2).std(ddof=0)
     hurst_proxy = (np.log((tau8 + 1e-8) / (tau2 + 1e-8)) / np.log(4.0)).clip(0.1, 0.9)
-    hurst_gate = hurst_proxy.bfill().values
+    hurst_gate = hurst_proxy.fillna(0.5).values
 
     # 5. 2 周期 Connors RSI 与 5 周期均线回归目标
     delta = pd.Series(c, index=df.index).diff()
@@ -215,8 +215,8 @@ def calculate_factors(
     avg_gain = gain.rolling(2).mean()
     avg_loss = loss.rolling(2).mean() + 1e-8
     rs = avg_gain / avg_loss
-    rsi_2 = (100.0 - (100.0 / (1.0 + rs))).bfill().values
-    sma_5 = pd.Series(c, index=df.index).rolling(5).mean().bfill().values
+    rsi_2 = (100.0 - (100.0 / (1.0 + rs))).fillna(50.0).values
+    sma_5 = pd.Series(c, index=df.index).rolling(5).mean().fillna(0).values
 
     # 6. 微观做市商吸收形态与持仓量耗竭过滤
     body = np.abs(c - o) + 1e-8
@@ -232,7 +232,7 @@ def calculate_factors(
     if "open_interest" in df.columns:
         oi = df["open_interest"].astype(float).values
         oi_diff = np.diff(oi, prepend=oi[0])
-        vol_ma = pd.Series(v).rolling(20, min_periods=5).mean().bfill().values
+        vol_ma = pd.Series(v).rolling(20, min_periods=5).mean().fillna(0).values
         # 超卖抄底时，排除空头主动猛烈增仓逼仓
         oi_filter_long = oi_diff <= vol_ma * 0.40
         # 超买做空时，排除多头主动猛烈增仓逼仓

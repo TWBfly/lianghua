@@ -1,0 +1,26 @@
+{
+  "strategy": "taiyi_dual_regime_positive_feedback",
+  "timestamp": "2026-08-29 23:39:27",
+  "timeframe_comparison": {
+    "15m": {
+      "net_pnl": -3875776.946030175,
+      "trades": 1427,
+      "win_rate": 31.955150665732308
+    },
+    "30m": {
+      "net_pnl": -3372680.8737742696,
+      "trades": 1393,
+      "win_rate": 31.80186647523331
+    },
+    "60m": {
+      "net_pnl": -2442181.7803387297,
+      "trades": 852,
+      "win_rate": 34.38967136150235
+    }
+  },
+  "final_decision": "REJECTED",
+  "total_trades_lln": 6165,
+  "total_net_pnl_lln": -9443038.171725314,
+  "mdd_95": 953.8400790764055,
+  "p_ruin": 100.0
+}

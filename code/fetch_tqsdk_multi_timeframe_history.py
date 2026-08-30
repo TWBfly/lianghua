@@ -18,6 +18,7 @@ import datetime
 import pandas as pd
 from pathlib import Path
 from tqsdk import TqApi, TqAuth
+from runtime_credentials import load_required_credentials
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ENV_PATH = str(PROJECT_ROOT / ".env")
@@ -66,26 +67,7 @@ ALL_TIMEFRAMES = [
 
 
 def load_tq_credentials():
-    """解析 .env 配置文件中的天勤账号密码"""
-    user = ""
-    password = ""
-
-    if os.path.exists(ENV_PATH):
-        with open(ENV_PATH, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if "TQ_ACCOUNT" in line or ("账号" in line and "TQ" in line.upper()) or "天勤" in line:
-                    parts = line.replace("：", ":").split(":", 1) if ":" in line.replace("：", ":") else line.split("=", 1)
-                    if len(parts) > 1:
-                        user = parts[1].strip()
-                elif "TQ_PASSWORD" in line or ("密码" in line and "TQ" in line.upper()):
-                    parts = line.replace("：", ":").split(":", 1) if ":" in line.replace("：", ":") else line.split("=", 1)
-                    if len(parts) > 1:
-                        password = parts[1].strip()
-
-    user = user or "13800000000"
-    password = password or "redacted_password"
-    return user, password
+    return load_required_credentials(ENV_PATH)
 
 
 def download_tq_klines(target_symbols=None, target_tfs=None, data_length: int = 8000):
@@ -136,6 +118,7 @@ def download_tq_klines(target_symbols=None, target_tfs=None, data_length: int = 
             amount REAL,
             open_interest REAL,
             settlement REAL,
+            CHECK (open > 0 AND high >= low AND close > 0 AND volume >= 0),
             PRIMARY KEY (symbol, timeframe, trade_time)
         );
     """)

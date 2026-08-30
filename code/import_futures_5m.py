@@ -42,6 +42,7 @@ def ensure_schema(conn):
             symbol TEXT, timeframe TEXT, trade_time TEXT,
             open REAL, high REAL, low REAL, close REAL,
             volume REAL, amount REAL,
+            CHECK (open > 0 AND high >= low AND close > 0 AND volume >= 0),
             PRIMARY KEY (symbol, timeframe, trade_time)
         )
     """)

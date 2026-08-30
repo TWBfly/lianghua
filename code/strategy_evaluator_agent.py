@@ -56,26 +56,87 @@ class StrategyEvaluatorAgent:
         hard_fails = []
         recommendations = []
 
+        required_metrics = {
+            "total_net_pnl", "profitable_symbols_ratio", "max_drawdown",
+            "turnover_ratio", "double_cost_profitable", "mean_rank_ic",
+            "rank_icir", "ic_positive_ratio", "monotonicity",
+            "sharpe_ratio", "sortino_ratio", "calmar_ratio",
+            "profit_loss_ratio", "max_drawdown_duration_days",
+            "walk_forward_ratio", "win_rate_pct", "total_trades_count",
+        }
+        required_attacks = {
+            "label_shuffle_pass", "prefix_invariance_pass",
+            "noise_features_pass", "calendar_features_pass",
+            "ledger_reconciled", "tail_risk_pass", "leverage_safe",
+            "execution_feasible",
+        }
+        missing_metrics = sorted(required_metrics - metrics.keys())
+        missing_attacks = sorted(required_attacks - attack_results.keys())
+        if missing_metrics:
+            hard_fails.append(
+                f"缺少必需指标: {', '.join(missing_metrics)}"
+            )
+        if missing_attacks:
+            hard_fails.append(
+                f"缺少必需审计证据: {', '.join(missing_attacks)}"
+            )
+
+        numeric_metrics = required_metrics - {"double_cost_profitable"}
+        invalid_metrics = []
+        for key in sorted(numeric_metrics & metrics.keys()):
+            try:
+                value = float(metrics[key])
+            except (TypeError, ValueError):
+                invalid_metrics.append(key)
+                continue
+            if not math.isfinite(value):
+                invalid_metrics.append(key)
+        if invalid_metrics:
+            hard_fails.append(
+                f"指标必须为有限数值: {', '.join(invalid_metrics)}"
+            )
+        if (
+            "double_cost_profitable" in metrics
+            and metrics["double_cost_profitable"] is not True
+        ):
+            hard_fails.append("双倍成本压力测试未通过")
+
+        def metric_float(key, default=0.0):
+            try:
+                value = float(metrics.get(key, default))
+            except (TypeError, ValueError):
+                return float(default)
+            return value if math.isfinite(value) else float(default)
+
         # Extract Mandatory 6-Core Metrics
-        trading_period = str(metrics.get("trading_period", metrics.get("date_range", "2026-05-11 ~ 2026-07-28")))
-        asset_type = str(metrics.get("asset_type", "A股股票 / 期货"))
-        symbols_summary = str(metrics.get("symbols_summary", f"{metrics.get('symbol_count', 393)} 个标的"))
-        win_rate_pct = float(metrics.get("win_rate_pct", metrics.get("ic_positive_ratio", 0.647) * 100.0 if "ic_positive_ratio" in metrics else 55.0))
-        profit_loss_ratio = float(metrics.get("profit_loss_ratio", 1.8))
-        raw_dd = float(metrics.get("max_drawdown", metrics.get("max_drawdown_pct", 0.05)))
+        trading_period = str(metrics.get("trading_period", metrics.get("date_range", "N/A")))
+        asset_type = str(metrics.get("asset_type", "UNKNOWN"))
+        symbols_summary = str(metrics.get("symbols_summary", "UNKNOWN"))
+        win_rate_pct = metric_float("win_rate_pct")
+        profit_loss_ratio = metric_float("profit_loss_ratio")
+        raw_dd = metric_float("max_drawdown", metric_float("max_drawdown_pct"))
         max_drawdown_pct = abs(raw_dd) * 100.0 if abs(raw_dd) <= 1.0 else abs(raw_dd)
-        total_trades_count = int(metrics.get("total_trades_count", metrics.get("trade_count", metrics.get("total_trades", 112))))
+        total_trades_count = int(metric_float("total_trades_count"))
 
         # Check Hard Fail Gates
-        if not attack_results.get("label_shuffle_pass", True):
+        if attack_results.get("label_shuffle_pass") is not True:
             hard_fails.append("标签打乱测试未通过 (Label Shuffle Leakage) - 判定存在未来数据泄漏")
-        if not attack_results.get("prefix_invariance_pass", True):
+        if attack_results.get("prefix_invariance_pass") is not True:
             hard_fails.append("前缀截断不变量测试未通过 (Prefix Invariance Failure) - 判定存在全局标准化未来函数")
-        if not attack_results.get("ledger_reconciled", True):
+        if attack_results.get("ledger_reconciled") is not True:
             hard_fails.append("账本资金流水未闭环对账 (Ledger Reconciliation Failure)")
+        for key, label in (
+            ("noise_features_pass", "噪声特征攻击"),
+            ("calendar_features_pass", "日历特征攻击"),
+            ("tail_risk_pass", "尾部风险压力测试"),
+            ("leverage_safe", "杠杆安全检查"),
+            ("execution_feasible", "实盘执行可行性检查"),
+        ):
+            if attack_results.get(key) is not True:
+                hard_fails.append(f"{label}未通过")
 
-        profitable_ratio = float(metrics.get("profitable_symbols_ratio", 1.0))
-        total_pnl = float(metrics.get("total_net_pnl", 1.0))
+        profitable_ratio = metric_float("profitable_symbols_ratio")
+        total_pnl = metric_float("total_net_pnl")
         if profitable_ratio < 0.80:
             hard_fails.append(f"全市场品种盈利覆盖率过低 ({profitable_ratio*100:.1f}% < 80.0%) - 多数标的处于亏损磨损状态，严禁准入")
         if total_pnl <= 0:
@@ -84,10 +145,10 @@ class StrategyEvaluatorAgent:
         # ----------------------------------------------------------------------
         # 1. Prediction Quality & Alpha (25 pt)
         # ----------------------------------------------------------------------
-        rank_ic = float(metrics.get("mean_rank_ic", metrics.get("rank_ic", 0.0)))
-        icir = float(metrics.get("rank_icir", metrics.get("icir", 0.0)))
-        ic_pos_ratio = float(metrics.get("ic_positive_ratio", metrics.get("ic_pos_pct", 50.0) / 100.0 if "ic_pos_pct" in metrics else 0.5))
-        monotonicity = float(metrics.get("monotonicity", metrics.get("monotonicity_score", 0.5)))
+        rank_ic = metric_float("mean_rank_ic")
+        icir = metric_float("rank_icir")
+        ic_pos_ratio = metric_float("ic_positive_ratio")
+        monotonicity = metric_float("monotonicity")
 
         s_ic = min(8.0, max(0.0, rank_ic / 0.035 * 8.0))
         s_icir = min(8.0, max(0.0, icir / 1.5 * 8.0))
@@ -101,10 +162,10 @@ class StrategyEvaluatorAgent:
         # ----------------------------------------------------------------------
         # 2. Risk-Adjusted Returns (25 pt)
         # ----------------------------------------------------------------------
-        sharpe = float(metrics.get("sharpe_ratio", 0.0))
-        sortino = float(metrics.get("sortino_ratio", 0.0))
-        calmar = float(metrics.get("calmar_ratio", 0.0))
-        profit_loss_ratio = float(metrics.get("profit_loss_ratio", 1.5))
+        sharpe = metric_float("sharpe_ratio")
+        sortino = metric_float("sortino_ratio")
+        calmar = metric_float("calmar_ratio")
+        profit_loss_ratio = metric_float("profit_loss_ratio")
 
         s_sharpe = min(10.0, max(0.0, sharpe / 2.5 * 10.0)) if sharpe > 0 else 0.0
         s_sortino = min(5.0, max(0.0, sortino / 3.5 * 5.0)) if sortino > 0 else 0.0
@@ -118,15 +179,15 @@ class StrategyEvaluatorAgent:
         # ----------------------------------------------------------------------
         # 3. Drawdown & Downside Risk Control (20 pt)
         # ----------------------------------------------------------------------
-        max_dd = abs(float(metrics.get("max_drawdown", metrics.get("max_drawdown_pct", 0.20) if "max_drawdown_pct" in metrics else 0.20)))
+        max_dd = abs(metric_float("max_drawdown"))
         if max_dd > 1.0:
             max_dd /= 100.0  # normalize percentage
-        dd_days = int(metrics.get("max_drawdown_duration_days", 60))
+        dd_days = int(metric_float("max_drawdown_duration_days"))
 
         s_dd = 8.0 if max_dd <= 0.08 else (5.0 if max_dd <= 0.15 else (2.0 if max_dd <= 0.25 else 0.0))
         s_dur = 5.0 if dd_days <= 30 else (3.0 if dd_days <= 60 else (1.0 if dd_days <= 90 else 0.0))
-        s_tail = 4.0  # tail VaR score
-        s_leverage = 3.0  # leverage safety
+        s_tail = 4.0 if attack_results.get("tail_risk_pass") is True else 0.0
+        s_leverage = 3.0 if attack_results.get("leverage_safe") is True else 0.0
         score_drawdown = round(s_dd + s_dur + s_tail + s_leverage, 1)
 
         if max_dd > 0.15:
@@ -138,25 +199,25 @@ class StrategyEvaluatorAgent:
         if hard_fails:
             score_robustness = 0.0
         else:
-            noise_pass = attack_results.get("noise_features_pass", True)
-            calendar_pass = attack_results.get("calendar_features_pass", True)
-            walk_forward_ratio = float(metrics.get("walk_forward_ratio", 0.80))
+            noise_pass = attack_results.get("noise_features_pass") is True
+            calendar_pass = attack_results.get("calendar_features_pass") is True
+            walk_forward_ratio = metric_float("walk_forward_ratio")
 
             s_wf = min(6.0, max(0.0, walk_forward_ratio * 6.0))
             s_noise = 4.0 if noise_pass else 1.0
             s_cal = 4.0 if calendar_pass else 1.0
-            s_prefix = 6.0
+            s_prefix = 6.0 if attack_results.get("prefix_invariance_pass") is True else 0.0
             score_robustness = round(s_wf + s_noise + s_cal + s_prefix, 1)
 
         # ----------------------------------------------------------------------
         # 5. Live Feasibility & Friction Tolerance (10 pt)
         # ----------------------------------------------------------------------
-        turnover_ratio = float(metrics.get("turnover_ratio", 15.0))
-        cost_profitable = metrics.get("double_cost_profitable", True)
+        turnover_ratio = metric_float("turnover_ratio", float("inf"))
+        cost_profitable = metrics.get("double_cost_profitable") is True
 
         s_turnover = 4.0 if turnover_ratio <= 25.0 else (2.0 if turnover_ratio <= 50.0 else 0.0)
         s_cost = 4.0 if cost_profitable else 0.0
-        s_exec = 2.0
+        s_exec = 2.0 if attack_results.get("execution_feasible") is True else 0.0
         score_feasibility = round(s_turnover + s_cost + s_exec, 1)
 
         if not cost_profitable or turnover_ratio > 35.0:

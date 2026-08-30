@@ -36,6 +36,7 @@ def init_db_tables(conn):
             close REAL,
             volume REAL,
             amount REAL,
+            CHECK (open > 0 AND high >= low AND close > 0 AND volume >= 0),
             PRIMARY KEY (symbol, timeframe, trade_time)
         );
     """)
@@ -49,6 +50,7 @@ def init_db_tables(conn):
             close REAL,
             volume REAL,
             amount REAL,
+            CHECK (open > 0 AND high >= low AND close > 0 AND volume >= 0),
             PRIMARY KEY (symbol, trade_date)
         );
     """)

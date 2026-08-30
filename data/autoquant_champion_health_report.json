@@ -1,0 +1,81 @@
+{
+  "strategy": "autoquant_champion_strategy",
+  "timestamp": "2026-08-29 23:59:18",
+  "genome": {
+    "fast_dsp_period": 4,
+    "slow_dsp_period": 16,
+    "hurst_trend_th": 0.56,
+    "hurst_revert_th": 0.38,
+    "channel_period": 30,
+    "squeeze_threshold": 1.25,
+    "body_ratio_threshold": 0.35,
+    "sl_atr_mult": 1.4,
+    "be_lock_mult": 1.2,
+    "trail_atr_mult": 2.5,
+    "risk_budget_pct": 0.015
+  },
+  "oos_total_pnl": -571934.0405208886,
+  "oos_total_trades": 144,
+  "symbol_details": {
+    "AG_IDX": {
+      "pnl": -128352.63810902974,
+      "trades": 20,
+      "wr": 20.0,
+      "sharpe": -3.66510787185608
+    },
+    "AU_IDX": {
+      "pnl": -96236.48240799562,
+      "trades": 19,
+      "wr": 31.57894736842105,
+      "sharpe": -2.7565675774670995
+    },
+    "CU_IDX": {
+      "pnl": -42017.11600160983,
+      "trades": 14,
+      "wr": 42.857142857142854,
+      "sharpe": -1.113810760944714
+    },
+    "SC_IDX": {
+      "pnl": -37326.375168003375,
+      "trades": 31,
+      "wr": 45.16129032258064,
+      "sharpe": -0.46133989510879564
+    },
+    "RB_IDX": {
+      "pnl": -16547.594641800853,
+      "trades": 7,
+      "wr": 14.285714285714285,
+      "sharpe": -1.1145549488905182
+    },
+    "TA_IDX": {
+      "pnl": -30249.34900419973,
+      "trades": 9,
+      "wr": 22.22222222222222,
+      "sharpe": -1.2863734219421932
+    },
+    "MA_IDX": {
+      "pnl": -70702.88203192072,
+      "trades": 20,
+      "wr": 40.0,
+      "sharpe": -2.2073169316002192
+    },
+    "LC_IDX": {
+      "pnl": -34853.26320011192,
+      "trades": 4,
+      "wr": 25.0,
+      "sharpe": -2.3957847904743663
+    },
+    "SN_IDX": {
+      "pnl": -50838.66530019627,
+      "trades": 10,
+      "wr": 30.0,
+      "sharpe": -1.6099676766591673
+    },
+    "P_IDX": {
+      "pnl": -64809.674656020594,
+      "trades": 10,
+      "wr": 30.0,
+      "sharpe": -1.3531293416967143
+    }
+  }
+}

@@ -8,37 +8,70 @@ import pytest
 from strategy_evaluator_agent import StrategyEvaluatorAgent, StrategyEvaluationDecision, audit_and_confirm
 
 
+COMPLETE_METRICS = {
+    "trading_period": "2025-01-01 ~ 2025-12-31",
+    "asset_type": "期货",
+    "symbols_summary": "10 个标的",
+    "total_net_pnl": 100_000.0,
+    "profitable_symbols_ratio": 0.9,
+    "mean_rank_ic": 0.045,
+    "rank_icir": 2.2,
+    "ic_positive_ratio": 0.62,
+    "monotonicity": 0.95,
+    "sharpe_ratio": 2.8,
+    "sortino_ratio": 4.0,
+    "calmar_ratio": 3.5,
+    "profit_loss_ratio": 2.1,
+    "max_drawdown": 0.06,
+    "max_drawdown_duration_days": 20,
+    "walk_forward_ratio": 0.88,
+    "turnover_ratio": 12.0,
+    "double_cost_profitable": True,
+    "win_rate_pct": 60.0,
+    "total_trades_count": 300,
+}
+
+COMPLETE_ATTACKS = {
+    "label_shuffle_pass": True,
+    "prefix_invariance_pass": True,
+    "noise_features_pass": True,
+    "calendar_features_pass": True,
+    "ledger_reconciled": True,
+    "tail_risk_pass": True,
+    "leverage_safe": True,
+    "execution_feasible": True,
+}
+
+
 def test_high_performing_strategy_is_approved():
     """Verify that an excellent strategy receives S grade and execution confirmation."""
-    metrics = {
-        "mean_rank_ic": 0.045,
-        "rank_icir": 2.2,
-        "ic_positive_ratio": 0.62,
-        "monotonicity": 0.95,
-        "sharpe_ratio": 2.8,
-        "sortino_ratio": 4.0,
-        "calmar_ratio": 3.5,
-        "profit_loss_ratio": 2.1,
-        "max_drawdown": 0.06,
-        "max_drawdown_duration_days": 20,
-        "walk_forward_ratio": 0.88,
-        "turnover_ratio": 12.0,
-        "double_cost_profitable": True,
-    }
-    attack_results = {
-        "label_shuffle_pass": True,
-        "prefix_invariance_pass": True,
-        "noise_features_pass": True,
-        "calendar_features_pass": True,
-        "ledger_reconciled": True,
-    }
-
-    decision = StrategyEvaluatorAgent.evaluate_strategy(metrics, attack_results, "AlphaElite_15m")
+    decision = StrategyEvaluatorAgent.evaluate_strategy(
+        COMPLETE_METRICS, COMPLETE_ATTACKS, "AlphaElite_15m"
+    )
     assert decision.total_score >= 85.0
     assert decision.grade == "S"
     assert decision.status == "APPROVED"
     assert decision.execution_confirmed is True
     assert len(decision.hard_fail_reasons) == 0
+
+
+def test_missing_trust_evidence_is_rejected():
+    decision = StrategyEvaluatorAgent.evaluate_strategy({}, {})
+
+    assert decision.status == "REJECTED"
+    assert decision.total_score == 0.0
+    assert any("缺少" in reason for reason in decision.hard_fail_reasons)
+
+
+@pytest.mark.parametrize("pnl", [float("nan"), float("inf"), -1.0])
+def test_non_finite_or_negative_pnl_is_rejected(pnl):
+    decision = StrategyEvaluatorAgent.evaluate_strategy(
+        {**COMPLETE_METRICS, "total_net_pnl": pnl},
+        COMPLETE_ATTACKS,
+    )
+
+    assert decision.status == "REJECTED"
+    assert decision.total_score == 0.0
 
 
 def test_hard_fail_triggers_rejection_and_zero_score():

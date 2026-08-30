@@ -278,3 +278,25 @@ def test_invalidated_ml_engines_are_documented_and_not_executable():
     assert "futures_research_backtest" not in executable
     assert "futures_research_backtest" not in exposed
     assert "`futures_research_backtest` — `AUDITED_RESEARCH_PROXY`" in status
+
+
+def test_remote_strategy_registration_is_disabled(monkeypatch):
+    from web_server import app, hot_plugger
+
+    called = []
+    monkeypatch.setattr(
+        hot_plugger,
+        "save_custom_strategy_code",
+        lambda *args: called.append(args),
+    )
+
+    response = app.test_client().post("/api/register_strategy", json={
+        "strategy_name": "remote_code",
+        "code_content": "def calculate_signal(df): return 0",
+    })
+
+    assert response.status_code == 403
+    assert response.get_json()["error_code"] == (
+        "REMOTE_STRATEGY_REGISTRATION_DISABLED"
+    )
+    assert called == []

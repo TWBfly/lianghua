@@ -1,0 +1,202 @@
+{
+  "strategy_name": "「天极·双岛正交分群自适应正反馈策略」 (Tianji Dual-Island Orthogonal Strategy)",
+  "timestamp": "2026-08-30 00:13:03",
+  "timeframe_comparison": {
+    "15m": {
+      "pnl": 93189.99057262833,
+      "trades": 343,
+      "wr": 46.35568513119534
+    },
+    "30m": {
+      "pnl": -95075.40589850291,
+      "trades": 286,
+      "wr": 47.2027972027972
+    },
+    "60m": {
+      "pnl": 0.0,
+      "trades": 0,
+      "wr": 0.0
+    }
+  },
+  "track_a_real_history": {
+    "AG_IDX": {
+      "is_trades": 1,
+      "is_wr": 100.0,
+      "is_pnl": 241.37550045002718,
+      "oos_trades": 1,
+      "oos_wr": 0.0,
+      "oos_pnl": -225.93000000005122,
+      "oos_sharpe": -0.024228896084137367,
+      "plateau_ratio": 0.0
+    },
+    "AU_IDX": {
+      "is_trades": 1,
+      "is_wr": 0.0,
+      "is_pnl": -14576.885353147984,
+      "oos_trades": 0,
+      "oos_wr": 0.0,
+      "oos_pnl": 0.0,
+      "oos_sharpe": 0.0,
+      "plateau_ratio": 100.0
+    },
+    "LC_IDX": {
+      "is_trades": 2,
+      "is_wr": 100.0,
+      "is_pnl": 10279.945499788155,
+      "oos_trades": 0,
+      "oos_wr": 0.0,
+      "oos_pnl": 0.0,
+      "oos_sharpe": 0.0,
+      "plateau_ratio": 100.0
+    },
+    "SN_IDX": {
+      "is_trades": 0,
+      "is_wr": 0.0,
+      "is_pnl": 0.0,
+      "oos_trades": 0,
+      "oos_wr": 0.0,
+      "oos_pnl": 0.0,
+      "oos_sharpe": 0.0,
+      "plateau_ratio": 100.0
+    },
+    "CU_IDX": {
+      "is_trades": 0,
+      "is_wr": 0.0,
+      "is_pnl": 0.0,
+      "oos_trades": 0,
+      "oos_wr": 0.0,
+      "oos_pnl": 0.0,
+      "oos_sharpe": 0.0,
+      "plateau_ratio": 100.0
+    },
+    "RB_IDX": {
+      "is_trades": 26,
+      "is_wr": 61.53846153846154,
+      "is_pnl": 26807.945333142998,
+      "oos_trades": 10,
+      "oos_wr": 30.0,
+      "oos_pnl": -4058.380467429175,
+      "oos_sharpe": -0.3320803232054063,
+      "plateau_ratio": 25.0
+    },
+    "TA_IDX": {
+      "is_trades": 27,
+      "is_wr": 48.148148148148145,
+      "is_pnl": -19189.988589428714,
+      "oos_trades": 17,
+      "oos_wr": 52.94117647058824,
+      "oos_pnl": 97696.21941957134,
+      "oos_sharpe": 1.842802778285785,
+      "plateau_ratio": 100.0
+    },
+    "MA_IDX": {
+      "is_trades": 19,
+      "is_wr": 52.63157894736842,
+      "is_pnl": 6155.4546188567765,
+      "oos_trades": 29,
+      "oos_wr": 55.172413793103445,
+      "oos_pnl": 26470.69589187065,
+      "oos_sharpe": 0.6394570191530922,
+      "plateau_ratio": 50.0
+    },
+    "SC_IDX": {
+      "is_trades": 67,
+      "is_wr": 35.82089552238806,
+      "is_pnl": -137479.83675284567,
+      "oos_trades": 44,
+      "oos_wr": 54.54545454545454,
+      "oos_pnl": 71480.53464999446,
+      "oos_sharpe": 0.7331390533460346,
+      "plateau_ratio": 75.0
+    },
+    "P_IDX": {
+      "is_trades": 27,
+      "is_wr": 33.33333333333333,
+      "is_pnl": -131768.416686057,
+      "oos_trades": 15,
+      "oos_wr": 60.0,
+      "oos_pnl": 18053.592348542064,
+      "oos_sharpe": 0.32318222615261155,
+      "plateau_ratio": 75.0
+    }
+  },
+  "track_b_synthetic_lln": {
+    "AG_IDX": {
+      "bars": 120000,
+      "trades": 73,
+      "wr": 39.726027397260275,
+      "pnl": -371959.0234995242,
+      "pnl_3x": -402914.29151970765
+    },
+    "AU_IDX": {
+      "bars": 120000,
+      "trades": 61,
+      "wr": 45.90163934426229,
+      "pnl": -199212.58030828577,
+      "pnl_3x": -214947.66035343055
+    },
+    "LC_IDX": {
+      "bars": 120000,
+      "trades": 2,
+      "wr": 0.0,
+      "pnl": -7136.091429291526,
+      "pnl_3x": -18065.25
+    },
+    "SN_IDX": {
+      "bars": 120000,
+      "trades": 30,
+      "wr": 6.666666666666667,
+      "pnl": -37602.45793745166,
+      "pnl_3x": -67737.6112585502
+    },
+    "CU_IDX": {
+      "bars": 120000,
+      "trades": 57,
+      "wr": 40.35087719298245,
+      "pnl": -268240.7378644432,
+      "pnl_3x": -295956.5754892124
+    },
+    "RB_IDX": {
+      "bars": 120000,
+      "trades": 7,
+      "wr": 71.42857142857143,
+      "pnl": 46785.39542257122,
+      "pnl_3x": 38127.79485114198
+    },
+    "TA_IDX": {
+      "bars": 120000,
+      "trades": 4,
+      "wr": 100.0,
+      "pnl": 13886.354999999981,
+      "pnl_3x": 4074.038569928729
+    },
+    "MA_IDX": {
+      "bars": 120000,
+      "trades": 3,
+      "wr": 33.33333333333333,
+      "pnl": -24669.612503799843,
+      "pnl_3x": -27200.380075227935
+    },
+    "SC_IDX": {
+      "bars": 120000,
+      "trades": 8,
+      "wr": 50.0,
+      "pnl": -97273.54504000291,
+      "pnl_3x": -105220.51504000835
+    },
+    "P_IDX": {
+      "bars": 120000,
+      "trades": 6,
+      "wr": 100.0,
+      "pnl": 57519.09499999997,
+      "pnl_3x": 19153.684993998846
+    }
+  },
+  "monte_carlo": {
+    "mdd_95": 92.14935964107211,
+    "p_ruin": 100.0,
+    "total_trades": 251,
+    "total_net": -887903.203160228
+  },
+  "five_hard_gates_decision": "BACKTEST_VALIDATED"
+}

@@ -70,7 +70,10 @@ def parse_datetime(dt_val) -> datetime.datetime:
 
 
 def get_dominant_contract_by_date(symbol: str, dt_val) -> str:
-    """根据历史任意时刻的日期时间，计算该品种在当时真实处于主力地位的具体合约代码"""
+    """根据历史任意时刻的日期时间，计算该品种在当时真实处于主力地位的具体合约代码
+    # ponytail: 硬编码换月日期是基于历史统计的近似值，
+    # 真实换月由持仓量(OI)决定。升级路径 = 接入 TqSdk 历史持仓量数据动态判定
+    """
     sym = symbol.upper()
     if not sym.endswith("_IDX"):
         sym = f"{sym}_IDX"
@@ -169,6 +172,9 @@ def calculate_roll_friction(
     计算一次主力换月展期的完整摩擦成本 (第一性原理硬成本核算)：
     1. 平掉旧主力合约手续费 + 开立新主力合约手续费 (双重手续费)
     2. 平旧合约滑点 + 开新合约滑点 (双重滑点)
+    # ponytail: 仅计算手续费+滑点摩擦，未做新旧合约价差复权。
+    # 升级路径 = 返回 adjustment_ratio = new_close/old_close，
+    # 调用方对历史序列做后复权 prices *= cumulative_adjustment
     """
     turnover = price * multiplier * lots
     commission_cost = 2.0 * (turnover * fee_rate)

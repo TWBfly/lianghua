@@ -65,6 +65,7 @@ def init_futures_tables(conn):
             close REAL,
             volume REAL,
             amount REAL,
+            CHECK (open > 0 AND high >= low AND close > 0 AND volume >= 0),
             PRIMARY KEY (symbol, timeframe, trade_time)
         );
     """)

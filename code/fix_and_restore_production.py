@@ -10,7 +10,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-def fix_server():
+def fix_server(env_file=None):
     print("=" * 80)
     print("🚀 [正在连接生产服务器] 127.0.0.1 (739265.xyz)")
     print("=" * 80)
@@ -18,7 +18,7 @@ def fix_server():
     # 从 .env 读取服务器连接配置
     server_ip = "127.0.0.1"
     server_pwd = ""
-    env_file = PROJECT_ROOT / ".env"
+    env_file = Path(env_file) if env_file else PROJECT_ROOT / ".env"
     if env_file.exists():
         with open(env_file, "r", encoding="utf-8") as f:
             for line in f:
@@ -26,9 +26,12 @@ def fix_server():
                     server_ip = line.split("=", 1)[1].strip()
                 elif line.startswith("SERVER_PASSWORD="):
                     server_pwd = line.split("=", 1)[1].strip()
+    if not server_pwd:
+        raise RuntimeError("missing required credentials: SERVER_PASSWORD")
 
     ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.load_system_host_keys()
+    ssh.set_missing_host_key_policy(paramiko.RejectPolicy())
     ssh.connect(server_ip, 22, 'root', server_pwd, timeout=20)
 
     # 1. 确保远程目录存在

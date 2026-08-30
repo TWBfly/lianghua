@@ -88,8 +88,41 @@ def clean_directory(target_dir, dry_run=False):
 
     return removed_files, retained_files
 
+def scan_python_lookahead(directory: str) -> list[dict]:
+    """扫描 Python 文件中的常见前视偏差模式。
+    ponytail: 启发式检测，不能替代人工审计；升级路径 = AST 解析追踪数据流
+    """
+    import re
+    from pathlib import Path
+    patterns = [
+        (r'\.shift\s*\(\s*-', 'shift(-N) 使用了未来数据'),
+        (r'\.bfill\s*\(', '.bfill() 后向填充引入未来数据'),
+        (r'iloc\s*\[\s*-1\s*\]', 'iloc[-1] 在信号计算中可能使用未闭合K线'),
+        (r'\.max\(\)', '.max() 全局聚合可能引入未来数据'),
+        (r'lookahead', '显式 lookahead 标记'),
+    ]
+    findings = []
+    for py_file in Path(directory).rglob('*.py'):
+        try:
+            text = py_file.read_text(encoding='utf-8')
+        except Exception:
+            continue
+        for lineno, line in enumerate(text.splitlines(), 1):
+            for pat, desc in patterns:
+                if re.search(pat, line):
+                    findings.append({
+                        'file': str(py_file),
+                        'line': lineno,
+                        'pattern': desc,
+                        'content': line.strip()[:120],
+                    })
+    return findings
 
-if __name__ == "__main__":
-    tv_dir = "/Users/tang/PycharmProjects/pythonProject/lianghua/tradingview"
-    is_dry = "--dry-run" in sys.argv
-    clean_directory(tv_dir, dry_run=is_dry)
+
+if __name__ == '__main__':
+    import sys
+    target = sys.argv[1] if len(sys.argv) > 1 else str(Path(__file__).parent)
+    results = scan_python_lookahead(target)
+    for r in results:
+        print(f"{r['file']}:{r['line']} [{r['pattern']}] {r['content']}")
+    print(f"\n共发现 {len(results)} 处潜在前视偏差")

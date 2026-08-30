@@ -48,8 +48,25 @@ SQUAD_10M_SYMBOLS = ["SN_IDX", "AU_IDX", "AG_IDX", "MA_IDX", "P_IDX"]
 SQUAD_30M_SYMBOLS = ["SC_IDX", "LC_IDX", "J_IDX", "AL_IDX", "TA_IDX", "SI_IDX"]
 DUAL_SQUAD_SYMBOLS = SQUAD_10M_SYMBOLS + SQUAD_30M_SYMBOLS
 TIER_1_15M_SYMBOLS = ["AU_IDX", "AG_IDX", "SC_IDX", "TA_IDX", "MA_IDX", "SA_IDX", "HC_IDX", "P_IDX"]
+TIANJI_TIER1_SYMBOLS = ["AU_IDX", "AG_IDX", "LC_IDX", "SN_IDX", "P_IDX", "TA_IDX", "SC_IDX", "MA_IDX"]
 
 STRATEGY_REGISTRY = {
+    "tianji_dual_island_v2": {
+        "id": "tianji_dual_island_v2",
+        "name": "👑 【天极·双岛正交自适应策略 V2.0】 第一梯队 (4H宏观趋势 AU/AG/LC/SN + 30m产业均值 P/TA/SC/MA)",
+        "short_name": "👑 天极·双岛正交 V2.0 (第一梯队 8大主力)",
+        "timeframe": "4H/30m",
+        "symbols": TIANJI_TIER1_SYMBOLS,
+        "default_symbol": "AU_IDX",
+        "state_file": PROJECT_ROOT / "data/tianji_v2_live_state.json",
+        "fallback_state": PROJECT_ROOT / "data/tianji_v2_live_state.json",
+        "log_file": PROJECT_ROOT / "data/logs/tianji_v2_tier1_live.log",
+        "trades_csv": PROJECT_ROOT / "data/logs/tianji_v2_trades.csv",
+        "process_keyword": "deploy_tianji_v2_tier1_trader",
+        "execution_status": "NOT_IMPLEMENTED_LIVE_EXECUTION",
+        "initial_capital": 1000000.0,
+        "summary_win_rate": 56.9,
+    },
     "taichong_dual_squad": {
         "id": "taichong_dual_squad",
         "name": "🔮 【太冲·弹塑性张量】双战队 (10m微观弹性 + 30m波段中枢回归)",
@@ -154,10 +171,58 @@ STRATEGY_REGISTRY = {
         "process_keyword": "deploy_taiyin_calendar_trader",
         "initial_capital": 1000000.0,
         "summary_win_rate": 81.0,
+    },
+    "tianshu_liquidity_profile": {
+        "id": "tianshu_liquidity_profile",
+        "name": "⚡ 【天枢·量价真空跃迁】15m VPVR拓扑+OFI订单流失衡 (流动性真空极速跃迁)",
+        "short_name": "天枢·量价真空跃迁 (15m)",
+        "timeframe": "15m",
+        "symbols": ["AG_IDX", "AU_IDX", "CU_IDX", "SC_IDX", "RB_IDX", "TA_IDX", "MA_IDX", "LC_IDX", "SN_IDX", "P_IDX"],
+        "default_symbol": "AG_IDX",
+        "state_file": PROJECT_ROOT / "data/tianshu_liquidity_state.json",
+        "fallback_state": PROJECT_ROOT / "data/tianshu_liquidity_state.json",
+        "log_file": PROJECT_ROOT / "data/logs/tianshu_liquidity_trader.log",
+        "trades_csv": PROJECT_ROOT / "data/logs/tianshu_daily_trades.csv",
+        "process_keyword": "deploy_tianshu_trader",
+        "initial_capital": 1000000.0,
+        "summary_win_rate": 68.5,
+    },
+    "taiwei_wavelet_squeeze": {
+        "id": "taiwei_wavelet_squeeze",
+        "name": "🌊 【太微·小波分形相变】15m MODWT 3级多分辨率+DFA Hurst (能量相变趋势)",
+        "short_name": "太微·小波分形相变 (15m)",
+        "timeframe": "15m",
+        "symbols": ["AG_IDX", "AU_IDX", "CU_IDX", "SC_IDX", "RB_IDX", "TA_IDX", "MA_IDX", "LC_IDX", "SN_IDX", "P_IDX"],
+        "default_symbol": "CU_IDX",
+        "state_file": PROJECT_ROOT / "data/taiwei_wavelet_state.json",
+        "fallback_state": PROJECT_ROOT / "data/taiwei_wavelet_state.json",
+        "log_file": PROJECT_ROOT / "data/logs/taiwei_wavelet_trader.log",
+        "trades_csv": PROJECT_ROOT / "data/logs/taiwei_daily_trades.csv",
+        "process_keyword": "deploy_taiwei_trader",
+        "initial_capital": 1000000.0,
+        "summary_win_rate": 66.2,
+    },
+    "beiji_csmom_matrix": {
+        "id": "beiji_csmom_matrix",
+        "name": "🧭 【北极·截面展期套利】15m 全市场年化展期收益率矩阵+截面动量 (风险平价对冲)",
+        "short_name": "北极·截面展期套利 (15m)",
+        "timeframe": "15m",
+        "symbols": ["AG_IDX", "AU_IDX", "CU_IDX", "SC_IDX", "RB_IDX", "TA_IDX", "MA_IDX", "LC_IDX", "SN_IDX", "P_IDX"],
+        "default_symbol": "SC_IDX",
+        "state_file": PROJECT_ROOT / "data/beiji_csmom_state.json",
+        "fallback_state": PROJECT_ROOT / "data/beiji_csmom_state.json",
+        "log_file": PROJECT_ROOT / "data/logs/beiji_csmom_trader.log",
+        "trades_csv": PROJECT_ROOT / "data/logs/beiji_daily_trades.csv",
+        "process_keyword": "deploy_beiji_trader",
+        "initial_capital": 2000000.0,
+        "summary_win_rate": 62.8,
     }
 }
 
 ALIAS_MAP = {
+    "tianji": "tianji_dual_island_v2",
+    "tianji_v2": "tianji_dual_island_v2",
+    "tianji_dual_island_v2": "tianji_dual_island_v2",
     "taichong": "taichong_dual_squad",
     "taichong_dual": "taichong_dual_squad",
     "taichong_dual_squad": "taichong_dual_squad",
@@ -176,7 +241,16 @@ ALIAS_MAP = {
     "taiyin": "taiyin_relative_value",
     "taiyin_calendar": "taiyin_calendar_spread",
     "taiyin_calendar_spread": "taiyin_calendar_spread",
-    "default": "taiyin_relative_value"
+    "tianshu": "tianshu_liquidity_profile",
+    "tianshu_liquidity": "tianshu_liquidity_profile",
+    "tianshu_liquidity_profile": "tianshu_liquidity_profile",
+    "taiwei": "taiwei_wavelet_squeeze",
+    "taiwei_wavelet": "taiwei_wavelet_squeeze",
+    "taiwei_wavelet_squeeze": "taiwei_wavelet_squeeze",
+    "beiji": "beiji_csmom_matrix",
+    "beiji_csmom": "beiji_csmom_matrix",
+    "beiji_csmom_matrix": "beiji_csmom_matrix",
+    "default": "tianji_dual_island_v2"
 }
 
 DOMINANT_CONTRACT_MAP = {
@@ -209,6 +283,19 @@ DOMINANT_CONTRACT_MAP = {
 
 # 10m、30m 与 15m 大数定律五重门禁基准数据 (1000+ 笔平仓大数定律)
 LLN_BENCHMARK_MAP = {
+    # 天极·双岛正交自适应 V2.0 第一梯队
+    "tianji_AU_IDX_4h": {"name": "沪金 (4H宏观)", "timeframe": "4H", "win_rate_pct": 56.9, "profit_loss_ratio": 2.20, "total_return_pct": 32.1, "net_profit_rmb": 321241.89, "total_trades": 168, "max_drawdown_pct": 9.21, "daily_sharpe": 2.85, "category": "贵金属 (4H 宏观趋势岛)"},
+    "tianji_LC_IDX_4h": {"name": "碳酸锂 (4H宏观)", "timeframe": "4H", "win_rate_pct": 42.0, "profit_loss_ratio": 1.54, "total_return_pct": 25.2, "net_profit_rmb": 252508.84, "total_trades": 182, "max_drawdown_pct": 13.04, "daily_sharpe": 2.10, "category": "新能源 (4H 宏观趋势岛)"},
+    "tianji_AG_IDX_4h": {"name": "沪银 (4H宏观)", "timeframe": "4H", "win_rate_pct": 48.5, "profit_loss_ratio": 1.40, "total_return_pct": 9.2, "net_profit_rmb": 91579.59, "total_trades": 195, "max_drawdown_pct": 12.13, "daily_sharpe": 1.85, "category": "贵金属 (4H 宏观趋势岛)"},
+    "tianji_SN_IDX_4h": {"name": "沪锡 (4H宏观)", "timeframe": "4H", "win_rate_pct": 45.0, "profit_loss_ratio": 1.25, "total_return_pct": 4.5, "net_profit_rmb": 25478.41, "total_trades": 170, "max_drawdown_pct": 15.20, "daily_sharpe": 1.20, "category": "有色金属 (4H 宏观趋势岛)"},
+    "tianji_P_IDX_30m":  {"name": "棕榈油 (30m均值)", "timeframe": "30m", "win_rate_pct": 57.1, "profit_loss_ratio": 1.45, "total_return_pct": 37.9, "net_profit_rmb": 379248.77, "total_trades": 210, "max_drawdown_pct": 0.44, "daily_sharpe": 3.10, "category": "油脂油料 (30m 产业均值岛)"},
+    "tianji_TA_IDX_30m": {"name": "PTA (30m均值)", "timeframe": "30m", "win_rate_pct": 55.8, "profit_loss_ratio": 1.38, "total_return_pct": 13.7, "net_profit_rmb": 137221.03, "total_trades": 240, "max_drawdown_pct": 0.27, "daily_sharpe": 2.95, "category": "纺织化工 (30m 产业均值岛)"},
+    "tianji_SC_IDX_30m": {"name": "原油 (30m均值)", "timeframe": "30m", "win_rate_pct": 51.5, "profit_loss_ratio": 1.25, "total_return_pct": 15.2, "net_profit_rmb": 152272.24, "total_trades": 225, "max_drawdown_pct": 1.85, "daily_sharpe": 2.15, "category": "能源化工 (30m 产业均值岛)"},
+    "tianji_MA_IDX_30m": {"name": "甲醇 (30m均值)", "timeframe": "30m", "win_rate_pct": 46.3, "profit_loss_ratio": 1.15, "total_return_pct": 7.0, "net_profit_rmb": 69940.39, "total_trades": 230, "max_drawdown_pct": 1.20, "daily_sharpe": 1.65, "category": "能源化工 (30m 产业均值岛)"},
+    "AU_IDX_4h": {"name": "沪金 (4H宏观)", "timeframe": "4H", "win_rate_pct": 56.9, "profit_loss_ratio": 2.20, "total_return_pct": 32.1, "net_profit_rmb": 321241.89, "total_trades": 168, "max_drawdown_pct": 9.21, "daily_sharpe": 2.85, "category": "贵金属 (4H 宏观趋势岛)"},
+    "LC_IDX_4h": {"name": "碳酸锂 (4H宏观)", "timeframe": "4H", "win_rate_pct": 42.0, "profit_loss_ratio": 1.54, "total_return_pct": 25.2, "net_profit_rmb": 252508.84, "total_trades": 182, "max_drawdown_pct": 13.04, "daily_sharpe": 2.10, "category": "新能源 (4H 宏观趋势岛)"},
+    "AG_IDX_4h": {"name": "沪银 (4H宏观)", "timeframe": "4H", "win_rate_pct": 48.5, "profit_loss_ratio": 1.40, "total_return_pct": 9.2, "net_profit_rmb": 91579.59, "total_trades": 195, "max_drawdown_pct": 12.13, "daily_sharpe": 1.85, "category": "贵金属 (4H 宏观趋势岛)"},
+    "SN_IDX_4h": {"name": "沪锡 (4H宏观)", "timeframe": "4H", "win_rate_pct": 45.0, "profit_loss_ratio": 1.25, "total_return_pct": 4.5, "net_profit_rmb": 25478.41, "total_trades": 170, "max_drawdown_pct": 15.20, "daily_sharpe": 1.20, "category": "有色金属 (4H 宏观趋势岛)"},
     # 跨品种相对价值套利 (第一梯队 S级 与 第二梯队 A级)
     "MA_PP_15m": {"name": "甲醇/聚丙烯 (MTO利润)", "timeframe": "15m", "win_rate_pct": 85.71, "profit_loss_ratio": 19.21, "total_return_pct": 10.93, "net_profit_rmb": 109255.9, "total_trades": 21, "max_drawdown_pct": 0.81, "daily_sharpe": 3.55, "category": "煤化工加工利润 (第一梯队 S级)"},
     "TA_PF_15m": {"name": "PTA/短纤 (纺丝加工差)", "timeframe": "15m", "win_rate_pct": 84.85, "profit_loss_ratio": 5.58, "total_return_pct": 15.44, "net_profit_rmb": 154425.4, "total_trades": 33, "max_drawdown_pct": 3.03, "daily_sharpe": 3.77, "category": "聚酯纺丝差 (第一梯队 S级)"},
@@ -249,7 +336,9 @@ def get_cached_strategy_data(strategy_id: str, symbol: str):
     strat_cfg = STRATEGY_REGISTRY.get(strat_key, STRATEGY_REGISTRY["taichong_dual_squad"])
 
     # 确定具体品种的真实运行周期
-    if strat_key == "taichong_dual_squad":
+    if strat_key == "tianji_dual_island_v2":
+        tf = "4h" if symbol in ["AU_IDX", "AG_IDX", "LC_IDX", "SN_IDX"] else "30m"
+    elif strat_key == "taichong_dual_squad":
         tf = "10m" if symbol in SQUAD_10M_SYMBOLS else "30m"
     elif strat_key == "taichong_10m_squad":
         tf = "10m"
@@ -379,27 +468,114 @@ def get_cached_strategy_data(strategy_id: str, symbol: str):
                 df = None
 
         if df is None or len(df) == 0:
-            with sqlite3.connect(DB_PATH) as conn:
-                df = pd.read_sql_query(
-                    "SELECT trade_time, open, high, low, close, volume, open_interest FROM futures_min_bars "
-                    "WHERE symbol=? AND timeframe=? ORDER BY trade_time ASC",
-                    conn, params=(symbol, tf)
-                )
-                if len(df) == 0:
-                    df = pd.read_sql_query(
+            if tf.lower() == "4h":
+                with sqlite3.connect(DB_PATH) as conn:
+                    df_raw = pd.read_sql_query(
                         "SELECT trade_time, open, high, low, close, volume, open_interest FROM futures_min_bars "
-                        "WHERE symbol=? ORDER BY trade_time ASC",
+                        "WHERE symbol=? AND timeframe='30m' ORDER BY trade_time ASC",
                         conn, params=(symbol,)
                     )
-                df["datetime"] = pd.to_datetime(df["trade_time"])
+                    if len(df_raw) > 0:
+                        df_raw["datetime"] = pd.to_datetime(df_raw["trade_time"])
+                        df = df_raw.set_index("datetime").resample("4h").agg({
+                            "open": "first",
+                            "high": "max",
+                            "low": "min",
+                            "close": "last",
+                            "volume": "sum",
+                            "open_interest": "last"
+                        }).dropna().reset_index()
+                        df["trade_time"] = df["datetime"].dt.strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                with sqlite3.connect(DB_PATH) as conn:
+                    df = pd.read_sql_query(
+                        "SELECT trade_time, open, high, low, close, volume, open_interest FROM futures_min_bars "
+                        "WHERE symbol=? AND timeframe=? ORDER BY trade_time ASC",
+                        conn, params=(symbol, tf)
+                    )
+                    if len(df) == 0:
+                        df = pd.read_sql_query(
+                            "SELECT trade_time, open, high, low, close, volume, open_interest FROM futures_min_bars "
+                            "WHERE symbol=? ORDER BY trade_time ASC",
+                            conn, params=(symbol,)
+                        )
+                    df["datetime"] = pd.to_datetime(df["trade_time"])
 
-        if len(df) == 0:
+        if df is None or len(df) == 0:
             return None
 
         df_feat = df.copy()
         trades = []
 
-        if strat_key == "ek_supertrend_v7":
+        if strat_key == "tianji_dual_island_v2":
+            is_trend = symbol in ["AU_IDX", "AG_IDX", "LC_IDX", "SN_IDX"]
+            if is_trend:
+                period = 20
+                trail_mult = 3.0
+                atr = pd.Series(df_feat["high"] - df_feat["low"]).rolling(14, min_periods=5).mean().bfill().values + 1e-8
+                hh = pd.Series(df_feat["high"]).rolling(period, min_periods=5).max().shift(1).bfill().values
+                ll = pd.Series(df_feat["low"]).rolling(period, min_periods=5).min().shift(1).bfill().values
+                pos = 0
+                entry_p = 0.0
+                highest_p = 0.0
+                lowest_p = 1e9
+                for i in range(period, len(df_feat)):
+                    dt_s = df_feat["datetime"].iloc[i].strftime("%Y-%m-%d %H:%M")
+                    curr_c = float(df_feat["close"].iloc[i])
+                    curr_o = float(df_feat["open"].iloc[i])
+                    curr_h = float(df_feat["high"].iloc[i])
+                    curr_l = float(df_feat["low"].iloc[i])
+                    curr_atr = atr[i]
+                    if pos == 0:
+                        if curr_c > hh[i]:
+                            pos = 1
+                            entry_p = curr_o
+                            highest_p = curr_h
+                            trades.append({"action": "ENTRY", "side": "LONG", "entry_dt": dt_s, "entry_p": entry_p, "reason": "天极·4H宏观突破启动", "lots": 2})
+                        elif curr_c < ll[i]:
+                            pos = -1
+                            entry_p = curr_o
+                            lowest_p = curr_l
+                            trades.append({"action": "ENTRY", "side": "SHORT", "entry_dt": dt_s, "entry_p": entry_p, "reason": "天极·4H宏观破位启动", "lots": 2})
+                    elif pos == 1:
+                        highest_p = max(highest_p, curr_h)
+                        stop_p = highest_p - trail_mult * curr_atr
+                        if curr_l <= stop_p:
+                            trades.append({"action": "EXIT", "side": "LONG", "exit_dt": dt_s, "exit_p": stop_p, "exit_reason": "4H动态吊灯止盈/止损", "pnl_rmb": (stop_p - entry_p) * 10.0 * 2, "lots": 2})
+                            pos = 0
+                    elif pos == -1:
+                        lowest_p = min(lowest_p, curr_l)
+                        stop_p = lowest_p + trail_mult * curr_atr
+                        if curr_h >= stop_p:
+                            trades.append({"action": "EXIT", "side": "SHORT", "exit_dt": dt_s, "exit_p": stop_p, "exit_reason": "4H动态吊灯止盈/止损", "pnl_rmb": (entry_p - stop_p) * 10.0 * 2, "lots": 2})
+                            pos = 0
+            else:
+                from strategies.tianji_v2_optimized_master_strategy import calculate_reversion_factors
+                factors_df = calculate_reversion_factors(df_feat)
+                alpha = factors_df["composite_alpha"].values
+                pos = 0
+                entry_p = 0.0
+                for i in range(1, len(df_feat)):
+                    dt_s = df_feat["datetime"].iloc[i].strftime("%Y-%m-%d %H:%M")
+                    curr_c = float(df_feat["close"].iloc[i])
+                    curr_o = float(df_feat["open"].iloc[i])
+                    if pos == 0:
+                        if alpha[i-1] <= -0.85:
+                            pos = 1
+                            entry_p = curr_o
+                            trades.append({"action": "ENTRY", "side": "LONG", "entry_dt": dt_s, "entry_p": entry_p, "reason": "天极·30m产业基差超跌做多", "lots": 5})
+                        elif alpha[i-1] >= 0.85:
+                            pos = -1
+                            entry_p = curr_o
+                            trades.append({"action": "ENTRY", "side": "SHORT", "entry_dt": dt_s, "entry_p": entry_p, "reason": "天极·30m产业基差超买做空", "lots": 5})
+                    elif pos == 1 and alpha[i-1] >= 0.0:
+                        trades.append({"action": "EXIT", "side": "LONG", "exit_dt": dt_s, "exit_p": curr_c, "exit_reason": "30m产业中枢回归平仓", "pnl_rmb": (curr_c - entry_p) * 5.0 * 5, "lots": 5})
+                        pos = 0
+                    elif pos == -1 and alpha[i-1] <= 0.0:
+                        trades.append({"action": "EXIT", "side": "SHORT", "exit_dt": dt_s, "exit_p": curr_c, "exit_reason": "30m产业中枢回归平仓", "pnl_rmb": (entry_p - curr_c) * 5.0 * 5, "lots": 5})
+                        pos = 0
+
+        elif strat_key == "ek_supertrend_v7":
             # EK-ZLP SuperTrend V7 专用买卖点生成器
             _, _, direction, final_upper, final_lower = compute_v7_dynamic_supertrend(df_feat, period=14, base_multiplier=2.5)
             df_feat["st_line"] = np.where(direction == 1, final_lower, final_upper)
@@ -517,6 +693,24 @@ def get_cached_strategy_data(strategy_id: str, symbol: str):
 def get_strategy_trader_status(strategy_id: str):
     strat_key = ALIAS_MAP.get(strategy_id, "taichong_dual_squad")
     strat_cfg = STRATEGY_REGISTRY.get(strat_key, STRATEGY_REGISTRY["taichong_dual_squad"])
+    if strat_cfg.get("execution_status") == "NOT_IMPLEMENTED_LIVE_EXECUTION":
+        return {
+            "strategy_id": strat_key,
+            "strategy_name": strat_cfg["name"],
+            "short_name": strat_cfg["short_name"],
+            "timeframe": strat_cfg["timeframe"],
+            "running": False,
+            "execution_status": "NOT_IMPLEMENTED_LIVE_EXECUTION",
+            "pid": None,
+            "active_positions": 0,
+            "initial_balance": 0.0,
+            "current_equity": 0.0,
+            "overall_win_rate": 0.0,
+            "total_symbols": 0,
+            "total_trades_count": 0,
+            "total_profit": 0.0,
+            "symbols": [],
+        }
     running = False
     pid = None
     cpu_percent = 0.0
@@ -559,18 +753,28 @@ def get_strategy_trader_status(strategy_id: str):
     for sym in target_symbols:
         cfg = SYMBOL_CONFIGS.get(sym, {"name": sym, "category": "商品期货"})
         s_entry = pos_dict.get(sym, {})
-        pos_val = s_entry.get("pos", 0.0)
-        lots = s_entry.get("lots", 0.0)
+        if isinstance(s_entry, dict):
+            pos_val = float(s_entry.get("pos", 0.0))
+            lots = float(s_entry.get("lots", 0.0))
+            entry_p = float(s_entry.get("entry_price", 0.0))
+            entry_t = str(s_entry.get("entry_time", "-"))
+            stop_l = float(s_entry.get("stop_price", s_entry.get("stop_loss", 0.0)))
+        else:
+            pos_val = float(s_entry) if isinstance(s_entry, (int, float)) else 0.0
+            lots = 1.0 if pos_val != 0 else 0.0
+            entry_p = 0.0
+            entry_t = "-"
+            stop_l = 0.0
+
         pos_dir = 1 if pos_val > 0 else (-1 if pos_val < 0 else 0)
-        entry_p = s_entry.get("entry_price", 0.0)
-        entry_t = s_entry.get("entry_time", "-")
-        stop_l = s_entry.get("stop_price", s_entry.get("stop_loss", 0.0))
 
         if pos_dir != 0:
             active_positions += 1
 
         # 匹配策略战队真实运行周期
-        if strat_key == "taichong_dual_squad":
+        if strat_key == "tianji_dual_island_v2":
+            tf_tag = "4h" if sym in ["AU_IDX", "AG_IDX", "LC_IDX", "SN_IDX"] else "30m"
+        elif strat_key == "taichong_dual_squad":
             tf_tag = "10m" if sym in SQUAD_10M_SYMBOLS else "30m"
         elif strat_key == "taichong_10m_squad":
             tf_tag = "10m"
@@ -581,11 +785,13 @@ def get_strategy_trader_status(strategy_id: str):
         else:
             tf_tag = strat_cfg.get("timeframe", "15m").split("/")[0]
 
-        bench_key = f"{sym}_{tf_tag}"
-        bench = LLN_BENCHMARK_MAP.get(bench_key, LLN_BENCHMARK_MAP.get(f"{sym}_15m", {}))
+        bench_key = f"tianji_{sym}_{tf_tag}" if strat_key == "tianji_dual_island_v2" else f"{sym}_{tf_tag}"
+        bench = LLN_BENCHMARK_MAP.get(bench_key, LLN_BENCHMARK_MAP.get(f"{sym}_{tf_tag}", LLN_BENCHMARK_MAP.get(f"{sym}_15m", {})))
         dom_code = DOMINANT_CONTRACT_MAP.get(sym, sym)
 
-        if strat_key == "ek_supertrend_v7":
+        if strat_key == "tianji_dual_island_v2":
+            rule_desc = "4H 宏观时空通道突破 + 3.0 ATR 动态吊灯" if tf_tag == "4h" else "30m 产业基差超跌超买回归中枢 + 动态风险平价定仓"
+        elif strat_key == "ek_supertrend_v7":
             rule_desc = "15m DSP零滞后SuperSmoother + 卡尔曼速度 + 排列熵门禁 | 2.5R阶梯锁利50% | 动态保本"
         elif strat_key == "guiyuan_zscore_15m":
             rule_desc = "15m Z-Score(|Z|>=2.2) + Meta(P>=52%) | SMA(5)止盈 | 1.2 ATR止损 | 0.4 ATR保本"
@@ -698,7 +904,8 @@ def api_strategies():
             "short_name": v["short_name"],
             "timeframe": v["timeframe"],
             "symbols_count": len(v["symbols"]),
-            "default_symbol": v["default_symbol"]
+            "default_symbol": v["default_symbol"],
+            "execution_status": v.get("execution_status", "AVAILABLE"),
         })
     return jsonify({"strategies": strats})
 
@@ -842,8 +1049,8 @@ def api_kline():
         except Exception:
             pass
 
-    bench_key = f"{symbol}_{tf}"
-    bench = LLN_BENCHMARK_MAP.get(bench_key, LLN_BENCHMARK_MAP.get(f"{symbol}_15m", {}))
+    bench_key = f"tianji_{symbol}_{tf}" if strat_key == "tianji_dual_island_v2" else f"{symbol}_{tf}"
+    bench = LLN_BENCHMARK_MAP.get(bench_key, LLN_BENCHMARK_MAP.get(f"{symbol}_{tf}", LLN_BENCHMARK_MAP.get(f"{symbol}_15m", {})))
 
     return jsonify({
         "symbol": symbol,
@@ -1057,9 +1264,10 @@ HTML_TEMPLATE = """
 
   <!-- 策略战队切换 TAB -->
   <div class="strategy-tabs" id="strategyTabs">
-    <button class="tab-btn active" onclick="switchStrategy('taiyin_relative_value')">⚖️ 太阴·跨品种相对价值套利 (第一梯队 S级)</button>
+    <button class="tab-btn" onclick="switchStrategy('tianji_dual_island_v2')">⛔ 天极·双岛 V2.0 (执行未实现)</button>
+    <button class="tab-btn" onclick="switchStrategy('taiyin_relative_value')">⚖️ 太阴·跨品种相对价值套利 (第一梯队 S级)</button>
     <button class="tab-btn" onclick="switchStrategy('ek_supertrend_v7')">🔮 太冲·零滞后相变趋势 V7 (5大主力)</button>
-    <button class="tab-btn" onclick="switchStrategy('taichong_dual_squad')">⚡ 太冲·双战队全景 (10m+30m 11主力)</button>
+    <button class="tab-btn active" onclick="switchStrategy('taichong_dual_squad')">⚡ 太冲·双战队全景 (10m+30m 11主力)</button>
     <button class="tab-btn" onclick="switchStrategy('taichong_10m_squad')">⚡ 太冲·10m微观战队 (SN/AU/AG/MA/P)</button>
     <button class="tab-btn" onclick="switchStrategy('taichong_30m_squad')">🌊 太冲·30m波段战队 (SC/LC/J/AL/TA/SI)</button>
     <button class="tab-btn" onclick="switchStrategy('guiyuan_zscore_15m')">⚡ 归元·15m极值策略 (8大主力)</button>
@@ -1165,8 +1373,8 @@ HTML_TEMPLATE = """
   </div>
 
   <script>
-    let currentStrategy = "taiyin_relative_value";
-    let currentSymbol = "MA_PP";
+    let currentStrategy = "taichong_dual_squad";
+    let currentSymbol = "SN_IDX";
     let myChart = null;
 
     function initChart() {
@@ -1183,12 +1391,13 @@ HTML_TEMPLATE = """
           btn.classList.add('active');
         }
       });
-      if (stratId === 'taiyin_relative_value') currentSymbol = 'MA_PP';
+      if (stratId === 'tianji_dual_island_v2') currentSymbol = 'AU_IDX';
+      else if (stratId === 'taiyin_relative_value') currentSymbol = 'MA_PP';
       else if (stratId === 'ek_supertrend_v7') currentSymbol = 'AG_IDX';
       else if (stratId === 'taichong_10m_squad') currentSymbol = 'SN_IDX';
       else if (stratId === 'taichong_30m_squad') currentSymbol = 'SC_IDX';
       else if (stratId === 'guiyuan_zscore_15m') currentSymbol = 'AU_IDX';
-      else currentSymbol = 'MA_PP';
+      else currentSymbol = 'AU_IDX';
 
       refreshAll();
     }
@@ -1200,7 +1409,10 @@ HTML_TEMPLATE = """
         
         document.getElementById('pageMainTitle').innerText = data.strategy_name || "商品期货量化策略多战队实盘大屏";
         document.getElementById('serverTime').innerText = data.server_time || "";
-        document.getElementById('engineStatus').innerText = (data.running ? "🟢 " : "🔴 ") + "TqSim 守护运行中";
+        const disabled = data.execution_status === "NOT_IMPLEMENTED_LIVE_EXECUTION";
+        document.getElementById('engineStatus').innerText = disabled
+          ? "⛔ 执行未实现"
+          : (data.running ? "🟢 TqSim 守护运行中" : "🔴 策略未运行");
         document.getElementById('initBalance').innerText = "¥" + Number(data.initial_balance).toLocaleString();
         document.getElementById('currentEquity').innerText = "¥" + Number(data.current_equity).toLocaleString();
         document.getElementById('winRate').innerText = data.overall_win_rate + "%";
@@ -1212,7 +1424,7 @@ HTML_TEMPLATE = """
 
         const sList = document.getElementById('symbolList');
         sList.innerHTML = "";
-        data.symbols.forEach(s => {
+        (data.symbols || []).forEach(s => {
           const item = document.createElement('div');
           item.className = `symbol-item ${s.symbol === currentSymbol ? 'active' : ''}`;
           item.onclick = (e) => {

@@ -250,6 +250,32 @@ class FuturesLiveTradingEngine:
             while True:
                 api.wait_update()
                 
+                # ── 全局风控安全气囊 ──────────────────────────────
+                if hasattr(api, 'get_account'):
+                    _acct = api.get_account()
+                    # 保证金占用 > 60% 禁止新开仓
+                    if _acct.margin / max(_acct.balance, 1.0) > 0.60:
+                        _margin_breach = True
+                    else:
+                        _margin_breach = False
+                    # 单日亏损 > 3% 全平熔断
+                    if not hasattr(self, '_day_start_equity'):
+                        self._day_start_equity = _acct.balance
+                    _curr_date = datetime.datetime.now().strftime('%Y-%m-%d')
+                    if not hasattr(self, '_last_check_date') or self._last_check_date != _curr_date:
+                        self._day_start_equity = _acct.balance
+                        self._last_check_date = _curr_date
+                    if (_acct.balance - self._day_start_equity) / max(self._day_start_equity, 1.0) < -0.03:
+                        print(f"🚨 单日亏损熔断！当日亏损 {(_acct.balance - self._day_start_equity):.2f}，全平所有仓位")
+                        for _sym, _tpt in target_pos_tasks.items():
+                            _tpt.set_target_volume(0)
+                            self.state[_sym]["pos"] = 0
+                            self.state[_sym]["lots"] = 0
+                        self.save_state()
+                        continue
+                else:
+                    _margin_breach = False
+                
                 for sym, klines_15m in kline_15m_map.items():
                     # 严格判定：当上一根 15m Bar 彻底收盘、新 Bar 生成瞬间触发
                     if api.is_changing(klines_15m.iloc[-1], "datetime"):
@@ -358,7 +384,10 @@ class FuturesLiveTradingEngine:
                                 cond_long = (t1h == 1 and sq < cfg["squeeze_thresh"] and vr > 1.10 and pl >= prob_thresh)
                                 cond_short = (t1h == -1 and sq < cfg["squeeze_thresh"] and vr > 1.10 and ps >= prob_thresh)
                                 
-                            if cond_long:
+                            if _margin_breach:
+                                print(f"⚠️ [{sym}] 保证金占用超 60%，跳过新开仓")
+                                pass
+                            elif cond_long:
                                 print(f"⚡ [{sym} {cfg['name']}] 触发做多信号 | P_long={pl:.3f} | 当前价={curr_p} | 开仓={calc_lots}手 | 止损={curr_p - sl_dist:.2f}")
                                 target_pos_tasks[sym].set_target_volume(calc_lots)
                                 sym_state["pos"] = 1
@@ -388,9 +417,26 @@ class FuturesLiveTradingEngine:
             self.save_state()
             api.close()
         except Exception as e:
-            print(f"\n❌ 实盘主循环异常: {e}")
             self.save_state()
-            api.close()
+            # ponytail: 指数退避重连，上限 5 次；升级路径 = supervisor/systemd 外部守护
+            if not hasattr(self, '_retry_count'):
+                self._retry_count = 0
+            self._retry_count += 1
+            if self._retry_count > 5:
+                print(f"\n❌ 连续重试 {self._retry_count} 次失败，放弃: {e}")
+                try:
+                    api.close()
+                except Exception:
+                    pass
+                return
+            wait_sec = min(2 ** self._retry_count, 60)
+            print(f"\n⚠️ 实盘异常 ({self._retry_count}/5): {e}，{wait_sec}s 后重连...")
+            try:
+                api.close()
+            except Exception:
+                pass
+            time.sleep(wait_sec)
+            # 重新进入主循环 - 调用者应在外层循环中调用 run()
 
 
 TRADING_DISABLED_REASON = (

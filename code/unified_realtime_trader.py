@@ -135,6 +135,7 @@ def init_db():
                 amount REAL,
                 open_interest REAL,
                 settlement REAL,
+                CHECK (open > 0 AND high >= low AND close > 0 AND volume >= 0),
                 PRIMARY KEY (symbol, timeframe, trade_time)
             );
         """)

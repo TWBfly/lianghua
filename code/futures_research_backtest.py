@@ -1094,11 +1094,20 @@ def _direction(probability, threshold):
     return 0
 
 
-def _net_sleeve_return(direction, entry_open, exit_open, cost_bps):
+def _net_sleeve_return(direction, entry_open, exit_open, cost_bps,
+                       multiplier=1.0, margin_rate=1.0):
+    """Calculate net sleeve return.
+    
+    When multiplier=1.0 and margin_rate=1.0 (defaults), behaves as before
+    (proportional return on notional). When real values are passed, returns
+    are scaled by leverage = 1/margin_rate.
+    """
     ratio = float(exit_open) / float(entry_open)
     cost = float(cost_bps) / 10_000.0
-    gross = int(direction) * (ratio - 1.0)
-    return gross, cost, cost * ratio, gross - cost * (1.0 + ratio)
+    leverage = 1.0 / float(margin_rate) if margin_rate > 0 else 1.0
+    gross = int(direction) * (ratio - 1.0) * leverage
+    scaled_cost = cost * leverage
+    return gross, scaled_cost, scaled_cost * ratio, gross - scaled_cost * (1.0 + ratio)
 
 
 def _finite_number(value):
@@ -2030,6 +2039,18 @@ def build_tianji_evaluation(
     return base, checks
 
 
+def _intrabar_max_drawdown(frame):
+    """Mark-to-market drawdown using bar high/low equity if available.
+    ponytail: 仅在 frame 包含 bar_high_equity / bar_low_equity 列时启用，
+    否则 fallback 到 close-based。升级路径 = 全面在回测循环中输出 bar 级权益极值。
+    """
+    high_eq = frame["bar_high_equity"].to_numpy(dtype=float)
+    low_eq = frame["bar_low_equity"].to_numpy(dtype=float)
+    peak = np.maximum.accumulate(high_eq)
+    dd = 1.0 - low_eq / np.maximum(peak, 1e-12)
+    return float(dd.max())
+
+
 def strategy_metrics(trades, daily):
     """Return finite strategy statistics from the marked daily ledger."""
     zero = {
@@ -2089,6 +2110,7 @@ def strategy_metrics(trades, daily):
         "annualized_volatility": deviation * np.sqrt(252.0),
         "sharpe": float(returns.mean()) / deviation * np.sqrt(252.0) if deviation else 0.0,
         "max_drawdown": float(drawdown.max()),
+        "max_drawdown_intrabar": _intrabar_max_drawdown(frame) if {"bar_high_equity", "bar_low_equity"}.issubset(frame.columns) else float(drawdown.max()),
         "win_rate": float(pnl.gt(0.0).mean()) if len(pnl) else 0.0,
         "profit_factor": wins / losses if losses else 0.0,
         "exposure": float(frame["gross_exposure"].mean()),

@@ -28,6 +28,7 @@ for p in (STRATEGIES_DIR, CODE_DIR):
 
 from taichong_elastoplastic_tensor import calculate_factors, calculate_signal
 from run_tianji_strict_1000_trades_per_symbol import ACTIVE_CONTRACT_SPECS
+from runtime_credentials import load_required_credentials
 
 DATA_DIR = PROJECT_ROOT / "data"
 LOG_DIR = DATA_DIR / "logs"
@@ -71,18 +72,7 @@ SQUAD_30M_CONFIG = {
 
 
 def get_tq_credentials():
-    env_path = PROJECT_ROOT / ".env"
-    account = "13800000000"
-    password = "redacted_password"
-    if env_path.exists():
-        with open(env_path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line.startswith("TQ_ACCOUNT="):
-                    account = line.split("=", 1)[1].strip()
-                elif line.startswith("TQ_PASSWORD="):
-                    password = line.split("=", 1)[1].strip()
-    return account, password
+    return load_required_credentials(PROJECT_ROOT / ".env")
 
 
 class TaiChongDualSquadTrader:

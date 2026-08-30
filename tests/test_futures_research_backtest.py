@@ -2291,6 +2291,7 @@ def test_strategy_metrics_use_compounded_daily_mark_path_and_are_finite():
         "annualized_volatility": deviation * np.sqrt(252),
         "sharpe": np.mean([0.1, -0.05]) / deviation * np.sqrt(252),
         "max_drawdown": 0.05,
+        "max_drawdown_intrabar": 0.05,
         "win_rate": 0.5,
         "profit_factor": 2.0,
         "exposure": 0.75,

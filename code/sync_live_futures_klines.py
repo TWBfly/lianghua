@@ -16,6 +16,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 from tqsdk import TqApi, TqAuth
+from runtime_credentials import load_required_credentials
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
@@ -57,18 +58,7 @@ SYMBOL_MAP = {
 
 
 def get_tq_credentials():
-    env_path = PROJECT_ROOT / ".env"
-    account = "13800000000"
-    password = "redacted_password"
-    if env_path.exists():
-        with open(env_path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line.startswith("TQ_ACCOUNT="):
-                    account = line.split("=", 1)[1].strip()
-                elif line.startswith("TQ_PASSWORD="):
-                    password = line.split("=", 1)[1].strip()
-    return account, password
+    return load_required_credentials(PROJECT_ROOT / ".env")
 
 
 def sync_all_klines():
@@ -97,6 +87,7 @@ def sync_all_klines():
             close REAL,
             volume REAL,
             open_interest REAL,
+            CHECK (open > 0 AND high >= low AND close > 0 AND volume >= 0),
             PRIMARY KEY (symbol, timeframe, trade_time)
         )
     """)
