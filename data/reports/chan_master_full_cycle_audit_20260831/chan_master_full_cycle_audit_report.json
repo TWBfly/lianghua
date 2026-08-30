@@ -1,0 +1,3627 @@
+{
+  "report_title": "因果缠论 4.0 全周期宏观牛熊与大数定律终极深度审计报告",
+  "benchmark_timestamp": "2026-08-31 01:36:12",
+  "track1_macro_daily_20y": {
+    "description": "2005~2026 真实历史 20 年宏观牛熊全周期 (日线)",
+    "total_trades": 108,
+    "net_pnl_rmb": 74008.02,
+    "reliability": {
+      "reliable_count": 0,
+      "marginal_count": 1,
+      "unreliable_count": 19,
+      "reliable_trades": 0,
+      "reliable_net_pnl": 0,
+      "raw_total_trades": 108,
+      "raw_total_net_pnl": 74008.03,
+      "short_data_symbols": [],
+      "verdict": "⛔ 无任何子策略达到统计可靠标准(30笔+)，报告结论完全不可信"
+    },
+    "summaries": [
+      {
+        "symbol": "AG_IDX",
+        "name": "沪银",
+        "timeframe": "1d",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 11,
+        "win_rate": 0.2727,
+        "wilson_95_ci": [
+          0.0975,
+          0.5656
+        ],
+        "net_pnl": -23884.38,
+        "profit_factor": 0.13,
+        "avg_trade_pnl": -2171.31,
+        "expectancy_atr": -0.6651,
+        "total_fees": 209.8,
+        "total_slippage": 900.0,
+        "max_drawdown_rmb": 27377.95,
+        "max_drawdown_pct": 0.0548,
+        "ci_width": 0.4682,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 171,
+          "data_sufficient": true,
+          "data_start": "2012-05-10",
+          "data_end": "2026-08-13"
+        }
+      },
+      {
+        "symbol": "AL_IDX",
+        "name": "沪铝",
+        "timeframe": "1d",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 1,
+        "win_rate": 1.0,
+        "wilson_95_ci": [
+          0.2065,
+          1.0
+        ],
+        "net_pnl": 5875.19,
+        "profit_factor": 99.0,
+        "avg_trade_pnl": 5875.19,
+        "expectancy_atr": 1.405,
+        "total_fees": 6.71,
+        "total_slippage": 50.0,
+        "max_drawdown_rmb": 0.0,
+        "max_drawdown_pct": 0.0,
+        "ci_width": 0.7935,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 67,
+          "data_sufficient": true,
+          "data_start": "2021-01-04",
+          "data_end": "2026-08-13"
+        }
+      },
+      {
+        "symbol": "AU_IDX",
+        "name": "沪金",
+        "timeframe": "1d",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 22,
+        "win_rate": 0.5455,
+        "wilson_95_ci": [
+          0.3466,
+          0.7308
+        ],
+        "net_pnl": 55415.86,
+        "profit_factor": 2.16,
+        "avg_trade_pnl": 2518.9,
+        "expectancy_atr": 0.1783,
+        "total_fees": 357.92,
+        "total_slippage": 920.0,
+        "max_drawdown_rmb": 43589.79,
+        "max_drawdown_pct": 0.0872,
+        "ci_width": 0.3842,
+        "reliability_grade": "B_MARGINAL",
+        "data_coverage": {
+          "data_months": 223,
+          "data_sufficient": true,
+          "data_start": "2008-01-09",
+          "data_end": "2026-08-13"
+        }
+      },
+      {
+        "symbol": "CF_IDX",
+        "name": "棉花",
+        "timeframe": "1d",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 2,
+        "win_rate": 1.0,
+        "wilson_95_ci": [
+          0.3424,
+          1.0
+        ],
+        "net_pnl": 12357.11,
+        "profit_factor": 99.0,
+        "avg_trade_pnl": 6178.55,
+        "expectancy_atr": 1.6703,
+        "total_fees": 42.89,
+        "total_slippage": 200.0,
+        "max_drawdown_rmb": 0.0,
+        "max_drawdown_pct": 0.0,
+        "ci_width": 0.6576,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 67,
+          "data_sufficient": true,
+          "data_start": "2021-01-04",
+          "data_end": "2026-08-13"
+        }
+      },
+      {
+        "symbol": "CU_IDX",
+        "name": "沪铜",
+        "timeframe": "1d",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 18,
+        "win_rate": 0.5556,
+        "wilson_95_ci": [
+          0.3372,
+          0.7544
+        ],
+        "net_pnl": 90764.66,
+        "profit_factor": 2.97,
+        "avg_trade_pnl": 5042.48,
+        "expectancy_atr": 1.1875,
+        "total_fees": 494.27,
+        "total_slippage": 1800.0,
+        "max_drawdown_rmb": 36853.97,
+        "max_drawdown_pct": 0.0737,
+        "ci_width": 0.4172,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 259,
+          "data_sufficient": true,
+          "data_start": "2005-01-04",
+          "data_end": "2026-08-13"
+        }
+      },
+      {
+        "symbol": "FG_IDX",
+        "name": "玻璃",
+        "timeframe": "1d",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 3,
+        "win_rate": 0.3333,
+        "wilson_95_ci": [
+          0.0615,
+          0.7923
+        ],
+        "net_pnl": -7770.32,
+        "profit_factor": 0.46,
+        "avg_trade_pnl": -2590.11,
+        "expectancy_atr": -0.4671,
+        "total_fees": 136.83,
+        "total_slippage": 1120.0,
+        "max_drawdown_rmb": 5289.27,
+        "max_drawdown_pct": 0.0106,
+        "ci_width": 0.7308,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 164,
+          "data_sufficient": true,
+          "data_start": "2012-12-03",
+          "data_end": "2026-08-13"
+        }
+      },
+      {
+        "symbol": "HC_IDX",
+        "name": "热卷",
+        "timeframe": "1d",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 2,
+        "win_rate": 0.5,
+        "wilson_95_ci": [
+          0.0945,
+          0.9055
+        ],
+        "net_pnl": 2680.25,
+        "profit_factor": 1.65,
+        "avg_trade_pnl": 1340.13,
+        "expectancy_atr": 0.2273,
+        "total_fees": 99.42,
+        "total_slippage": 260.0,
+        "max_drawdown_rmb": 0.0,
+        "max_drawdown_pct": 0.0,
+        "ci_width": 0.8109,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 67,
+          "data_sufficient": true,
+          "data_start": "2021-01-04",
+          "data_end": "2026-08-13"
+        }
+      },
+      {
+        "symbol": "I_IDX",
+        "name": "铁矿石",
+        "timeframe": "1d",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 4,
+        "win_rate": 0.5,
+        "wilson_95_ci": [
+          0.15,
+          0.85
+        ],
+        "net_pnl": -6697.77,
+        "profit_factor": 0.51,
+        "avg_trade_pnl": -1674.44,
+        "expectancy_atr": -0.1658,
+        "total_fees": 101.25,
+        "total_slippage": 900.0,
+        "max_drawdown_rmb": 6641.66,
+        "max_drawdown_pct": 0.0133,
+        "ci_width": 0.6999,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 154,
+          "data_sufficient": true,
+          "data_start": "2013-10-18",
+          "data_end": "2026-08-13"
+        }
+      },
+      {
+        "symbol": "J_IDX",
+        "name": "焦炭",
+        "timeframe": "1d",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 4,
+        "win_rate": 0.75,
+        "wilson_95_ci": [
+          0.3006,
+          0.9544
+        ],
+        "net_pnl": -14895.33,
+        "profit_factor": 0.5,
+        "avg_trade_pnl": -3723.83,
+        "expectancy_atr": 0.3169,
+        "total_fees": 366.33,
+        "total_slippage": 500.0,
+        "max_drawdown_rmb": 29720.08,
+        "max_drawdown_pct": 0.0594,
+        "ci_width": 0.6538,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 184,
+          "data_sufficient": true,
+          "data_start": "2011-04-15",
+          "data_end": "2026-08-13"
+        }
+      },
+      {
+        "symbol": "MA_IDX",
+        "name": "甲醇",
+        "timeframe": "1d",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 1,
+        "win_rate": 1.0,
+        "wilson_95_ci": [
+          0.2065,
+          1.0
+        ],
+        "net_pnl": 2227.59,
+        "profit_factor": 99.0,
+        "avg_trade_pnl": 2227.59,
+        "expectancy_atr": 0.5386,
+        "total_fees": 22.41,
+        "total_slippage": 100.0,
+        "max_drawdown_rmb": 0.0,
+        "max_drawdown_pct": 0.0,
+        "ci_width": 0.7935,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 140,
+          "data_sufficient": true,
+          "data_start": "2014-12-24",
+          "data_end": "2026-08-13"
+        }
+      },
+      {
+        "symbol": "M_IDX",
+        "name": "豆粕",
+        "timeframe": "1d",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 7,
+        "win_rate": 0.4286,
+        "wilson_95_ci": [
+          0.1582,
+          0.7495
+        ],
+        "net_pnl": -33178.76,
+        "profit_factor": 0.26,
+        "avg_trade_pnl": -4739.82,
+        "expectancy_atr": -0.8944,
+        "total_fees": 208.76,
+        "total_slippage": 1440.0,
+        "max_drawdown_rmb": 36988.49,
+        "max_drawdown_pct": 0.074,
+        "ci_width": 0.5913,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 259,
+          "data_sufficient": true,
+          "data_start": "2005-01-04",
+          "data_end": "2026-08-13"
+        }
+      },
+      {
+        "symbol": "P_IDX",
+        "name": "棕榈油",
+        "timeframe": "1d",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 2,
+        "win_rate": 0.5,
+        "wilson_95_ci": [
+          0.0945,
+          0.9055
+        ],
+        "net_pnl": -4269.08,
+        "profit_factor": 0.49,
+        "avg_trade_pnl": -2134.54,
+        "expectancy_atr": -0.4776,
+        "total_fees": 29.08,
+        "total_slippage": 120.0,
+        "max_drawdown_rmb": 0.0,
+        "max_drawdown_pct": 0.0,
+        "ci_width": 0.8109,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 67,
+          "data_sufficient": true,
+          "data_start": "2021-01-04",
+          "data_end": "2026-08-13"
+        }
+      },
+      {
+        "symbol": "RB_IDX",
+        "name": "螺纹钢",
+        "timeframe": "1d",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 3,
+        "win_rate": 0.6667,
+        "wilson_95_ci": [
+          0.2077,
+          0.9385
+        ],
+        "net_pnl": 8186.23,
+        "profit_factor": 8.43,
+        "avg_trade_pnl": 2728.74,
+        "expectancy_atr": 0.7125,
+        "total_fees": 123.78,
+        "total_slippage": 300.0,
+        "max_drawdown_rmb": 0.0,
+        "max_drawdown_pct": 0.0,
+        "ci_width": 0.7308,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 209,
+          "data_sufficient": true,
+          "data_start": "2009-03-27",
+          "data_end": "2026-08-13"
+        }
+      },
+      {
+        "symbol": "RU_IDX",
+        "name": "橡胶",
+        "timeframe": "1d",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 2,
+        "win_rate": 0.0,
+        "wilson_95_ci": [
+          0.0,
+          0.6576
+        ],
+        "net_pnl": -12966.2,
+        "profit_factor": 0.0,
+        "avg_trade_pnl": -6483.1,
+        "expectancy_atr": -1.6429,
+        "total_fees": 66.2,
+        "total_slippage": 300.0,
+        "max_drawdown_rmb": 7928.63,
+        "max_drawdown_pct": 0.0159,
+        "ci_width": 0.6576,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 67,
+          "data_sufficient": true,
+          "data_start": "2021-01-04",
+          "data_end": "2026-08-13"
+        }
+      },
+      {
+        "symbol": "SA_IDX",
+        "name": "纯碱",
+        "timeframe": "1d",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 1,
+        "win_rate": 0.0,
+        "wilson_95_ci": [
+          0.0,
+          0.7935
+        ],
+        "net_pnl": -5030.24,
+        "profit_factor": 0.0,
+        "avg_trade_pnl": -5030.24,
+        "expectancy_atr": -1.0187,
+        "total_fees": 40.94,
+        "total_slippage": 280.0,
+        "max_drawdown_rmb": 0.0,
+        "max_drawdown_pct": 0.0,
+        "ci_width": 0.7935,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 80,
+          "data_sufficient": true,
+          "data_start": "2019-12-06",
+          "data_end": "2026-08-13"
+        }
+      },
+      {
+        "symbol": "SC_IDX",
+        "name": "原油",
+        "timeframe": "1d",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 6,
+        "win_rate": 0.3333,
+        "wilson_95_ci": [
+          0.0968,
+          0.7
+        ],
+        "net_pnl": -2046.21,
+        "profit_factor": 0.97,
+        "avg_trade_pnl": -341.04,
+        "expectancy_atr": 0.0068,
+        "total_fees": 293.64,
+        "total_slippage": 1200.0,
+        "max_drawdown_rmb": 34524.7,
+        "max_drawdown_pct": 0.069,
+        "ci_width": 0.6032,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 101,
+          "data_sufficient": true,
+          "data_start": "2018-03-26",
+          "data_end": "2026-08-13"
+        }
+      },
+      {
+        "symbol": "SN_IDX",
+        "name": "沪锡",
+        "timeframe": "1d",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 11,
+        "win_rate": 0.6364,
+        "wilson_95_ci": [
+          0.3538,
+          0.8483
+        ],
+        "net_pnl": 14933.39,
+        "profit_factor": 1.49,
+        "avg_trade_pnl": 1357.58,
+        "expectancy_atr": 0.0314,
+        "total_fees": 171.63,
+        "total_slippage": 220.0,
+        "max_drawdown_rmb": 29232.43,
+        "max_drawdown_pct": 0.0585,
+        "ci_width": 0.4945,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 137,
+          "data_sufficient": true,
+          "data_start": "2015-03-27",
+          "data_end": "2026-08-13"
+        }
+      },
+      {
+        "symbol": "TA_IDX",
+        "name": "PTA",
+        "timeframe": "1d",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 4,
+        "win_rate": 0.5,
+        "wilson_95_ci": [
+          0.15,
+          0.85
+        ],
+        "net_pnl": 1499.6,
+        "profit_factor": 1.15,
+        "avg_trade_pnl": 374.9,
+        "expectancy_atr": 0.1726,
+        "total_fees": 99.74,
+        "total_slippage": 520.0,
+        "max_drawdown_rmb": 10172.33,
+        "max_drawdown_pct": 0.0203,
+        "ci_width": 0.6999,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 236,
+          "data_sufficient": true,
+          "data_start": "2006-12-19",
+          "data_end": "2026-08-13"
+        }
+      },
+      {
+        "symbol": "Y_IDX",
+        "name": "豆油",
+        "timeframe": "1d",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 2,
+        "win_rate": 0.5,
+        "wilson_95_ci": [
+          0.0945,
+          0.9055
+        ],
+        "net_pnl": 279.61,
+        "profit_factor": 1.06,
+        "avg_trade_pnl": 139.8,
+        "expectancy_atr": 0.0574,
+        "total_fees": 28.1,
+        "total_slippage": 120.0,
+        "max_drawdown_rmb": 0.0,
+        "max_drawdown_pct": 0.0,
+        "ci_width": 0.8109,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 67,
+          "data_sufficient": true,
+          "data_start": "2021-01-04",
+          "data_end": "2026-08-13"
+        }
+      },
+      {
+        "symbol": "ZN_IDX",
+        "name": "沪锌",
+        "timeframe": "1d",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 2,
+        "win_rate": 0.0,
+        "wilson_95_ci": [
+          0.0,
+          0.6576
+        ],
+        "net_pnl": -9473.17,
+        "profit_factor": 0.0,
+        "avg_trade_pnl": -4736.58,
+        "expectancy_atr": -1.2031,
+        "total_fees": 30.63,
+        "total_slippage": 200.0,
+        "max_drawdown_rmb": 4915.28,
+        "max_drawdown_pct": 0.0098,
+        "ci_width": 0.6576,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 67,
+          "data_sufficient": true,
+          "data_start": "2021-01-04",
+          "data_end": "2026-08-13"
+        }
+      }
+    ]
+  },
+  "track2_intraday_lln": {
+    "description": "真实多周期微观大数定律实测 (5m/10m/15m/30m 全谱系)",
+    "total_trades": 1309,
+    "net_pnl_rmb": -295014.6,
+    "reliability": {
+      "reliable_count": 16,
+      "marginal_count": 8,
+      "unreliable_count": 76,
+      "reliable_trades": 557,
+      "reliable_net_pnl": -482058.02,
+      "raw_total_trades": 1309,
+      "raw_total_net_pnl": -295014.62,
+      "short_data_symbols": [
+        "AG_IDX_5m",
+        "AU_IDX_5m",
+        "SC_IDX_5m",
+        "CU_IDX_5m",
+        "AL_IDX_5m",
+        "ZN_IDX_5m",
+        "SN_IDX_5m",
+        "RB_IDX_5m",
+        "HC_IDX_5m",
+        "I_IDX_5m",
+        "JM_IDX_5m",
+        "J_IDX_5m",
+        "MA_IDX_5m",
+        "TA_IDX_5m",
+        "SA_IDX_5m",
+        "FG_IDX_5m",
+        "M_IDX_5m",
+        "Y_IDX_5m",
+        "P_IDX_5m",
+        "C_IDX_5m",
+        "CF_IDX_5m",
+        "SR_IDX_5m",
+        "RU_IDX_5m",
+        "LC_IDX_5m",
+        "SI_IDX_5m",
+        "AG_IDX_10m",
+        "AU_IDX_10m",
+        "SC_IDX_10m",
+        "CU_IDX_10m",
+        "AL_IDX_10m",
+        "ZN_IDX_10m",
+        "SN_IDX_10m",
+        "RB_IDX_10m",
+        "HC_IDX_10m",
+        "I_IDX_10m",
+        "JM_IDX_10m",
+        "J_IDX_10m",
+        "MA_IDX_10m",
+        "TA_IDX_10m",
+        "SA_IDX_10m",
+        "FG_IDX_10m",
+        "M_IDX_10m",
+        "Y_IDX_10m",
+        "P_IDX_10m",
+        "C_IDX_10m",
+        "CF_IDX_10m",
+        "SR_IDX_10m",
+        "RU_IDX_10m",
+        "LC_IDX_10m",
+        "SI_IDX_10m",
+        "AG_IDX_15m",
+        "AU_IDX_15m",
+        "SC_IDX_15m",
+        "CU_IDX_15m",
+        "AL_IDX_15m",
+        "ZN_IDX_15m",
+        "SN_IDX_15m",
+        "RB_IDX_15m",
+        "HC_IDX_15m",
+        "I_IDX_15m",
+        "JM_IDX_15m",
+        "J_IDX_15m",
+        "MA_IDX_15m",
+        "TA_IDX_15m",
+        "SA_IDX_15m",
+        "FG_IDX_15m",
+        "M_IDX_15m",
+        "Y_IDX_15m",
+        "P_IDX_15m",
+        "C_IDX_15m",
+        "CF_IDX_15m",
+        "SR_IDX_15m",
+        "RU_IDX_15m",
+        "AG_IDX_30m",
+        "AU_IDX_30m",
+        "SC_IDX_30m"
+      ],
+      "verdict": "⚠️ 仅 16 个子策略可靠(占比 16%)，结论参考价值有限"
+    },
+    "summaries": [
+      {
+        "symbol": "AG_IDX",
+        "name": "沪银",
+        "timeframe": "5m",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 28,
+        "win_rate": 0.4286,
+        "wilson_95_ci": [
+          0.2651,
+          0.6093
+        ],
+        "net_pnl": -3499.34,
+        "profit_factor": 0.96,
+        "avg_trade_pnl": -124.98,
+        "expectancy_atr": 0.2655,
+        "total_fees": 3558.1,
+        "total_slippage": 4380.0,
+        "max_drawdown_rmb": 39632.22,
+        "max_drawdown_pct": 0.0793,
+        "ci_width": 0.3442,
+        "reliability_grade": "B_MARGINAL",
+        "data_coverage": {
+          "data_months": 3,
+          "data_sufficient": false,
+          "data_start": "2026-05-12",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "AU_IDX",
+        "name": "沪金",
+        "timeframe": "5m",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 31,
+        "win_rate": 0.4839,
+        "wilson_95_ci": [
+          0.3197,
+          0.6516
+        ],
+        "net_pnl": -41707.91,
+        "profit_factor": 0.36,
+        "avg_trade_pnl": -1345.42,
+        "expectancy_atr": -0.3226,
+        "total_fees": 3149.86,
+        "total_slippage": 3400.0,
+        "max_drawdown_rmb": 57806.93,
+        "max_drawdown_pct": 0.1156,
+        "ci_width": 0.3319,
+        "reliability_grade": "A_RELIABLE",
+        "data_coverage": {
+          "data_months": 3,
+          "data_sufficient": false,
+          "data_start": "2026-05-12",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "SC_IDX",
+        "name": "原油",
+        "timeframe": "5m",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 35,
+        "win_rate": 0.1429,
+        "wilson_95_ci": [
+          0.0626,
+          0.2938
+        ],
+        "net_pnl": -58462.0,
+        "profit_factor": 0.5,
+        "avg_trade_pnl": -1670.34,
+        "expectancy_atr": -0.2983,
+        "total_fees": 4287.75,
+        "total_slippage": 16000.0,
+        "max_drawdown_rmb": 58892.02,
+        "max_drawdown_pct": 0.1178,
+        "ci_width": 0.2312,
+        "reliability_grade": "A_RELIABLE",
+        "data_coverage": {
+          "data_months": 3,
+          "data_sufficient": false,
+          "data_start": "2026-05-12",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "CU_IDX",
+        "name": "沪铜",
+        "timeframe": "5m",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 22,
+        "win_rate": 0.1818,
+        "wilson_95_ci": [
+          0.0731,
+          0.3852
+        ],
+        "net_pnl": -54472.11,
+        "profit_factor": 0.51,
+        "avg_trade_pnl": -2476.01,
+        "expectancy_atr": -0.2441,
+        "total_fees": 6915.36,
+        "total_slippage": 13200.0,
+        "max_drawdown_rmb": 75400.87,
+        "max_drawdown_pct": 0.1508,
+        "ci_width": 0.3121,
+        "reliability_grade": "B_MARGINAL",
+        "data_coverage": {
+          "data_months": 4,
+          "data_sufficient": false,
+          "data_start": "2026-04-17",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "AL_IDX",
+        "name": "沪铝",
+        "timeframe": "5m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 7,
+        "win_rate": 0.1429,
+        "wilson_95_ci": [
+          0.0257,
+          0.5131
+        ],
+        "net_pnl": -54230.51,
+        "profit_factor": 0.1,
+        "avg_trade_pnl": -7747.22,
+        "expectancy_atr": -0.9736,
+        "total_fees": 2057.58,
+        "total_slippage": 14200.0,
+        "max_drawdown_rmb": 51758.91,
+        "max_drawdown_pct": 0.1035,
+        "ci_width": 0.4874,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 4,
+          "data_sufficient": false,
+          "data_start": "2026-04-17",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "ZN_IDX",
+        "name": "沪锌",
+        "timeframe": "5m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 5,
+        "win_rate": 0.8,
+        "wilson_95_ci": [
+          0.3755,
+          0.9638
+        ],
+        "net_pnl": 7284.93,
+        "profit_factor": 1.98,
+        "avg_trade_pnl": 1456.99,
+        "expectancy_atr": 0.7041,
+        "total_fees": 1397.45,
+        "total_slippage": 9450.0,
+        "max_drawdown_rmb": 7465.24,
+        "max_drawdown_pct": 0.0149,
+        "ci_width": 0.5882,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 4,
+          "data_sufficient": false,
+          "data_start": "2026-04-17",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "SN_IDX",
+        "name": "沪锡",
+        "timeframe": "5m",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 33,
+        "win_rate": 0.5758,
+        "wilson_95_ci": [
+          0.4081,
+          0.7276
+        ],
+        "net_pnl": 12160.25,
+        "profit_factor": 1.19,
+        "avg_trade_pnl": 368.49,
+        "expectancy_atr": 0.0059,
+        "total_fees": 2940.22,
+        "total_slippage": 2360.0,
+        "max_drawdown_rmb": 34734.74,
+        "max_drawdown_pct": 0.0695,
+        "ci_width": 0.3196,
+        "reliability_grade": "A_RELIABLE",
+        "data_coverage": {
+          "data_months": 4,
+          "data_sufficient": false,
+          "data_start": "2026-04-17",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "RB_IDX",
+        "name": "螺纹钢",
+        "timeframe": "5m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 6,
+        "win_rate": 0.6667,
+        "wilson_95_ci": [
+          0.3,
+          0.9032
+        ],
+        "net_pnl": -7960.41,
+        "profit_factor": 0.4,
+        "avg_trade_pnl": -1326.74,
+        "expectancy_atr": 0.428,
+        "total_fees": 3745.22,
+        "total_slippage": 12000.0,
+        "max_drawdown_rmb": 12850.5,
+        "max_drawdown_pct": 0.0257,
+        "ci_width": 0.6032,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 5,
+          "data_sufficient": false,
+          "data_start": "2026-03-05",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "HC_IDX",
+        "name": "热卷",
+        "timeframe": "5m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 5,
+        "win_rate": 0.8,
+        "wilson_95_ci": [
+          0.3755,
+          0.9638
+        ],
+        "net_pnl": 673.2,
+        "profit_factor": 1.26,
+        "avg_trade_pnl": 134.64,
+        "expectancy_atr": 0.7763,
+        "total_fees": 3326.8,
+        "total_slippage": 10000.0,
+        "max_drawdown_rmb": 2639.2,
+        "max_drawdown_pct": 0.0053,
+        "ci_width": 0.5882,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 5,
+          "data_sufficient": false,
+          "data_start": "2026-03-05",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "I_IDX",
+        "name": "铁矿石",
+        "timeframe": "5m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 1,
+        "win_rate": 1.0,
+        "wilson_95_ci": [
+          0.2065,
+          1.0
+        ],
+        "net_pnl": 3575.18,
+        "profit_factor": 99.0,
+        "avg_trade_pnl": 3575.18,
+        "expectancy_atr": 1.3725,
+        "total_fees": 526.81,
+        "total_slippage": 3200.0,
+        "max_drawdown_rmb": 0.0,
+        "max_drawdown_pct": 0.0,
+        "ci_width": 0.7935,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 5,
+          "data_sufficient": false,
+          "data_start": "2026-03-05",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "JM_IDX",
+        "name": "焦煤",
+        "timeframe": "5m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 3,
+        "win_rate": 0.3333,
+        "wilson_95_ci": [
+          0.0615,
+          0.7923
+        ],
+        "net_pnl": -15651.48,
+        "profit_factor": 0.16,
+        "avg_trade_pnl": -5217.16,
+        "expectancy_atr": -0.7058,
+        "total_fees": 1371.48,
+        "total_slippage": 3600.0,
+        "max_drawdown_rmb": 9596.91,
+        "max_drawdown_pct": 0.0192,
+        "ci_width": 0.7308,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 5,
+          "data_sufficient": false,
+          "data_start": "2026-03-05",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "J_IDX",
+        "name": "焦炭",
+        "timeframe": "5m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 5,
+        "win_rate": 0.8,
+        "wilson_95_ci": [
+          0.3755,
+          0.9638
+        ],
+        "net_pnl": 6778.25,
+        "profit_factor": 1.96,
+        "avg_trade_pnl": 1355.65,
+        "expectancy_atr": 0.5242,
+        "total_fees": 2762.65,
+        "total_slippage": 5100.0,
+        "max_drawdown_rmb": 7082.07,
+        "max_drawdown_pct": 0.0142,
+        "ci_width": 0.5882,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 5,
+          "data_sufficient": false,
+          "data_start": "2026-03-05",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "MA_IDX",
+        "name": "甲醇",
+        "timeframe": "5m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 8,
+        "win_rate": 0.625,
+        "wilson_95_ci": [
+          0.3057,
+          0.8632
+        ],
+        "net_pnl": -364.29,
+        "profit_factor": 0.98,
+        "avg_trade_pnl": -45.54,
+        "expectancy_atr": 0.2673,
+        "total_fees": 1946.19,
+        "total_slippage": 8840.0,
+        "max_drawdown_rmb": 12724.19,
+        "max_drawdown_pct": 0.0254,
+        "ci_width": 0.5574,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 5,
+          "data_sufficient": false,
+          "data_start": "2026-03-05",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "TA_IDX",
+        "name": "PTA",
+        "timeframe": "5m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 7,
+        "win_rate": 0.2857,
+        "wilson_95_ci": [
+          0.0822,
+          0.6411
+        ],
+        "net_pnl": -24638.01,
+        "profit_factor": 0.09,
+        "avg_trade_pnl": -3519.72,
+        "expectancy_atr": -0.534,
+        "total_fees": 908.16,
+        "total_slippage": 4900.0,
+        "max_drawdown_rmb": 17289.24,
+        "max_drawdown_pct": 0.0346,
+        "ci_width": 0.5588,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 5,
+          "data_sufficient": false,
+          "data_start": "2026-03-05",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "SA_IDX",
+        "name": "纯碱",
+        "timeframe": "5m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 9,
+        "win_rate": 0.7778,
+        "wilson_95_ci": [
+          0.4526,
+          0.9368
+        ],
+        "net_pnl": 7103.21,
+        "profit_factor": 1.38,
+        "avg_trade_pnl": 789.25,
+        "expectancy_atr": 0.9393,
+        "total_fees": 3409.53,
+        "total_slippage": 30120.0,
+        "max_drawdown_rmb": 9232.78,
+        "max_drawdown_pct": 0.0185,
+        "ci_width": 0.4842,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 5,
+          "data_sufficient": false,
+          "data_start": "2026-03-05",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "FG_IDX",
+        "name": "玻璃",
+        "timeframe": "5m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 2,
+        "win_rate": 0.5,
+        "wilson_95_ci": [
+          0.0945,
+          0.9055
+        ],
+        "net_pnl": -13335.2,
+        "profit_factor": 0.07,
+        "avg_trade_pnl": -6667.6,
+        "expectancy_atr": -0.6166,
+        "total_fees": 655.2,
+        "total_slippage": 6640.0,
+        "max_drawdown_rmb": 14384.2,
+        "max_drawdown_pct": 0.0288,
+        "ci_width": 0.8109,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 5,
+          "data_sufficient": false,
+          "data_start": "2026-03-05",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "M_IDX",
+        "name": "豆粕",
+        "timeframe": "5m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 9,
+        "win_rate": 0.6667,
+        "wilson_95_ci": [
+          0.3542,
+          0.8794
+        ],
+        "net_pnl": 4941.67,
+        "profit_factor": 1.31,
+        "avg_trade_pnl": 549.07,
+        "expectancy_atr": 0.6156,
+        "total_fees": 2364.02,
+        "total_slippage": 15660.0,
+        "max_drawdown_rmb": 8100.67,
+        "max_drawdown_pct": 0.0162,
+        "ci_width": 0.5252,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 5,
+          "data_sufficient": false,
+          "data_start": "2026-03-05",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "Y_IDX",
+        "name": "豆油",
+        "timeframe": "5m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 4,
+        "win_rate": 0.0,
+        "wilson_95_ci": [
+          0.0,
+          0.4899
+        ],
+        "net_pnl": -20245.24,
+        "profit_factor": 0.0,
+        "avg_trade_pnl": -5061.31,
+        "expectancy_atr": -0.6154,
+        "total_fees": 1445.24,
+        "total_slippage": 6800.0,
+        "max_drawdown_rmb": 16121.71,
+        "max_drawdown_pct": 0.0322,
+        "ci_width": 0.4899,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 5,
+          "data_sufficient": false,
+          "data_start": "2026-03-05",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "P_IDX",
+        "name": "棕榈油",
+        "timeframe": "5m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 5,
+        "win_rate": 1.0,
+        "wilson_95_ci": [
+          0.5655,
+          1.0
+        ],
+        "net_pnl": 20948.63,
+        "profit_factor": 99.0,
+        "avg_trade_pnl": 4189.73,
+        "expectancy_atr": 1.1079,
+        "total_fees": 1311.73,
+        "total_slippage": 5520.0,
+        "max_drawdown_rmb": 0.0,
+        "max_drawdown_pct": 0.0,
+        "ci_width": 0.4345,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 5,
+          "data_sufficient": false,
+          "data_start": "2026-03-05",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "C_IDX",
+        "name": "玉米",
+        "timeframe": "5m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 9,
+        "win_rate": 0.6667,
+        "wilson_95_ci": [
+          0.3542,
+          0.8794
+        ],
+        "net_pnl": -5913.73,
+        "profit_factor": 0.51,
+        "avg_trade_pnl": -657.08,
+        "expectancy_atr": 0.5564,
+        "total_fees": 1682.65,
+        "total_slippage": 18000.0,
+        "max_drawdown_rmb": 9974.59,
+        "max_drawdown_pct": 0.0199,
+        "ci_width": 0.5252,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 5,
+          "data_sufficient": false,
+          "data_start": "2026-03-05",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "CF_IDX",
+        "name": "棉花",
+        "timeframe": "5m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 9,
+        "win_rate": 0.6667,
+        "wilson_95_ci": [
+          0.3542,
+          0.8794
+        ],
+        "net_pnl": -3012.74,
+        "profit_factor": 0.9,
+        "avg_trade_pnl": -334.75,
+        "expectancy_atr": 0.382,
+        "total_fees": 3285.58,
+        "total_slippage": 16900.0,
+        "max_drawdown_rmb": 25790.03,
+        "max_drawdown_pct": 0.0516,
+        "ci_width": 0.5252,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 5,
+          "data_sufficient": false,
+          "data_start": "2026-03-05",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "SR_IDX",
+        "name": "白糖",
+        "timeframe": "5m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 2,
+        "win_rate": 1.0,
+        "wilson_95_ci": [
+          0.3424,
+          1.0
+        ],
+        "net_pnl": 7759.68,
+        "profit_factor": 99.0,
+        "avg_trade_pnl": 3879.84,
+        "expectancy_atr": 1.3076,
+        "total_fees": 960.11,
+        "total_slippage": 3700.0,
+        "max_drawdown_rmb": 0.0,
+        "max_drawdown_pct": 0.0,
+        "ci_width": 0.6576,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 5,
+          "data_sufficient": false,
+          "data_start": "2026-03-05",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "RU_IDX",
+        "name": "橡胶",
+        "timeframe": "5m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 8,
+        "win_rate": 0.5,
+        "wilson_95_ci": [
+          0.2152,
+          0.7848
+        ],
+        "net_pnl": -21762.16,
+        "profit_factor": 0.41,
+        "avg_trade_pnl": -2720.27,
+        "expectancy_atr": -0.238,
+        "total_fees": 2733.87,
+        "total_slippage": 10100.0,
+        "max_drawdown_rmb": 29463.5,
+        "max_drawdown_pct": 0.0589,
+        "ci_width": 0.5696,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 5,
+          "data_sufficient": false,
+          "data_start": "2026-03-05",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "LC_IDX",
+        "name": "碳酸锂",
+        "timeframe": "5m",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 32,
+        "win_rate": 0.2188,
+        "wilson_95_ci": [
+          0.1102,
+          0.3875
+        ],
+        "net_pnl": -56856.3,
+        "profit_factor": 0.24,
+        "avg_trade_pnl": -1776.76,
+        "expectancy_atr": -0.3345,
+        "total_fees": 2790.75,
+        "total_slippage": 11600.0,
+        "max_drawdown_rmb": 50451.75,
+        "max_drawdown_pct": 0.1009,
+        "ci_width": 0.2773,
+        "reliability_grade": "A_RELIABLE",
+        "data_coverage": {
+          "data_months": 9,
+          "data_sufficient": false,
+          "data_start": "2025-11-28",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "SI_IDX",
+        "name": "工业硅",
+        "timeframe": "5m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 4,
+        "win_rate": 0.5,
+        "wilson_95_ci": [
+          0.15,
+          0.85
+        ],
+        "net_pnl": -5944.57,
+        "profit_factor": 0.49,
+        "avg_trade_pnl": -1486.14,
+        "expectancy_atr": 0.1482,
+        "total_fees": 794.57,
+        "total_slippage": 7450.0,
+        "max_drawdown_rmb": 11633.0,
+        "max_drawdown_pct": 0.0233,
+        "ci_width": 0.6999,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 9,
+          "data_sufficient": false,
+          "data_start": "2025-11-28",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "AG_IDX",
+        "name": "沪银",
+        "timeframe": "10m",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 35,
+        "win_rate": 0.2857,
+        "wilson_95_ci": [
+          0.1633,
+          0.4505
+        ],
+        "net_pnl": -113390.93,
+        "profit_factor": 0.1,
+        "avg_trade_pnl": -3239.74,
+        "expectancy_atr": -0.8136,
+        "total_fees": 2419.92,
+        "total_slippage": 2850.0,
+        "max_drawdown_rmb": 113152.75,
+        "max_drawdown_pct": 0.2263,
+        "ci_width": 0.2873,
+        "reliability_grade": "A_RELIABLE",
+        "data_coverage": {
+          "data_months": 7,
+          "data_sufficient": false,
+          "data_start": "2026-01-16",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "AU_IDX",
+        "name": "沪金",
+        "timeframe": "10m",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 33,
+        "win_rate": 0.4242,
+        "wilson_95_ci": [
+          0.2724,
+          0.5919
+        ],
+        "net_pnl": -67966.88,
+        "profit_factor": 0.29,
+        "avg_trade_pnl": -2059.6,
+        "expectancy_atr": -0.4859,
+        "total_fees": 1840.88,
+        "total_slippage": 1880.0,
+        "max_drawdown_rmb": 69692.05,
+        "max_drawdown_pct": 0.1394,
+        "ci_width": 0.3196,
+        "reliability_grade": "A_RELIABLE",
+        "data_coverage": {
+          "data_months": 7,
+          "data_sufficient": false,
+          "data_start": "2026-01-16",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "SC_IDX",
+        "name": "原油",
+        "timeframe": "10m",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 29,
+        "win_rate": 0.2759,
+        "wilson_95_ci": [
+          0.147,
+          0.4572
+        ],
+        "net_pnl": -39786.07,
+        "profit_factor": 0.44,
+        "avg_trade_pnl": -1371.93,
+        "expectancy_atr": -0.273,
+        "total_fees": 2023.34,
+        "total_slippage": 7000.0,
+        "max_drawdown_rmb": 45191.67,
+        "max_drawdown_pct": 0.0904,
+        "ci_width": 0.3102,
+        "reliability_grade": "B_MARGINAL",
+        "data_coverage": {
+          "data_months": 7,
+          "data_sufficient": false,
+          "data_start": "2026-01-16",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "CU_IDX",
+        "name": "沪铜",
+        "timeframe": "10m",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 38,
+        "win_rate": 0.3421,
+        "wilson_95_ci": [
+          0.2121,
+          0.5011
+        ],
+        "net_pnl": -21535.38,
+        "profit_factor": 0.78,
+        "avg_trade_pnl": -566.72,
+        "expectancy_atr": -0.0387,
+        "total_fees": 6510.55,
+        "total_slippage": 12700.0,
+        "max_drawdown_rmb": 47979.41,
+        "max_drawdown_pct": 0.096,
+        "ci_width": 0.289,
+        "reliability_grade": "A_RELIABLE",
+        "data_coverage": {
+          "data_months": 8,
+          "data_sufficient": false,
+          "data_start": "2025-12-05",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "AL_IDX",
+        "name": "沪铝",
+        "timeframe": "10m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 10,
+        "win_rate": 0.5,
+        "wilson_95_ci": [
+          0.2366,
+          0.7634
+        ],
+        "net_pnl": 19912.71,
+        "profit_factor": 2.17,
+        "avg_trade_pnl": 1991.27,
+        "expectancy_atr": 0.5441,
+        "total_fees": 1214.38,
+        "total_slippage": 8550.0,
+        "max_drawdown_rmb": 13772.01,
+        "max_drawdown_pct": 0.0275,
+        "ci_width": 0.5268,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 8,
+          "data_sufficient": false,
+          "data_start": "2025-12-05",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "ZN_IDX",
+        "name": "沪锌",
+        "timeframe": "10m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 14,
+        "win_rate": 0.8571,
+        "wilson_95_ci": [
+          0.6006,
+          0.9599
+        ],
+        "net_pnl": 53051.94,
+        "profit_factor": 4.05,
+        "avg_trade_pnl": 3789.42,
+        "expectancy_atr": 0.9979,
+        "total_fees": 2111.16,
+        "total_slippage": 14450.0,
+        "max_drawdown_rmb": 10916.75,
+        "max_drawdown_pct": 0.0218,
+        "ci_width": 0.3593,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 8,
+          "data_sufficient": false,
+          "data_start": "2025-12-05",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "SN_IDX",
+        "name": "沪锡",
+        "timeframe": "10m",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 36,
+        "win_rate": 0.4167,
+        "wilson_95_ci": [
+          0.2714,
+          0.578
+        ],
+        "net_pnl": 25025.49,
+        "profit_factor": 1.29,
+        "avg_trade_pnl": 695.15,
+        "expectancy_atr": -0.044,
+        "total_fees": 1748.31,
+        "total_slippage": 1480.0,
+        "max_drawdown_rmb": 45350.87,
+        "max_drawdown_pct": 0.0907,
+        "ci_width": 0.3066,
+        "reliability_grade": "A_RELIABLE",
+        "data_coverage": {
+          "data_months": 8,
+          "data_sufficient": false,
+          "data_start": "2025-12-05",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "RB_IDX",
+        "name": "螺纹钢",
+        "timeframe": "10m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 10,
+        "win_rate": 0.8,
+        "wilson_95_ci": [
+          0.4902,
+          0.9433
+        ],
+        "net_pnl": 9986.97,
+        "profit_factor": 1.54,
+        "avg_trade_pnl": 998.7,
+        "expectancy_atr": 0.7038,
+        "total_fees": 5622.92,
+        "total_slippage": 18140.0,
+        "max_drawdown_rmb": 9827.84,
+        "max_drawdown_pct": 0.0197,
+        "ci_width": 0.4532,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 11,
+          "data_sufficient": false,
+          "data_start": "2025-09-08",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "HC_IDX",
+        "name": "热卷",
+        "timeframe": "10m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 7,
+        "win_rate": 0.7143,
+        "wilson_95_ci": [
+          0.3589,
+          0.9178
+        ],
+        "net_pnl": 12525.47,
+        "profit_factor": 2.14,
+        "avg_trade_pnl": 1789.35,
+        "expectancy_atr": 0.8151,
+        "total_fees": 3874.33,
+        "total_slippage": 11860.0,
+        "max_drawdown_rmb": 491.4,
+        "max_drawdown_pct": 0.001,
+        "ci_width": 0.5588,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 11,
+          "data_sufficient": false,
+          "data_start": "2025-09-08",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "I_IDX",
+        "name": "铁矿石",
+        "timeframe": "10m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 5,
+        "win_rate": 0.6,
+        "wilson_95_ci": [
+          0.2307,
+          0.8824
+        ],
+        "net_pnl": -735.94,
+        "profit_factor": 0.93,
+        "avg_trade_pnl": -147.19,
+        "expectancy_atr": 0.5466,
+        "total_fees": 1881.56,
+        "total_slippage": 12400.0,
+        "max_drawdown_rmb": 10812.19,
+        "max_drawdown_pct": 0.0216,
+        "ci_width": 0.6517,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 11,
+          "data_sufficient": false,
+          "data_start": "2025-09-08",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "JM_IDX",
+        "name": "焦煤",
+        "timeframe": "10m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 6,
+        "win_rate": 0.6667,
+        "wilson_95_ci": [
+          0.3,
+          0.9032
+        ],
+        "net_pnl": 11694.83,
+        "profit_factor": 2.18,
+        "avg_trade_pnl": 1949.14,
+        "expectancy_atr": 0.6672,
+        "total_fees": 1831.12,
+        "total_slippage": 4920.0,
+        "max_drawdown_rmb": 8421.52,
+        "max_drawdown_pct": 0.0168,
+        "ci_width": 0.6032,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 11,
+          "data_sufficient": false,
+          "data_start": "2025-09-08",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "J_IDX",
+        "name": "焦炭",
+        "timeframe": "10m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 8,
+        "win_rate": 0.625,
+        "wilson_95_ci": [
+          0.3057,
+          0.8632
+        ],
+        "net_pnl": -16296.51,
+        "profit_factor": 0.52,
+        "avg_trade_pnl": -2037.06,
+        "expectancy_atr": -0.1506,
+        "total_fees": 2701.32,
+        "total_slippage": 5000.0,
+        "max_drawdown_rmb": 16395.19,
+        "max_drawdown_pct": 0.0328,
+        "ci_width": 0.5574,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 11,
+          "data_sufficient": false,
+          "data_start": "2025-09-08",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "MA_IDX",
+        "name": "甲醇",
+        "timeframe": "10m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 12,
+        "win_rate": 0.6667,
+        "wilson_95_ci": [
+          0.3906,
+          0.8619
+        ],
+        "net_pnl": -8603.28,
+        "profit_factor": 0.8,
+        "avg_trade_pnl": -716.94,
+        "expectancy_atr": 0.1168,
+        "total_fees": 2393.15,
+        "total_slippage": 11760.0,
+        "max_drawdown_rmb": 25002.64,
+        "max_drawdown_pct": 0.05,
+        "ci_width": 0.4713,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 11,
+          "data_sufficient": false,
+          "data_start": "2025-09-08",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "TA_IDX",
+        "name": "PTA",
+        "timeframe": "10m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 1,
+        "win_rate": 1.0,
+        "wilson_95_ci": [
+          0.2065,
+          1.0
+        ],
+        "net_pnl": 6928.01,
+        "profit_factor": 99.0,
+        "avg_trade_pnl": 6928.01,
+        "expectancy_atr": 1.5337,
+        "total_fees": 89.44,
+        "total_slippage": 460.0,
+        "max_drawdown_rmb": 0.0,
+        "max_drawdown_pct": 0.0,
+        "ci_width": 0.7935,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 11,
+          "data_sufficient": false,
+          "data_start": "2025-09-08",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "SA_IDX",
+        "name": "纯碱",
+        "timeframe": "10m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 6,
+        "win_rate": 0.6667,
+        "wilson_95_ci": [
+          0.3,
+          0.9032
+        ],
+        "net_pnl": 1767.61,
+        "profit_factor": 1.11,
+        "avg_trade_pnl": 294.6,
+        "expectancy_atr": 0.4647,
+        "total_fees": 1413.1,
+        "total_slippage": 11640.0,
+        "max_drawdown_rmb": 14034.29,
+        "max_drawdown_pct": 0.0281,
+        "ci_width": 0.6032,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 11,
+          "data_sufficient": false,
+          "data_start": "2025-09-08",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "FG_IDX",
+        "name": "玻璃",
+        "timeframe": "10m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 6,
+        "win_rate": 0.1667,
+        "wilson_95_ci": [
+          0.0301,
+          0.5635
+        ],
+        "net_pnl": -21814.29,
+        "profit_factor": 0.18,
+        "avg_trade_pnl": -3635.71,
+        "expectancy_atr": -0.2187,
+        "total_fees": 1519.64,
+        "total_slippage": 14720.0,
+        "max_drawdown_rmb": 19072.4,
+        "max_drawdown_pct": 0.0381,
+        "ci_width": 0.5334,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 11,
+          "data_sufficient": false,
+          "data_start": "2025-09-08",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "M_IDX",
+        "name": "豆粕",
+        "timeframe": "10m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 8,
+        "win_rate": 0.5,
+        "wilson_95_ci": [
+          0.2152,
+          0.7848
+        ],
+        "net_pnl": -7066.73,
+        "profit_factor": 0.7,
+        "avg_trade_pnl": -883.34,
+        "expectancy_atr": 0.2103,
+        "total_fees": 2077.61,
+        "total_slippage": 14260.0,
+        "max_drawdown_rmb": 20108.26,
+        "max_drawdown_pct": 0.0402,
+        "ci_width": 0.5696,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 11,
+          "data_sufficient": false,
+          "data_start": "2025-09-08",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "Y_IDX",
+        "name": "豆油",
+        "timeframe": "10m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 6,
+        "win_rate": 0.5,
+        "wilson_95_ci": [
+          0.1876,
+          0.8124
+        ],
+        "net_pnl": -1838.78,
+        "profit_factor": 0.88,
+        "avg_trade_pnl": -306.46,
+        "expectancy_atr": 0.2575,
+        "total_fees": 1765.72,
+        "total_slippage": 8480.0,
+        "max_drawdown_rmb": 6567.53,
+        "max_drawdown_pct": 0.0131,
+        "ci_width": 0.6248,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 11,
+          "data_sufficient": false,
+          "data_start": "2025-09-08",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "P_IDX",
+        "name": "棕榈油",
+        "timeframe": "10m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 6,
+        "win_rate": 0.5,
+        "wilson_95_ci": [
+          0.1876,
+          0.8124
+        ],
+        "net_pnl": 6942.74,
+        "profit_factor": 1.47,
+        "avg_trade_pnl": 1157.12,
+        "expectancy_atr": 0.3977,
+        "total_fees": 1189.97,
+        "total_slippage": 5160.0,
+        "max_drawdown_rmb": 8857.67,
+        "max_drawdown_pct": 0.0177,
+        "ci_width": 0.6248,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 11,
+          "data_sufficient": false,
+          "data_start": "2025-09-08",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "C_IDX",
+        "name": "玉米",
+        "timeframe": "10m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 4,
+        "win_rate": 0.25,
+        "wilson_95_ci": [
+          0.0456,
+          0.6994
+        ],
+        "net_pnl": -14052.02,
+        "profit_factor": 0.17,
+        "avg_trade_pnl": -3513.01,
+        "expectancy_atr": -0.3827,
+        "total_fees": 704.29,
+        "total_slippage": 8000.0,
+        "max_drawdown_rmb": 10359.12,
+        "max_drawdown_pct": 0.0207,
+        "ci_width": 0.6538,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 11,
+          "data_sufficient": false,
+          "data_start": "2025-09-08",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "CF_IDX",
+        "name": "棉花",
+        "timeframe": "10m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 5,
+        "win_rate": 0.2,
+        "wilson_95_ci": [
+          0.0362,
+          0.6245
+        ],
+        "net_pnl": -19048.48,
+        "profit_factor": 0.24,
+        "avg_trade_pnl": -3809.7,
+        "expectancy_atr": -0.4129,
+        "total_fees": 1287.43,
+        "total_slippage": 7200.0,
+        "max_drawdown_rmb": 6694.1,
+        "max_drawdown_pct": 0.0134,
+        "ci_width": 0.5882,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 11,
+          "data_sufficient": false,
+          "data_start": "2025-09-08",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "SR_IDX",
+        "name": "白糖",
+        "timeframe": "10m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 8,
+        "win_rate": 0.75,
+        "wilson_95_ci": [
+          0.4093,
+          0.9285
+        ],
+        "net_pnl": 2685.18,
+        "profit_factor": 1.17,
+        "avg_trade_pnl": 335.65,
+        "expectancy_atr": 0.3811,
+        "total_fees": 2644.88,
+        "total_slippage": 10000.0,
+        "max_drawdown_rmb": 10168.79,
+        "max_drawdown_pct": 0.0203,
+        "ci_width": 0.5192,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 11,
+          "data_sufficient": false,
+          "data_start": "2025-09-08",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "RU_IDX",
+        "name": "橡胶",
+        "timeframe": "10m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 5,
+        "win_rate": 0.6,
+        "wilson_95_ci": [
+          0.2307,
+          0.8824
+        ],
+        "net_pnl": -2663.22,
+        "profit_factor": 0.84,
+        "avg_trade_pnl": -532.64,
+        "expectancy_atr": 0.1811,
+        "total_fees": 1303.76,
+        "total_slippage": 5200.0,
+        "max_drawdown_rmb": 9629.4,
+        "max_drawdown_pct": 0.0193,
+        "ci_width": 0.6517,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 11,
+          "data_sufficient": false,
+          "data_start": "2025-09-08",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "LC_IDX",
+        "name": "碳酸锂",
+        "timeframe": "10m",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 35,
+        "win_rate": 0.2857,
+        "wilson_95_ci": [
+          0.1633,
+          0.4505
+        ],
+        "net_pnl": 54140.01,
+        "profit_factor": 1.45,
+        "avg_trade_pnl": 1546.86,
+        "expectancy_atr": 0.2886,
+        "total_fees": 3656.89,
+        "total_slippage": 27600.0,
+        "max_drawdown_rmb": 49274.36,
+        "max_drawdown_pct": 0.0985,
+        "ci_width": 0.2873,
+        "reliability_grade": "A_RELIABLE",
+        "data_coverage": {
+          "data_months": 17,
+          "data_sufficient": false,
+          "data_start": "2025-03-20",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "SI_IDX",
+        "name": "工业硅",
+        "timeframe": "10m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 7,
+        "win_rate": 0.8571,
+        "wilson_95_ci": [
+          0.4869,
+          0.9743
+        ],
+        "net_pnl": 26707.81,
+        "profit_factor": 5.08,
+        "avg_trade_pnl": 3815.4,
+        "expectancy_atr": 1.0389,
+        "total_fees": 783.1,
+        "total_slippage": 7550.0,
+        "max_drawdown_rmb": 0.0,
+        "max_drawdown_pct": 0.0,
+        "ci_width": 0.4874,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 17,
+          "data_sufficient": false,
+          "data_start": "2025-03-20",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "AG_IDX",
+        "name": "沪银",
+        "timeframe": "15m",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 33,
+        "win_rate": 0.4848,
+        "wilson_95_ci": [
+          0.325,
+          0.6478
+        ],
+        "net_pnl": 15287.11,
+        "profit_factor": 1.25,
+        "avg_trade_pnl": 463.25,
+        "expectancy_atr": 0.1019,
+        "total_fees": 2030.07,
+        "total_slippage": 2610.0,
+        "max_drawdown_rmb": 23308.19,
+        "max_drawdown_pct": 0.0466,
+        "ci_width": 0.3228,
+        "reliability_grade": "A_RELIABLE",
+        "data_coverage": {
+          "data_months": 11,
+          "data_sufficient": false,
+          "data_start": "2025-09-23",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "AU_IDX",
+        "name": "沪金",
+        "timeframe": "15m",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 35,
+        "win_rate": 0.4286,
+        "wilson_95_ci": [
+          0.2798,
+          0.5914
+        ],
+        "net_pnl": -39487.89,
+        "profit_factor": 0.69,
+        "avg_trade_pnl": -1128.23,
+        "expectancy_atr": -0.1022,
+        "total_fees": 1767.31,
+        "total_slippage": 1800.0,
+        "max_drawdown_rmb": 63670.43,
+        "max_drawdown_pct": 0.1273,
+        "ci_width": 0.3116,
+        "reliability_grade": "A_RELIABLE",
+        "data_coverage": {
+          "data_months": 11,
+          "data_sufficient": false,
+          "data_start": "2025-09-23",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "SC_IDX",
+        "name": "原油",
+        "timeframe": "15m",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 37,
+        "win_rate": 0.2703,
+        "wilson_95_ci": [
+          0.154,
+          0.4298
+        ],
+        "net_pnl": -141221.82,
+        "profit_factor": 0.09,
+        "avg_trade_pnl": -3816.81,
+        "expectancy_atr": -0.897,
+        "total_fees": 3078.33,
+        "total_slippage": 12400.0,
+        "max_drawdown_rmb": 143731.45,
+        "max_drawdown_pct": 0.2875,
+        "ci_width": 0.2758,
+        "reliability_grade": "A_RELIABLE",
+        "data_coverage": {
+          "data_months": 11,
+          "data_sufficient": false,
+          "data_start": "2025-09-23",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "CU_IDX",
+        "name": "沪铜",
+        "timeframe": "15m",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 48,
+        "win_rate": 0.2917,
+        "wilson_95_ci": [
+          0.1824,
+          0.4318
+        ],
+        "net_pnl": -45614.55,
+        "profit_factor": 0.68,
+        "avg_trade_pnl": -950.3,
+        "expectancy_atr": -0.2431,
+        "total_fees": 7666.32,
+        "total_slippage": 16600.0,
+        "max_drawdown_rmb": 67009.01,
+        "max_drawdown_pct": 0.134,
+        "ci_width": 0.2494,
+        "reliability_grade": "A_RELIABLE",
+        "data_coverage": {
+          "data_months": 13,
+          "data_sufficient": false,
+          "data_start": "2025-07-25",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "AL_IDX",
+        "name": "沪铝",
+        "timeframe": "15m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 13,
+        "win_rate": 0.6154,
+        "wilson_95_ci": [
+          0.3552,
+          0.8229
+        ],
+        "net_pnl": -6572.89,
+        "profit_factor": 0.83,
+        "avg_trade_pnl": -505.61,
+        "expectancy_atr": 0.1422,
+        "total_fees": 1886.62,
+        "total_slippage": 13900.0,
+        "max_drawdown_rmb": 27839.24,
+        "max_drawdown_pct": 0.0557,
+        "ci_width": 0.4677,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 13,
+          "data_sufficient": false,
+          "data_start": "2025-07-25",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "ZN_IDX",
+        "name": "沪锌",
+        "timeframe": "15m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 9,
+        "win_rate": 0.5556,
+        "wilson_95_ci": [
+          0.2667,
+          0.8112
+        ],
+        "net_pnl": 2700.12,
+        "profit_factor": 1.17,
+        "avg_trade_pnl": 300.01,
+        "expectancy_atr": 0.3029,
+        "total_fees": 1303.29,
+        "total_slippage": 9400.0,
+        "max_drawdown_rmb": 12394.05,
+        "max_drawdown_pct": 0.0248,
+        "ci_width": 0.5446,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 13,
+          "data_sufficient": false,
+          "data_start": "2025-07-25",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "SN_IDX",
+        "name": "沪锡",
+        "timeframe": "15m",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 29,
+        "win_rate": 0.3448,
+        "wilson_95_ci": [
+          0.1994,
+          0.5265
+        ],
+        "net_pnl": -18472.67,
+        "profit_factor": 0.72,
+        "avg_trade_pnl": -636.99,
+        "expectancy_atr": -0.2247,
+        "total_fees": 1735.89,
+        "total_slippage": 1820.0,
+        "max_drawdown_rmb": 30625.71,
+        "max_drawdown_pct": 0.0613,
+        "ci_width": 0.3271,
+        "reliability_grade": "B_MARGINAL",
+        "data_coverage": {
+          "data_months": 13,
+          "data_sufficient": false,
+          "data_start": "2025-07-25",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "RB_IDX",
+        "name": "螺纹钢",
+        "timeframe": "15m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 5,
+        "win_rate": 0.6,
+        "wilson_95_ci": [
+          0.2307,
+          0.8824
+        ],
+        "net_pnl": 3005.5,
+        "profit_factor": 1.38,
+        "avg_trade_pnl": 601.1,
+        "expectancy_atr": 0.5369,
+        "total_fees": 2339.96,
+        "total_slippage": 7660.0,
+        "max_drawdown_rmb": 7997.65,
+        "max_drawdown_pct": 0.016,
+        "ci_width": 0.6517,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 17,
+          "data_sufficient": false,
+          "data_start": "2025-03-17",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "HC_IDX",
+        "name": "热卷",
+        "timeframe": "15m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 4,
+        "win_rate": 0.25,
+        "wilson_95_ci": [
+          0.0456,
+          0.6994
+        ],
+        "net_pnl": -20034.54,
+        "profit_factor": 0.09,
+        "avg_trade_pnl": -5008.63,
+        "expectancy_atr": -0.6111,
+        "total_fees": 1950.51,
+        "total_slippage": 6020.0,
+        "max_drawdown_rmb": 14331.44,
+        "max_drawdown_pct": 0.0287,
+        "ci_width": 0.6538,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 17,
+          "data_sufficient": false,
+          "data_start": "2025-03-17",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "I_IDX",
+        "name": "铁矿石",
+        "timeframe": "15m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 4,
+        "win_rate": 0.5,
+        "wilson_95_ci": [
+          0.15,
+          0.85
+        ],
+        "net_pnl": -8257.2,
+        "profit_factor": 0.46,
+        "avg_trade_pnl": -2064.3,
+        "expectancy_atr": 0.0371,
+        "total_fees": 1157.2,
+        "total_slippage": 7400.0,
+        "max_drawdown_rmb": 1650.12,
+        "max_drawdown_pct": 0.0033,
+        "ci_width": 0.6999,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 17,
+          "data_sufficient": false,
+          "data_start": "2025-03-17",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "JM_IDX",
+        "name": "焦煤",
+        "timeframe": "15m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 9,
+        "win_rate": 0.8889,
+        "wilson_95_ci": [
+          0.565,
+          0.9801
+        ],
+        "net_pnl": 26485.86,
+        "profit_factor": 3.07,
+        "avg_trade_pnl": 2942.87,
+        "expectancy_atr": 0.8394,
+        "total_fees": 1995.39,
+        "total_slippage": 5760.0,
+        "max_drawdown_rmb": 12809.61,
+        "max_drawdown_pct": 0.0256,
+        "ci_width": 0.4151,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 17,
+          "data_sufficient": false,
+          "data_start": "2025-03-17",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "J_IDX",
+        "name": "焦炭",
+        "timeframe": "15m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 7,
+        "win_rate": 0.7143,
+        "wilson_95_ci": [
+          0.3589,
+          0.9178
+        ],
+        "net_pnl": 6463.93,
+        "profit_factor": 1.36,
+        "avg_trade_pnl": 923.42,
+        "expectancy_atr": 0.3903,
+        "total_fees": 1795.0,
+        "total_slippage": 3500.0,
+        "max_drawdown_rmb": 11253.36,
+        "max_drawdown_pct": 0.0225,
+        "ci_width": 0.5588,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 17,
+          "data_sufficient": false,
+          "data_start": "2025-03-17",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "MA_IDX",
+        "name": "甲醇",
+        "timeframe": "15m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 5,
+        "win_rate": 0.6,
+        "wilson_95_ci": [
+          0.2307,
+          0.8824
+        ],
+        "net_pnl": 28049.08,
+        "profit_factor": 15.99,
+        "avg_trade_pnl": 5609.82,
+        "expectancy_atr": 1.0962,
+        "total_fees": 722.0,
+        "total_slippage": 3620.0,
+        "max_drawdown_rmb": 1870.79,
+        "max_drawdown_pct": 0.0037,
+        "ci_width": 0.6517,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 17,
+          "data_sufficient": false,
+          "data_start": "2025-03-17",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "TA_IDX",
+        "name": "PTA",
+        "timeframe": "15m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 14,
+        "win_rate": 0.5714,
+        "wilson_95_ci": [
+          0.3259,
+          0.7862
+        ],
+        "net_pnl": -10160.21,
+        "profit_factor": 0.78,
+        "avg_trade_pnl": -725.73,
+        "expectancy_atr": 0.0724,
+        "total_fees": 2027.15,
+        "total_slippage": 13500.0,
+        "max_drawdown_rmb": 32600.35,
+        "max_drawdown_pct": 0.0652,
+        "ci_width": 0.4603,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 17,
+          "data_sufficient": false,
+          "data_start": "2025-03-17",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "SA_IDX",
+        "name": "纯碱",
+        "timeframe": "15m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 7,
+        "win_rate": 0.7143,
+        "wilson_95_ci": [
+          0.3589,
+          0.9178
+        ],
+        "net_pnl": 4018.25,
+        "profit_factor": 1.19,
+        "avg_trade_pnl": 574.04,
+        "expectancy_atr": 0.5228,
+        "total_fees": 1441.5,
+        "total_slippage": 12160.0,
+        "max_drawdown_rmb": 14376.58,
+        "max_drawdown_pct": 0.0288,
+        "ci_width": 0.5588,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 17,
+          "data_sufficient": false,
+          "data_start": "2025-03-17",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "FG_IDX",
+        "name": "玻璃",
+        "timeframe": "15m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 9,
+        "win_rate": 0.4444,
+        "wilson_95_ci": [
+          0.1888,
+          0.7333
+        ],
+        "net_pnl": 11931.75,
+        "profit_factor": 1.82,
+        "avg_trade_pnl": 1325.75,
+        "expectancy_atr": 0.6066,
+        "total_fees": 1427.76,
+        "total_slippage": 13240.0,
+        "max_drawdown_rmb": 12421.94,
+        "max_drawdown_pct": 0.0248,
+        "ci_width": 0.5446,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 17,
+          "data_sufficient": false,
+          "data_start": "2025-03-17",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "M_IDX",
+        "name": "豆粕",
+        "timeframe": "15m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 8,
+        "win_rate": 0.5,
+        "wilson_95_ci": [
+          0.2152,
+          0.7848
+        ],
+        "net_pnl": -8566.37,
+        "profit_factor": 0.7,
+        "avg_trade_pnl": -1070.8,
+        "expectancy_atr": 0.0677,
+        "total_fees": 1602.22,
+        "total_slippage": 10720.0,
+        "max_drawdown_rmb": 22016.22,
+        "max_drawdown_pct": 0.044,
+        "ci_width": 0.5696,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 17,
+          "data_sufficient": false,
+          "data_start": "2025-03-17",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "Y_IDX",
+        "name": "豆油",
+        "timeframe": "15m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 14,
+        "win_rate": 0.7857,
+        "wilson_95_ci": [
+          0.5241,
+          0.9243
+        ],
+        "net_pnl": 48028.36,
+        "profit_factor": 4.54,
+        "avg_trade_pnl": 3430.6,
+        "expectancy_atr": 0.9145,
+        "total_fees": 2963.25,
+        "total_slippage": 14280.0,
+        "max_drawdown_rmb": 7538.06,
+        "max_drawdown_pct": 0.0151,
+        "ci_width": 0.4002,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 17,
+          "data_sufficient": false,
+          "data_start": "2025-03-17",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "P_IDX",
+        "name": "棕榈油",
+        "timeframe": "15m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 15,
+        "win_rate": 0.7333,
+        "wilson_95_ci": [
+          0.4805,
+          0.891
+        ],
+        "net_pnl": 20044.77,
+        "profit_factor": 2.21,
+        "avg_trade_pnl": 1336.32,
+        "expectancy_atr": 0.4466,
+        "total_fees": 2294.48,
+        "total_slippage": 10320.0,
+        "max_drawdown_rmb": 8058.94,
+        "max_drawdown_pct": 0.0161,
+        "ci_width": 0.4105,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 17,
+          "data_sufficient": false,
+          "data_start": "2025-03-17",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "C_IDX",
+        "name": "玉米",
+        "timeframe": "15m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 3,
+        "win_rate": 1.0,
+        "wilson_95_ci": [
+          0.4385,
+          1.0
+        ],
+        "net_pnl": 10277.97,
+        "profit_factor": 99.0,
+        "avg_trade_pnl": 3425.99,
+        "expectancy_atr": 1.3199,
+        "total_fees": 557.65,
+        "total_slippage": 6000.0,
+        "max_drawdown_rmb": 0.0,
+        "max_drawdown_pct": 0.0,
+        "ci_width": 0.5615,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 17,
+          "data_sufficient": false,
+          "data_start": "2025-03-17",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "CF_IDX",
+        "name": "棉花",
+        "timeframe": "15m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 3,
+        "win_rate": 1.0,
+        "wilson_95_ci": [
+          0.4385,
+          1.0
+        ],
+        "net_pnl": 18229.53,
+        "profit_factor": 99.0,
+        "avg_trade_pnl": 6076.51,
+        "expectancy_atr": 1.519,
+        "total_fees": 585.92,
+        "total_slippage": 3400.0,
+        "max_drawdown_rmb": 0.0,
+        "max_drawdown_pct": 0.0,
+        "ci_width": 0.5615,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 17,
+          "data_sufficient": false,
+          "data_start": "2025-03-17",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "SR_IDX",
+        "name": "白糖",
+        "timeframe": "15m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 10,
+        "win_rate": 0.7,
+        "wilson_95_ci": [
+          0.3968,
+          0.8922
+        ],
+        "net_pnl": -2381.94,
+        "profit_factor": 0.9,
+        "avg_trade_pnl": -238.19,
+        "expectancy_atr": 0.211,
+        "total_fees": 2621.97,
+        "total_slippage": 9280.0,
+        "max_drawdown_rmb": 17226.57,
+        "max_drawdown_pct": 0.0345,
+        "ci_width": 0.4954,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 17,
+          "data_sufficient": false,
+          "data_start": "2025-03-17",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "RU_IDX",
+        "name": "橡胶",
+        "timeframe": "15m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 5,
+        "win_rate": 0.6,
+        "wilson_95_ci": [
+          0.2307,
+          0.8824
+        ],
+        "net_pnl": -1750.35,
+        "profit_factor": 0.87,
+        "avg_trade_pnl": -350.07,
+        "expectancy_atr": 0.1818,
+        "total_fees": 1096.76,
+        "total_slippage": 4500.0,
+        "max_drawdown_rmb": 13990.29,
+        "max_drawdown_pct": 0.028,
+        "ci_width": 0.6517,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 17,
+          "data_sufficient": false,
+          "data_start": "2025-03-17",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "LC_IDX",
+        "name": "碳酸锂",
+        "timeframe": "15m",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 33,
+        "win_rate": 0.5455,
+        "wilson_95_ci": [
+          0.3799,
+          0.7016
+        ],
+        "net_pnl": 75244.6,
+        "profit_factor": 2.31,
+        "avg_trade_pnl": 2280.14,
+        "expectancy_atr": 0.5636,
+        "total_fees": 2616.28,
+        "total_slippage": 18000.0,
+        "max_drawdown_rmb": 18378.87,
+        "max_drawdown_pct": 0.0368,
+        "ci_width": 0.3217,
+        "reliability_grade": "A_RELIABLE",
+        "data_coverage": {
+          "data_months": 26,
+          "data_sufficient": true,
+          "data_start": "2024-06-13",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "SI_IDX",
+        "name": "工业硅",
+        "timeframe": "15m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 2,
+        "win_rate": 1.0,
+        "wilson_95_ci": [
+          0.3424,
+          1.0
+        ],
+        "net_pnl": 8821.82,
+        "profit_factor": 99.0,
+        "avg_trade_pnl": 4410.91,
+        "expectancy_atr": 1.1312,
+        "total_fees": 228.18,
+        "total_slippage": 1950.0,
+        "max_drawdown_rmb": 0.0,
+        "max_drawdown_pct": 0.0,
+        "ci_width": 0.6576,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 26,
+          "data_sufficient": true,
+          "data_start": "2024-06-13",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "AG_IDX",
+        "name": "沪银",
+        "timeframe": "30m",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 28,
+        "win_rate": 0.5,
+        "wilson_95_ci": [
+          0.3263,
+          0.6737
+        ],
+        "net_pnl": 73693.13,
+        "profit_factor": 2.49,
+        "avg_trade_pnl": 2631.9,
+        "expectancy_atr": 0.475,
+        "total_fees": 2067.23,
+        "total_slippage": 3960.0,
+        "max_drawdown_rmb": 18463.32,
+        "max_drawdown_pct": 0.0369,
+        "ci_width": 0.3473,
+        "reliability_grade": "B_MARGINAL",
+        "data_coverage": {
+          "data_months": 21,
+          "data_sufficient": false,
+          "data_start": "2024-11-19",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "AU_IDX",
+        "name": "沪金",
+        "timeframe": "30m",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 29,
+        "win_rate": 0.5172,
+        "wilson_95_ci": [
+          0.3443,
+          0.6861
+        ],
+        "net_pnl": -12636.03,
+        "profit_factor": 0.84,
+        "avg_trade_pnl": -435.73,
+        "expectancy_atr": -0.015,
+        "total_fees": 1405.18,
+        "total_slippage": 1720.0,
+        "max_drawdown_rmb": 29614.2,
+        "max_drawdown_pct": 0.0592,
+        "ci_width": 0.3418,
+        "reliability_grade": "B_MARGINAL",
+        "data_coverage": {
+          "data_months": 21,
+          "data_sufficient": false,
+          "data_start": "2024-11-19",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "SC_IDX",
+        "name": "原油",
+        "timeframe": "30m",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 33,
+        "win_rate": 0.3333,
+        "wilson_95_ci": [
+          0.1975,
+          0.5039
+        ],
+        "net_pnl": 2134.77,
+        "profit_factor": 1.03,
+        "avg_trade_pnl": 64.69,
+        "expectancy_atr": 0.1199,
+        "total_fees": 2388.11,
+        "total_slippage": 9400.0,
+        "max_drawdown_rmb": 38929.4,
+        "max_drawdown_pct": 0.0779,
+        "ci_width": 0.3064,
+        "reliability_grade": "A_RELIABLE",
+        "data_coverage": {
+          "data_months": 21,
+          "data_sufficient": false,
+          "data_start": "2024-11-19",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "CU_IDX",
+        "name": "沪铜",
+        "timeframe": "30m",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 30,
+        "win_rate": 0.2333,
+        "wilson_95_ci": [
+          0.1179,
+          0.4093
+        ],
+        "net_pnl": -79806.59,
+        "profit_factor": 0.29,
+        "avg_trade_pnl": -2660.22,
+        "expectancy_atr": -0.5497,
+        "total_fees": 4314.1,
+        "total_slippage": 10600.0,
+        "max_drawdown_rmb": 87252.74,
+        "max_drawdown_pct": 0.1745,
+        "ci_width": 0.2914,
+        "reliability_grade": "A_RELIABLE",
+        "data_coverage": {
+          "data_months": 25,
+          "data_sufficient": true,
+          "data_start": "2024-07-22",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "AL_IDX",
+        "name": "沪铝",
+        "timeframe": "30m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 12,
+        "win_rate": 0.6667,
+        "wilson_95_ci": [
+          0.3906,
+          0.8619
+        ],
+        "net_pnl": 21843.63,
+        "profit_factor": 2.64,
+        "avg_trade_pnl": 1820.3,
+        "expectancy_atr": 0.5555,
+        "total_fees": 1214.71,
+        "total_slippage": 9300.0,
+        "max_drawdown_rmb": 11174.36,
+        "max_drawdown_pct": 0.0223,
+        "ci_width": 0.4713,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 25,
+          "data_sufficient": true,
+          "data_start": "2024-07-22",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "ZN_IDX",
+        "name": "沪锌",
+        "timeframe": "30m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 10,
+        "win_rate": 0.8,
+        "wilson_95_ci": [
+          0.4902,
+          0.9433
+        ],
+        "net_pnl": 25267.24,
+        "profit_factor": 3.03,
+        "avg_trade_pnl": 2526.72,
+        "expectancy_atr": 0.684,
+        "total_fees": 897.54,
+        "total_slippage": 6450.0,
+        "max_drawdown_rmb": 6879.45,
+        "max_drawdown_pct": 0.0138,
+        "ci_width": 0.4532,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 25,
+          "data_sufficient": true,
+          "data_start": "2024-07-22",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "SN_IDX",
+        "name": "沪锡",
+        "timeframe": "30m",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 24,
+        "win_rate": 0.375,
+        "wilson_95_ci": [
+          0.2116,
+          0.5729
+        ],
+        "net_pnl": -33763.76,
+        "profit_factor": 0.47,
+        "avg_trade_pnl": -1406.82,
+        "expectancy_atr": -0.3196,
+        "total_fees": 1124.13,
+        "total_slippage": 1300.0,
+        "max_drawdown_rmb": 48087.53,
+        "max_drawdown_pct": 0.0962,
+        "ci_width": 0.3613,
+        "reliability_grade": "B_MARGINAL",
+        "data_coverage": {
+          "data_months": 25,
+          "data_sufficient": true,
+          "data_start": "2024-07-22",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "RB_IDX",
+        "name": "螺纹钢",
+        "timeframe": "30m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 5,
+        "win_rate": 0.6,
+        "wilson_95_ci": [
+          0.2307,
+          0.8824
+        ],
+        "net_pnl": 8133.64,
+        "profit_factor": 3.0,
+        "avg_trade_pnl": 1626.73,
+        "expectancy_atr": 0.4908,
+        "total_fees": 932.4,
+        "total_slippage": 2900.0,
+        "max_drawdown_rmb": 4075.18,
+        "max_drawdown_pct": 0.0082,
+        "ci_width": 0.6517,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 33,
+          "data_sufficient": true,
+          "data_start": "2023-11-14",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "HC_IDX",
+        "name": "热卷",
+        "timeframe": "30m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 6,
+        "win_rate": 0.6667,
+        "wilson_95_ci": [
+          0.3,
+          0.9032
+        ],
+        "net_pnl": 8328.86,
+        "profit_factor": 2.46,
+        "avg_trade_pnl": 1388.14,
+        "expectancy_atr": 0.4966,
+        "total_fees": 1629.2,
+        "total_slippage": 4740.0,
+        "max_drawdown_rmb": 5368.19,
+        "max_drawdown_pct": 0.0107,
+        "ci_width": 0.6032,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 33,
+          "data_sufficient": true,
+          "data_start": "2023-11-14",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "I_IDX",
+        "name": "铁矿石",
+        "timeframe": "30m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 9,
+        "win_rate": 0.8889,
+        "wilson_95_ci": [
+          0.565,
+          0.9801
+        ],
+        "net_pnl": 35766.12,
+        "profit_factor": 24.91,
+        "avg_trade_pnl": 3974.01,
+        "expectancy_atr": 1.0957,
+        "total_fees": 1647.72,
+        "total_slippage": 10400.0,
+        "max_drawdown_rmb": 1495.93,
+        "max_drawdown_pct": 0.003,
+        "ci_width": 0.4151,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 33,
+          "data_sufficient": true,
+          "data_start": "2023-11-14",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "JM_IDX",
+        "name": "焦煤",
+        "timeframe": "30m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 12,
+        "win_rate": 0.75,
+        "wilson_95_ci": [
+          0.4677,
+          0.9111
+        ],
+        "net_pnl": 10910.07,
+        "profit_factor": 1.41,
+        "avg_trade_pnl": 909.17,
+        "expectancy_atr": 0.3038,
+        "total_fees": 1712.76,
+        "total_slippage": 5100.0,
+        "max_drawdown_rmb": 11068.74,
+        "max_drawdown_pct": 0.0221,
+        "ci_width": 0.4434,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 33,
+          "data_sufficient": true,
+          "data_start": "2023-11-14",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "J_IDX",
+        "name": "焦炭",
+        "timeframe": "30m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 7,
+        "win_rate": 0.8571,
+        "wilson_95_ci": [
+          0.4869,
+          0.9743
+        ],
+        "net_pnl": 25781.46,
+        "profit_factor": 5.59,
+        "avg_trade_pnl": 3683.07,
+        "expectancy_atr": 0.978,
+        "total_fees": 1205.3,
+        "total_slippage": 2300.0,
+        "max_drawdown_rmb": 5615.69,
+        "max_drawdown_pct": 0.0112,
+        "ci_width": 0.4874,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 33,
+          "data_sufficient": true,
+          "data_start": "2023-11-14",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "MA_IDX",
+        "name": "甲醇",
+        "timeframe": "30m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 6,
+        "win_rate": 0.8333,
+        "wilson_95_ci": [
+          0.4365,
+          0.9699
+        ],
+        "net_pnl": 16189.39,
+        "profit_factor": 2.46,
+        "avg_trade_pnl": 2698.23,
+        "expectancy_atr": 0.7445,
+        "total_fees": 945.25,
+        "total_slippage": 4720.0,
+        "max_drawdown_rmb": 0.0,
+        "max_drawdown_pct": 0.0,
+        "ci_width": 0.5334,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 33,
+          "data_sufficient": true,
+          "data_start": "2023-11-14",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "TA_IDX",
+        "name": "PTA",
+        "timeframe": "30m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 5,
+        "win_rate": 1.0,
+        "wilson_95_ci": [
+          0.5655,
+          1.0
+        ],
+        "net_pnl": 16087.83,
+        "profit_factor": 99.0,
+        "avg_trade_pnl": 3217.57,
+        "expectancy_atr": 0.8291,
+        "total_fees": 602.74,
+        "total_slippage": 3760.0,
+        "max_drawdown_rmb": 0.0,
+        "max_drawdown_pct": 0.0,
+        "ci_width": 0.4345,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 33,
+          "data_sufficient": true,
+          "data_start": "2023-11-14",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "SA_IDX",
+        "name": "纯碱",
+        "timeframe": "30m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 7,
+        "win_rate": 0.2857,
+        "wilson_95_ci": [
+          0.0822,
+          0.6411
+        ],
+        "net_pnl": -36518.95,
+        "profit_factor": 0.16,
+        "avg_trade_pnl": -5216.99,
+        "expectancy_atr": -0.8291,
+        "total_fees": 944.02,
+        "total_slippage": 6920.0,
+        "max_drawdown_rmb": 43515.46,
+        "max_drawdown_pct": 0.087,
+        "ci_width": 0.5588,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 33,
+          "data_sufficient": true,
+          "data_start": "2023-11-14",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "FG_IDX",
+        "name": "玻璃",
+        "timeframe": "30m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 5,
+        "win_rate": 0.4,
+        "wilson_95_ci": [
+          0.1176,
+          0.7693
+        ],
+        "net_pnl": -7947.65,
+        "profit_factor": 0.59,
+        "avg_trade_pnl": -1589.53,
+        "expectancy_atr": -0.1495,
+        "total_fees": 586.52,
+        "total_slippage": 4360.0,
+        "max_drawdown_rmb": 19541.31,
+        "max_drawdown_pct": 0.0391,
+        "ci_width": 0.6517,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 33,
+          "data_sufficient": true,
+          "data_start": "2023-11-14",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "M_IDX",
+        "name": "豆粕",
+        "timeframe": "30m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 6,
+        "win_rate": 0.8333,
+        "wilson_95_ci": [
+          0.4365,
+          0.9699
+        ],
+        "net_pnl": 11832.28,
+        "profit_factor": 3.03,
+        "avg_trade_pnl": 1972.05,
+        "expectancy_atr": 0.5773,
+        "total_fees": 689.08,
+        "total_slippage": 4360.0,
+        "max_drawdown_rmb": 5816.76,
+        "max_drawdown_pct": 0.0116,
+        "ci_width": 0.5334,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 33,
+          "data_sufficient": true,
+          "data_start": "2023-11-14",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "Y_IDX",
+        "name": "豆油",
+        "timeframe": "30m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 5,
+        "win_rate": 1.0,
+        "wilson_95_ci": [
+          0.5655,
+          1.0
+        ],
+        "net_pnl": 30713.97,
+        "profit_factor": 99.0,
+        "avg_trade_pnl": 6142.79,
+        "expectancy_atr": 1.4016,
+        "total_fees": 651.83,
+        "total_slippage": 3160.0,
+        "max_drawdown_rmb": 0.0,
+        "max_drawdown_pct": 0.0,
+        "ci_width": 0.4345,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 33,
+          "data_sufficient": true,
+          "data_start": "2023-11-14",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "P_IDX",
+        "name": "棕榈油",
+        "timeframe": "30m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 12,
+        "win_rate": 0.6667,
+        "wilson_95_ci": [
+          0.3906,
+          0.8619
+        ],
+        "net_pnl": 3522.71,
+        "profit_factor": 1.12,
+        "avg_trade_pnl": 293.56,
+        "expectancy_atr": 0.1712,
+        "total_fees": 1129.11,
+        "total_slippage": 5440.0,
+        "max_drawdown_rmb": 12293.4,
+        "max_drawdown_pct": 0.0246,
+        "ci_width": 0.4713,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 33,
+          "data_sufficient": true,
+          "data_start": "2023-11-14",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "C_IDX",
+        "name": "玉米",
+        "timeframe": "30m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 8,
+        "win_rate": 0.875,
+        "wilson_95_ci": [
+          0.5291,
+          0.9776
+        ],
+        "net_pnl": 44072.67,
+        "profit_factor": 11.77,
+        "avg_trade_pnl": 5509.08,
+        "expectancy_atr": 1.4356,
+        "total_fees": 1225.99,
+        "total_slippage": 13220.0,
+        "max_drawdown_rmb": 4090.71,
+        "max_drawdown_pct": 0.0082,
+        "ci_width": 0.4485,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 33,
+          "data_sufficient": true,
+          "data_start": "2023-11-14",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "CF_IDX",
+        "name": "棉花",
+        "timeframe": "30m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 12,
+        "win_rate": 0.8333,
+        "wilson_95_ci": [
+          0.552,
+          0.953
+        ],
+        "net_pnl": 32487.31,
+        "profit_factor": 5.61,
+        "avg_trade_pnl": 2707.28,
+        "expectancy_atr": 0.7871,
+        "total_fees": 2100.37,
+        "total_slippage": 11700.0,
+        "max_drawdown_rmb": 6046.31,
+        "max_drawdown_pct": 0.0121,
+        "ci_width": 0.4011,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 33,
+          "data_sufficient": true,
+          "data_start": "2023-11-14",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "SR_IDX",
+        "name": "白糖",
+        "timeframe": "30m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 8,
+        "win_rate": 0.625,
+        "wilson_95_ci": [
+          0.3057,
+          0.8632
+        ],
+        "net_pnl": 9086.53,
+        "profit_factor": 1.5,
+        "avg_trade_pnl": 1135.82,
+        "expectancy_atr": 0.3962,
+        "total_fees": 1517.39,
+        "total_slippage": 5480.0,
+        "max_drawdown_rmb": 18331.2,
+        "max_drawdown_pct": 0.0367,
+        "ci_width": 0.5574,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 33,
+          "data_sufficient": true,
+          "data_start": "2023-11-14",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "RU_IDX",
+        "name": "橡胶",
+        "timeframe": "30m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 9,
+        "win_rate": 0.4444,
+        "wilson_95_ci": [
+          0.1888,
+          0.7333
+        ],
+        "net_pnl": -18616.7,
+        "profit_factor": 0.52,
+        "avg_trade_pnl": -2068.52,
+        "expectancy_atr": -0.3037,
+        "total_fees": 1285.69,
+        "total_slippage": 5200.0,
+        "max_drawdown_rmb": 19683.99,
+        "max_drawdown_pct": 0.0394,
+        "ci_width": 0.5446,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 33,
+          "data_sufficient": true,
+          "data_start": "2023-11-14",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "LC_IDX",
+        "name": "碳酸锂",
+        "timeframe": "30m",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 22,
+        "win_rate": 0.4091,
+        "wilson_95_ci": [
+          0.2326,
+          0.6127
+        ],
+        "net_pnl": -31269.41,
+        "profit_factor": 0.25,
+        "avg_trade_pnl": -1421.34,
+        "expectancy_atr": -0.2819,
+        "total_fees": 1145.95,
+        "total_slippage": 7800.0,
+        "max_drawdown_rmb": 30778.92,
+        "max_drawdown_pct": 0.0616,
+        "ci_width": 0.3801,
+        "reliability_grade": "B_MARGINAL",
+        "data_coverage": {
+          "data_months": 37,
+          "data_sufficient": true,
+          "data_start": "2023-07-21",
+          "data_end": "2026-08-24"
+        }
+      },
+      {
+        "symbol": "SI_IDX",
+        "name": "工业硅",
+        "timeframe": "30m",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 9,
+        "win_rate": 0.4444,
+        "wilson_95_ci": [
+          0.1888,
+          0.7333
+        ],
+        "net_pnl": -6114.62,
+        "profit_factor": 0.8,
+        "avg_trade_pnl": -679.4,
+        "expectancy_atr": 0.0157,
+        "total_fees": 712.71,
+        "total_slippage": 5700.0,
+        "max_drawdown_rmb": 29207.57,
+        "max_drawdown_pct": 0.0584,
+        "ci_width": 0.5446,
+        "reliability_grade": "F_UNRELIABLE",
+        "data_coverage": {
+          "data_months": 44,
+          "data_sufficient": true,
+          "data_start": "2022-12-23",
+          "data_end": "2026-08-24"
+        }
+      }
+    ]
+  },
+  "track3_synthetic_stress_sandbox": {
+    "description": "严格物理隔离四大宏观机制极限抗压实测 (暴涨/暴跌/横盘/洗盘 100,000+ Bar)",
+    "total_trades": 148,
+    "net_pnl_rmb": -58958.06,
+    "reliability": {
+      "reliable_count": 2,
+      "marginal_count": 0,
+      "unreliable_count": 4,
+      "reliable_trades": 107,
+      "reliable_net_pnl": -223281.0,
+      "raw_total_trades": 148,
+      "raw_total_net_pnl": -58958.05,
+      "short_data_symbols": [],
+      "verdict": "✅ 2 个可靠子策略 | 可靠组合净利: -223,281.00 RMB (亏损)"
+    },
+    "summaries": [
+      {
+        "symbol": "CU_IDX",
+        "name": "沪铜",
+        "timeframe": "15m_SYN",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 62,
+        "win_rate": 0.4355,
+        "wilson_95_ci": [
+          0.3194,
+          0.5591
+        ],
+        "net_pnl": -127286.21,
+        "profit_factor": 0.16,
+        "avg_trade_pnl": -2053.0,
+        "expectancy_atr": -0.4328,
+        "total_fees": 2578.28,
+        "total_slippage": 8400.0,
+        "max_drawdown_rmb": 130104.21,
+        "max_drawdown_pct": 0.2602,
+        "ci_width": 0.2396,
+        "reliability_grade": "A_RELIABLE"
+      },
+      {
+        "symbol": "AG_IDX",
+        "name": "沪银",
+        "timeframe": "15m_SYN",
+        "mode": "MOMENTUM_ONLY",
+        "trade_count": 45,
+        "win_rate": 0.3778,
+        "wilson_95_ci": [
+          0.2511,
+          0.5237
+        ],
+        "net_pnl": -95994.79,
+        "profit_factor": 0.22,
+        "avg_trade_pnl": -2133.22,
+        "expectancy_atr": -0.5526,
+        "total_fees": 1846.01,
+        "total_slippage": 6510.0,
+        "max_drawdown_rmb": 95647.69,
+        "max_drawdown_pct": 0.1913,
+        "ci_width": 0.2726,
+        "reliability_grade": "A_RELIABLE"
+      },
+      {
+        "symbol": "RB_IDX",
+        "name": "螺纹钢",
+        "timeframe": "15m_SYN",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 10,
+        "win_rate": 0.7,
+        "wilson_95_ci": [
+          0.3968,
+          0.8922
+        ],
+        "net_pnl": 24836.77,
+        "profit_factor": 2.57,
+        "avg_trade_pnl": 2483.68,
+        "expectancy_atr": 0.5993,
+        "total_fees": 1047.23,
+        "total_slippage": 3840.0,
+        "max_drawdown_rmb": 5220.1,
+        "max_drawdown_pct": 0.0104,
+        "ci_width": 0.4954,
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      {
+        "symbol": "TA_IDX",
+        "name": "PTA",
+        "timeframe": "15m_SYN",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 9,
+        "win_rate": 0.8889,
+        "wilson_95_ci": [
+          0.565,
+          0.9801
+        ],
+        "net_pnl": 46559.83,
+        "profit_factor": 65.08,
+        "avg_trade_pnl": 5173.31,
+        "expectancy_atr": 1.1546,
+        "total_fees": 576.9,
+        "total_slippage": 4660.0,
+        "max_drawdown_rmb": 0.0,
+        "max_drawdown_pct": 0.0,
+        "ci_width": 0.4151,
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      {
+        "symbol": "M_IDX",
+        "name": "豆粕",
+        "timeframe": "15m_SYN",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 11,
+        "win_rate": 1.0,
+        "wilson_95_ci": [
+          0.7412,
+          1.0
+        ],
+        "net_pnl": 53356.82,
+        "profit_factor": 99.0,
+        "avg_trade_pnl": 4850.62,
+        "expectancy_atr": 1.0899,
+        "total_fees": 618.12,
+        "total_slippage": 2280.0,
+        "max_drawdown_rmb": 0.0,
+        "max_drawdown_pct": 0.0,
+        "ci_width": 0.2588,
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      {
+        "symbol": "J_IDX",
+        "name": "焦炭",
+        "timeframe": "15m_SYN",
+        "mode": "REVERSION_ONLY",
+        "trade_count": 11,
+        "win_rate": 0.6364,
+        "wilson_95_ci": [
+          0.3538,
+          0.8483
+        ],
+        "net_pnl": 39569.53,
+        "profit_factor": 2.31,
+        "avg_trade_pnl": 3597.23,
+        "expectancy_atr": 0.3263,
+        "total_fees": 2474.84,
+        "total_slippage": 1800.0,
+        "max_drawdown_rmb": 19549.14,
+        "max_drawdown_pct": 0.0391,
+        "ci_width": 0.4945,
+        "reliability_grade": "F_UNRELIABLE"
+      }
+    ]
+  }
+}
