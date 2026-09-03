@@ -20,6 +20,7 @@ import {
   Clock,
   Square,
   Flame,
+  History,
 } from 'lucide-react';
 
 interface BacktestFactorZooModalProps {
@@ -193,6 +194,7 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
   const totalCount = factors.length;
   const excellentCount = factors.filter((f) => f.status === 'EXCELLENT').length;
   const candidateCount = factors.filter((f) => f.status === 'CANDIDATE').length;
+  const legacyCount = factors.filter((f) => f.status === 'LEGACY_UNVERIFIED').length;
   const graveyardCount = factors.filter((f) => f.status === 'GRAVEYARD').length;
   const avgScore = totalCount > 0 ? (factors.reduce((acc, f) => acc + f.total_score, 0) / totalCount).toFixed(1) : '0';
   const avgIC = totalCount > 0 ? (factors.reduce((acc, f) => acc + f.rank_ic, 0) / totalCount).toFixed(4) : '0';
@@ -383,14 +385,14 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
         <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 px-6 py-3.5 bg-[#161b22]/50 border-b border-[#30363d]">
           <div className="bg-[#0d1117] p-2.5 rounded-xl border border-[#30363d]">
             <span className="text-[11px] text-[#8b949e] flex items-center gap-1">
-              <Database className="w-3 h-3 text-[#58a6ff]" /> 已研因子总数
+              <Database className="w-3 h-3 text-[#58a6ff]" /> 唯一公式总数
             </span>
             <div className="text-lg font-mono font-bold text-[#f0f6fc] mt-0.5">{totalCount} 个</div>
           </div>
 
           <div className="bg-[#0d1117] p-2.5 rounded-xl border border-[#238636]/40">
             <span className="text-[11px] text-[#3fb950] flex items-center gap-1 font-bold">
-              <CheckCircle2 className="w-3 h-3 text-[#3fb950]" /> 👑 优秀因子库
+              <CheckCircle2 className="w-3 h-3 text-[#3fb950]" /> 👑 真实优秀库
             </span>
             <div className="text-lg font-mono font-bold text-[#3fb950] mt-0.5">{excellentCount} 个</div>
           </div>
@@ -402,6 +404,13 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
             <div className="text-lg font-mono font-bold text-[#d29922] mt-0.5">{candidateCount} 个</div>
           </div>
 
+          <div className="bg-[#0d1117] p-2.5 rounded-xl border border-[#8957e5]/40">
+            <span className="text-[11px] text-[#bc8cff] flex items-center gap-1 font-bold">
+              <History className="w-3 h-3 text-[#bc8cff]" /> 📦 历史待重验
+            </span>
+            <div className="text-lg font-mono font-bold text-[#bc8cff] mt-0.5">{legacyCount} 个</div>
+          </div>
+
           <div className="bg-[#0d1117] p-2.5 rounded-xl border border-[#f85149]/40">
             <span className="text-[11px] text-[#f85149] flex items-center gap-1 font-bold">
               <ShieldAlert className="w-3 h-3 text-[#f85149]" /> 🪦 淘汰墓地
@@ -409,18 +418,13 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
             <div className="text-lg font-mono font-bold text-[#f85149] mt-0.5">{graveyardCount} 个</div>
           </div>
 
-          <div className="bg-[#0d1117] p-2.5 rounded-xl border border-[#30363d]">
+          <div className="bg-[#0d1117] p-2.5 rounded-xl border border-[#30363d] flex flex-col justify-center gap-1">
             <span className="text-[11px] text-[#8b949e] flex items-center gap-1">
-              <Award className="w-3 h-3 text-[#bc8cff]" /> 平均体检总分
+              <Award className="w-3 h-3 text-[#bc8cff]" /> 平均体检分: <b className="text-[#bc8cff] font-mono ml-1">{avgScore} 分</b>
             </span>
-            <div className="text-lg font-mono font-bold text-[#bc8cff] mt-0.5">{avgScore} 分</div>
-          </div>
-
-          <div className="bg-[#0d1117] p-2.5 rounded-xl border border-[#30363d]">
             <span className="text-[11px] text-[#8b949e] flex items-center gap-1">
-              <BarChart3 className="w-3 h-3 text-[#79c0ff]" /> 平均 Rank IC
+              <BarChart3 className="w-3 h-3 text-[#79c0ff]" /> 平均 Rank IC: <b className="text-[#79c0ff] font-mono ml-1">{avgIC}</b>
             </span>
-            <div className="text-lg font-mono font-bold text-[#79c0ff] mt-0.5">{avgIC}</div>
           </div>
         </div>
 
@@ -430,8 +434,9 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
           <div className="flex items-center gap-1.5 bg-[#161b22] p-1 rounded-xl border border-[#30363d]">
             {[
               { id: 'ALL', label: '全部' },
-              { id: 'EXCELLENT', label: '👑 优秀因子库' },
+              { id: 'EXCELLENT', label: '👑 真实优秀库' },
               { id: 'CANDIDATE', label: '🔬 候选池' },
+              { id: 'LEGACY_UNVERIFIED', label: '📦 历史待重验' },
               { id: 'GRAVEYARD', label: '🪦 淘汰墓地' },
             ].map((tab) => (
               <button
@@ -497,6 +502,7 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
             filteredFactors.map((f) => {
               const isExcellent = f.status === 'EXCELLENT';
               const isCandidate = f.status === 'CANDIDATE';
+              const isLegacy = f.status === 'LEGACY_UNVERIFIED';
               const isGraveyard = f.status === 'GRAVEYARD';
 
               return (
@@ -507,6 +513,8 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
                       ? 'border-[#238636]/60 shadow-[0_0_15px_rgba(46,160,67,0.1)]'
                       : isCandidate
                       ? 'border-[#d29922]/50'
+                      : isLegacy
+                      ? 'border-[#8957e5]/50'
                       : 'border-[#f85149]/40 opacity-80'
                   }`}
                 >
@@ -530,6 +538,8 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
                             ? 'bg-[#238636]/20 text-[#3fb950] border-[#238636]/60'
                             : isCandidate
                             ? 'bg-[#d29922]/20 text-[#d29922] border-[#d29922]/60'
+                            : isLegacy
+                            ? 'bg-[#8957e5]/20 text-[#bc8cff] border-[#8957e5]/60'
                             : 'bg-[#f85149]/20 text-[#f85149] border-[#f85149]/60'
                         }`}
                       >
@@ -543,10 +553,18 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
                             ? 'bg-[#3fb950]/20 text-[#3fb950]'
                             : isCandidate
                             ? 'bg-[#d29922]/20 text-[#d29922]'
+                            : isLegacy
+                            ? 'bg-[#8957e5]/20 text-[#bc8cff] border border-[#8957e5]/40'
                             : 'bg-[#f85149]/20 text-[#f85149]'
                         }`}
                       >
-                        {isExcellent ? '👑 优秀因子' : isCandidate ? '🔬 观察候选' : '🪦 淘汰入墓'}
+                        {isExcellent
+                          ? '👑 真实优秀'
+                          : isCandidate
+                          ? '🔬 观察候选'
+                          : isLegacy
+                          ? '📦 历史待重验'
+                          : '🪦 淘汰入墓'}
                       </span>
                     </div>
                   </div>
@@ -616,6 +634,14 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
                     <div className="mt-2.5 flex items-center gap-2 bg-[#f85149]/10 border border-[#f85149]/30 px-3 py-1.5 rounded-lg text-xs text-[#f85149]">
                       <ShieldAlert className="w-4 h-4 shrink-0" />
                       <span>硬性门禁违规记录: {f.fail_reason}</span>
+                    </div>
+                  )}
+
+                  {/* Legacy Note */}
+                  {isLegacy && f.fail_reason && (
+                    <div className="mt-2.5 flex items-center gap-2 bg-[#8957e5]/10 border border-[#8957e5]/30 px-3 py-1.5 rounded-lg text-xs text-[#bc8cff]">
+                      <History className="w-4 h-4 shrink-0" />
+                      <span>{f.fail_reason}</span>
                     </div>
                   )}
 

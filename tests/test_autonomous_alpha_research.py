@@ -71,16 +71,30 @@ class TestAutonomousAlphaResearch(unittest.TestCase):
         self.assertGreater(count, 0, "factor_zoo should contain evaluated factors")
         conn.close()
 
-    def test_hard_gates_and_status(self):
-        """Verify that overfit demo factor is flagged into graveyard."""
-        conn = sqlite3.connect(engine.DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("SELECT status, fail_reason FROM factor_zoo WHERE factor_id='FAC_OVERFIT_001';")
-        row = cursor.fetchone()
-        self.assertIsNotNone(row)
-        self.assertEqual(row[0], "GRAVEYARD", "Overfit factor must be rejected into GRAVEYARD")
-        self.assertIsNotNone(row[1])
-        conn.close()
+    def test_formula_hash_determinism_and_whitespace_invariance(self):
+        """Verify formula hash is deterministic and invariant to whitespace and casing."""
+        f1 = "EfficiencyRatio[18] * NormalizedMomentum[18]"
+        f2 = "  efficiencyratio[18]  *   normalizedmomentum[18] \n"
+        h1 = engine.compute_formula_hash(f1)
+        h2 = engine.compute_formula_hash(f2)
+        self.assertEqual(h1, h2, "Formula hash must normalize whitespace and casing")
+        self.assertEqual(len(h1), 64, "SHA-256 hash must be 64 hex characters")
+
+    def test_strict_hard_gates_no_name_bonus(self):
+        """Verify that naming a factor COMP or 复合 does NOT bypass hard gates or grant free points."""
+        fake_failing_composite = {
+            "id": "FAC_COMP_FAKE_999",
+            "name": "伪造复合高分测试因子",
+            "family": "正交复合 Alpha (Orthogonal)",
+            "hypothesis": "试图通过名字套取特权",
+            "formula": "FakeFormula[999]",
+            "calc": lambda df: pd.Series(0.0, index=df.index),
+        }
+        res = engine.evaluate_and_score_factor(fake_failing_composite, test_symbols=["AU_IDX"])
+        # Should NOT get free 85+ score or bypass 3x friction gate
+        self.assertLess(res["total_score"], 60.0, "Composite factors must NOT receive name-based bonus points")
+        self.assertEqual(res["status"], "GRAVEYARD", "Failing composite factor must be rejected into GRAVEYARD")
+        self.assertIn("fail_reason", res)
 
 if __name__ == "__main__":
     unittest.main()

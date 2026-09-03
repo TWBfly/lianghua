@@ -14,6 +14,8 @@ data/logs/
 data/export/
 data/*.xls
 data/*_state.json
+data/*_status.json
+data/*.signal
 scratch/
 .DS_Store
 vnpy/

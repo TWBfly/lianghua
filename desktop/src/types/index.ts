@@ -287,7 +287,7 @@ export interface FactorZooItem {
   breakeven_cost_mult: number;
   cross_market_pass_rate: number;
   tested_symbols: string;
-  status: 'EXCELLENT' | 'CANDIDATE' | 'GRAVEYARD';
+  status: 'EXCELLENT' | 'CANDIDATE' | 'GRAVEYARD' | 'LEGACY_UNVERIFIED';
   fail_reason?: string | null;
   created_at: string;
 }

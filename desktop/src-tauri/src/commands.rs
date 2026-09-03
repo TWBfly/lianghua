@@ -105,6 +105,8 @@ pub fn run_autonomous_factor_research_command() -> Result<Vec<FactorZooItem>, St
     let cwd = "/Users/tang/PycharmProjects/pythonProject/lianghua";
 
     let mut executed = false;
+    let mut last_error = String::new();
+
     for py in &python_candidates {
         if let Ok(output) = Command::new(py)
             .arg(script_path)
@@ -114,12 +116,18 @@ pub fn run_autonomous_factor_research_command() -> Result<Vec<FactorZooItem>, St
             if output.status.success() {
                 executed = true;
                 break;
+            } else {
+                last_error = String::from_utf8_lossy(&output.stderr).to_string();
             }
         }
     }
 
     if !executed {
-        eprintln!("Note: Python autonomous research engine executed with fallback or completed.");
+        if !last_error.is_empty() {
+            return Err(format!("Python 因子研究引擎执行失败: {}", last_error));
+        } else {
+            return Err("未找到可用的 Python 运行环境或执行失败".to_string());
+        }
     }
 
     query_factor_zoo(None)

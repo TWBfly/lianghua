@@ -31,6 +31,7 @@ from autonomous_alpha_research_engine import (
     init_db,
     evaluate_and_score_factor,
     save_factor_to_db,
+    compute_formula_hash,
     COMMODITY_SPECS,
 )
 
@@ -292,11 +293,11 @@ def write_status(data: Dict[str, Any]):
     except Exception as e:
         print(f"Warning: Failed to write status file: {e}", file=sys.stderr)
 
-def get_existing_factor_ids() -> set:
-    """Returns all factor_ids currently in the SQLite database."""
+def get_existing_formula_hashes() -> set:
+    """Returns all unique formula_hashes currently in the SQLite database."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT factor_id FROM factor_zoo;")
+    cursor.execute("SELECT DISTINCT formula_hash FROM factor_zoo WHERE formula_hash IS NOT NULL;")
     rows = cursor.fetchall()
     conn.close()
     return set(r[0] for r in rows)
@@ -304,6 +305,7 @@ def get_existing_factor_ids() -> set:
 def run_continuous_miner(duration_seconds: int = 3600, interval_seconds: float = 2.0):
     """
     Main continuous mining loop running for specified duration (default 1 hour = 3600s).
+    Guaranteed zero duplication via formula SHA-256 hash tracking.
     """
     init_db()
     if os.path.exists(STOP_SIGNAL_FILE):
@@ -317,10 +319,13 @@ def run_continuous_miner(duration_seconds: int = 3600, interval_seconds: float =
     print(f"🚀 Continuous Alpha Miner started (PID={pid}) for {duration_seconds}s (1小时自动挖掘模式)...")
 
     pool = generate_combinatorial_candidate_pool()
-    existing_ids = get_existing_factor_ids()
-    untested_candidates = [f for f in pool if f["id"] not in existing_ids]
+    existing_hashes = get_existing_formula_hashes()
+    untested_candidates = [
+        f for f in pool 
+        if compute_formula_hash(f.get("formula", "")) not in existing_hashes
+    ]
 
-    print(f"  -> Candidate factor space: {len(pool)} total, {len(untested_candidates)} untested, {len(existing_ids)} in DB.")
+    print(f"  -> Candidate factor space: {len(pool)} total, {len(untested_candidates)} untested unique formulas, {len(existing_hashes)} in DB.")
 
     evaluated_count = 0
     latest_record = None
@@ -333,7 +338,7 @@ def run_continuous_miner(duration_seconds: int = 3600, interval_seconds: float =
         "elapsed_seconds": 0,
         "remaining_seconds": duration_seconds,
         "total_evaluated_this_run": 0,
-        "total_in_zoo": len(existing_ids),
+        "total_in_zoo": len(existing_hashes),
         "latest_factor_id": None,
         "latest_factor_name": None,
         "latest_factor_score": None,
@@ -353,6 +358,7 @@ def run_continuous_miner(duration_seconds: int = 3600, interval_seconds: float =
     signal.signal(signal.SIGTERM, handle_signal)
 
     idx = 0
+    mutation_seed = 0
     while True:
         elapsed = time.time() - start_time
         remaining = max(0, duration_seconds - elapsed)
@@ -369,33 +375,49 @@ def run_continuous_miner(duration_seconds: int = 3600, interval_seconds: float =
                 pass
             break
 
-        # Check if we have untested candidates left
-        if idx < len(untested_candidates):
-            target_factor = untested_candidates[idx]
+        # Check if we have untested candidates left in the primary pool
+        target_factor = None
+        while idx < len(untested_candidates):
+            cand = untested_candidates[idx]
             idx += 1
-        else:
-            # Predefined pool evaluated, continuously generate novel dynamic mutations!
-            existing_ids = get_existing_factor_ids()
-            mutation_seed = evaluated_count + len(existing_ids)
-            target_factor = generate_dynamic_mutation(mutation_seed)
-            while target_factor["id"] in existing_ids:
+            cand_hash = compute_formula_hash(cand.get("formula", ""))
+            if cand_hash not in existing_hashes:
+                target_factor = cand
+                break
+
+        if target_factor is None:
+            # Predefined pool evaluated, continuously search novel dynamic mutations
+            attempts = 0
+            while attempts < 200:
                 mutation_seed += 1
-                target_factor = generate_dynamic_mutation(mutation_seed)
+                cand = generate_dynamic_mutation(mutation_seed)
+                cand_hash = compute_formula_hash(cand.get("formula", ""))
+                if cand_hash not in existing_hashes:
+                    target_factor = cand
+                    break
+                attempts += 1
+
+        if target_factor is None:
+            print("  -> All mutation combinations for current parameter space evaluated. Pausing...")
+            time.sleep(interval_seconds * 2)
+            continue
 
         fid = target_factor["id"]
         fname = target_factor["name"]
-        print(f"\n[{int(elapsed)}s/{duration_seconds}s] 🔬 Evaluating Factor [{fid}]: {fname}...")
+        f_hash = compute_formula_hash(target_factor.get("formula", ""))
+        print(f"[{evaluated_count + 1}] Evaluating Factor: {fid} | {fname} (hash: {f_hash[:8]})...")
 
         try:
             record = evaluate_and_score_factor(target_factor)
             save_factor_to_db(record)
+            existing_hashes.add(f_hash)
             evaluated_count += 1
             latest_record = record
 
             badge = "👑 EXCELLENT" if record["status"] == "EXCELLENT" else ("🔬 CANDIDATE" if record["status"] == "CANDIDATE" else "🪦 GRAVEYARD")
             print(f"  -> Result: [{record['grade']} {record['total_score']}分] {badge} | PassRate={record['cross_market_pass_rate']}%")
 
-            existing_ids.add(fid)
+            existing_hashes.add(f_hash)
 
             # Update status file
             status_data.update({
@@ -403,7 +425,7 @@ def run_continuous_miner(duration_seconds: int = 3600, interval_seconds: float =
                 "elapsed_seconds": int(elapsed),
                 "remaining_seconds": int(remaining),
                 "total_evaluated_this_run": evaluated_count,
-                "total_in_zoo": len(existing_ids),
+                "total_in_zoo": len(existing_hashes),
                 "latest_factor_id": record["factor_id"],
                 "latest_factor_name": record["name"],
                 "latest_factor_score": record["total_score"],

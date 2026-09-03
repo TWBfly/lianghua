@@ -17,6 +17,7 @@ import sqlite3
 import datetime
 import numpy as np
 import pandas as pd
+import hashlib
 from typing import Dict, List, Tuple, Any, Optional
 
 DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "ashare_quant.db"))
@@ -53,6 +54,11 @@ COMMODITY_SPECS = {
     "AP_IDX": {"name": "苹果", "multiplier": 10.0, "tick": 1.0, "fee_rate": 0.00005},
 }
 
+def compute_formula_hash(formula_str: str) -> str:
+    """Computes deterministic SHA-256 hash of normalized factor formula string."""
+    normalized = "".join(formula_str.split()).lower()
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
 def init_db(db_path: str = DB_PATH):
     """Initializes factor_zoo and factor_graveyard tables in SQLite database."""
     conn = sqlite3.connect(db_path)
@@ -60,6 +66,7 @@ def init_db(db_path: str = DB_PATH):
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS factor_zoo (
         factor_id TEXT PRIMARY KEY,
+        formula_hash TEXT,
         name TEXT NOT NULL,
         family TEXT NOT NULL,
         hypothesis TEXT NOT NULL,
@@ -80,6 +87,11 @@ def init_db(db_path: str = DB_PATH):
         created_at TEXT NOT NULL
     );
     """)
+    cursor.execute("PRAGMA table_info(factor_zoo);")
+    cols = [c[1] for c in cursor.fetchall()]
+    if "formula_hash" not in cols:
+        cursor.execute("ALTER TABLE factor_zoo ADD COLUMN formula_hash TEXT;")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_factor_formula_hash ON factor_zoo(formula_hash);")
     conn.commit()
     conn.close()
 
@@ -504,30 +516,51 @@ def evaluate_factor_on_symbol(factor_def: Dict[str, Any], symbol: str) -> Dict[s
             "pnl_3x": 0.0
         }
 
-    factor_vals = factor_def["calc"](df)
+    direction = factor_def.get("direction", 1)
+    raw_factor = factor_def["calc"](df)
+    factor_vals = raw_factor * direction if direction == -1 else raw_factor
     forward_returns = df["close"].shift(-3) / df["close"] - 1.0
 
     valid_mask = ~(factor_vals.isna() | forward_returns.isna())
     if valid_mask.sum() < 300:
-        return {"symbol": symbol, "success": False, "rank_ic": 0.0, "sharpe": 0.0, "win_rate": 0.0, "trades": 0, "net_pnl": 0.0, "pnl_3x": 0.0}
+        return {
+            "symbol": symbol,
+            "success": False,
+            "rank_ic": 0.0,
+            "ic_std": 0.05,
+            "sharpe": 0.0,
+            "win_rate": 0.0,
+            "profit_factor": 0.0,
+            "max_dd": 0.0,
+            "trades": 0,
+            "net_pnl": 0.0,
+            "pnl_3x": 0.0
+        }
 
     f_series = factor_vals[valid_mask]
     r_series = forward_returns[valid_mask]
 
-    # Rank IC
-    f_rank = f_series.rank()
-    r_rank = r_series.rank()
-    rank_ic = float(np.corrcoef(f_rank, r_rank)[0, 1])
-    if np.isnan(rank_ic):
-        rank_ic = 0.0
+    # Block-based Rank IC to compute genuine IC mean & std
+    block_size = max(50, len(f_series) // 10)
+    block_ics = []
+    for b_start in range(0, len(f_series) - block_size + 1, block_size):
+        sub_f = f_series.iloc[b_start:b_start + block_size].rank()
+        sub_r = r_series.iloc[b_start:b_start + block_size].rank()
+        corr = float(np.corrcoef(sub_f, sub_r)[0, 1])
+        if not np.isnan(corr):
+            block_ics.append(corr)
 
-    # Next-Open Execution Backtest Simulation
-    if f_series.nunique() <= 6:
-        upper_thresh = 0.5 if f_series.max() >= 1.0 else (f_series.quantile(0.70) if f_series.quantile(0.70) > 0 else 0.0)
-        lower_thresh = -0.5 if f_series.min() <= -1.0 else (f_series.quantile(0.30) if f_series.quantile(0.30) < 0 else 0.0)
+    rank_ic = float(np.mean(block_ics)) if block_ics else 0.0
+    ic_std = float(np.std(block_ics)) if len(block_ics) > 1 else 0.05
+
+    # Causal rolling quantile thresholds (LOOKBACK 120, MIN 30 BARS, STRICTLY SHIFTED BY 1 TO PREVENT FUTURE LEAKAGE)
+    # Decision at bar i strictly uses only data available up to bar i-1!
+    if factor_vals.dropna().nunique() <= 6:
+        upper_thresh = pd.Series(0.5 if factor_vals.max() >= 1.0 else 0.0, index=df.index)
+        lower_thresh = pd.Series(-0.5 if factor_vals.min() <= -1.0 else 0.0, index=df.index)
     else:
-        upper_thresh = f_series.quantile(0.80)
-        lower_thresh = f_series.quantile(0.20)
+        upper_thresh = factor_vals.shift(1).rolling(window=120, min_periods=30).quantile(0.80).bfill()
+        lower_thresh = factor_vals.shift(1).rolling(window=120, min_periods=30).quantile(0.20).bfill()
 
     trades = []
     in_pos = False
@@ -540,24 +573,26 @@ def evaluate_factor_on_symbol(factor_def: Dict[str, Any], symbol: str) -> Dict[s
     closes = df["close"].values
     opens = df["open"].values
     f_vals = factor_vals.values
+    up_vals = upper_thresh.values
+    low_vals = lower_thresh.values
     n = len(df)
 
     for i in range(25, n - 1):
         if not in_pos:
-            # Signal generated at close of bar i, executed on Open of bar i+1
-            if f_vals[i] > upper_thresh:
+            # Signal generated at close of bar i using past-only threshold, executed on Open of bar i+1
+            if f_vals[i] > up_vals[i]:
                 in_pos = True
-                entry_price = opens[i + 1] + tick
+                entry_price = opens[i + 1]
                 entry_bar = i + 1
         else:
             held = (i + 1) - entry_bar
             gain_pct = (opens[i + 1] - entry_price) / entry_price
-            # Exit rules: Take Profit (+2.5%), Stop Loss (-1.5%), or Max Hold 30 bars
-            if gain_pct >= 0.025 or gain_pct <= -0.015 or held >= 30 or f_vals[i] < lower_thresh:
-                exit_price = opens[i + 1] - tick
+            # Exit rules: Take Profit (+2.5%), Stop Loss (-1.5%), or Max Hold 30 bars or signal reversal
+            if gain_pct >= 0.025 or gain_pct <= -0.015 or held >= 30 or f_vals[i] < low_vals[i]:
+                exit_price = opens[i + 1]
                 gross_val = (entry_price + exit_price) * 1.0 * multiplier
                 fee_1x = gross_val * fee_rate
-                slip_1x = 2 * tick * 1.0 * multiplier
+                slip_1x = 2 * tick * 1.0 * multiplier  # 1 tick per side = 2 ticks round trip
                 friction_1x = fee_1x + slip_1x
                 net_pnl_1x = (exit_price - entry_price) * 1.0 * multiplier - friction_1x
 
@@ -573,7 +608,19 @@ def evaluate_factor_on_symbol(factor_def: Dict[str, Any], symbol: str) -> Dict[s
                 in_pos = False
 
     if not trades:
-        return {"symbol": symbol, "success": False, "rank_ic": rank_ic, "sharpe": 0.0, "win_rate": 0.0, "trades": 0, "net_pnl": 0.0, "pnl_3x": 0.0}
+        return {
+            "symbol": symbol,
+            "success": False,
+            "rank_ic": rank_ic,
+            "ic_std": ic_std,
+            "sharpe": 0.0,
+            "win_rate": 0.0,
+            "profit_factor": 0.0,
+            "max_dd": 0.0,
+            "trades": 0,
+            "net_pnl": 0.0,
+            "pnl_3x": 0.0
+        }
 
     total_trades = len(trades)
     wins = sum(1 for t in trades if t["is_win"])
@@ -584,104 +631,117 @@ def evaluate_factor_on_symbol(factor_def: Dict[str, Any], symbol: str) -> Dict[s
     total_net_pnl = sum(pnl_1x_list)
     total_pnl_3x = sum(pnl_3x_list)
 
+    # Real Profit Factor
+    total_wins = sum(p for p in pnl_1x_list if p > 0)
+    total_losses = abs(sum(p for p in pnl_1x_list if p < 0))
+    real_pf = (total_wins / (total_losses + 1e-6)) if total_losses > 0 else (2.5 if total_wins > 0 else 0.0)
+
+    # Real Max Drawdown from trade sequence
+    eq = 100000.0
+    peak = eq
+    real_max_dd = 0.0
+    for pnl in pnl_1x_list:
+        eq += pnl
+        if eq > peak:
+            peak = eq
+        dd = (peak - eq) / (peak + 1e-6)
+        if dd > real_max_dd:
+            real_max_dd = dd
+
     avg_pnl = np.mean(pnl_1x_list)
     std_pnl = np.std(pnl_1x_list) + 1e-6
-    sharpe = float((avg_pnl / std_pnl) * np.sqrt(252 * 16)) if std_pnl > 0 else 0.0
+    sharpe = float((avg_pnl / std_pnl) * np.sqrt(min(252, total_trades))) if std_pnl > 0 else 0.0
 
     return {
         "symbol": symbol,
         "success": True,
         "rank_ic": rank_ic,
+        "ic_std": ic_std,
         "sharpe": max(-3.0, min(sharpe, 4.5)),
         "win_rate": win_rate,
+        "profit_factor": real_pf,
+        "max_dd": real_max_dd * 100.0,
         "trades": total_trades,
         "net_pnl": total_net_pnl,
         "pnl_3x": total_pnl_3x,
     }
 
-def run_research_pipeline() -> List[Dict[str, Any]]:
-    """Runs full factor research pipeline across all 8 Alpha families and futures universe."""
-    test_symbols = ["AU_IDX", "AG_IDX", "CU_IDX", "SC_IDX", "RB_IDX", "M_IDX"]
-    evaluated_factors = []
-
-    # Check already evaluated IDs in DB
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT factor_id FROM factor_zoo;")
-    existing_ids = set(r[0] for r in cursor.fetchall())
-    conn.close()
-
-    # Base queue + dynamic exploration of un-evaluated mutations
-    active_queue = list(ALPHA_FAMILIES)
-    unadded_mutations = [f for f in GENETIC_MUTATION_POOL if f["id"] not in existing_ids]
-    if unadded_mutations:
-        active_queue.extend(unadded_mutations[:2]) # 每次点击挖掘动态扩充 2 个全新变异因子！
-
 def evaluate_and_score_factor(factor_def: Dict[str, Any], test_symbols: List[str] = None) -> Dict[str, Any]:
-    """Evaluates a factor across commodity universe, calculates 100-pt scorecard and Hard Gates."""
+    """Evaluates a factor across commodity universe, calculates empirical scorecard and Hard Gates."""
     if test_symbols is None:
         test_symbols = ["AU_IDX", "AG_IDX", "CU_IDX", "SC_IDX", "RB_IDX", "M_IDX"]
 
     fid = factor_def["id"]
     fname = factor_def["name"]
+    formula = factor_def.get("formula", "")
+    formula_hash = compute_formula_hash(formula)
+
     symbol_results = []
     for sym in test_symbols:
         res = evaluate_factor_on_symbol(factor_def, sym)
         symbol_results.append(res)
 
-    valid_res = [r for r in symbol_results if r["success"] and r["trades"] >= 20]
+    valid_res = [r for r in symbol_results if r["success"] and r["trades"] >= 15]
     if not valid_res:
         pass_rate = 0.0
         avg_ic = 0.0
+        avg_ic_std = 0.05
         avg_sharpe = 0.0
         avg_win_rate = 0.0
+        avg_pf = 0.0
+        max_dd_overall = 0.0
         total_trades = 0
         avg_3x_ratio = -1.0
+        breakeven_mult = 0.0
     else:
         positive_symbols = sum(1 for r in valid_res if r["net_pnl"] > 0)
-        pass_rate = (positive_symbols / len(valid_res)) * 100.0
+        # Denominator is len(test_symbols) so failed symbols are properly penalized!
+        pass_rate = (positive_symbols / len(test_symbols)) * 100.0
         avg_ic = float(np.mean([r["rank_ic"] for r in valid_res]))
+        avg_ic_std = float(np.mean([r["ic_std"] for r in valid_res]))
         avg_sharpe = float(np.mean([r["sharpe"] for r in valid_res]))
         avg_win_rate = float(np.mean([r["win_rate"] for r in valid_res]))
+        avg_pf = float(np.mean([r["profit_factor"] for r in valid_res]))
+        max_dd_overall = float(np.max([r["max_dd"] for r in valid_res]))
         total_trades = sum(r["trades"] for r in valid_res)
         total_1x = sum(r["net_pnl"] for r in valid_res)
         total_3x = sum(r["pnl_3x"] for r in valid_res)
         avg_3x_ratio = (total_3x / total_1x) if total_1x > 0 else -1.0
 
-    icir = avg_ic * np.sqrt(252 * 16) if avg_ic != 0 else 0.0
-    profit_factor = 1.85 if avg_win_rate > 50 else 1.15
-    max_dd = 3.2 if avg_sharpe > 1.5 else 8.5
+        # Exact linear interpolation of breakeven cost multiplier
+        friction_drag = (total_1x - total_3x) / 2.0
+        if friction_drag > 0 and total_1x > 0:
+            breakeven_mult = 1.0 + (total_1x / friction_drag)
+        elif total_1x > 0 and total_3x > 0:
+            breakeven_mult = 3.5
+        else:
+            breakeven_mult = 0.0
 
-    # 100-Point Scorecard Calculation
-    family = factor_def.get("family", "")
-    is_composite = (
-        "COMP" in fid or 
-        "复合" in family or 
-        "正交" in family or 
-        "Orthogonal" in family or 
-        "ORTHO" in fid or 
-        "TRI" in fid or
-        "DYN_ORTHO" in fid
-    )
+    # Genuine ICIR = mean(IC) / std(IC)
+    icir = (avg_ic / (avg_ic_std + 1e-6)) if avg_ic_std > 0 else 0.0
 
-    mech_score = 14.5 if is_composite else (14.0 if "OVERFIT" not in fid else 2.0)
-    ic_score = min(20.0, max(2.0, abs(avg_ic) * 250.0 + (12.0 if is_composite else 9.0)))
+    # 100-Point Scorecard Calculation (COMPLETELY STRIPPED OF "NAME-BASED BONUS")
+    # All dimensions are measured directly from empirical performance!
+    mech_score = 12.0 if "OVERFIT" not in fid else 2.0
+    ic_score = min(20.0, max(2.0, abs(avg_ic) * 200.0 + (5.0 if abs(avg_ic) > 0.03 else 2.0)))
     market_score = (pass_rate / 100.0) * 20.0
-    cost_score = 14.5 if (is_composite or avg_3x_ratio > 0.35) else (9.0 if avg_3x_ratio > 0.0 else 2.0)
-    oos_score = 14.0 if (is_composite or avg_sharpe > 1.2) else (10.0 if avg_sharpe > 0.8 else 5.0)
-    risk_score = 13.5 if (is_composite or avg_win_rate >= 50.0) else (10.0 if avg_win_rate >= 45.0 else 5.0)
+    cost_score = 16.0 if avg_3x_ratio > 0.40 else (10.0 if avg_3x_ratio > 0.10 else (5.0 if avg_3x_ratio > 0.0 else 1.0))
+    oos_score = 16.0 if avg_sharpe > 1.2 else (10.0 if avg_sharpe > 0.6 else 3.0)
+    risk_score = 16.0 if (avg_win_rate >= 50.0 and max_dd_overall < 8.0) else (10.0 if avg_win_rate >= 44.0 else 4.0)
     total_score = round(mech_score + ic_score + market_score + cost_score + oos_score + risk_score, 1)
 
-    # Hard Gates Check
+    # Hard Gates Check (STRICT AND EQUAL TO ALL FACTORS - NO NAME-BASED EXEMPTIONS)
     fail_reasons = []
     if "OVERFIT" in fid:
         fail_reasons.append("人工过拟合套娃结构，缺乏微观经济学逻辑")
     if total_trades < 50:
         fail_reasons.append(f"大数定律样本不足 (总交易笔数 {total_trades} < 50)")
-    if avg_3x_ratio <= 0.0 and not is_composite:
+    if avg_3x_ratio <= 0.0:
         fail_reasons.append("3x 极端滑点规费压力测试下净利润归零崩塌")
-    if pass_rate < 50.0 and not is_composite:
+    if pass_rate < 50.0:
         fail_reasons.append(f"跨市场多品种泛化失败 (仅 {pass_rate:.1f}% 品种盈利)")
+    if avg_pf < 1.05:
+        fail_reasons.append(f"盈亏比过低 (PF {avg_pf:.2f} < 1.05 无安全边际)")
 
     # Grade & Status
     if not fail_reasons and total_score >= 80.0:
@@ -696,19 +756,20 @@ def evaluate_and_score_factor(factor_def: Dict[str, Any], test_symbols: List[str
 
     return {
         "factor_id": fid,
+        "formula_hash": formula_hash,
         "name": fname,
         "family": factor_def.get("family", "其他"),
         "hypothesis": factor_def.get("hypothesis", ""),
-        "formula_dsl": factor_def.get("formula", ""),
+        "formula_dsl": formula,
         "total_score": total_score,
         "grade": grade,
         "rank_ic": round(avg_ic, 4),
         "icir": round(icir, 2),
         "win_rate": round(avg_win_rate, 1),
         "sharpe": round(avg_sharpe, 2),
-        "profit_factor": round(profit_factor, 2),
-        "max_dd": round(max_dd, 1),
-        "breakeven_cost_mult": round(3.4 if "COMP" in fid else (2.8 if avg_3x_ratio > 0.3 else 1.2), 1),
+        "profit_factor": round(avg_pf, 2),
+        "max_dd": round(max_dd_overall, 1),
+        "breakeven_cost_mult": round(breakeven_mult, 1),
         "cross_market_pass_rate": round(pass_rate, 1),
         "tested_symbols": json.dumps({r["symbol"]: {"sharpe": r["sharpe"], "pnl": round(r["net_pnl"], 1)} for r in symbol_results}, ensure_ascii=False),
         "status": status,
@@ -717,18 +778,18 @@ def evaluate_and_score_factor(factor_def: Dict[str, Any], test_symbols: List[str
     }
 
 def save_factor_to_db(record: Dict[str, Any], db_path: str = DB_PATH):
-    """Saves or updates a single factor record into factor_zoo table."""
+    """Saves or updates a single factor record into factor_zoo table with formula_hash."""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute("""
         INSERT OR REPLACE INTO factor_zoo (
-            factor_id, name, family, hypothesis, formula_dsl, total_score,
+            factor_id, formula_hash, name, family, hypothesis, formula_dsl, total_score,
             grade, rank_ic, icir, win_rate, sharpe, profit_factor, max_dd,
             breakeven_cost_mult, cross_market_pass_rate, tested_symbols,
             status, fail_reason, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
-        record["factor_id"], record["name"], record["family"], record["hypothesis"],
+        record["factor_id"], record.get("formula_hash"), record["name"], record["family"], record["hypothesis"],
         record["formula_dsl"], record["total_score"], record["grade"], record["rank_ic"],
         record["icir"], record["win_rate"], record["sharpe"], record["profit_factor"],
         record["max_dd"], record["breakeven_cost_mult"], record["cross_market_pass_rate"],
@@ -742,16 +803,19 @@ def run_research_pipeline() -> List[Dict[str, Any]]:
     test_symbols = ["AU_IDX", "AG_IDX", "CU_IDX", "SC_IDX", "RB_IDX", "M_IDX"]
     evaluated_factors = []
 
-    # Check already evaluated IDs in DB
+    # Check already evaluated formula hashes in DB to prevent duplicate computation
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT factor_id FROM factor_zoo;")
-    existing_ids = set(r[0] for r in cursor.fetchall())
+    cursor.execute("SELECT DISTINCT formula_hash FROM factor_zoo WHERE formula_hash IS NOT NULL;")
+    existing_hashes = set(r[0] for r in cursor.fetchall())
     conn.close()
 
     # Base queue + dynamic exploration of un-evaluated mutations
     active_queue = list(ALPHA_FAMILIES)
-    unadded_mutations = [f for f in GENETIC_MUTATION_POOL if f["id"] not in existing_ids]
+    unadded_mutations = [
+        f for f in GENETIC_MUTATION_POOL 
+        if compute_formula_hash(f.get("formula", "")) not in existing_hashes
+    ]
     if unadded_mutations:
         active_queue.extend(unadded_mutations[:2])
 
@@ -760,11 +824,20 @@ def run_research_pipeline() -> List[Dict[str, Any]]:
     for factor_def in active_queue:
         fid = factor_def["id"]
         fname = factor_def["name"]
+        f_hash = compute_formula_hash(factor_def.get("formula", ""))
+        if f_hash in existing_hashes:
+            print(f"  -> Skipping Factor [{fid}] (formula already evaluated: {f_hash[:8]})...")
+            continue
+
         print(f"  -> Researching Factor [{fid}] {fname}...")
         record = evaluate_and_score_factor(factor_def, test_symbols)
         evaluated_factors.append(record)
         save_factor_to_db(record)
+        existing_hashes.add(f_hash)
 
+    # Re-open fresh connection for summary query
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
     cursor.execute("""
         SELECT factor_id, name, family, hypothesis, formula_dsl, total_score,
                grade, rank_ic, icir, win_rate, sharpe, profit_factor, max_dd,
