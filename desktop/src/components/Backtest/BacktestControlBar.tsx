@@ -14,6 +14,9 @@ interface BacktestControlBarProps {
 }
 
 const STRATEGY_OPTIONS = [
+  { id: 'fac_comp_001', name: '👑 【正交复合 1号】FAC_COMP_001 (86.4分 趋势×信噪比×放量)' },
+  { id: 'fac_comp_007', name: '👑 【正交复合 2号】FAC_COMP_007 (83.7分 四因子非对称共振投票)' },
+  { id: 'fac_comp_002', name: '👑 【正交复合 3号】FAC_COMP_002 (84.5分 因果动力学自适应三屏)' },
   { id: 'causal_ml', name: '🧠 Causal ML (因果机器学习)' },
   { id: 'supertrend', name: '📈 SuperTrend (超级趋势带)' },
   { id: 'taichong_elastoplastic_tensor', name: '🔮 太冲·弹塑性张量 (微观谐振)' },

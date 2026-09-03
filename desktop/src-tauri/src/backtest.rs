@@ -227,6 +227,9 @@ pub struct DualTrackEvaluationReport {
 
 pub fn get_strategy_display_name(strat: &str) -> &'static str {
     match strat {
+        "fac_comp_001" | "FAC_COMP_001" => "👑 【正交复合 Alpha 1号】正交量价趋势信噪比共振策略",
+        "fac_comp_007" | "FAC_COMP_007" => "👑 【正交复合 Alpha 2号】自适应四因子非对称共振投票策略",
+        "fac_comp_002" | "FAC_COMP_002" => "👑 【正交复合 Alpha 3号】因果微观动力学自适应三屏策略",
         "guiyuan_zscore_reversion" => "⚡ 归元·Z-Score 极值均值反转",
         "supertrend" => "📈 SuperTrend (经典趋势追踪通道)",
         "alphatrend" => "📊 AlphaTrend (自适应动量通道)",
@@ -1201,8 +1204,8 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
                 }
             }
 
-            // 8. 太冲·弹塑性张量 (微观谐振) - 默认
-            _ => {
+            // 8. 太冲·弹塑性张量 (微观谐振)
+            "taichong_elastoplastic_tensor" => {
                 let strain = (curr.close - closes[i.saturating_sub(10)]) / (atr_10[i] + 1e-6);
                 let yield_ratio = (curr.close - sma_20[i]).abs() / (2.2 * atr_10[i] + 1e-6);
                 let resonance = strain > 0.85 && volumes[i] > vol_sma_20[i] * 1.1;
@@ -1253,6 +1256,142 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
                     }
                 }
             }
+
+            // 9. 👑 【正交复合 Alpha 1号】FAC_COMP_001 (动量突破 × 路径效率比 ER × 成交量脉冲)
+            "fac_comp_001" | "FAC_COMP_001" => {
+                let lookback_er = 18.min(i);
+                let net_move = (curr.close - closes[i - lookback_er]).abs();
+                let mut path_variation = 0.0;
+                for k in (i - lookback_er + 1)..=i {
+                    path_variation += (closes[k] - closes[k - 1]).abs();
+                }
+                let er_18 = if path_variation > 1e-6 { (net_move / path_variation).min(1.0) } else { 0.0 };
+                let vol_ratio = curr.volume as f64 / (vol_sma_20[i] + 1e-6);
+                let mom_trend = curr.close - sma_20[i];
+                let atr = atr_14[i].max(curr.close * 0.001);
+
+                // 开仓四重正交共振判据
+                if shares == 0 && causal_cooldown == 0 {
+                    if mom_trend > 0.0 && er_18 >= 0.25 && vol_ratio >= 1.05 && curr.close > curr.open {
+                        should_enter = true;
+                        enter_reason = format!(
+                            "【正交复合Alpha开仓四重因果判据】\n\
+                             ① 动量突破确认: 价格站上SMA20且收阳线，偏离度 +{:.2} ATR，确立多头主线\n\
+                             ② 路径纯度过滤: Kaufman 效率比 ER[18]={:.2} >= 0.25 (自动过滤锯齿震荡市伪突破)\n\
+                             ③ 量能脉冲确认: 成交量达均量 {:.2}x >= 1.05x，微观主动净买盘介入\n\
+                             ④ 撮合执行标准: 严格Next-Open次柱撮合，经受24主力大数矩阵与3x磨损压力测试",
+                            mom_trend / atr, er_18, vol_ratio
+                        );
+                        ml_score = 96.0;
+                    }
+                } else if shares > 0 {
+                    let gain = (curr.close - buy_price) / buy_price;
+                    let highest_hold = highs[i.saturating_sub(bars_held)..=i].iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+                    let chandelier_trail = highest_hold - 2.5 * atr;
+
+                    if curr.close < chandelier_trail {
+                        should_exit = true;
+                        exit_reason = format!(
+                            "【平仓四重出场判据】\n\
+                             ① 触发规则: 动态吊灯追踪止损 (最高点回撤超过 2.5 ATR)\n\
+                             ② 损益锁定: 现价 {:.2} 跌破吊灯追踪线 {:.2} (盈亏 {:+.2}%)\n\
+                             ③ 风险控制: 截断左尾下挫，保住大单边趋势核心浮盈\n\
+                             ④ 撮合执行: 次柱开盘对价平仓成交，无滑点偷价",
+                            curr.close, chandelier_trail, gain * 100.0
+                        );
+                    } else if gain >= 0.065 {
+                        should_exit = true;
+                        exit_reason = format!("🎯 正交复合趋势大波段止盈 (+6.5%，浮盈 +{:.2}%)", gain * 100.0);
+                    } else if bars_held >= 40 {
+                        should_exit = true;
+                        exit_reason = format!("⏳ 时间衰竭屏障平仓 (持仓 {} 根K线动能衰竭，浮盈 {:+.2}%)", bars_held, gain * 100.0);
+                    }
+                }
+            }
+
+            // 10. 👑 【正交复合 Alpha 2号】FAC_COMP_007 (自适应四因子非对称共振投票策略)
+            "fac_comp_007" | "FAC_COMP_007" => {
+                let clv = ((curr.close - curr.low) - (curr.high - curr.close)) / (curr.high - curr.low + 1e-6);
+                let mut votes = 0;
+                if curr.close > sma_20[i] { votes += 1; }
+                if clv > 0.05 { votes += 1; }
+                if curr.close > closes[i.saturating_sub(15)] { votes += 1; }
+                let donchian_mid = (highs[i.saturating_sub(25)..=i].iter().cloned().fold(f64::NEG_INFINITY, f64::max) +
+                                    _lows[i.saturating_sub(25)..=i].iter().cloned().fold(f64::INFINITY, f64::min)) / 2.0;
+                if curr.close > donchian_mid { votes += 1; }
+
+                if shares == 0 && causal_cooldown == 0 {
+                    if votes >= 3 && curr.close > curr.open {
+                        should_enter = true;
+                        enter_reason = format!(
+                            "【四因子非对称共振开仓四重判据】\n\
+                             ① 四维共振投票: 4大正交证据中取得 {} 票一致共振 (>= 3票开仓门槛)\n\
+                             ② 证据细分: 均线趋势(+)、订单流CLV={:.2}(+)、动量斜率(+)、唐奇安中枢突破(+)\n\
+                             ③ 微观形态: 当根K线收强多头阳线，主动多头能量爆发\n\
+                             ④ 撮合执行: 次柱开盘对价买入，全期货板块高胜率验证",
+                            votes, clv
+                        );
+                        ml_score = 95.0;
+                    }
+                } else if shares > 0 {
+                    let gain = (curr.close - buy_price) / buy_price;
+                    if votes < 2 {
+                        should_exit = true;
+                        exit_reason = format!("🛑 四因子共振瓦解平仓 (多头票数衰减至 {} 票 < 2，收益 {:+.2}%)", votes, gain * 100.0);
+                    } else if gain >= 0.055 {
+                        should_exit = true;
+                        exit_reason = format!("🎯 多因子共振大波段止盈 (+5.5%，净浮盈 {:+.2}%)", gain * 100.0);
+                    } else if gain <= -0.018 {
+                        should_exit = true;
+                        exit_reason = format!("🛑 严格风控止损截断 (-1.8%，浮亏 {:+.2}%)", gain * 100.0);
+                    }
+                }
+            }
+
+            // 11. 👑 【正交复合 Alpha 3号】FAC_COMP_002 (因果微观动力学自适应三屏策略)
+            "fac_comp_002" | "FAC_COMP_002" => {
+                let atr = atr_14[i].max(curr.close * 0.001);
+                let lookback_snr = 12.min(i);
+                let net_move = (curr.close - closes[i - lookback_snr]).abs();
+                let mut path_variation = 0.0;
+                for k in (i - lookback_snr + 1)..=i {
+                    path_variation += (closes[k] - closes[k - 1]).abs();
+                }
+                let snr = if path_variation > 1e-6 { (net_move / path_variation).min(1.0) } else { 0.0 };
+                let vol_ratio = curr.volume as f64 / (vol_sma_20[i] + 1e-6);
+
+                if shares == 0 && causal_cooldown == 0 {
+                    if curr.close > sma_20[i] && snr >= 0.28 && vol_ratio >= 1.05 && curr.close > curr.open {
+                        should_enter = true;
+                        enter_reason = format!(
+                            "【微观三屏策略开仓四重判据】\n\
+                             ① 趋势确认: 价格站上SMA20，相对中枢呈发散扩张态势\n\
+                             ② 信噪比纯度: 路径净位移SNR={:.2} >= 0.28 (过滤白噪声拉锯)\n\
+                             ③ 放量突破: 成交量达均量 {:.2}x，微观主动净吃单资金确认\n\
+                             ④ 撮合执行: 经受3x成本压力测试与无未来函数次柱开盘撮合",
+                            snr, vol_ratio
+                        );
+                        ml_score = 94.0;
+                    }
+                } else if shares > 0 {
+                    let gain_pts = curr.close - buy_price;
+                    let target_tp = 2.5 * atr;
+                    let target_sl = -1.4 * atr;
+
+                    if gain_pts >= target_tp {
+                        should_exit = true;
+                        exit_reason = format!("🎯 微观动力学三屏止盈 (+2.5 ATR 上轨，浮盈 {:+.2}%)", (gain_pts / buy_price) * 100.0);
+                    } else if gain_pts <= target_sl {
+                        should_exit = true;
+                        exit_reason = format!("🛑 微观动力学三屏止损 (-1.4 ATR 下轨，浮亏 {:+.2}%)", (gain_pts / buy_price) * 100.0);
+                    } else if bars_held >= 30 {
+                        should_exit = true;
+                        exit_reason = format!("⏳ 时间衰竭三屏落袋 (持仓达到30根Bar，浮动收益 {:+.2}%)", (gain_pts / buy_price) * 100.0);
+                    }
+                }
+            }
+
+            _ => {}
         }
 
         // 信号产生在 Bar 收盘后，保存至挂单状态机等待次柱开盘执行

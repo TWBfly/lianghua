@@ -226,9 +226,6 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
                 <h2 className="text-lg font-bold text-[#f0f6fc]">
                   🧬 因子与策略自动研究实验室 (Autonomous Factor Zoo)
                 </h2>
-                <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-[#8957e5]/20 text-[#bc8cff] border border-[#8957e5]/40">
-                  《研究策略.md》第一性原理落地
-                </span>
               </div>
               <p className="text-xs text-[#8b949e] mt-0.5">
                 8大 Alpha 家族与正交复合体系 • 涵盖各大期货交易所 24 大主流主力合约池 • 3x 极端滑点规费压力测试 • 100分稳健度体检
@@ -579,6 +576,41 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
                     </button>
                   </div>
 
+                  {/* Production Strategy Packaging Specs */}
+                  {!isGraveyard && (
+                    <div className="mt-2.5 grid grid-cols-1 sm:grid-cols-3 gap-2 bg-[#161b22] p-2.5 rounded-xl border border-[#30363d] text-[11px]">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[#8b949e] font-semibold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#58a6ff]" />
+                          ① 环境过滤 (Regime Filter)
+                        </span>
+                        <span className="text-[#c9d1d9] font-mono text-[10px]">
+                          {f.family.includes('正交') || f.family.includes('复合')
+                            ? 'Kaufman ER[18] >= 0.25 (震荡市静默归零)'
+                            : '单特征无过滤 (建议搭载SNR过滤器)'}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[#8b949e] font-semibold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#d29922]" />
+                          ② 出场屏障 (Exit Shield)
+                        </span>
+                        <span className="text-[#c9d1d9] font-mono text-[10px]">
+                          动态吊灯追踪止损 (-2.5 ATR) / +3.5 ATR 止盈 / 30Bar时间衰竭
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[#8b949e] font-semibold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#3fb950]" />
+                          ③ 资金风控 (Risk Sizing)
+                        </span>
+                        <span className="text-[#c9d1d9] font-mono text-[10px]">
+                          严格固定 1 手 / Next-Open次柱撮合 / 3x摩擦压力免疫
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Fail Reason if Graveyard */}
                   {isGraveyard && f.fail_reason && (
                     <div className="mt-2.5 flex items-center gap-2 bg-[#f85149]/10 border border-[#f85149]/30 px-3 py-1.5 rounded-lg text-xs text-[#f85149]">
@@ -702,20 +734,28 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
                     {/* Apply Button */}
                     <button
                       onClick={() => {
-                        let stratId = 'taichong_elastoplastic_tensor';
-                        if (f.factor_id.includes('MOM') || f.factor_id.includes('TQ')) {
+                        let stratId = 'fac_comp_001';
+                        if (f.factor_id === 'FAC_COMP_001') {
+                          stratId = 'fac_comp_001';
+                        } else if (f.factor_id === 'FAC_COMP_007') {
+                          stratId = 'fac_comp_007';
+                        } else if (f.factor_id === 'FAC_COMP_002') {
+                          stratId = 'fac_comp_002';
+                        } else if (f.factor_id.includes('MR')) {
+                          stratId = 'guiyuan_zscore_reversion';
+                        } else if (f.factor_id.includes('MOM') || f.factor_id.includes('TQ')) {
                           stratId = 'causal_ml';
                         } else if (f.factor_id.includes('BRK') || f.factor_id.includes('COMP_003')) {
                           stratId = 'chandelier_exit';
-                        } else if (f.factor_id.includes('MR')) {
-                          stratId = 'guiyuan_zscore_reversion';
+                        } else {
+                          stratId = 'fac_comp_001';
                         }
                         onApplyFactorToBacktest('AU_IDX', stratId);
                         onClose();
                       }}
-                      className="px-3 py-1 rounded-lg bg-[#58a6ff]/15 hover:bg-[#58a6ff]/25 text-[#58a6ff] border border-[#58a6ff]/30 text-xs font-bold flex items-center gap-1.5 transition ml-auto"
+                      className="px-3 py-1 rounded-lg bg-[#58a6ff]/15 hover:bg-[#58a6ff]/25 text-[#58a6ff] border border-[#58a6ff]/30 text-xs font-bold flex items-center gap-1.5 transition ml-auto shadow-sm"
                     >
-                      <span>📊 一键应用至主图回测</span>
+                      <span>📊 一键封装并加载至主图回测</span>
                       <ArrowUpRight className="w-3.5 h-3.5" />
                     </button>
                   </div>

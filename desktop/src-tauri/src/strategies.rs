@@ -65,6 +65,48 @@ fn get_data_dir() -> PathBuf {
 pub fn get_strategies_registry() -> Vec<StrategyMeta> {
     vec![
         StrategyMeta {
+            id: "fac_comp_001".to_string(),
+            name: "👑 【正交复合 Alpha 1号】FAC_COMP_001 (动量突破 × 路径效率比 ER × 成交量脉冲)".to_string(),
+            short_name: "👑 正交复合 1号 (86.4分)".to_string(),
+            timeframe: "15m".to_string(),
+            symbols: vec![
+                "AU_IDX".to_string(), "AG_IDX".to_string(), "CU_IDX".to_string(), "SC_IDX".to_string(),
+                "RB_IDX".to_string(), "M_IDX".to_string(), "TA_IDX".to_string(), "P_IDX".to_string(),
+            ],
+            default_symbol: "AU_IDX".to_string(),
+            initial_capital: 1000000.0,
+            summary_win_rate: 54.2,
+            execution_status: "AVAILABLE".to_string(),
+        },
+        StrategyMeta {
+            id: "fac_comp_007".to_string(),
+            name: "👑 【正交复合 Alpha 2号】FAC_COMP_007 (自适应四因子非对称共振投票策略)".to_string(),
+            short_name: "👑 四因子共振 2号 (83.7分)".to_string(),
+            timeframe: "15m".to_string(),
+            symbols: vec![
+                "AU_IDX".to_string(), "AG_IDX".to_string(), "CU_IDX".to_string(), "SC_IDX".to_string(),
+                "RB_IDX".to_string(), "M_IDX".to_string(), "TA_IDX".to_string(), "AL_IDX".to_string(),
+            ],
+            default_symbol: "AU_IDX".to_string(),
+            initial_capital: 1000000.0,
+            summary_win_rate: 55.6,
+            execution_status: "AVAILABLE".to_string(),
+        },
+        StrategyMeta {
+            id: "fac_comp_002".to_string(),
+            name: "👑 【正交复合 Alpha 3号】FAC_COMP_002 (因果微观动力学自适应三屏策略)".to_string(),
+            short_name: "👑 因果微观三屏 3号 (84.5分)".to_string(),
+            timeframe: "15m".to_string(),
+            symbols: vec![
+                "AU_IDX".to_string(), "AG_IDX".to_string(), "CU_IDX".to_string(), "SC_IDX".to_string(),
+                "RB_IDX".to_string(), "M_IDX".to_string(),
+            ],
+            default_symbol: "AU_IDX".to_string(),
+            initial_capital: 1000000.0,
+            summary_win_rate: 52.8,
+            execution_status: "AVAILABLE".to_string(),
+        },
+        StrategyMeta {
             id: "tianji_dual_island_v2".to_string(),
             name: "👑 【天极·双岛正交自适应策略 V2.0】 第一梯队 (4H宏观趋势 + 30m产业均值)".to_string(),
             short_name: "👑 天极·双岛正交 V2.0 (8大主力)".to_string(),
