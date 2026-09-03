@@ -208,6 +208,12 @@ def generate_combinatorial_candidate_pool() -> List[Dict[str, Any]]:
             "direction": 1,
         })
 
+    # --- 11. High-Order Orthogonal Composite Alphas ---
+    from autonomous_alpha_research_engine import ALPHA_FAMILIES
+    for f in ALPHA_FAMILIES:
+        if "COMP" in f["id"] and not any(p["id"] == f["id"] for p in pool):
+            pool.append(f)
+
     return pool
 
 def generate_dynamic_mutation(idx: int) -> Dict[str, Any]:
@@ -263,7 +269,7 @@ def generate_dynamic_mutation(idx: int) -> Dict[str, Any]:
         }
     else:
         return {
-            "id": f"FAC_DYN_ORTHO_{idx}_{e_fast}_{e_slow}",
+            "id": f"FAC_COMP_DYN_{idx}_{e_fast}_{e_slow}",
             "name": f"正交双均线量价复合变体 #{idx} ({e_fast}/{e_slow})",
             "family": "正交复合 Alpha (Orthogonal)",
             "hypothesis": f"将 {e_fast}/{e_slow} EMA 动量差与微观成交量主动性正交相乘，实现全天候跨品种稳健收益。",

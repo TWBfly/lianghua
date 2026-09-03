@@ -215,7 +215,7 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-[#8b949e] mt-0.5">
-                8大 Alpha 家族 • 四大证据链 • 跨期货品种大数矩阵检验 • 3x 极端滑点规费压力测试 • 100分稳健度体检
+                8大 Alpha 家族与正交复合体系 • 涵盖各大期货交易所 24 大主流主力合约池 • 3x 极端滑点规费压力测试 • 100分稳健度体检
               </p>
             </div>
           </div>
