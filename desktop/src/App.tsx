@@ -52,6 +52,7 @@ export const App: React.FC = () => {
   const [backtestResult, setBacktestResult] = useState<BacktestResponse | null>(null);
   const [selectedTrade, setSelectedTrade] = useState<BacktestTradeItem | null>(null);
   const [focusDate, setFocusDate] = useState<string | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
 
   // Portfolio LLN Modal State
   const [showPortfolioModal, setShowPortfolioModal] = useState<boolean>(false);
@@ -243,16 +244,26 @@ export const App: React.FC = () => {
                 symbolName={currentSymbolName}
                 timeframe={currentTimeframe}
                 strategyId={currentStrategyId}
-                onSelectMarker={setSelectedMarker}
+                isDrawerOpen={isDrawerOpen}
+                onToggleDrawer={() => setIsDrawerOpen((prev) => !prev)}
+                onSelectMarker={(m) => {
+                  setSelectedMarker(m);
+                  if (m) setIsDrawerOpen(true);
+                }}
               />
             </main>
 
             {/* Right: Strategy Decision Drawer */}
-            <DecisionDrawer
-              selectedMarker={selectedMarker}
-              currentSymbol={currentSymbol}
-              onClose={() => setSelectedMarker(null)}
-            />
+            {isDrawerOpen && (
+              <DecisionDrawer
+                selectedMarker={selectedMarker}
+                currentSymbol={currentSymbol}
+                onClose={() => {
+                  setIsDrawerOpen(false);
+                  setSelectedMarker(null);
+                }}
+              />
+            )}
           </div>
 
           {/* Bottom: Trade Blotter */}
@@ -298,9 +309,12 @@ export const App: React.FC = () => {
                 customBars={backtestResult?.bars}
                 customMarkers={backtestResult?.markers}
                 focusDate={focusDate}
+                isDrawerOpen={isDrawerOpen}
+                onToggleDrawer={() => setIsDrawerOpen((prev) => !prev)}
                 onSelectMarker={(m) => {
                   setSelectedMarker(m);
                   if (m) {
+                    setIsDrawerOpen(true);
                     const matchedTrade = backtestResult?.trades.find(
                       (t) => t.buy_date.startsWith(new Date(m.time * 1000).toISOString().substring(0, 10))
                     );
@@ -311,15 +325,18 @@ export const App: React.FC = () => {
             </main>
 
             {/* Right: Decision Drawer */}
-            <DecisionDrawer
-              selectedMarker={selectedMarker}
-              selectedTrade={selectedTrade}
-              currentSymbol={backtestParams.symbol}
-              onClose={() => {
-                setSelectedMarker(null);
-                setSelectedTrade(null);
-              }}
-            />
+            {isDrawerOpen && (
+              <DecisionDrawer
+                selectedMarker={selectedMarker}
+                selectedTrade={selectedTrade}
+                currentSymbol={backtestParams.symbol}
+                onClose={() => {
+                  setIsDrawerOpen(false);
+                  setSelectedMarker(null);
+                  setSelectedTrade(null);
+                }}
+              />
+            )}
           </div>
 
           {/* Bottom: Backtest Trade Table */}
@@ -330,6 +347,7 @@ export const App: React.FC = () => {
               setSelectedTrade(trade);
               setSelectedMarker(null);
               setFocusDate(trade.buy_date);
+              setIsDrawerOpen(true);
             }}
           />
 

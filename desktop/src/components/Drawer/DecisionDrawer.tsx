@@ -90,21 +90,20 @@ export const DecisionDrawer: React.FC<DecisionDrawerProps> = ({
   onClose,
 }) => {
   return (
-    <aside className="w-84 bg-[#161b22] border-l border-[#30363d] flex flex-col h-full select-none overflow-y-auto">
+    <aside className="w-[320px] min-w-[320px] max-w-[320px] shrink-0 bg-[#161b22] border-l border-[#30363d] flex flex-col h-full select-none overflow-y-auto overflow-x-hidden shadow-2xl transition-all duration-200">
       {/* Header */}
-      <div className="p-3.5 border-b border-[#30363d] flex items-center justify-between bg-[#21262d]/50 sticky top-0 z-10 backdrop-blur">
+      <div className="p-3 border-b border-[#30363d] flex items-center justify-between bg-[#21262d]/50 sticky top-0 z-10 backdrop-blur">
         <div className="flex items-center gap-2">
           <Cpu className="w-4 h-4 text-[#58a6ff]" />
           <h3 className="text-xs font-bold text-[#f0f6fc]">策略因果决策明细</h3>
         </div>
-        {(selectedMarker || selectedTrade) && (
-          <button
-            onClick={onClose}
-            className="p-1 rounded hover:bg-[#21262d] text-[#8b949e] hover:text-[#f0f6fc] transition"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
+        <button
+          onClick={onClose}
+          title="收起因果决策明细"
+          className="p-1 rounded hover:bg-[#21262d] text-[#8b949e] hover:text-[#f0f6fc] transition"
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Body */}

@@ -12,7 +12,7 @@ import {
 } from 'lightweight-charts';
 import { safeInvoke } from '../../utils/ipc';
 import { ChartMarker, KlineBar } from '../../types';
-import { Activity, Maximize2, Minimize2, RefreshCw, Calendar, Clock, Crosshair } from 'lucide-react';
+import { Activity, Maximize2, Minimize2, RefreshCw, Calendar, Clock, Crosshair, Cpu } from 'lucide-react';
 
 interface TVChartProps {
   symbol: string;
@@ -24,6 +24,8 @@ interface TVChartProps {
   customMarkers?: ChartMarker[];
   focusDate?: string | null;
   onSelectMarker?: (marker: ChartMarker | null) => void;
+  isDrawerOpen?: boolean;
+  onToggleDrawer?: () => void;
 }
 
 const formatTimestamp = (ts: number): string => {
@@ -48,6 +50,8 @@ export const TVChartContainer: React.FC<TVChartProps> = ({
   customMarkers,
   focusDate,
   onSelectMarker,
+  isDrawerOpen,
+  onToggleDrawer,
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -198,8 +202,16 @@ export const TVChartContainer: React.FC<TVChartProps> = ({
     };
     window.addEventListener('resize', handleResize);
 
+    const resizeObserver = new ResizeObserver(() => {
+      handleResize();
+    });
+    if (chartContainerRef.current) {
+      resizeObserver.observe(chartContainerRef.current);
+    }
+
     return () => {
       window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       chart.remove();
     };
   }, []);
@@ -516,6 +528,21 @@ export const TVChartContainer: React.FC<TVChartProps> = ({
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
+          {onToggleDrawer && (
+            <button
+              onClick={onToggleDrawer}
+              title={isDrawerOpen ? '收起因果决策明细面板' : '展开因果决策明细面板'}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs transition border ${
+                isDrawerOpen
+                  ? 'bg-[#1f6feb]/20 text-[#58a6ff] border-[#1f6feb]/50 font-bold shadow'
+                  : 'hover:bg-[#21262d] text-[#8b949e] hover:text-[#f0f6fc] border-[#30363d]'
+              }`}
+            >
+              <Cpu className="w-3.5 h-3.5" />
+              <span>{isDrawerOpen ? '收起明细' : '因果决策明细'}</span>
+            </button>
+          )}
+
           <button
             onClick={() => setIsFullscreen((prev) => !prev)}
             title={isFullscreen ? '退出全屏 (Esc)' : '全屏最大化铺满屏幕'}
