@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke } from '../../utils/ipc';
 import { FactorZooItem } from '../../types';
 import {
   Dna,
@@ -33,6 +33,8 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
   const [factors, setFactors] = useState<FactorZooItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [researching, setResearching] = useState<boolean>(false);
+  const [researchStatus, setResearchStatus] = useState<string | null>(null);
+  const [lastRunTime, setLastRunTime] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [familyFilter, setFamilyFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -41,7 +43,7 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
   const fetchFactors = async (status?: string) => {
     try {
       setLoading(true);
-      const res: FactorZooItem[] = await invoke('get_factor_zoo_command', {
+      const res: FactorZooItem[] = await safeInvoke('get_factor_zoo_command', {
         status: status === 'ALL' ? null : status,
       });
       setFactors(res || []);
@@ -61,10 +63,25 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
   const handleRunResearch = async () => {
     try {
       setResearching(true);
-      const res: FactorZooItem[] = await invoke('run_autonomous_factor_research_command');
-      setFactors(res || []);
-    } catch (err) {
+      setResearchStatus(
+        '⚡ 正在调用 Python 确定性因果内核，对沪金 (AU)、沪银 (AG)、沪铜 (CU)、原油 (SC)、螺纹 (RB)、豆粕 (M) 等 6 大期货主力合约执行全样本矩阵回测与 3x 极端成本压力测试...'
+      );
+      const res: FactorZooItem[] = await safeInvoke('run_autonomous_factor_research_command');
+      if (res && res.length > 0) {
+        setFactors(res);
+      }
+      const now = new Date();
+      const timeStr = now.toTimeString().split(' ')[0];
+      setLastRunTime(timeStr);
+      setResearchStatus(
+        `✅ 全品种因子挖掘完成！成功在本地 SQLite (ashare_quant.db) 更新因子库（共计 ${res?.length || factors.length} 个因子），100分稳健度体检指标已刷新！`
+      );
+      setTimeout(() => {
+        setResearchStatus(null);
+      }, 7000);
+    } catch (err: any) {
       console.error('Failed to run autonomous research:', err);
+      setResearchStatus(`❌ 挖掘过程中出现异常: ${err?.message || err}`);
     } finally {
       setResearching(false);
     }
@@ -126,6 +143,12 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
           </div>
 
           <div className="flex items-center gap-3">
+            {lastRunTime && (
+              <span className="text-[11px] font-mono text-[#8b949e] hidden sm:inline-block bg-[#0d1117] px-2 py-1 rounded border border-[#30363d]">
+                上次挖掘: {lastRunTime}
+              </span>
+            )}
+
             <button
               onClick={handleRunResearch}
               disabled={researching}
@@ -143,6 +166,36 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Real-time Research Status Banner */}
+        {researchStatus && (
+          <div
+            className={`px-6 py-2.5 flex items-center justify-between text-xs font-semibold border-b transition ${
+              researching
+                ? 'bg-[#1f6feb]/15 border-[#1f6feb]/40 text-[#58a6ff]'
+                : researchStatus.startsWith('❌')
+                ? 'bg-[#f85149]/15 border-[#f85149]/40 text-[#f85149]'
+                : 'bg-[#238636]/15 border-[#238636]/40 text-[#3fb950]'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {researching ? (
+                <RefreshCw className="w-4 h-4 animate-spin shrink-0 text-[#58a6ff]" />
+              ) : researchStatus.startsWith('❌') ? (
+                <AlertTriangle className="w-4 h-4 shrink-0 text-[#f85149]" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-[#3fb950]" />
+              )}
+              <span>{researchStatus}</span>
+            </div>
+            <button
+              onClick={() => setResearchStatus(null)}
+              className="text-[#8b949e] hover:text-[#f0f6fc] text-xs p-1"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* Top KPI Metrics Bar */}
         <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 px-6 py-3.5 bg-[#161b22]/50 border-b border-[#30363d]">

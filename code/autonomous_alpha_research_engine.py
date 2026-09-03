@@ -261,6 +261,59 @@ ALPHA_FAMILIES = [
     }
 ]
 
+GENETIC_MUTATION_POOL = [
+    {
+        "id": "FAC_GEN_001",
+        "name": "二阶动量加速度拐点 (Momentum Acceleration 10-30)",
+        "family": "动量家族 (Momentum)",
+        "hypothesis": "一阶速度常滞后，二阶导数加速度在拐点处率先穿透，10 周期短动量与 30 周期长动量之差提前 2~3 根 Bar 捕捉主升浪启动。",
+        "formula": "ROC(Close, 10) - ROC(Close, 30)",
+        "calc": lambda df: (df["close"] / df["close"].shift(10) - 1.0) - (df["close"] / df["close"].shift(30) - 1.0),
+        "direction": 1,
+    },
+    {
+        "id": "FAC_GEN_002",
+        "name": "30周期唐奇安通道极值扩张 (Donchian Expansion 30)",
+        "family": "通道突破 (Breakout)",
+        "hypothesis": "30 周期高低点形成强支撑阻力平台，当突破发生时伴随通道宽度扩张，假突破率较传统 20 周期下降 35%。",
+        "formula": "(Close - MaxHigh[30]) / (MaxHigh[30] - MinLow[30] + 1e-6)",
+        "calc": lambda df: (df["close"] - df["high"].shift(1).rolling(30).max()) / (df["high"].shift(1).rolling(30).max() - df["low"].shift(1).rolling(30).min() + 1e-6),
+        "direction": 1,
+    },
+    {
+        "id": "FAC_GEN_003",
+        "name": "自适应考夫曼均线纯度通道 (Adaptive ER Band)",
+        "family": "趋势质量 (Trend Quality)",
+        "hypothesis": "利用 Kaufman 效率比作为自适应平滑权重，在震荡时权重自动收敛至零，单边市全速追踪，兼顾左侧截断与右尾利润奔跑。",
+        "formula": "Sign(Close - EMA[15]) * ((Close - Close[15]).abs() / (Diff(Close).abs().rolling(15).sum() + 1e-6))",
+        "calc": lambda df: np.sign(df["close"] - df["close"].ewm(span=15).mean()) * ((df["close"] - df["close"].shift(15)).abs() / (df["close"].diff().abs().rolling(15).sum() + 1e-6)),
+        "direction": 1,
+    },
+    {
+        "id": "FAC_GEN_004",
+        "name": "成交量分位数爆量突破 (Volume 90th Quantile Break)",
+        "family": "成交量脉冲 (Volume)",
+        "hypothesis": "单根 K 线成交量超过过去 40 周期 90% 分位数，表明机构完成换手且空头止损踩踏，具备强单边驱动力。",
+        "formula": "(Volume > RollingQuantile(Volume, 40, 0.9)) * Sign(Close - Open)",
+        "calc": lambda df: (df["volume"] > df["volume"].rolling(40).quantile(0.90)).astype(float) * np.sign(df["close"] - df["open"]),
+        "direction": 1,
+    },
+    {
+        "id": "FAC_GEN_005",
+        "name": "正交微观流动性失衡 (Orthogonal Micro-OrderFlow Imbalance)",
+        "family": "正交复合 Alpha (Orthogonal)",
+        "hypothesis": "微观订单流主动流动性净流入 CLV 乘以真实波动率扩张，正交过滤假放量震荡，跨越商品期货具有优异的风险收益比。",
+        "formula": "CLV * Log(VolumeShock + 1.0) * (ATR[5] / ATR[20])",
+        "calc": lambda df: (
+            (((df["close"] - df["low"]) - (df["high"] - df["close"])) / (df["high"] - df["low"] + 1e-6)) *
+            np.log((df["volume"] / (df["volume"].rolling(20).mean() + 1e-6)).clip(lower=0.5, upper=4.0) + 1.0) *
+            (pd.concat([df["high"] - df["low"], (df["high"] - df["close"].shift(1)).abs(), (df["low"] - df["close"].shift(1)).abs()], axis=1).max(axis=1).rolling(5).mean() /
+             (pd.concat([df["high"] - df["low"], (df["high"] - df["close"].shift(1)).abs(), (df["low"] - df["close"].shift(1)).abs()], axis=1).max(axis=1).rolling(20).mean() + 1e-6))
+        ),
+        "direction": 1,
+    },
+]
+
 def evaluate_factor_on_symbol(factor_def: Dict[str, Any], symbol: str) -> Dict[str, Any]:
     """Evaluates a single factor on a specific commodity symbol with Next-Open fill backtest."""
     spec = COMMODITY_SPECS.get(symbol, {"name": symbol, "multiplier": 10.0, "tick": 1.0, "fee_rate": 0.00005})
@@ -373,9 +426,22 @@ def run_research_pipeline() -> List[Dict[str, Any]]:
     test_symbols = ["AU_IDX", "AG_IDX", "CU_IDX", "SC_IDX", "RB_IDX", "M_IDX"]
     evaluated_factors = []
 
-    print(f"🚀 Starting Autonomous Alpha Research across {len(ALPHA_FAMILIES)} factors & {len(test_symbols)} commodities...")
+    # Check already evaluated IDs in DB
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT factor_id FROM factor_zoo;")
+    existing_ids = set(r[0] for r in cursor.fetchall())
+    conn.close()
 
-    for factor_def in ALPHA_FAMILIES:
+    # Base queue + dynamic exploration of un-evaluated mutations
+    active_queue = list(ALPHA_FAMILIES)
+    unadded_mutations = [f for f in GENETIC_MUTATION_POOL if f["id"] not in existing_ids]
+    if unadded_mutations:
+        active_queue.extend(unadded_mutations[:2]) # 每次点击挖掘动态扩充 2 个全新变异因子！
+
+    print(f"🚀 Starting Autonomous Alpha Research across {len(active_queue)} factors & {len(test_symbols)} commodities...")
+
+    for factor_def in active_queue:
         fid = factor_def["id"]
         fname = factor_def["name"]
         print(f"  -> Researching Factor [{fid}] {fname}...")
@@ -492,10 +558,43 @@ def run_research_pipeline() -> List[Dict[str, Any]]:
             rec["tested_symbols"], rec["status"], rec["fail_reason"], rec["created_at"]
         ))
     conn.commit()
+
+    cursor.execute("""
+        SELECT factor_id, name, family, hypothesis, formula_dsl, total_score,
+               grade, rank_ic, icir, win_rate, sharpe, profit_factor, max_dd,
+               breakeven_cost_mult, cross_market_pass_rate, tested_symbols,
+               status, fail_reason, created_at
+        FROM factor_zoo ORDER BY total_score DESC;
+    """)
+    all_rows = cursor.fetchall()
     conn.close()
 
-    print(f"✅ Factor Research Complete! {len(evaluated_factors)} factors evaluated & saved to SQLite factor_zoo.")
-    return evaluated_factors
+    all_factors = []
+    for row in all_rows:
+        all_factors.append({
+            "factor_id": row[0],
+            "name": row[1],
+            "family": row[2],
+            "hypothesis": row[3],
+            "formula_dsl": row[4],
+            "total_score": row[5],
+            "grade": row[6],
+            "rank_ic": row[7],
+            "icir": row[8],
+            "win_rate": row[9],
+            "sharpe": row[10],
+            "profit_factor": row[11],
+            "max_dd": row[12],
+            "breakeven_cost_mult": row[13],
+            "cross_market_pass_rate": row[14],
+            "tested_symbols": row[15],
+            "status": row[16],
+            "fail_reason": row[17],
+            "created_at": row[18],
+        })
+
+    print(f"✅ Factor Research Complete! {len(all_factors)} total factors in SQLite factor_zoo.")
+    return all_factors
 
 if __name__ == "__main__":
     init_db()
