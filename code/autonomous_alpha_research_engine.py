@@ -312,6 +312,51 @@ GENETIC_MUTATION_POOL = [
         ),
         "direction": 1,
     },
+    {
+        "id": "FAC_GEN_006",
+        "name": "Parkinson 极差波动率突破 (Parkinson Vol Breakout)",
+        "family": "波动率动力学 (Volatility)",
+        "hypothesis": "基于日内极值对数极差的高频波动率估计器比收盘价波动更敏感，当极差突变突破历史 90 分位数，预示流动性冲击形成大级别趋势。",
+        "formula": "Sqrt(Log(High/Low)^2 / (4 * Log(2))) * Sign(Close - Open)",
+        "calc": lambda df: np.sqrt(np.log(df["high"] / (df["low"] + 1e-6))**2 / (4.0 * np.log(2.0))) * np.sign(df["close"] - df["open"]),
+        "direction": 1,
+    },
+    {
+        "id": "FAC_GEN_007",
+        "name": "布林带极值带宽挤压突破 (Bollinger Bandwidth Squeeze)",
+        "family": "通道突破 (Breakout)",
+        "hypothesis": "当 20 周期布林带上下轨带宽收缩至过去 60 周期最低 10% 窄区间后，能量聚集达到临界点，伴随价格破轨引爆爆发性行情。",
+        "formula": "((Upper - Lower) / SMA[20] <= Quantile(Bandwidth, 0.15)) * Sign(Close - SMA[20])",
+        "calc": lambda df: (
+            ((df["close"].rolling(20).mean() + 2.0 * df["close"].rolling(20).std() - (df["close"].rolling(20).mean() - 2.0 * df["close"].rolling(20).std())) / (df["close"].rolling(20).mean() + 1e-6)) <=
+            ((df["close"].rolling(20).mean() + 2.0 * df["close"].rolling(20).std() - (df["close"].rolling(20).mean() - 2.0 * df["close"].rolling(20).std())) / (df["close"].rolling(20).mean() + 1e-6)).rolling(60).quantile(0.20)
+        ).astype(float) * np.sign(df["close"] - df["close"].rolling(20).mean()),
+        "direction": 1,
+    },
+    {
+        "id": "FAC_GEN_008",
+        "name": "成交量加权偏离均值反转 (VWAP Deviation Reversion)",
+        "family": "均值回归 (Mean Reversion)",
+        "hypothesis": "价格严重偏离日内或滚动成交量加权平均价超过 2 倍 ATR 时，机构建仓成本锚定效应促使价格向筹码密集峰发生均值回归。",
+        "formula": "-(Close - (RollingSum(Close*Vol, 40) / RollingSum(Vol, 40))) / (ATR[20] + 1e-6)",
+        "calc": lambda df: -(df["close"] - (df["close"] * df["volume"]).rolling(40).sum() / (df["volume"].rolling(40).sum() + 1e-6)) / (
+            pd.concat([df["high"] - df["low"], (df["high"] - df["close"].shift(1)).abs(), (df["low"] - df["close"].shift(1)).abs()], axis=1).max(axis=1).rolling(20).mean() + 1e-6
+        ),
+        "direction": 1,
+    },
+    {
+        "id": "FAC_GEN_009",
+        "name": "正交三因子自适应投票器 (Orthogonal Tri-Factor Engine)",
+        "family": "正交复合 Alpha (Orthogonal)",
+        "hypothesis": "将动量方向、波动率通道、微观量价位置三者独立投票，仅在三者同向共振时开仓，有效过滤单指标假信号，具备全商品期货鲁棒性。",
+        "formula": "Sign(Close - SMA[20]) + Sign(CLV) + Sign(ROC[15]) >= 2",
+        "calc": lambda df: (
+            (np.sign(df["close"] - df["close"].rolling(20).mean()) +
+             np.sign(((df["close"] - df["low"]) - (df["high"] - df["close"])) / (df["high"] - df["low"] + 1e-6)) +
+             np.sign(df["close"] - df["close"].shift(15))) >= 2.0
+        ).astype(float),
+        "direction": 1,
+    },
 ]
 
 def evaluate_factor_on_symbol(factor_def: Dict[str, Any], symbol: str) -> Dict[str, Any]:

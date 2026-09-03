@@ -34,6 +34,7 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [researching, setResearching] = useState<boolean>(false);
   const [researchStatus, setResearchStatus] = useState<string | null>(null);
+  const [latestFactor, setLatestFactor] = useState<FactorZooItem | null>(null);
   const [lastRunTime, setLastRunTime] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [familyFilter, setFamilyFilter] = useState<string>('ALL');
@@ -68,6 +69,11 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
       );
       const res: FactorZooItem[] = await safeInvoke('run_autonomous_factor_research_command');
       if (res && res.length > 0) {
+        // Detect newly discovered factor
+        const newlyAdded = res.find((f) => !factors.some((prev) => prev.factor_id === f.factor_id));
+        if (newlyAdded) {
+          setLatestFactor(newlyAdded);
+        }
         setFactors(res);
       }
       const now = new Date();
@@ -76,9 +82,6 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
       setResearchStatus(
         `✅ 全品种因子挖掘完成！成功在本地 SQLite (ashare_quant.db) 更新因子库（共计 ${res?.length || factors.length} 个因子），100分稳健度体检指标已刷新！`
       );
-      setTimeout(() => {
-        setResearchStatus(null);
-      }, 7000);
     } catch (err: any) {
       console.error('Failed to run autonomous research:', err);
       setResearchStatus(`❌ 挖掘过程中出现异常: ${err?.message || err}`);
@@ -194,6 +197,46 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
             >
               <X className="w-3.5 h-3.5" />
             </button>
+          </div>
+        )}
+
+        {/* Latest Discovered Factor Spotlight */}
+        {latestFactor && (
+          <div className="px-6 py-2.5 bg-gradient-to-r from-[#1f6feb]/20 via-[#161b22] to-[#8957e5]/20 border-b border-[#30363d] flex flex-wrap items-center justify-between gap-3 animate-in fade-in">
+            <div className="flex items-center gap-2.5">
+              <span className="px-2 py-0.5 rounded bg-[#f0883e]/20 text-[#f0883e] border border-[#f0883e]/40 text-[10px] font-bold uppercase tracking-wide flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-[#f0883e]" /> 刚刚挖掘验证
+              </span>
+              <span className="font-mono text-xs text-[#58a6ff] font-bold">[{latestFactor.factor_id}]</span>
+              <span className="text-xs text-[#f0f6fc] font-bold">{latestFactor.name}</span>
+              <span className="text-xs text-[#8b949e]">({latestFactor.family})</span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-mono text-[#c9d1d9]">
+                综合得分: <b className="text-[#58a6ff]">{latestFactor.total_score}分 ({latestFactor.grade}级)</b>
+              </span>
+              <span
+                className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                  latestFactor.status === 'EXCELLENT'
+                    ? 'bg-[#238636]/20 text-[#3fb950] border border-[#238636]/50'
+                    : latestFactor.status === 'CANDIDATE'
+                    ? 'bg-[#d29922]/20 text-[#d29922] border border-[#d29922]/50'
+                    : 'bg-[#f85149]/20 text-[#f85149] border border-[#f85149]/50'
+                }`}
+              >
+                {latestFactor.status === 'EXCELLENT'
+                  ? '👑 晋级优秀因子库'
+                  : latestFactor.status === 'CANDIDATE'
+                  ? '🔬 列入候选观察池'
+                  : '🪦 门禁否决入墓'}
+              </span>
+              {latestFactor.fail_reason && (
+                <span className="text-[11px] text-[#f85149] italic max-w-xs truncate" title={latestFactor.fail_reason}>
+                  原因: {latestFactor.fail_reason}
+                </span>
+              )}
+            </div>
           </div>
         )}
 
@@ -401,6 +444,64 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
                       <span>硬性门禁违规记录: {f.fail_reason}</span>
                     </div>
                   )}
+
+                  {/* Multi-Commodity Scoreboard Breakdown */}
+                  {f.tested_symbols && (() => {
+                    try {
+                      const symData = typeof f.tested_symbols === 'string' ? JSON.parse(f.tested_symbols) : f.tested_symbols;
+                      const symKeys = Object.keys(symData || {});
+                      if (symKeys.length === 0) return null;
+                      const namesMap: Record<string, string> = {
+                        AU_IDX: '沪金',
+                        AG_IDX: '沪银',
+                        CU_IDX: '沪铜',
+                        SC_IDX: '原油',
+                        RB_IDX: '螺纹',
+                        M_IDX: '豆粕',
+                      };
+                      return (
+                        <div className="mt-2.5 bg-[#0d1117] p-2.5 rounded-xl border border-[#30363d]/60">
+                          <div className="flex items-center justify-between text-[11px] font-semibold text-[#8b949e] mb-1.5">
+                            <span className="flex items-center gap-1">
+                              <BarChart3 className="w-3 h-3 text-[#58a6ff]" />
+                              6 大代表性商品期货大数逐柱实测表现透视:
+                            </span>
+                            <span className="text-[10px] text-[#8b949e]">8000+ Bars 严格次柱开盘成交</span>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-6 gap-1.5">
+                            {symKeys.map((k) => {
+                              const s = symData[k];
+                              const isPos = (s?.pnl || 0) > 0;
+                              return (
+                                <div
+                                  key={k}
+                                  className={`px-2 py-1 rounded-lg border text-center font-mono ${
+                                    isPos
+                                      ? 'bg-[#238636]/10 border-[#238636]/40 text-[#3fb950]'
+                                      : 'bg-[#f85149]/10 border-[#f85149]/40 text-[#f85149]'
+                                  }`}
+                                >
+                                  <div className="text-[10px] font-bold text-[#c9d1d9]">
+                                    {namesMap[k] || k}
+                                  </div>
+                                  <div className="text-[11px] font-bold">
+                                    {isPos
+                                      ? `+¥${((s?.pnl || 0) / 10000).toFixed(1)}万`
+                                      : `-¥${(Math.abs(s?.pnl || 0) / 10000).toFixed(1)}万`}
+                                  </div>
+                                  <div className="text-[9px] text-[#8b949e]">
+                                    夏普 {s?.sharpe?.toFixed(1) ?? '0.0'}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    } catch (e) {
+                      return null;
+                    }
+                  })()}
 
                   {/* Metrics Row & Action */}
                   <div className="mt-3.5 pt-3 border-t border-[#30363d]/40 flex flex-wrap items-center justify-between gap-4">
