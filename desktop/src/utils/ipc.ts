@@ -574,41 +574,47 @@ export async function safeInvoke<T>(cmd: string, args?: Record<string, any>): Pr
   }
 
   if (cmd === 'start_continuous_research_command') {
+    (window as any).__mockContinuousRunning = true;
+    (window as any).__mockContinuousStartTime = Math.floor(Date.now() / 1000);
     return {
       is_running: true,
       pid: 12345,
-      start_time: Math.floor(Date.now() / 1000),
+      start_time: (window as any).__mockContinuousStartTime,
       duration_seconds: 3600,
       elapsed_seconds: 0,
       remaining_seconds: 3600,
-      total_evaluated_this_run: 0,
-      total_in_zoo: 27,
-      latest_factor_id: null,
-      latest_factor_name: null,
-      latest_factor_score: null,
-      latest_factor_status: null,
+      total_evaluated_this_run: 1,
+      total_in_zoo: 1681,
+      latest_factor_id: 'FAC_COMP_007',
+      latest_factor_name: '自适应四因子非对称共振投票引擎',
+      latest_factor_score: 83.7,
+      latest_factor_status: 'EXCELLENT',
       updated_at: new Date().toISOString(),
     } as unknown as T;
   }
 
   if (cmd === 'stop_continuous_research_command') {
+    (window as any).__mockContinuousRunning = false;
     return true as unknown as T;
   }
 
   if (cmd === 'get_continuous_research_status_command') {
+    const isRunning = !!(window as any).__mockContinuousRunning;
+    const startTime = (window as any).__mockContinuousStartTime || Math.floor(Date.now() / 1000);
+    const elapsed = isRunning ? Math.floor(Date.now() / 1000) - startTime : 0;
     return {
-      is_running: false,
-      pid: null,
-      start_time: null,
+      is_running: isRunning,
+      pid: isRunning ? 12345 : null,
+      start_time: isRunning ? startTime : null,
       duration_seconds: 3600,
-      elapsed_seconds: 0,
-      remaining_seconds: 3600,
-      total_evaluated_this_run: 0,
-      total_in_zoo: 27,
-      latest_factor_id: null,
-      latest_factor_name: null,
-      latest_factor_score: null,
-      latest_factor_status: null,
+      elapsed_seconds: elapsed,
+      remaining_seconds: isRunning ? Math.max(0, 3600 - elapsed) : 0,
+      total_evaluated_this_run: isRunning ? 1 : 0,
+      total_in_zoo: 1681,
+      latest_factor_id: isRunning ? 'FAC_COMP_007' : null,
+      latest_factor_name: isRunning ? '自适应四因子非对称共振投票引擎' : null,
+      latest_factor_score: isRunning ? 83.7 : null,
+      latest_factor_status: isRunning ? 'EXCELLENT' : null,
       updated_at: new Date().toISOString(),
     } as unknown as T;
   }

@@ -117,15 +117,31 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
 
   const handleStopContinuous = async () => {
     try {
+      // 1. Optimistically update local UI state immediately to false
+      setContinuousStatus((prev) =>
+        prev
+          ? {
+              ...prev,
+              is_running: false,
+              remaining_seconds: 0,
+            }
+          : null
+      );
+      setResearchStatus('🛑 正在停止自动研究任务...');
+
+      // 2. Call backend to terminate process and file
       await safeInvoke('stop_continuous_research_command');
-      setResearchStatus('🛑 已发送停止信号，正在平稳退出连续研究任务...');
+      setResearchStatus('🛑 已成功停止连续研究任务！');
+
+      // 3. Confirm status and refresh factors
       setTimeout(async () => {
         const st: ContinuousResearchStatus = await safeInvoke('get_continuous_research_status_command');
         setContinuousStatus(st);
         fetchFactors(statusFilter);
-      }, 1000);
+      }, 300);
     } catch (e: any) {
       console.error('Failed to stop continuous research:', e);
+      setResearchStatus(`❌ 停止研究任务失败: ${e?.message || e}`);
     }
   };
 

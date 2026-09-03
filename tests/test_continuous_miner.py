@@ -79,6 +79,16 @@ class TestContinuousAlphaMiner(unittest.TestCase):
             loaded = json.load(f)
         self.assertEqual(loaded["latest_factor_id"], "TEST_001")
         self.assertTrue(loaded["is_running"])
+        # Always clean up and reset is_running to False to avoid polluting runtime state
+        miner.write_status({
+            "is_running": False,
+            "duration_seconds": 3600,
+            "elapsed_seconds": 0,
+            "remaining_seconds": 0,
+            "total_evaluated_this_run": 0,
+            "total_in_zoo": 1681,
+            "latest_factor_id": None,
+        })
 
 if __name__ == "__main__":
     unittest.main()

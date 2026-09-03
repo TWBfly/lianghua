@@ -143,6 +143,22 @@ pub struct ContinuousResearchStatus {
     pub updated_at: Option<String>,
 }
 
+fn is_pid_alive(pid: u32) -> bool {
+    Command::new("kill")
+        .arg("-0")
+        .arg(pid.to_string())
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
+fn terminate_pid(pid: u32) {
+    let _ = Command::new("kill")
+        .arg("-15")
+        .arg(pid.to_string())
+        .output();
+}
+
 #[tauri::command]
 pub fn start_continuous_research_command(duration_seconds: Option<u64>) -> Result<ContinuousResearchStatus, String> {
     let dur = duration_seconds.unwrap_or(3600);
@@ -157,34 +173,53 @@ pub fn start_continuous_research_command(duration_seconds: Option<u64>) -> Resul
     let stop_file = "/Users/tang/PycharmProjects/pythonProject/lianghua/data/stop_continuous_miner.signal";
     let _ = std::fs::remove_file(stop_file);
 
-    let mut spawned = false;
+    let mut spawned_child_pid: Option<u32> = None;
     for py in &python_candidates {
-        if let Ok(_child) = Command::new(py)
+        if let Ok(child) = Command::new(py)
             .arg(script_path)
             .arg("--duration")
             .arg(dur.to_string())
             .current_dir(cwd)
             .spawn()
         {
-            spawned = true;
+            spawned_child_pid = Some(child.id());
             break;
         }
     }
 
-    if !spawned {
+    if spawned_child_pid.is_none() {
         return Err("Failed to spawn background python continuous miner".into());
     }
 
-    std::thread::sleep(std::time::Duration::from_millis(300));
+    std::thread::sleep(std::time::Duration::from_millis(400));
     get_continuous_research_status_command()
 }
 
 #[tauri::command]
 pub fn stop_continuous_research_command() -> Result<bool, String> {
     let stop_file = "/Users/tang/PycharmProjects/pythonProject/lianghua/data/stop_continuous_miner.signal";
-    if let Err(e) = std::fs::write(stop_file, "STOP") {
-        return Err(format!("Failed to create stop signal file: {}", e));
+    let status_path = "/Users/tang/PycharmProjects/pythonProject/lianghua/data/continuous_miner_status.json";
+    
+    // 1. Write stop signal file
+    let _ = std::fs::write(stop_file, "STOP");
+
+    // 2. Directly terminate process if running
+    if let Ok(content) = std::fs::read_to_string(status_path) {
+        if let Ok(mut status) = serde_json::from_str::<ContinuousResearchStatus>(&content) {
+            if let Some(pid) = status.pid {
+                if is_pid_alive(pid) {
+                    terminate_pid(pid);
+                }
+            }
+            // 3. Immediately mark is_running as false in the status file!
+            status.is_running = false;
+            status.remaining_seconds = Some(0);
+            if let Ok(updated_json) = serde_json::to_string_pretty(&status) {
+                let _ = std::fs::write(status_path, updated_json);
+            }
+        }
     }
+
     Ok(true)
 }
 
@@ -211,7 +246,24 @@ pub fn get_continuous_research_status_command() -> Result<ContinuousResearchStat
     }
 
     let content = std::fs::read_to_string(status_path).map_err(|e| e.to_string())?;
-    let status: ContinuousResearchStatus = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    let mut status: ContinuousResearchStatus = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+
+    // Liveness verification: If status says is_running == true, verify that the OS process actually exists!
+    if status.is_running {
+        let alive = match status.pid {
+            Some(pid) => is_pid_alive(pid),
+            None => false,
+        };
+
+        if !alive {
+            status.is_running = false;
+            status.remaining_seconds = Some(0);
+            if let Ok(corrected) = serde_json::to_string_pretty(&status) {
+                let _ = std::fs::write(status_path, corrected);
+            }
+        }
+    }
+
     Ok(status)
 }
 
