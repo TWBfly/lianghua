@@ -107,6 +107,7 @@ export interface BacktestTradeItem {
   name: string;
   buy_date: string;
   buy_price: number;
+  buy_reason?: string;
   sell_date: string;
   sell_price: number;
   shares: number;

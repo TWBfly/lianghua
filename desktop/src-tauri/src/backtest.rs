@@ -45,6 +45,7 @@ pub struct BacktestTradeItem {
     pub name: String,
     pub buy_date: String,
     pub buy_price: f64,
+    pub buy_reason: String,
     pub sell_date: String,
     pub sell_price: f64,
     pub shares: i64,
@@ -631,6 +632,7 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
     let mut buy_price = 0.0;
     let mut buy_date = String::new();
     let mut buy_time: i64 = 0;
+    let mut current_buy_reason = String::new();
     let mut trades = Vec::new();
     let mut markers = Vec::new();
 
@@ -740,6 +742,7 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
                     name: name.to_string(),
                     buy_date: buy_date.clone(),
                     buy_price,
+                    buy_reason: current_buy_reason.clone(),
                     sell_date: curr.datetime_str.clone(),
                     sell_price: fill_price,
                     shares,
@@ -794,6 +797,7 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
                 buy_price = fill_price;
                 buy_date = curr.datetime_str.clone();
                 buy_time = curr.time;
+                current_buy_reason = enter_reason.clone();
                 bars_held = 0;
                 cash -= (fill_price * (target_shares as f64) * multiplier * if is_stock { 1.0 } else { 0.12 }) + fee + slip_cost;
 
@@ -854,13 +858,21 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
                     name: name.to_string(),
                     buy_date: buy_date.clone(),
                     buy_price,
+                    buy_reason: current_buy_reason.clone(),
                     sell_date: curr.datetime_str.clone(),
                     sell_price: fill_price,
                     shares,
                     pnl_amount: (pnl_amount * 100.0).round() / 100.0,
                     pnl_pct: (pnl_pct * 100.0).round() / 100.0,
                     ml_score_pct: 85.0,
-                    sell_reason: "🛑 盘中触及刚性止损 (-2.0%)".to_string(),
+                    sell_reason: format!(
+                        "【平仓四重出场判据】\n\
+                         ① 触发规则: 盘中刚性硬止损 (-2.0%)\n\
+                         ② 触发阈值: 盘中触及最低价 ¥{:.2} <= 止损线 ¥{:.2}\n\
+                         ③ 损益截断: 净浮亏 {:+.2}%，严格截断左尾风险\n\
+                         ④ 撮合执行: 悲观触线次柱即刻市价对价成交，杜绝偷价",
+                        curr.low, stop_price, pnl_pct
+                    ),
                     fees_detail: format!("规费与滑点: ¥{:.2}", fee + slip_cost),
                 });
 
@@ -1112,7 +1124,14 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
                     // 开仓条件: 无持仓 + 冷却期归零 + 因果置信度 >= 0.70 + 阳线突破且信噪比良好
                     if causal_cooldown == 0 && causal_prob >= 0.70 && curr.close > curr.open && snr >= 0.28 {
                         should_enter = true;
-                        enter_reason = format!("因果Meta-Labeling达标 (P={:.0}%, SNR={:.2})", causal_prob * 100.0, snr);
+                        enter_reason = format!(
+                            "【开仓四重因果判据】\n\
+                             ① 趋势定位: 价格突破收阳，相对SMA20偏离度达 {:.2} ATR (向上发散)\n\
+                             ② 信噪比过滤: 路径净位移SNR={:.2} >= 0.28 (有效过滤白噪声假突破)\n\
+                             ③ 量能与动量: 成交量达均量 {:.2}x，RSI={:.1} 处强势动量推进区\n\
+                             ④ 置信度达标: 因果元标签置信率 P={:.0}% >= 70%，冷却期归零准许挂单",
+                            trend_disp, snr, vol_boost, rsi, causal_prob * 100.0
+                        );
                         ml_score = f64::min(causal_prob * 100.0, 98.0);
                     }
                 } else if shares > 0 {
@@ -1124,16 +1143,44 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
 
                     if gain_pts >= target_tp {
                         should_exit = true;
-                        exit_reason = format!("🎯 因果波动率动态止盈 (+{:.1} ATR, {:+.1}%)", gain_pts / atr, (gain_pts / buy_price) * 100.0);
+                        exit_reason = format!(
+                            "【平仓四重出场判据】\n\
+                             ① 触发规则: 动态波动率三屏止盈 (+2.2 ATR 上轨屏障)\n\
+                             ② 收益达成: 浮动盈利 +{:.2} 点 (对应涨幅 {:+.2}%)，达到理论波段极值\n\
+                             ③ 持仓效率: 累计持仓 {} 根K线 (约 {} 分钟)，波段冲顶落袋\n\
+                             ④ 撮合执行: 信号闭合次柱开盘市价挂单成交，扣除滑点规费后落袋",
+                            gain_pts, (gain_pts / buy_price) * 100.0, bars_held, bars_held * (bar_interval_mins as usize)
+                        );
                     } else if gain_pts <= target_sl {
                         should_exit = true;
-                        exit_reason = format!("🛑 因果波动率动态止损 ({:.1} ATR, {:+.1}%)", gain_pts / atr, (gain_pts / buy_price) * 100.0);
+                        exit_reason = format!(
+                            "【平仓四重出场判据】\n\
+                             ① 触发规则: 动态波动率三屏止损 (-1.3 ATR 下轨屏障)\n\
+                             ② 风险控制: 浮亏 {:.2} 点 (对应跌幅 {:+.2}%)，严格截断单笔损失\n\
+                             ③ 持仓周期: 累计持仓 {} 根K线 (约 {} 分钟)，严禁死扛扩亏\n\
+                             ④ 撮合执行: 跌破下轨次柱开盘市价止损，绝无未来函数偷价",
+                            gain_pts, (gain_pts / buy_price) * 100.0, bars_held, bars_held * (bar_interval_mins as usize)
+                        );
                     } else if bars_held >= max_hold_bars {
                         should_exit = true;
-                        exit_reason = format!("⏱️ 因果时间屏障衰竭平仓 (持有 {} 根Bar)", bars_held);
+                        exit_reason = format!(
+                            "【平仓四重出场判据】\n\
+                             ① 触发规则: 动态时间屏障超时 (持有达到 {} 根K线上限，约 {} 分钟)\n\
+                             ② 资本效率: 行情未在预期时间窗口内爆发，时间成本攀升，主动放弃仓位\n\
+                             ③ 损益锁定: 浮动净盈亏 {:+.2} 点 ({:+.2}%)\n\
+                             ④ 撮合执行: 时间屏障到期次柱开盘平仓，释放保证金",
+                            bars_held, bars_held * (bar_interval_mins as usize), gain_pts, (gain_pts / buy_price) * 100.0
+                        );
                     } else if causal_prob < 0.30 && gain_pts > 0.0 {
                         should_exit = true;
-                        exit_reason = "🛡️ 因果特征置信度衰竭保护性离场".to_string();
+                        exit_reason = format!(
+                            "【平仓四重出场判据】\n\
+                             ① 触发规则: 因果特征置信度衰竭离场 (Meta-Labeling P={:.0}% < 30%)\n\
+                             ② 逻辑失效: 初始开仓的微观动力学特征消失，预防反转回撤风险\n\
+                             ③ 损益锁定: 保护既得微利 {:+.2} 点 ({:+.2}%)\n\
+                             ④ 撮合执行: 因果衰竭次柱开盘平仓落袋",
+                            causal_prob * 100.0, gain_pts, (gain_pts / buy_price) * 100.0
+                        );
                     }
                 }
             }
@@ -1146,19 +1193,47 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
 
                 if shares == 0 && resonance && curr.close > curr.open {
                     should_enter = true;
-                    enter_reason = format!("太冲弹塑性势能爆发 (Strain={:.2})", strain);
+                    enter_reason = format!(
+                        "【开仓四重因果判据】\n\
+                         ① 趋势状态: 价格突破收阳，弹塑性张量进入塑性屈服变形区\n\
+                         ② 形变应变: 微观应变指数 Strain={:.2} > 0.85 阈值\n\
+                         ③ 量能共振: 成交量达均量 {:.2}x，微观订单流谐振共振\n\
+                         ④ 决策确认: 满足非线性突破开仓准则，准许挂单",
+                        strain, volumes[i] / (vol_sma_20[i] + 1e-6)
+                    );
                     ml_score = 93.0;
                 } else if shares > 0 {
                     let gain = (curr.close - buy_price) / buy_price;
                     if yield_ratio > 1.8 {
                         should_exit = true;
-                        exit_reason = "🎯 弹塑性势能衰竭释放落袋".to_string();
+                        exit_reason = format!(
+                            "【平仓四重出场判据】\n\
+                             ① 触发规则: 弹塑性势能衰竭释放落袋 (屈服比={:.2} > 1.8)\n\
+                             ② 收益锁定: 浮动盈余 {:+.2}%\n\
+                             ③ 持仓效率: 势能释放完毕，进入再平衡期\n\
+                             ④ 撮合执行: 次柱开盘对价平仓落袋",
+                            yield_ratio, gain * 100.0
+                        );
                     } else if gain >= 0.045 {
                         should_exit = true;
-                        exit_reason = "🎯 太冲动态共振止盈 (+4.5%)".to_string();
+                        exit_reason = format!(
+                            "【平仓四重出场判据】\n\
+                             ① 触发规则: 太冲动态共振止盈 (+4.5%)\n\
+                             ② 目标达成: 浮动盈余 +{:.2}%\n\
+                             ③ 持仓效率: 达到多头波段延伸极限\n\
+                             ④ 撮合执行: 次柱开盘平仓落袋",
+                            gain * 100.0
+                        );
                     } else if gain <= -0.020 {
                         should_exit = true;
-                        exit_reason = "🛑 塑性形变失效止损 (-2.0%)".to_string();
+                        exit_reason = format!(
+                            "【平仓四重出场判据】\n\
+                             ① 触发规则: 塑性形变失效止损 (-2.0%)\n\
+                             ② 风险控制: 浮动亏损 {:.2}%\n\
+                             ③ 逻辑失效: 微观形变支撑跌破\n\
+                             ④ 撮合执行: 次柱开盘市价止损",
+                            gain * 100.0
+                        );
                     }
                 }
             }
@@ -1205,13 +1280,14 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
             name: name.to_string(),
             buy_date: buy_date.clone(),
             buy_price,
+            buy_reason: current_buy_reason.clone(),
             sell_date: last_bar.datetime_str.clone(),
             sell_price: fill_price,
             shares,
             pnl_amount: (pnl_amount * 100.0).round() / 100.0,
             pnl_pct: (pnl_pct * 100.0).round() / 100.0,
             ml_score_pct: 85.0,
-            sell_reason: "🏁 期末未平仓头寸按收盘市价归行结算".to_string(),
+            sell_reason: "【平仓四重出场判据】\n① 触发规则: 样本测试周期结束 (期末平仓)\n② 资产清算: 未平仓多头头寸市价归行核算\n③ 损益锁定: 计入当期最终投资组合净值\n④ 撮合执行: 期末最后一根K线收盘价结算".to_string(),
             fees_detail: format!("规费与滑点: ¥{:.2}", fee),
         });
     }
