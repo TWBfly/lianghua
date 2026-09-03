@@ -66,7 +66,7 @@ def calculate_factors(df: pd.DataFrame, window: int = 40) -> pd.DataFrame:
     prev_c = np.roll(c, 1)
     prev_c[0] = c[0]
     tr = np.maximum(h - l, np.maximum(np.abs(h - prev_c), np.abs(l - prev_c)))
-    atr = pd.Series(tr, index=df.index).rolling(14, min_periods=5).mean().bfill().values + 1e-8
+    atr = pd.Series(tr, index=df.index).rolling(14, min_periods=5).mean().ffill().fillna(1.0).values + 1e-8
 
     # 2. Ehlers 2-Pole SuperSmoother 零滞后宏观大势
     filt_fast = calculate_ehlers_supersmoother_2pole(c, period=6)
@@ -85,7 +85,7 @@ def calculate_factors(df: pd.DataFrame, window: int = 40) -> pd.DataFrame:
 
     # 4. 波动率挤压蓄势 (Squeeze Ratio)
     c_s = pd.Series(c, index=df.index)
-    c_std = c_s.rolling(20, min_periods=5).std(ddof=0).bfill().values + 1e-8
+    c_std = c_s.rolling(20, min_periods=5).std(ddof=0).ffill().fillna(0).values + 1e-8
     squeeze_ratio = (4.0 * c_std) / (2.0 * atr)
     had_squeeze = pd.Series(squeeze_ratio, index=df.index).rolling(6, min_periods=1).min().values <= 1.30
 
@@ -94,7 +94,7 @@ def calculate_factors(df: pd.DataFrame, window: int = 40) -> pd.DataFrame:
     c_diff8 = c_s.diff(8)
     tau2 = c_diff2.rolling(window, min_periods=5).std(ddof=0)
     tau8 = c_diff8.rolling(window, min_periods=5).std(ddof=0)
-    hurst = (np.log((tau8 + 1e-8) / (tau2 + 1e-8)) / np.log(4.0)).clip(0.1, 0.9).bfill().values
+    hurst = (np.log((tau8 + 1e-8) / (tau2 + 1e-8)) / np.log(4.0)).clip(0.1, 0.9).ffill().fillna(0.5).values
 
     # 6. K 线实体与能量
     bar_range = np.maximum(1e-8, h - l)
@@ -102,11 +102,11 @@ def calculate_factors(df: pd.DataFrame, window: int = 40) -> pd.DataFrame:
     body_ratio = body / bar_range
 
     # 7. 唐奇安 20 周期局部极值通道
-    roll_high20 = pd.Series(h, index=df.index).rolling(20, min_periods=5).max().shift(1).bfill().values
-    roll_low20 = pd.Series(l, index=df.index).rolling(20, min_periods=5).min().shift(1).bfill().values
+    roll_high20 = pd.Series(h, index=df.index).rolling(20, min_periods=5).max().shift(1).ffill().fillna(0).values
+    roll_low20 = pd.Series(l, index=df.index).rolling(20, min_periods=5).min().shift(1).ffill().fillna(0).values
 
     # 8. 持仓量过滤
-    vol_ma20 = pd.Series(v, index=df.index).rolling(20, min_periods=5).mean().bfill().values + 1e-8
+    vol_ma20 = pd.Series(v, index=df.index).rolling(20, min_periods=5).mean().ffill().fillna(0).values + 1e-8
     oi_filter_long = np.ones(n, dtype=bool)
     oi_filter_short = np.ones(n, dtype=bool)
     if "open_interest" in df.columns:
@@ -144,6 +144,8 @@ def calculate_signal(df: pd.DataFrame) -> pd.Series:
     t_up = factors["trend_up"].values
     t_dn = factors["trend_dn"].values
     had_sq = factors["had_squeeze"].values
+    fvg_bull = factors["fvg_bull"].values
+    fvg_bear = factors["fvg_bear"].values
     hurst = factors["hurst"].values
     body_ratio = factors["body_ratio"].values
     h20 = factors["roll_high20"].values
@@ -154,7 +156,7 @@ def calculate_signal(df: pd.DataFrame) -> pd.Series:
     long_cond = (
         t_up &
         (c > h20) &
-        had_sq &
+        (had_sq | fvg_bull) &
         (hurst >= 0.50) &
         (c > o) &
         (body_ratio >= 0.35) &
@@ -164,7 +166,7 @@ def calculate_signal(df: pd.DataFrame) -> pd.Series:
     short_cond = (
         t_dn &
         (c < l20) &
-        had_sq &
+        (had_sq | fvg_bear) &
         (hurst >= 0.50) &
         (c < o) &
         (body_ratio >= 0.35) &

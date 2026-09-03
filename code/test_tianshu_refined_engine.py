@@ -76,18 +76,18 @@ def compute_tianshu_refined_signals(df: pd.DataFrame, vp_window: int = 40) -> Tu
     prev_c[0] = c[0]
     tr = np.maximum(h - l, np.maximum(np.abs(h - prev_c), np.abs(l - prev_c)))
     tr_series = pd.Series(tr, index=df.index)
-    atr = tr_series.rolling(14, min_periods=5).mean().bfill().values + 1e-8
+    atr = tr_series.rolling(14, min_periods=5).mean().ffill().fillna(1.0).values + 1e-8
 
     # 2. 闭式 Volume Profile 拓扑特征
     typical_p = (h + l + c) / 3.0
     v_series = pd.Series(v, index=df.index)
     pv_series = pd.Series(typical_p * v, index=df.index)
 
-    roll_vol = v_series.rolling(vp_window, min_periods=5).sum().bfill().values + 1e-8
-    roll_pv = pv_series.rolling(vp_window, min_periods=5).sum().bfill().values
-    vwap = roll_pv / roll_vol
+    roll_vol = v_series.rolling(vp_window, min_periods=5).sum().ffill().fillna(1.0).values + 1e-8
+    roll_pv = pv_series.rolling(vp_window, min_periods=5).sum().ffill().fillna(0.0).values
+    vwap = np.where(roll_vol > 1e-6, roll_pv / roll_vol, typical_p)
 
-    p_diff_sq_v = pd.Series((typical_p - vwap) ** 2 * v, index=df.index).rolling(vp_window, min_periods=5).sum().bfill().values
+    p_diff_sq_v = pd.Series((typical_p - vwap) ** 2 * v, index=df.index).rolling(vp_window, min_periods=5).sum().ffill().fillna(0.0).values
     vw_std = np.sqrt(np.maximum(1e-8, p_diff_sq_v / roll_vol))
 
     vah = vwap + 1.0 * vw_std
@@ -100,8 +100,8 @@ def compute_tianshu_refined_signals(df: pd.DataFrame, vp_window: int = 40) -> Tu
     ofi_raw = v * ((c - l) - (h - c)) / bar_range
     ofi_series = pd.Series(ofi_raw, index=df.index)
     ofi_smooth = ofi_series.rolling(4, min_periods=1).mean()
-    ofi_mean = ofi_series.rolling(vp_window, min_periods=10).mean().bfill()
-    ofi_std = ofi_series.rolling(vp_window, min_periods=10).std(ddof=0).bfill() + 1e-8
+    ofi_mean = ofi_series.rolling(vp_window, min_periods=10).mean().ffill().fillna(0.0)
+    ofi_std = ofi_series.rolling(vp_window, min_periods=10).std(ddof=0).ffill().fillna(1.0) + 1e-8
     ofi_zscore = ((ofi_smooth - ofi_mean) / ofi_std).values
 
     # 4. Ehlers 2-Pole SuperSmoother 零滞后宏观趋势
@@ -112,7 +112,7 @@ def compute_tianshu_refined_signals(df: pd.DataFrame, vp_window: int = 40) -> Tu
 
     # 5. 波动率能量挤压 (Squeeze Gate)
     c_series = pd.Series(c, index=df.index)
-    c_std = c_series.rolling(20, min_periods=5).std(ddof=0).bfill().values + 1e-8
+    c_std = c_series.rolling(20, min_periods=5).std(ddof=0).ffill().fillna(1.0).values + 1e-8
     squeeze_ratio = (4.0 * c_std) / (2.0 * atr)
     had_squeeze = pd.Series(squeeze_ratio, index=df.index).rolling(8, min_periods=1).min().values <= 1.20
 
@@ -128,7 +128,7 @@ def compute_tianshu_refined_signals(df: pd.DataFrame, vp_window: int = 40) -> Tu
     # 7. 考夫曼自适应效率 (KER)
     net_diff = np.abs(c - np.roll(c, 14))
     abs_diff = np.abs(c - prev_c)
-    path = pd.Series(abs_diff, index=df.index).rolling(14, min_periods=5).sum().bfill().values + 1e-8
+    path = pd.Series(abs_diff, index=df.index).rolling(14, min_periods=5).sum().ffill().fillna(1.0).values + 1e-8
     ker = net_diff / path
 
     # 8. 持仓量与资金流入确认
@@ -137,7 +137,7 @@ def compute_tianshu_refined_signals(df: pd.DataFrame, vp_window: int = 40) -> Tu
     if "open_interest" in df.columns:
         oi = df["open_interest"].astype(float).values
         oi_diff = np.diff(oi, prepend=oi[0])
-        vol_ma = pd.Series(v).rolling(20, min_periods=5).mean().bfill().values
+        vol_ma = pd.Series(v).rolling(20, min_periods=5).mean().ffill().fillna(1.0).values
         oi_filter_long = oi_diff >= -vol_ma * 0.35
         oi_filter_short = oi_diff >= -vol_ma * 0.35
 

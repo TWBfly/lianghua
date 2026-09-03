@@ -34,7 +34,7 @@ def calculate_factors(df: pd.DataFrame, atr_period: int = 14) -> pd.DataFrame:
         return pd.DataFrame(index=df.index)
 
     res = pd.DataFrame(index=df.index)
-    res["atr"] = calculate_atr(df, atr_period).bfill().fillna(1.0)
+    res["atr"] = calculate_atr(df, atr_period).ffill().fillna(1.0)
     res["ema50"] = calculate_ema(df["close"], 50)
 
     # 运行因果缠论引擎

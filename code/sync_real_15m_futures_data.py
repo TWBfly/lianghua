@@ -40,16 +40,11 @@ SYMBOL_MAP = {
 def sync_real_15m_bars():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL;")
 
     print("=" * 90)
     print("🚀 启动 100% 真实期货 15m 盘中 K 线数据抓取与落盘...")
     print("=" * 90)
-
-    # 1. 清理合成的伪造数据
-    for db_sym in SYMBOL_MAP.keys():
-        cursor.execute(f"DELETE FROM futures_min_bars WHERE symbol = '{db_sym}' AND timeframe = '15m';")
-    conn.commit()
-    print("🧹 已清除所有的伪造/合成 15m 数据记录。")
 
     total_inserted = 0
 

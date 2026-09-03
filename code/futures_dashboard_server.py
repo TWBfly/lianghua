@@ -43,6 +43,28 @@ from run_ek_supertrend_v7_lln_audit import compute_v7_dynamic_supertrend
 app = Flask(__name__)
 app.logger.setLevel(logging.WARNING)
 
+DASHBOARD_SECRET_KEY = os.environ.get("DASHBOARD_SECRET_KEY", "").strip()
+
+@app.before_request
+def check_auth():
+    # 若配置了 DASHBOARD_SECRET_KEY，则对 /api/ 接口启用 Token 鉴权
+    if DASHBOARD_SECRET_KEY and request.path.startswith("/api/"):
+        token = request.headers.get("X-Dashboard-Token") or request.args.get("token")
+        if token != DASHBOARD_SECRET_KEY:
+            return jsonify({"error": "Unauthorized", "message": "Invalid or missing X-Dashboard-Token"}), 401
+
+@app.after_request
+def add_security_headers(response):
+    origin = request.headers.get("Origin", "")
+    allowed_domains = ["739265.xyz", "localhost", "127.0.0.1"]
+    if any(d in origin for d in allowed_domains):
+        response.headers["Access-Control-Allow-Origin"] = origin
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Dashboard-Token"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    return response
+
 # 10m 战队与 30m 战队核心品种定义
 SQUAD_10M_SYMBOLS = ["SN_IDX", "AU_IDX", "AG_IDX", "MA_IDX", "P_IDX"]
 SQUAD_30M_SYMBOLS = ["SC_IDX", "LC_IDX", "J_IDX", "AL_IDX", "TA_IDX", "SI_IDX"]

@@ -88,32 +88,50 @@ class VnpyDifferentialOracle:
         is_passed = True
         warnings_list = []
 
-        if internal_metrics:
-            internal_pnl = internal_metrics.get("total_net_pnl", 0.0)
-            vnpy_pnl = vnpy_stats.get("total_net_pnl", 0.0)
-
-            pnl_diff = abs(internal_pnl - vnpy_pnl)
-            pnl_rel_diff = pnl_diff / (abs(vnpy_pnl) + 1e-8)
-
-            internal_trades = internal_metrics.get("total_trade_count", 0)
-            vnpy_trades = vnpy_stats.get("total_trade_count", 0)
-
-            audit_details = {
-                "internal_net_pnl": internal_pnl,
-                "vnpy_net_pnl": vnpy_pnl,
-                "pnl_abs_difference": round(pnl_diff, 2),
-                "pnl_relative_difference_pct": round(pnl_rel_diff * 100.0, 2),
-                "internal_trade_count": internal_trades,
-                "vnpy_trade_count": vnpy_trades,
-                "trade_count_matched": (internal_trades == vnpy_trades)
+        if not internal_metrics:
+            return {
+                "status": "NOT_RUN",
+                "symbol": symbol,
+                "vt_symbol": vt_symbol,
+                "bar_count": len(bars),
+                "vnpy_benchmark_metrics": vnpy_stats,
+                "differential_audit": {},
+                "warnings": ["未提供内部指标对比数据，差分门禁未实际执行"],
+                "daily_records_count": len(runner.daily_df) if runner.daily_df is not None else 0
             }
 
-            # 严格门禁：相对收益偏差不得超过 5%，否则提示存在潜在前瞻或滑点模型偏差
-            if pnl_rel_diff > 0.05:
-                is_passed = False
-                warnings_list.append(
-                    f"PnL 偏差超出安全容差 (差异: {pnl_rel_diff * 100.0:.2f}% > 5.0%)，请检查内部引擎是否包含非因果特征或撮合时间差"
-                )
+        internal_pnl = internal_metrics.get("total_net_pnl", 0.0)
+        vnpy_pnl = vnpy_stats.get("total_net_pnl", 0.0)
+
+        pnl_diff = abs(internal_pnl - vnpy_pnl)
+        pnl_rel_diff = pnl_diff / (abs(vnpy_pnl) + 1e-8)
+
+        internal_trades = internal_metrics.get("total_trade_count", 0)
+        vnpy_trades = vnpy_stats.get("total_trade_count", 0)
+        trade_count_matched = (internal_trades == vnpy_trades)
+
+        audit_details = {
+            "internal_net_pnl": internal_pnl,
+            "vnpy_net_pnl": vnpy_pnl,
+            "pnl_abs_difference": round(pnl_diff, 2),
+            "pnl_relative_difference_pct": round(pnl_rel_diff * 100.0, 2),
+            "internal_trade_count": internal_trades,
+            "vnpy_trade_count": vnpy_trades,
+            "trade_count_matched": trade_count_matched
+        }
+
+        # 严格门禁：交易笔数必须匹配且相对收益偏差不得超过 5%
+        if not trade_count_matched:
+            is_passed = False
+            warnings_list.append(
+                f"交易笔数不匹配: 内部引擎 {internal_trades} 笔 vs vn.py 对照 {vnpy_trades} 笔"
+            )
+
+        if pnl_rel_diff > 0.05:
+            is_passed = False
+            warnings_list.append(
+                f"PnL 偏差超出安全容差 (差异: {pnl_rel_diff * 100.0:.2f}% > 5.0%)，请检查内部引擎是否包含非因果特征或撮合时间差"
+            )
 
         return {
             "status": "PASS" if is_passed else "FAIL_AUDIT",

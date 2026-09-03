@@ -81,6 +81,7 @@ def load_tq_credentials(env_file=ENV_PATH):
 
 def ensure_db_schema(conn: sqlite3.Connection):
     cursor = conn.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL;")
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS futures_min_bars (
             symbol TEXT,
@@ -98,7 +99,6 @@ def ensure_db_schema(conn: sqlite3.Connection):
             PRIMARY KEY (symbol, timeframe, trade_time)
         );
     """)
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_futures_min_sym_tf_time ON futures_min_bars (symbol, timeframe, trade_time);")
 
     cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='futures_series_metadata';")
     row = cursor.fetchone()
@@ -219,12 +219,18 @@ def fetch_and_sync_dominant_data(
                     print(f"  │  └─ ⚠️ 有效 K 线过滤后为空")
                     continue
 
-                # 关键：先删除该品种周期的旧杂交残留，保证数据绝对纯净！
-                cursor.execute(f"DELETE FROM futures_min_bars WHERE symbol = '{db_sym}' AND timeframe = '{tf_name}';")
+                start_t = bars_to_insert[0][2]
+                end_t = bars_to_insert[-1][2]
+
+                # 关键：仅清理当前同步批次覆盖的时间窗口，保留远端历史数据！
+                cursor.execute(
+                    "DELETE FROM futures_min_bars WHERE symbol = ? AND timeframe = ? AND trade_time >= ? AND trade_time <= ?;",
+                    (db_sym, tf_name, start_t, end_t)
+                )
 
                 cursor.executemany(
                     """
-                    INSERT INTO futures_min_bars 
+                    INSERT OR REPLACE INTO futures_min_bars 
                     (symbol, timeframe, trade_time, open, high, low, close, volume, amount, open_interest, settlement)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                     """,

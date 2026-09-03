@@ -101,6 +101,7 @@ def simulate_taichong(
     breakeven_atr_mult: float = 2.0,
     trail_atr_mult: float = 5.0,
     cost_multiplier: float = 1.0,
+    ruptures: pd.Series | None = None,
 ) -> dict[str, Any]:
     required = {"open", "high", "low", "close"}
     missing = required.difference(df.columns)
@@ -135,7 +136,14 @@ def simulate_taichong(
         axis=1,
     ).max(axis=1)
     atr = true_range.rolling(14, min_periods=14).mean().to_numpy()
-    sma5 = bars["close"].rolling(5, min_periods=5).mean().to_numpy()
+    # 彻底消除同柱未来收盘价泄漏: 使用 shift(1) 冻结已走完历史K线的 SMA5
+    sma5_target = bars["close"].shift(1).rolling(5, min_periods=5).mean().to_numpy()
+
+    rupture_arr = (
+        ruptures.reindex(bars.index).fillna(False).astype(bool).to_numpy()
+        if ruptures is not None
+        else np.zeros(len(bars), dtype=bool)
+    )
 
     multiplier = float(spec["multiplier"])
     tick = float(spec["tick"])
@@ -179,11 +187,16 @@ def simulate_taichong(
 
     for i in range(1, len(bars)):
         signal = int(sig[i - 1])
+        rupture_prev = bool(rupture_arr[i - 1])
+
+        # 结构破裂强制清仓风控
+        if position and rupture_prev:
+            close_position(i, open_[i], "rupture_breaker")
 
         if position and signal == -position:
             close_position(i, open_[i], "reverse_signal")
 
-        if position == 0 and signal and np.isfinite(atr[i - 1]):
+        if position == 0 and signal and np.isfinite(atr[i - 1]) and not rupture_prev:
             entry_atr = max(float(atr[i - 1]), 2.0 * tick)
             unit_risk = max(tick * multiplier, stop_atr_mult * entry_atr * multiplier)
             lots = max(1, min(50, int(initial_capital * 0.005 / unit_risk)))
@@ -195,19 +208,38 @@ def simulate_taichong(
             stop_price = entry_price - position * stop_atr_mult * entry_atr
             favorable_extreme = entry_price
 
-        # 1. 均值回归第一目标达成止盈 (SMA5 Take Profit)
-        if position > 0 and np.isfinite(sma5[i]) and high[i] >= sma5[i]:
-            fill_p = min(high[i], max(open_[i], sma5[i]))
-            close_position(i, fill_p, "take_profit_sma5")
-        elif position < 0 and np.isfinite(sma5[i]) and low[i] <= sma5[i]:
-            fill_p = max(low[i], min(open_[i], sma5[i]))
-            close_position(i, fill_p, "take_profit_sma5")
+        # ----------------------------------------------------
+        # 严格因果与同柱悲观止损绝对优先撮合
+        # ----------------------------------------------------
+        if position > 0:
+            is_stop_hit = low[i] <= stop_price
+            is_tp_hit = np.isfinite(sma5_target[i]) and high[i] >= sma5_target[i]
 
-        # 2. 初始/追踪硬止损 (Stop Loss)
-        if position > 0 and low[i] <= stop_price:
-            close_position(i, min(open_[i], stop_price), "stop")
-        elif position < 0 and high[i] >= stop_price:
-            close_position(i, max(open_[i], stop_price), "stop")
+            if is_stop_hit and is_tp_hit:
+                # 同柱碰撞悲观优先: 无论是否触及止盈，命中止损一律判定止损成交
+                fill_p = min(open_[i], stop_price)
+                close_position(i, fill_p, "stop_pessimistic_collision")
+            elif is_stop_hit:
+                fill_p = min(open_[i], stop_price)
+                close_position(i, fill_p, "stop")
+            elif is_tp_hit:
+                fill_p = min(high[i], max(open_[i], sma5_target[i]))
+                close_position(i, fill_p, "take_profit_sma5")
+
+        elif position < 0:
+            is_stop_hit = high[i] >= stop_price
+            is_tp_hit = np.isfinite(sma5_target[i]) and low[i] <= sma5_target[i]
+
+            if is_stop_hit and is_tp_hit:
+                # 同柱碰撞悲观优先: 命中止损一律判定止损成交
+                fill_p = max(open_[i], stop_price)
+                close_position(i, fill_p, "stop_pessimistic_collision")
+            elif is_stop_hit:
+                fill_p = max(open_[i], stop_price)
+                close_position(i, fill_p, "stop")
+            elif is_tp_hit:
+                fill_p = max(low[i], min(open_[i], sma5_target[i]))
+                close_position(i, fill_p, "take_profit_sma5")
 
         if position > 0:
             favorable_extreme = max(favorable_extreme, high[i])
@@ -265,7 +297,29 @@ def summarize_simulation(
     max_drawdown = float(((peaks - equity) / peaks.replace(0.0, np.nan)).max() * 100.0)
     returns = equity.pct_change().replace([np.inf, -np.inf], np.nan).dropna()
     
-    tf_mult = 36.0 if timeframe == "10m" else (24.0 if timeframe == "15m" else 12.0)
+    # 动态自适应解析周期分钟数
+    if timeframe == "10m":
+        bar_minutes = 10.0
+    elif timeframe == "15m":
+        bar_minutes = 15.0
+    elif timeframe == "30m":
+        bar_minutes = 30.0
+    elif timeframe == "1m":
+        bar_minutes = 1.0
+    elif timeframe == "5m":
+        bar_minutes = 5.0
+    elif timeframe in ("60m", "1h"):
+        bar_minutes = 60.0
+    elif timeframe.endswith("m"):
+        try:
+            bar_minutes = float(timeframe[:-1])
+        except Exception:
+            bar_minutes = 30.0
+    else:
+        bar_minutes = 30.0
+
+    # 国内期货交易日基准按 240 分钟/日折算日内柱数
+    tf_mult = 240.0 / max(1.0, bar_minutes)
     
     if len(returns) > 1 and returns.std(ddof=0) > 0:
         sharpe = float(returns.mean() / returns.std(ddof=0) * math.sqrt(252.0 * tf_mult))
@@ -280,7 +334,6 @@ def summarize_simulation(
     ret_pct = 100.0 * float(result["net_pnl"]) / initial_capital
     calmar = float(ret_pct / max_drawdown) if max_drawdown > 0 else (math.inf if ret_pct > 0 else 0.0)
 
-    bar_minutes = 10.0 if timeframe == "10m" else (15.0 if timeframe == "15m" else 30.0)
     avg_holding_hours = float(trades["holding_bars"].mean() * (bar_minutes / 60.0)) if count else 0.0
 
     return {

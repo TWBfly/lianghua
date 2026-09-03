@@ -94,7 +94,7 @@ ATTACK_EVIDENCE = {
         ),
     ),
 }
-SERIES_TYPES = ("WEIGHTED_INDEX", "MONTHLY_AVERAGE_WEIGHTED_INDEX")
+SERIES_TYPES = ("WEIGHTED_INDEX", "MONTHLY_AVERAGE_WEIGHTED_INDEX", "REAL_DOMINANT_CONTRACT")
 BAR_COLUMNS = (
     "symbol", "timeframe", "trade_time", "open", "high", "low", "close",
     "volume", "amount", "open_interest", "settlement", "series_type",

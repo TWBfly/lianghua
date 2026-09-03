@@ -128,6 +128,104 @@ class TestTaichongElastoplasticTensor(unittest.TestCase):
         eigvals = np.linalg.eigvalsh(cov_shrunk)
         self.assertTrue((eigvals >= -1e-10).all())
 
+    def test_no_sma5_lookahead(self):
+        """测试同柱 SMA5 止盈不使用未完成的收盘价：改变当根 Bar 收盘价，平仓价格保持确定性一致"""
+        from run_taichong_multi_timeframe_deep_comparison import simulate_taichong
+        spec = {"multiplier": 10.0, "tick": 0.5, "fee_rate": 0.00005}
+
+        # 构造数据，第 20 根 Bar 进场多头，第 21 根 Bar 触发止盈
+        df1 = self.df.iloc[:30].copy()
+        signals = pd.Series(0, index=df1.index)
+        signals.iloc[19] = 1  # 进场信号
+
+        # 调整第 21 根 Bar (index 20) 的高点以触发 SMA5 止盈
+        df1.iloc[20, df1.columns.get_loc("high")] = 3000.0
+        df1.iloc[20, df1.columns.get_loc("close")] = 2500.0
+
+        res1 = simulate_taichong(df1, signals, spec)
+        trades1 = res1["trades"]
+        self.assertFalse(trades1.empty, "应有交易生成")
+        first_exit_p1 = trades1.iloc[0]["exit_price"]
+
+        # 构造 df2: 保持 open, high, low 完全一致，仅改变当根 Bar 的 close
+        df2 = df1.copy()
+        df2.iloc[20, df2.columns.get_loc("close")] = 2000.0  # 剧烈改变当根收盘价
+
+        res2 = simulate_taichong(df2, signals, spec)
+        trades2 = res2["trades"]
+        self.assertFalse(trades2.empty, "应有交易生成")
+        first_exit_p2 = trades2.iloc[0]["exit_price"]
+
+        # 因果断言：平仓成交价绝对不能受当根未完结收盘价的影响！
+        self.assertEqual(first_exit_p1, first_exit_p2)
+
+    def test_pessimistic_collision_priority(self):
+        """测试同柱止盈止损碰撞时，必须悲观止损绝对优先，严禁乐观止盈"""
+        from run_taichong_multi_timeframe_deep_comparison import simulate_taichong
+        spec = {"multiplier": 10.0, "tick": 0.5, "fee_rate": 0.00005}
+
+        df = self.df.iloc[:30].copy()
+        signals = pd.Series(0, index=df.index)
+        signals.iloc[19] = 1  # 进场信号
+
+        # 在第 21 根 Bar 制造极端宽幅柱：最高价触及止盈，最低价暴跌触及硬止损
+        df.iloc[20, df.columns.get_loc("open")] = 2000.0
+        df.iloc[20, df.columns.get_loc("high")] = 4000.0  # 远超止盈线
+        df.iloc[20, df.columns.get_loc("low")] = 500.0    # 远穿止损线
+        df.iloc[20, df.columns.get_loc("close")] = 2000.0
+
+        res = simulate_taichong(df, signals, spec)
+        trades = res["trades"]
+        self.assertFalse(trades.empty)
+        # 必须是止损优先，绝不能是 take_profit_sma5
+        self.assertIn("stop", trades.iloc[0]["exit_reason"])
+        self.assertNotEqual("take_profit_sma5", trades.iloc[0]["exit_reason"])
+
+    def test_directional_oi_filter(self):
+        """测试非对称持仓量(OI)微观主动进攻过滤：下跌增仓拦截多头抄底"""
+        df = self.df.copy()
+        c = df["close"].values
+        df["volume"] = 1000.0
+        oi = np.full(len(df), 10000.0)
+        # 模拟下跌增仓 (空头主动砸盘): 在 225 处价格低于前值且持仓量突增
+        df.iloc[225, df.columns.get_loc("close")] = df.iloc[224]["close"] - 10.0
+        oi[225] = oi[224] + 5000.0
+        df["open_interest"] = oi
+
+        factors = calculate_factors(df)
+        # 此时下跌增仓，空头凶猛，做多持仓量过滤应为 False (拦截做多)
+        self.assertFalse(factors["oi_filter_long"].iloc[225])
+        # 做空过滤应不受影响
+        self.assertTrue(factors["oi_filter_short"].iloc[225])
+
+    def test_timeframe_scaling_differentiation(self):
+        """测试多周期尺度计算自适应：1m 与 30m 的时间尺度与持仓小时数严格隔离"""
+        from run_taichong_multi_timeframe_deep_comparison import summarize_simulation
+        mock_result = {
+            "trades": pd.DataFrame({
+                "net_pnl": [100.0, -50.0],
+                "entry_fee": [1.0, 1.0],
+                "exit_fee": [1.0, 1.0],
+                "slippage_cost": [2.0, 2.0],
+                "gross_pnl": [104.0, -46.0],
+                "holding_bars": [6, 12],
+            }),
+            "equity": pd.Series([1000000.0, 1000100.0, 1000050.0]),
+            "final_equity": 1000050.0,
+            "net_pnl": 50.0,
+            "ledger_reconciled": True,
+        }
+        res_1m = summarize_simulation("AU", "沪金", "1m", "real", mock_result, 1000)
+        res_30m = summarize_simulation("AU", "沪金", "30m", "real", mock_result, 1000)
+
+        # 平均持仓 (6+12)/2 = 9 根 Bar
+        # 9 根 Bar 在 1m 下是 9 * 1 / 60 = 0.15 小时
+        self.assertAlmostEqual(res_1m["avg_holding_hours"], 0.15, places=2)
+        # 9 根 Bar 在 30m 下是 9 * 30 / 60 = 4.5 小时
+        self.assertAlmostEqual(res_30m["avg_holding_hours"], 4.5, places=2)
+        # 1m 的持仓时间必须显著小于 30m，不得默认套用 30m
+        self.assertLess(res_1m["avg_holding_hours"], res_30m["avg_holding_hours"])
+
 
 if __name__ == "__main__":
     unittest.main()

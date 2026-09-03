@@ -122,7 +122,6 @@ def download_tq_klines(target_symbols=None, target_tfs=None, data_length: int = 
             PRIMARY KEY (symbol, timeframe, trade_time)
         );
     """)
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_futures_min_sym_tf_time ON futures_min_bars (symbol, timeframe, trade_time);")
     conn.commit()
 
     api = TqApi(auth=TqAuth(user, password))

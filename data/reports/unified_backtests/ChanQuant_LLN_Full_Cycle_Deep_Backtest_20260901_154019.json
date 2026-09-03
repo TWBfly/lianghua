@@ -1,0 +1,1972 @@
+{
+  "report_title": "ChanQuant 期货 15M 大数定律 (N>=1000) 全周期牛熊深度回测报告",
+  "timestamp": "20260901_154019",
+  "universe_count": 16,
+  "bars_per_symbol": 120000,
+  "total_portfolio_bars": 1920000,
+  "total_portfolio_trades": 21043,
+  "portfolio_1x_net_pnl": -15840896.76,
+  "portfolio_3x_net_pnl": -15880606.17,
+  "symbols_1x_metrics": [
+    {
+      "symbol": "AU_IDX",
+      "name": "沪金",
+      "cost_multiplier": 1.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 493,
+      "total_net_pnl": -976362.47,
+      "win_rate": 0.4909,
+      "profit_factor": 0.72,
+      "max_drawdown": 1013878.36,
+      "max_drawdown_pct": 97.72,
+      "wilson_95_ci": [
+        0.447,
+        0.5349
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 23637.53,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 374,
+          "net_pnl": -289422.1770423678,
+          "wins": 193,
+          "win_rmb": 1833094.288557633,
+          "loss_rmb": 2122516.4655999993,
+          "win_rate": 0.516042780748663,
+          "profit_factor": 0.8636419638042431
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 117,
+          "net_pnl": -662412.9286183135,
+          "wins": 49,
+          "win_rmb": 708355.3821816866,
+          "loss_rmb": 1370768.3108000003,
+          "win_rate": 0.4188034188034188,
+          "profit_factor": 0.5167579207957287
+        },
+        "PANIC_CRASH": {
+          "trades": 2,
+          "net_pnl": -24527.359600000014,
+          "wins": 0,
+          "win_rmb": 0.0,
+          "loss_rmb": 24527.359600000014,
+          "win_rate": 0.0,
+          "profit_factor": 0.0
+        }
+      }
+    },
+    {
+      "symbol": "AG_IDX",
+      "name": "沪银",
+      "cost_multiplier": 1.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 870,
+      "total_net_pnl": -992099.04,
+      "win_rate": 0.431,
+      "profit_factor": 0.67,
+      "max_drawdown": 1009150.33,
+      "max_drawdown_pct": 99.22,
+      "wilson_95_ci": [
+        0.3985,
+        0.4642
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 7900.96,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 354,
+          "net_pnl": -521350.1762051393,
+          "wins": 160,
+          "win_rmb": 1433913.25179486,
+          "loss_rmb": 1955263.4280000008,
+          "win_rate": 0.4519774011299435,
+          "profit_factor": 0.7333606465813015
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 370,
+          "net_pnl": -451673.8468757731,
+          "wins": 144,
+          "win_rmb": 426546.97662422666,
+          "loss_rmb": 878220.8235000003,
+          "win_rate": 0.3891891891891892,
+          "profit_factor": 0.4856944463287617
+        },
+        "PANIC_CRASH": {
+          "trades": 146,
+          "net_pnl": -19075.016418653067,
+          "wins": 71,
+          "win_rmb": 174443.21608134694,
+          "loss_rmb": 193518.23250000004,
+          "win_rate": 0.4863013698630137,
+          "profit_factor": 0.9014303914817839
+        }
+      }
+    },
+    {
+      "symbol": "CU_IDX",
+      "name": "沪铜",
+      "cost_multiplier": 1.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 513,
+      "total_net_pnl": -980418.86,
+      "win_rate": 0.46,
+      "profit_factor": 0.66,
+      "max_drawdown": 987983.37,
+      "max_drawdown_pct": 98.06,
+      "wilson_95_ci": [
+        0.4174,
+        0.5033
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 19581.14,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 351,
+          "net_pnl": -466338.423835056,
+          "wins": 167,
+          "win_rmb": 1103686.868664944,
+          "loss_rmb": 1570025.2925000007,
+          "win_rate": 0.4757834757834758,
+          "profit_factor": 0.7029739418449124
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 160,
+          "net_pnl": -492369.9346807113,
+          "wins": 69,
+          "win_rmb": 777963.1353192888,
+          "loss_rmb": 1270333.0700000003,
+          "win_rate": 0.43125,
+          "profit_factor": 0.6124087876569902
+        },
+        "PANIC_CRASH": {
+          "trades": 2,
+          "net_pnl": -21710.5025,
+          "wins": 0,
+          "win_rmb": 0.0,
+          "loss_rmb": 21710.5025,
+          "win_rate": 0.0,
+          "profit_factor": 0.0
+        }
+      }
+    },
+    {
+      "symbol": "AL_IDX",
+      "name": "沪铝",
+      "cost_multiplier": 1.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 1524,
+      "total_net_pnl": -993196.24,
+      "win_rate": 0.4416,
+      "profit_factor": 0.75,
+      "max_drawdown": 1012608.67,
+      "max_drawdown_pct": 99.33,
+      "wilson_95_ci": [
+        0.4168,
+        0.4666
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 6803.76,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 358,
+          "net_pnl": -323743.18855551997,
+          "wins": 171,
+          "win_rmb": 1725922.5309444794,
+          "loss_rmb": 2049665.7195000013,
+          "win_rate": 0.4776536312849162,
+          "profit_factor": 0.8420507376029567
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 360,
+          "net_pnl": -410237.5837835417,
+          "wins": 155,
+          "win_rmb": 653692.4197164584,
+          "loss_rmb": 1063930.0035000003,
+          "win_rate": 0.4305555555555556,
+          "profit_factor": 0.6144129948079353
+        },
+        "PANIC_CRASH": {
+          "trades": 367,
+          "net_pnl": -44463.04151877812,
+          "wins": 187,
+          "win_rmb": 455228.28373122186,
+          "loss_rmb": 499691.32524999994,
+          "win_rate": 0.5095367847411444,
+          "profit_factor": 0.9110189845770448
+        },
+        "GRINDING_CHOP": {
+          "trades": 353,
+          "net_pnl": -189648.13925671493,
+          "wins": 119,
+          "win_rmb": 112476.95874328507,
+          "loss_rmb": 302125.09799999994,
+          "win_rate": 0.3371104815864023,
+          "profit_factor": 0.37228604802399223
+        },
+        "NEW_BULL_WAVE": {
+          "trades": 86,
+          "net_pnl": -25104.28462658495,
+          "wins": 41,
+          "win_rmb": 51636.32737341507,
+          "loss_rmb": 76740.61199999996,
+          "win_rate": 0.47674418604651164,
+          "profit_factor": 0.6728683291372288
+        }
+      }
+    },
+    {
+      "symbol": "ZN_IDX",
+      "name": "沪锌",
+      "cost_multiplier": 1.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 1529,
+      "total_net_pnl": -991803.34,
+      "win_rate": 0.4591,
+      "profit_factor": 0.72,
+      "max_drawdown": 1020650.45,
+      "max_drawdown_pct": 99.2,
+      "wilson_95_ci": [
+        0.4343,
+        0.4842
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 8196.66,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 356,
+          "net_pnl": -444058.61622629093,
+          "wins": 171,
+          "win_rmb": 1189868.218023709,
+          "loss_rmb": 1633926.8342499998,
+          "win_rate": 0.4803370786516854,
+          "profit_factor": 0.7282261317226432
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 357,
+          "net_pnl": -355210.03133483464,
+          "wins": 153,
+          "win_rmb": 552527.4294151653,
+          "loss_rmb": 907737.4607499999,
+          "win_rate": 0.42857142857142855,
+          "profit_factor": 0.6086863804856577
+        },
+        "PANIC_CRASH": {
+          "trades": 371,
+          "net_pnl": 32419.585934753766,
+          "wins": 206,
+          "win_rmb": 607016.0024347538,
+          "loss_rmb": 574596.4164999998,
+          "win_rate": 0.555256064690027,
+          "profit_factor": 1.0564214899428344
+        },
+        "GRINDING_CHOP": {
+          "trades": 349,
+          "net_pnl": -188143.91698744742,
+          "wins": 127,
+          "win_rmb": 153604.60651255256,
+          "loss_rmb": 341748.5235000001,
+          "win_rate": 0.3638968481375358,
+          "profit_factor": 0.4494667743971921
+        },
+        "NEW_BULL_WAVE": {
+          "trades": 96,
+          "net_pnl": -36810.35998948618,
+          "wins": 45,
+          "win_rmb": 66950.86151051383,
+          "loss_rmb": 103761.22150000003,
+          "win_rate": 0.46875,
+          "profit_factor": 0.6452397200288102
+        }
+      }
+    },
+    {
+      "symbol": "RB_IDX",
+      "name": "螺纹钢",
+      "cost_multiplier": 1.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 1814,
+      "total_net_pnl": -990801.25,
+      "win_rate": 0.4548,
+      "profit_factor": 0.67,
+      "max_drawdown": 1020624.1,
+      "max_drawdown_pct": 99.43,
+      "wilson_95_ci": [
+        0.432,
+        0.4778
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 9198.75,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 376,
+          "net_pnl": -302733.9106556471,
+          "wins": 181,
+          "win_rmb": 1070864.8643443533,
+          "loss_rmb": 1373598.775,
+          "win_rate": 0.48138297872340424,
+          "profit_factor": 0.7796052849161471
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 369,
+          "net_pnl": -520939.91012010677,
+          "wins": 156,
+          "win_rmb": 537718.414879893,
+          "loss_rmb": 1058658.325000001,
+          "win_rate": 0.42276422764227645,
+          "profit_factor": 0.5079244192217423
+        },
+        "PANIC_CRASH": {
+          "trades": 365,
+          "net_pnl": -78956.34045917462,
+          "wins": 165,
+          "win_rmb": 212497.8495408253,
+          "loss_rmb": 291454.1900000002,
+          "win_rate": 0.4520547945205479,
+          "profit_factor": 0.7290951951688115
+        },
+        "GRINDING_CHOP": {
+          "trades": 341,
+          "net_pnl": -74922.20704098929,
+          "wins": 129,
+          "win_rmb": 61976.85795901073,
+          "loss_rmb": 136899.0649999999,
+          "win_rate": 0.3782991202346041,
+          "profit_factor": 0.45271936633757326
+        },
+        "NEW_BULL_WAVE": {
+          "trades": 363,
+          "net_pnl": -13248.88283376236,
+          "wins": 194,
+          "win_rmb": 103289.64716623758,
+          "loss_rmb": 116538.52999999998,
+          "win_rate": 0.5344352617079889,
+          "profit_factor": 0.8863132833941593
+        }
+      }
+    },
+    {
+      "symbol": "HC_IDX",
+      "name": "热卷",
+      "cost_multiplier": 1.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 1743,
+      "total_net_pnl": -997035.55,
+      "win_rate": 0.4613,
+      "profit_factor": 0.69,
+      "max_drawdown": 1001996.98,
+      "max_drawdown_pct": 99.71,
+      "wilson_95_ci": [
+        0.438,
+        0.4847
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 2964.45,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 361,
+          "net_pnl": -239276.0124073447,
+          "wins": 179,
+          "win_rmb": 1117392.4275926554,
+          "loss_rmb": 1356668.4400000009,
+          "win_rate": 0.49584487534626037,
+          "profit_factor": 0.82362970542209
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 363,
+          "net_pnl": -550950.5886433742,
+          "wins": 154,
+          "win_rmb": 584008.5093566251,
+          "loss_rmb": 1134959.0980000014,
+          "win_rate": 0.42424242424242425,
+          "profit_factor": 0.5145634854910157
+        },
+        "PANIC_CRASH": {
+          "trades": 363,
+          "net_pnl": -74113.21817833462,
+          "wins": 179,
+          "win_rmb": 320665.14782166516,
+          "loss_rmb": 394778.3660000002,
+          "win_rate": 0.4931129476584022,
+          "profit_factor": 0.8122662623859608
+        },
+        "GRINDING_CHOP": {
+          "trades": 333,
+          "net_pnl": -102450.08113680383,
+          "wins": 129,
+          "win_rmb": 86107.40186319612,
+          "loss_rmb": 188557.48299999986,
+          "win_rate": 0.38738738738738737,
+          "profit_factor": 0.4566639334233774
+        },
+        "NEW_BULL_WAVE": {
+          "trades": 323,
+          "net_pnl": -30245.652959235325,
+          "wins": 163,
+          "win_rmb": 95988.18604076476,
+          "loss_rmb": 126233.83899999998,
+          "win_rate": 0.5046439628482973,
+          "profit_factor": 0.7603998008866479
+        }
+      }
+    },
+    {
+      "symbol": "I_IDX",
+      "name": "铁矿石",
+      "cost_multiplier": 1.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 1241,
+      "total_net_pnl": -991175.67,
+      "win_rate": 0.4343,
+      "profit_factor": 0.62,
+      "max_drawdown": 998591.97,
+      "max_drawdown_pct": 99.12,
+      "wilson_95_ci": [
+        0.407,
+        0.4621
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 8824.33,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 353,
+          "net_pnl": -589260.0333362723,
+          "wins": 165,
+          "win_rmb": 883271.2366637279,
+          "loss_rmb": 1472531.2699999998,
+          "win_rate": 0.46742209631728043,
+          "profit_factor": 0.5998319048693085
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 361,
+          "net_pnl": -282931.9268430421,
+          "wins": 152,
+          "win_rmb": 395553.93315695756,
+          "loss_rmb": 678485.8600000003,
+          "win_rate": 0.42105263157894735,
+          "profit_factor": 0.5829951020010226
+        },
+        "PANIC_CRASH": {
+          "trades": 362,
+          "net_pnl": -69082.81492844743,
+          "wins": 181,
+          "win_rmb": 341164.85007155244,
+          "loss_rmb": 410247.6649999998,
+          "win_rate": 0.5,
+          "profit_factor": 0.8316070490530257
+        },
+        "GRINDING_CHOP": {
+          "trades": 165,
+          "net_pnl": -49900.896293444144,
+          "wins": 41,
+          "win_rmb": 24123.165,
+          "loss_rmb": 74024.06129344416,
+          "win_rate": 0.24848484848484848,
+          "profit_factor": 0.3258827545866249
+        }
+      }
+    },
+    {
+      "symbol": "J_IDX",
+      "name": "焦炭",
+      "cost_multiplier": 1.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 592,
+      "total_net_pnl": -980720.47,
+      "win_rate": 0.4696,
+      "profit_factor": 0.63,
+      "max_drawdown": 999269.01,
+      "max_drawdown_pct": 98.11,
+      "wilson_95_ci": [
+        0.4297,
+        0.5099
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 19279.53,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 371,
+          "net_pnl": -449536.66411189584,
+          "wins": 186,
+          "win_rmb": 1123227.325888104,
+          "loss_rmb": 1572763.9900000002,
+          "win_rate": 0.5013477088948787,
+          "profit_factor": 0.7141741119645655
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 190,
+          "net_pnl": -508339.2049076744,
+          "wins": 77,
+          "win_rmb": 497717.80209232547,
+          "loss_rmb": 1006057.007,
+          "win_rate": 0.4052631578947368,
+          "profit_factor": 0.4947212718854614
+        },
+        "PANIC_CRASH": {
+          "trades": 31,
+          "net_pnl": -22844.603298514277,
+          "wins": 15,
+          "win_rmb": 79095.56520148572,
+          "loss_rmb": 101940.16850000001,
+          "win_rate": 0.4838709677419355,
+          "profit_factor": 0.7759018487543303
+        }
+      }
+    },
+    {
+      "symbol": "MA_IDX",
+      "name": "甲醇",
+      "cost_multiplier": 1.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 1722,
+      "total_net_pnl": -997319.25,
+      "win_rate": 0.4564,
+      "profit_factor": 0.65,
+      "max_drawdown": 1013128.36,
+      "max_drawdown_pct": 99.74,
+      "wilson_95_ci": [
+        0.433,
+        0.48
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 2680.75,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 360,
+          "net_pnl": -199910.64478253212,
+          "wins": 177,
+          "win_rmb": 744317.6032174678,
+          "loss_rmb": 944228.2479999998,
+          "win_rate": 0.49166666666666664,
+          "profit_factor": 0.7882814402068811
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 359,
+          "net_pnl": -613531.770071299,
+          "wins": 140,
+          "win_rmb": 631530.4859287008,
+          "loss_rmb": 1245062.256000001,
+          "win_rate": 0.38997214484679665,
+          "profit_factor": 0.5072280385059679
+        },
+        "PANIC_CRASH": {
+          "trades": 371,
+          "net_pnl": -39981.53890681664,
+          "wins": 193,
+          "win_rmb": 312649.4106931833,
+          "loss_rmb": 352630.9495999999,
+          "win_rate": 0.5202156334231806,
+          "profit_factor": 0.8866193141805115
+        },
+        "GRINDING_CHOP": {
+          "trades": 334,
+          "net_pnl": -119065.45921063476,
+          "wins": 130,
+          "win_rmb": 68817.05245218794,
+          "loss_rmb": 187882.51166282286,
+          "win_rate": 0.38922155688622756,
+          "profit_factor": 0.3662770517762958
+        },
+        "NEW_BULL_WAVE": {
+          "trades": 298,
+          "net_pnl": -24829.841862491194,
+          "wins": 146,
+          "win_rmb": 63149.17333750883,
+          "loss_rmb": 87979.01519999995,
+          "win_rate": 0.4899328859060403,
+          "profit_factor": 0.7177754058049708
+        }
+      }
+    },
+    {
+      "symbol": "TA_IDX",
+      "name": "PTA",
+      "cost_multiplier": 1.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 1542,
+      "total_net_pnl": -998046.22,
+      "win_rate": 0.4163,
+      "profit_factor": 0.56,
+      "max_drawdown": 1002647.58,
+      "max_drawdown_pct": 99.81,
+      "wilson_95_ci": [
+        0.392,
+        0.4411
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 1953.78,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 361,
+          "net_pnl": -337089.84444742877,
+          "wins": 176,
+          "win_rmb": 713394.9095525711,
+          "loss_rmb": 1050484.7540000002,
+          "win_rate": 0.48753462603878117,
+          "profit_factor": 0.6791101982547804
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 355,
+          "net_pnl": -541160.8350545083,
+          "wins": 122,
+          "win_rmb": 353432.9233454911,
+          "loss_rmb": 894593.7583999994,
+          "win_rate": 0.3436619718309859,
+          "profit_factor": 0.39507644674115516
+        },
+        "PANIC_CRASH": {
+          "trades": 367,
+          "net_pnl": -42160.674410035164,
+          "wins": 181,
+          "win_rmb": 151154.26618996484,
+          "loss_rmb": 193314.94059999997,
+          "win_rate": 0.49318801089918257,
+          "profit_factor": 0.7819067978957702
+        },
+        "GRINDING_CHOP": {
+          "trades": 348,
+          "net_pnl": -70486.0022966986,
+          "wins": 114,
+          "win_rmb": 30781.27976477742,
+          "loss_rmb": 101267.28206147601,
+          "win_rate": 0.3275862068965517,
+          "profit_factor": 0.30396075749409457
+        },
+        "NEW_BULL_WAVE": {
+          "trades": 111,
+          "net_pnl": -7148.865359805415,
+          "wins": 49,
+          "win_rmb": 24184.19904019458,
+          "loss_rmb": 31333.064400000003,
+          "win_rate": 0.44144144144144143,
+          "profit_factor": 0.7718427642904554
+        }
+      }
+    },
+    {
+      "symbol": "SA_IDX",
+      "name": "纯碱",
+      "cost_multiplier": 1.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 1422,
+      "total_net_pnl": -995873.54,
+      "win_rate": 0.4058,
+      "profit_factor": 0.66,
+      "max_drawdown": 1019508.62,
+      "max_drawdown_pct": 99.6,
+      "wilson_95_ci": [
+        0.3805,
+        0.4315
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 4126.46,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 348,
+          "net_pnl": -269438.8985520618,
+          "wins": 175,
+          "win_rmb": 1074193.6334479381,
+          "loss_rmb": 1343632.5319999997,
+          "win_rate": 0.5028735632183908,
+          "profit_factor": 0.7994698013518553
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 359,
+          "net_pnl": -535959.0848299374,
+          "wins": 142,
+          "win_rmb": 540588.3011700625,
+          "loss_rmb": 1076547.3859999995,
+          "win_rate": 0.3955431754874652,
+          "profit_factor": 0.502150029065286
+        },
+        "PANIC_CRASH": {
+          "trades": 361,
+          "net_pnl": -42799.285415210725,
+          "wins": 185,
+          "win_rmb": 301270.5165847893,
+          "loss_rmb": 344069.80200000014,
+          "win_rate": 0.5124653739612188,
+          "profit_factor": 0.875608713213316
+        },
+        "GRINDING_CHOP": {
+          "trades": 338,
+          "net_pnl": -140506.76077693788,
+          "wins": 70,
+          "win_rmb": 39252.94979205753,
+          "loss_rmb": 179759.71056899524,
+          "win_rate": 0.20710059171597633,
+          "profit_factor": 0.21836344566759472
+        },
+        "NEW_BULL_WAVE": {
+          "trades": 16,
+          "net_pnl": -7169.506716774674,
+          "wins": 5,
+          "win_rmb": 1906.2252832253257,
+          "loss_rmb": 9075.732000000002,
+          "win_rate": 0.3125,
+          "profit_factor": 0.2100354311060777
+        }
+      }
+    },
+    {
+      "symbol": "FG_IDX",
+      "name": "玻璃",
+      "cost_multiplier": 1.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 1542,
+      "total_net_pnl": -997833.47,
+      "win_rate": 0.415,
+      "profit_factor": 0.64,
+      "max_drawdown": 1032367.87,
+      "max_drawdown_pct": 99.79,
+      "wilson_95_ci": [
+        0.3907,
+        0.4398
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 2166.53,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 357,
+          "net_pnl": -258377.6962401156,
+          "wins": 173,
+          "win_rmb": 789127.7117598844,
+          "loss_rmb": 1047505.4079999999,
+          "win_rate": 0.484593837535014,
+          "profit_factor": 0.753339988255103
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 345,
+          "net_pnl": -551053.1986411754,
+          "wins": 128,
+          "win_rmb": 602685.3873588251,
+          "loss_rmb": 1153738.5859999994,
+          "win_rate": 0.3710144927536232,
+          "profit_factor": 0.5223760344605656
+        },
+        "PANIC_CRASH": {
+          "trades": 368,
+          "net_pnl": -36418.84723005756,
+          "wins": 200,
+          "win_rmb": 283685.5207699424,
+          "loss_rmb": 320104.36799999984,
+          "win_rate": 0.5434782608695652,
+          "profit_factor": 0.8862282090756526
+        },
+        "GRINDING_CHOP": {
+          "trades": 306,
+          "net_pnl": -135951.93680737412,
+          "wins": 64,
+          "win_rmb": 45850.74800000002,
+          "loss_rmb": 181802.68480737405,
+          "win_rate": 0.20915032679738563,
+          "profit_factor": 0.2522006099556664
+        },
+        "NEW_BULL_WAVE": {
+          "trades": 166,
+          "net_pnl": -16031.79404455649,
+          "wins": 75,
+          "win_rmb": 32745.88395544351,
+          "loss_rmb": 48777.678,
+          "win_rate": 0.45180722891566266,
+          "profit_factor": 0.6713292903249064
+        }
+      }
+    },
+    {
+      "symbol": "M_IDX",
+      "name": "豆粕",
+      "cost_multiplier": 1.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 1778,
+      "total_net_pnl": -978190.07,
+      "win_rate": 0.4623,
+      "profit_factor": 0.68,
+      "max_drawdown": 990193.77,
+      "max_drawdown_pct": 97.87,
+      "wilson_95_ci": [
+        0.4392,
+        0.4855
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 21809.93,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 340,
+          "net_pnl": -187994.97318446406,
+          "wins": 167,
+          "win_rmb": 844972.4368155358,
+          "loss_rmb": 1032967.4100000004,
+          "win_rate": 0.49117647058823527,
+          "profit_factor": 0.818004932813444
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 371,
+          "net_pnl": -613612.7115499941,
+          "wins": 149,
+          "win_rmb": 639329.2429500058,
+          "loss_rmb": 1252941.9544999995,
+          "win_rate": 0.40161725067385445,
+          "profit_factor": 0.5102624592095586
+        },
+        "PANIC_CRASH": {
+          "trades": 354,
+          "net_pnl": -15532.679860917428,
+          "wins": 190,
+          "win_rmb": 377043.144639083,
+          "loss_rmb": 392575.8245,
+          "win_rate": 0.536723163841808,
+          "profit_factor": 0.960433936856123
+        },
+        "GRINDING_CHOP": {
+          "trades": 351,
+          "net_pnl": -150404.8612847653,
+          "wins": 125,
+          "win_rmb": 93182.41271523472,
+          "loss_rmb": 243587.27400000006,
+          "win_rate": 0.3561253561253561,
+          "profit_factor": 0.3825422042172485
+        },
+        "NEW_BULL_WAVE": {
+          "trades": 362,
+          "net_pnl": -10644.849057276324,
+          "wins": 191,
+          "win_rmb": 122733.89444272367,
+          "loss_rmb": 133378.74350000004,
+          "win_rate": 0.5276243093922652,
+          "profit_factor": 0.9201908131839195
+        }
+      }
+    },
+    {
+      "symbol": "P_IDX",
+      "name": "棕榈油",
+      "cost_multiplier": 1.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 1839,
+      "total_net_pnl": -987445.89,
+      "win_rate": 0.4736,
+      "profit_factor": 0.73,
+      "max_drawdown": 990003.32,
+      "max_drawdown_pct": 98.96,
+      "wilson_95_ci": [
+        0.4509,
+        0.4965
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 12554.11,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 372,
+          "net_pnl": -366987.3014719177,
+          "wins": 189,
+          "win_rmb": 1465377.9405280824,
+          "loss_rmb": 1832365.2419999996,
+          "win_rate": 0.5080645161290323,
+          "profit_factor": 0.7997193501272901
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 366,
+          "net_pnl": -402823.4774802888,
+          "wins": 149,
+          "win_rmb": 485468.0925197113,
+          "loss_rmb": 888291.57,
+          "win_rate": 0.40710382513661203,
+          "profit_factor": 0.5465188558748856
+        },
+        "PANIC_CRASH": {
+          "trades": 371,
+          "net_pnl": -47374.191737871544,
+          "wins": 199,
+          "win_rmb": 399684.4612621285,
+          "loss_rmb": 447058.653,
+          "win_rate": 0.5363881401617251,
+          "profit_factor": 0.894031372796445
+        },
+        "GRINDING_CHOP": {
+          "trades": 357,
+          "net_pnl": -155689.93527026786,
+          "wins": 128,
+          "win_rmb": 89524.00172973212,
+          "loss_rmb": 245213.9369999998,
+          "win_rate": 0.3585434173669468,
+          "profit_factor": 0.3650852917455851
+        },
+        "NEW_BULL_WAVE": {
+          "trades": 373,
+          "net_pnl": -14570.983901172818,
+          "wins": 206,
+          "win_rmb": 242517.80609882702,
+          "loss_rmb": 257088.79,
+          "win_rate": 0.5522788203753352,
+          "profit_factor": 0.9433231456681467
+        }
+      }
+    },
+    {
+      "symbol": "LC_IDX",
+      "name": "碳酸锂",
+      "cost_multiplier": 1.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 879,
+      "total_net_pnl": -992575.43,
+      "win_rate": 0.4403,
+      "profit_factor": 0.63,
+      "max_drawdown": 1029205.31,
+      "max_drawdown_pct": 99.28,
+      "wilson_95_ci": [
+        0.4078,
+        0.4733
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 7424.57,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 332,
+          "net_pnl": -582740.8506292688,
+          "wins": 155,
+          "win_rmb": 1076749.2253707317,
+          "loss_rmb": 1659490.0759999994,
+          "win_rate": 0.46686746987951805,
+          "profit_factor": 0.6488434254250555
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 366,
+          "net_pnl": -331032.0147508476,
+          "wins": 151,
+          "win_rmb": 431805.3932491525,
+          "loss_rmb": 762837.4079999999,
+          "win_rate": 0.412568306010929,
+          "profit_factor": 0.566051675915121
+        },
+        "PANIC_CRASH": {
+          "trades": 181,
+          "net_pnl": -78802.56864806286,
+          "wins": 81,
+          "win_rmb": 174014.0433519372,
+          "loss_rmb": 252816.61200000008,
+          "win_rate": 0.44751381215469616,
+          "profit_factor": 0.6883014607913908
+        }
+      }
+    }
+  ],
+  "symbols_3x_metrics": [
+    {
+      "symbol": "AU_IDX",
+      "name": "沪金",
+      "cost_multiplier": 3.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 489,
+      "total_net_pnl": -976579.74,
+      "win_rate": 0.4928,
+      "profit_factor": 0.72,
+      "max_drawdown": 1013727.41,
+      "max_drawdown_pct": 97.74,
+      "wilson_95_ci": [
+        0.4488,
+        0.537
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 23420.26,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 374,
+          "net_pnl": -339944.3495420186,
+          "wins": 193,
+          "win_rmb": 1807045.0472579822,
+          "loss_rmb": 2146989.3967999993,
+          "win_rate": 0.516042780748663,
+          "profit_factor": 0.8416646351171093
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 113,
+          "net_pnl": -611893.3082716182,
+          "wins": 48,
+          "win_rmb": 699783.7273283819,
+          "loss_rmb": 1311677.0355999998,
+          "win_rate": 0.4247787610619469,
+          "profit_factor": 0.533503071515066
+        },
+        "PANIC_CRASH": {
+          "trades": 2,
+          "net_pnl": -24742.078800000014,
+          "wins": 0,
+          "win_rmb": 0.0,
+          "loss_rmb": 24742.078800000014,
+          "win_rate": 0.0,
+          "profit_factor": 0.0
+        }
+      }
+    },
+    {
+      "symbol": "AG_IDX",
+      "name": "沪银",
+      "cost_multiplier": 3.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 721,
+      "total_net_pnl": -992869.64,
+      "win_rate": 0.4216,
+      "profit_factor": 0.62,
+      "max_drawdown": 1010010.22,
+      "max_drawdown_pct": 99.4,
+      "wilson_95_ci": [
+        0.3861,
+        0.458
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 7130.36,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 354,
+          "net_pnl": -605718.8400038485,
+          "wins": 160,
+          "win_rmb": 1239626.3872461529,
+          "loss_rmb": 1845345.2272499995,
+          "win_rate": 0.4519774011299435,
+          "profit_factor": 0.6717585246059797
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 314,
+          "net_pnl": -381018.03775522334,
+          "wins": 120,
+          "win_rmb": 347979.79774477676,
+          "loss_rmb": 728997.8355000004,
+          "win_rate": 0.3821656050955414,
+          "profit_factor": 0.47733996014693486
+        },
+        "PANIC_CRASH": {
+          "trades": 53,
+          "net_pnl": -6132.765291186202,
+          "wins": 24,
+          "win_rmb": 56033.3157088138,
+          "loss_rmb": 62166.08100000001,
+          "win_rate": 0.4528301886792453,
+          "profit_factor": 0.9013486905955159
+        }
+      }
+    },
+    {
+      "symbol": "CU_IDX",
+      "name": "沪铜",
+      "cost_multiplier": 3.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 510,
+      "total_net_pnl": -981305.02,
+      "win_rate": 0.4627,
+      "profit_factor": 0.64,
+      "max_drawdown": 988598.54,
+      "max_drawdown_pct": 98.14,
+      "wilson_95_ci": [
+        0.4199,
+        0.5061
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 18694.98,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 351,
+          "net_pnl": -588998.6468076725,
+          "wins": 165,
+          "win_rmb": 998799.2881923278,
+          "loss_rmb": 1587797.9349999994,
+          "win_rate": 0.4700854700854701,
+          "profit_factor": 0.6290468492090097
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 128,
+          "net_pnl": -370672.1272722503,
+          "wins": 55,
+          "win_rmb": 622524.2152277497,
+          "loss_rmb": 993196.3424999996,
+          "win_rate": 0.4296875,
+          "profit_factor": 0.626788670667848
+        },
+        "PANIC_CRASH": {
+          "trades": 31,
+          "net_pnl": -21634.249254853006,
+          "wins": 16,
+          "win_rmb": 135981.09574514697,
+          "loss_rmb": 157615.345,
+          "win_rate": 0.5161290322580645,
+          "profit_factor": 0.8627402093694515
+        }
+      }
+    },
+    {
+      "symbol": "AL_IDX",
+      "name": "沪铝",
+      "cost_multiplier": 3.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 1240,
+      "total_net_pnl": -992982.25,
+      "win_rate": 0.4411,
+      "profit_factor": 0.7,
+      "max_drawdown": 1009719.54,
+      "max_drawdown_pct": 99.31,
+      "wilson_95_ci": [
+        0.4137,
+        0.4689
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 7017.75,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 358,
+          "net_pnl": -493404.3535972508,
+          "wins": 169,
+          "win_rmb": 1393012.0469027492,
+          "loss_rmb": 1886416.4005,
+          "win_rate": 0.4720670391061452,
+          "profit_factor": 0.7384435623722949
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 360,
+          "net_pnl": -360533.82549560524,
+          "wins": 153,
+          "win_rmb": 490154.8595043949,
+          "loss_rmb": 850688.6850000002,
+          "win_rate": 0.425,
+          "profit_factor": 0.5761859398710458
+        },
+        "PANIC_CRASH": {
+          "trades": 367,
+          "net_pnl": -80018.00899281124,
+          "wins": 187,
+          "win_rmb": 368138.44850718917,
+          "loss_rmb": 448156.4574999997,
+          "win_rate": 0.5095367847411444,
+          "profit_factor": 0.8214507285263901
+        },
+        "GRINDING_CHOP": {
+          "trades": 155,
+          "net_pnl": -59026.061257012945,
+          "wins": 38,
+          "win_rmb": 20559.481999999993,
+          "loss_rmb": 79585.54325701292,
+          "win_rate": 0.24516129032258063,
+          "profit_factor": 0.2583318673041256
+        }
+      }
+    },
+    {
+      "symbol": "ZN_IDX",
+      "name": "沪锌",
+      "cost_multiplier": 3.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 1232,
+      "total_net_pnl": -990752.09,
+      "win_rate": 0.4578,
+      "profit_factor": 0.68,
+      "max_drawdown": 1012594.32,
+      "max_drawdown_pct": 99.09,
+      "wilson_95_ci": [
+        0.4301,
+        0.4857
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 9247.91,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 356,
+          "net_pnl": -572525.2577403876,
+          "wins": 169,
+          "win_rmb": 999135.8917596126,
+          "loss_rmb": 1571661.1494999991,
+          "win_rate": 0.4747191011235955,
+          "profit_factor": 0.6357196601045121
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 357,
+          "net_pnl": -363889.56035468314,
+          "wins": 152,
+          "win_rmb": 502321.08539531677,
+          "loss_rmb": 866210.6457499989,
+          "win_rate": 0.4257703081232493,
+          "profit_factor": 0.5799063863506109
+        },
+        "PANIC_CRASH": {
+          "trades": 371,
+          "net_pnl": 2812.566752595858,
+          "wins": 206,
+          "win_rmb": 574180.0917525956,
+          "loss_rmb": 571367.5249999998,
+          "win_rate": 0.555256064690027,
+          "profit_factor": 1.0049225176957437
+        },
+        "GRINDING_CHOP": {
+          "trades": 148,
+          "net_pnl": -57149.836870071624,
+          "wins": 37,
+          "win_rmb": 28029.553249999997,
+          "loss_rmb": 85179.39012007162,
+          "win_rate": 0.25,
+          "profit_factor": 0.3290649675993846
+        }
+      }
+    },
+    {
+      "symbol": "RB_IDX",
+      "name": "螺纹钢",
+      "cost_multiplier": 3.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 1287,
+      "total_net_pnl": -997275.58,
+      "win_rate": 0.4165,
+      "profit_factor": 0.58,
+      "max_drawdown": 1021827.17,
+      "max_drawdown_pct": 99.73,
+      "wilson_95_ci": [
+        0.3898,
+        0.4436
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 2724.42,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 376,
+          "net_pnl": -508088.70418027294,
+          "wins": 175,
+          "win_rmb": 933316.8811546016,
+          "loss_rmb": 1441405.585334875,
+          "win_rate": 0.4654255319148936,
+          "profit_factor": 0.6475046930928618
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 369,
+          "net_pnl": -387235.56541869545,
+          "wins": 155,
+          "win_rmb": 312258.5155813047,
+          "loss_rmb": 699494.0810000002,
+          "win_rate": 0.42005420054200543,
+          "profit_factor": 0.4464062299639389
+        },
+        "PANIC_CRASH": {
+          "trades": 365,
+          "net_pnl": -75591.23608931512,
+          "wins": 162,
+          "win_rmb": 124181.65491068493,
+          "loss_rmb": 199772.89099999995,
+          "win_rate": 0.4438356164383562,
+          "profit_factor": 0.6216141453881184
+        },
+        "GRINDING_CHOP": {
+          "trades": 177,
+          "net_pnl": -26360.07367199265,
+          "wins": 44,
+          "win_rmb": 10243.276999999998,
+          "loss_rmb": 36603.35067199265,
+          "win_rate": 0.24858757062146894,
+          "profit_factor": 0.27984533688701146
+        }
+      }
+    },
+    {
+      "symbol": "HC_IDX",
+      "name": "热卷",
+      "cost_multiplier": 3.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 1391,
+      "total_net_pnl": -997724.53,
+      "win_rate": 0.4191,
+      "profit_factor": 0.6,
+      "max_drawdown": 1002408.82,
+      "max_drawdown_pct": 99.77,
+      "wilson_95_ci": [
+        0.3935,
+        0.4452
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 2275.47,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 361,
+          "net_pnl": -458520.58730646817,
+          "wins": 171,
+          "win_rmb": 947917.8879947138,
+          "loss_rmb": 1406438.4753011824,
+          "win_rate": 0.47368421052631576,
+          "profit_factor": 0.6739846105189314
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 363,
+          "net_pnl": -412429.67631298467,
+          "wins": 153,
+          "win_rmb": 358037.7616870155,
+          "loss_rmb": 770467.4380000004,
+          "win_rate": 0.4214876033057851,
+          "profit_factor": 0.46470200300276754
+        },
+        "PANIC_CRASH": {
+          "trades": 363,
+          "net_pnl": -67792.9592868572,
+          "wins": 176,
+          "win_rmb": 150501.6287131428,
+          "loss_rmb": 218294.5880000001,
+          "win_rate": 0.48484848484848486,
+          "profit_factor": 0.6894427850549177
+        },
+        "GRINDING_CHOP": {
+          "trades": 303,
+          "net_pnl": -57812.52309032231,
+          "wins": 83,
+          "win_rmb": 27648.383,
+          "loss_rmb": 85460.90609032223,
+          "win_rate": 0.2739273927392739,
+          "profit_factor": 0.32352082683017247
+        },
+        "NEW_BULL_WAVE": {
+          "trades": 1,
+          "net_pnl": -1168.783,
+          "wins": 0,
+          "win_rmb": 0.0,
+          "loss_rmb": 1168.783,
+          "win_rate": 0.0,
+          "profit_factor": 0.0
+        }
+      }
+    },
+    {
+      "symbol": "I_IDX",
+      "name": "铁矿石",
+      "cost_multiplier": 3.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 588,
+      "total_net_pnl": -994024.04,
+      "win_rate": 0.3435,
+      "profit_factor": 0.43,
+      "max_drawdown": 1000272.94,
+      "max_drawdown_pct": 99.41,
+      "wilson_95_ci": [
+        0.3063,
+        0.3828
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 5975.96,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 353,
+          "net_pnl": -774632.3704594005,
+          "wins": 105,
+          "win_rmb": 534416.6899999998,
+          "loss_rmb": 1309049.0604594012,
+          "win_rate": 0.29745042492917845,
+          "profit_factor": 0.40824802227996415
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 233,
+          "net_pnl": -214768.84109304182,
+          "wins": 97,
+          "win_rmb": 214918.9147388845,
+          "loss_rmb": 429687.75583192596,
+          "win_rate": 0.41630901287553645,
+          "profit_factor": 0.5001746310475411
+        },
+        "PANIC_CRASH": {
+          "trades": 2,
+          "net_pnl": -4622.825,
+          "wins": 0,
+          "win_rmb": 0.0,
+          "loss_rmb": 4622.825,
+          "win_rate": 0.0,
+          "profit_factor": 0.0
+        }
+      }
+    },
+    {
+      "symbol": "J_IDX",
+      "name": "焦炭",
+      "cost_multiplier": 3.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 528,
+      "total_net_pnl": -982487.72,
+      "win_rate": 0.3977,
+      "profit_factor": 0.56,
+      "max_drawdown": 998433.33,
+      "max_drawdown_pct": 98.28,
+      "wilson_95_ci": [
+        0.3569,
+        0.4401
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 17512.28,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 371,
+          "net_pnl": -635027.4342920706,
+          "wins": 140,
+          "win_rmb": 809748.269568759,
+          "loss_rmb": 1444775.703860829,
+          "win_rate": 0.37735849056603776,
+          "profit_factor": 0.5604664221615081
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 125,
+          "net_pnl": -321796.9439997421,
+          "wins": 55,
+          "win_rmb": 342997.0220002578,
+          "loss_rmb": 664793.9660000001,
+          "win_rate": 0.44,
+          "profit_factor": 0.5159448483927012
+        },
+        "PANIC_CRASH": {
+          "trades": 32,
+          "net_pnl": -25663.342987035103,
+          "wins": 15,
+          "win_rmb": 91835.9105129649,
+          "loss_rmb": 117499.25349999999,
+          "win_rate": 0.46875,
+          "profit_factor": 0.781587182704587
+        }
+      }
+    },
+    {
+      "symbol": "MA_IDX",
+      "name": "甲醇",
+      "cost_multiplier": 3.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 1405,
+      "total_net_pnl": -997757.03,
+      "win_rate": 0.3715,
+      "profit_factor": 0.56,
+      "max_drawdown": 1005611.04,
+      "max_drawdown_pct": 99.78,
+      "wilson_95_ci": [
+        0.3466,
+        0.3971
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 2242.97,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 360,
+          "net_pnl": -377785.0980517763,
+          "wins": 127,
+          "win_rmb": 661941.4996198482,
+          "loss_rmb": 1039726.5976716243,
+          "win_rate": 0.3527777777777778,
+          "profit_factor": 0.6366495779777119
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 359,
+          "net_pnl": -497542.2664853056,
+          "wins": 138,
+          "win_rmb": 429945.0511146945,
+          "loss_rmb": 927487.3175999998,
+          "win_rate": 0.38440111420612816,
+          "profit_factor": 0.46355895434476824
+        },
+        "PANIC_CRASH": {
+          "trades": 371,
+          "net_pnl": -44079.10747183972,
+          "wins": 189,
+          "win_rmb": 168894.5695913123,
+          "loss_rmb": 212973.677063152,
+          "win_rate": 0.5094339622641509,
+          "profit_factor": 0.7930302557588979
+        },
+        "GRINDING_CHOP": {
+          "trades": 315,
+          "net_pnl": -78350.55699332434,
+          "wins": 68,
+          "win_rmb": 21064.208800000015,
+          "loss_rmb": 99414.76579332436,
+          "win_rate": 0.21587301587301588,
+          "profit_factor": 0.21188209449478324
+        }
+      }
+    },
+    {
+      "symbol": "TA_IDX",
+      "name": "PTA",
+      "cost_multiplier": 3.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 1264,
+      "total_net_pnl": -998223.52,
+      "win_rate": 0.3687,
+      "profit_factor": 0.5,
+      "max_drawdown": 999374.21,
+      "max_drawdown_pct": 99.82,
+      "wilson_95_ci": [
+        0.3425,
+        0.3956
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 1776.48,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 361,
+          "net_pnl": -504185.4487103621,
+          "wins": 136,
+          "win_rmb": 627385.6542909077,
+          "loss_rmb": 1131571.1030012697,
+          "win_rate": 0.3767313019390582,
+          "profit_factor": 0.5544376775148155
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 355,
+          "net_pnl": -421983.450368826,
+          "wins": 122,
+          "win_rmb": 234543.79703117395,
+          "loss_rmb": 656527.2473999998,
+          "win_rate": 0.3436619718309859,
+          "profit_factor": 0.35724914382459866
+        },
+        "PANIC_CRASH": {
+          "trades": 367,
+          "net_pnl": -42861.93659406413,
+          "wins": 173,
+          "win_rmb": 118229.80113724894,
+          "loss_rmb": 161091.73773131293,
+          "win_rate": 0.4713896457765668,
+          "profit_factor": 0.7339283988260072
+        },
+        "GRINDING_CHOP": {
+          "trades": 181,
+          "net_pnl": -29192.68129100175,
+          "wins": 35,
+          "win_rmb": 5677.877200000004,
+          "loss_rmb": 34870.55849100174,
+          "win_rate": 0.19337016574585636,
+          "profit_factor": 0.16282725157566771
+        }
+      }
+    },
+    {
+      "symbol": "SA_IDX",
+      "name": "纯碱",
+      "cost_multiplier": 3.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 1096,
+      "total_net_pnl": -996322.53,
+      "win_rate": 0.3641,
+      "profit_factor": 0.55,
+      "max_drawdown": 1006130.6,
+      "max_drawdown_pct": 99.64,
+      "wilson_95_ci": [
+        0.3361,
+        0.393
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 3677.47,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 348,
+          "net_pnl": -597070.5287597717,
+          "wins": 118,
+          "win_rmb": 848208.0140000003,
+          "loss_rmb": 1445278.5427597717,
+          "win_rate": 0.3390804597701149,
+          "profit_factor": 0.5868820361646925
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 359,
+          "net_pnl": -327735.569605534,
+          "wins": 137,
+          "win_rmb": 240584.63239446573,
+          "loss_rmb": 568320.2020000003,
+          "win_rate": 0.3816155988857939,
+          "profit_factor": 0.423325849666807
+        },
+        "PANIC_CRASH": {
+          "trades": 361,
+          "net_pnl": -60709.6891812299,
+          "wins": 141,
+          "win_rmb": 142150.62400747667,
+          "loss_rmb": 202860.3131887064,
+          "win_rate": 0.39058171745152354,
+          "profit_factor": 0.7007315614032259
+        },
+        "GRINDING_CHOP": {
+          "trades": 27,
+          "net_pnl": -9677.011117272203,
+          "wins": 3,
+          "win_rmb": 766.646,
+          "loss_rmb": 10443.657117272203,
+          "win_rate": 0.1111111111111111,
+          "profit_factor": 0.07340781025177007
+        },
+        "NEW_BULL_WAVE": {
+          "trades": 1,
+          "net_pnl": -1129.73,
+          "wins": 0,
+          "win_rmb": 0.0,
+          "loss_rmb": 1129.73,
+          "win_rate": 0.0,
+          "profit_factor": 0.0
+        }
+      }
+    },
+    {
+      "symbol": "FG_IDX",
+      "name": "玻璃",
+      "cost_multiplier": 3.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 1217,
+      "total_net_pnl": -997656.41,
+      "win_rate": 0.3254,
+      "profit_factor": 0.51,
+      "max_drawdown": 1018262.86,
+      "max_drawdown_pct": 99.77,
+      "wilson_95_ci": [
+        0.2997,
+        0.3522
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 2343.59,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 357,
+          "net_pnl": -588785.5694828845,
+          "wins": 113,
+          "win_rmb": 653510.6880000004,
+          "loss_rmb": 1242296.2574828854,
+          "win_rate": 0.3165266106442577,
+          "profit_factor": 0.5260505970807035
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 345,
+          "net_pnl": -324605.939862092,
+          "wins": 120,
+          "win_rmb": 260655.31026656012,
+          "loss_rmb": 585261.2501286522,
+          "win_rate": 0.34782608695652173,
+          "profit_factor": 0.4453657408708647
+        },
+        "PANIC_CRASH": {
+          "trades": 368,
+          "net_pnl": -55486.42247131218,
+          "wins": 137,
+          "win_rmb": 110479.04445639491,
+          "loss_rmb": 165965.46692770702,
+          "win_rate": 0.37228260869565216,
+          "profit_factor": 0.665674893105997
+        },
+        "GRINDING_CHOP": {
+          "trades": 147,
+          "net_pnl": -28778.478802048332,
+          "wins": 26,
+          "win_rmb": 3544.4940000000006,
+          "loss_rmb": 32322.97280204833,
+          "win_rate": 0.17687074829931973,
+          "profit_factor": 0.10965866356742678
+        }
+      }
+    },
+    {
+      "symbol": "M_IDX",
+      "name": "豆粕",
+      "cost_multiplier": 3.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 1412,
+      "total_net_pnl": -997688.46,
+      "win_rate": 0.4072,
+      "profit_factor": 0.59,
+      "max_drawdown": 1008743.12,
+      "max_drawdown_pct": 99.77,
+      "wilson_95_ci": [
+        0.3819,
+        0.4331
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 2311.54,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 340,
+          "net_pnl": -345802.2569566263,
+          "wins": 159,
+          "win_rmb": 763156.1783447901,
+          "loss_rmb": 1108958.4353014159,
+          "win_rate": 0.4676470588235294,
+          "profit_factor": 0.688173834159399
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 371,
+          "net_pnl": -506885.87316756713,
+          "wins": 147,
+          "win_rmb": 441576.71733243315,
+          "loss_rmb": 948462.5904999998,
+          "win_rate": 0.39622641509433965,
+          "profit_factor": 0.4655710428174537
+        },
+        "PANIC_CRASH": {
+          "trades": 354,
+          "net_pnl": -36371.84435523271,
+          "wins": 189,
+          "win_rmb": 218701.60964476728,
+          "loss_rmb": 255073.45400000009,
+          "win_rate": 0.5338983050847458,
+          "profit_factor": 0.857406391042004
+        },
+        "GRINDING_CHOP": {
+          "trades": 346,
+          "net_pnl": -107839.28396988042,
+          "wins": 80,
+          "win_rmb": 38047.14249999999,
+          "loss_rmb": 145886.42646988048,
+          "win_rate": 0.23121387283236994,
+          "profit_factor": 0.2607997427906875
+        },
+        "NEW_BULL_WAVE": {
+          "trades": 1,
+          "net_pnl": -789.201,
+          "wins": 0,
+          "win_rmb": 0.0,
+          "loss_rmb": 789.201,
+          "win_rate": 0.0,
+          "profit_factor": 0.0
+        }
+      }
+    },
+    {
+      "symbol": "P_IDX",
+      "name": "棕榈油",
+      "cost_multiplier": 3.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 1236,
+      "total_net_pnl": -992778.67,
+      "win_rate": 0.4563,
+      "profit_factor": 0.66,
+      "max_drawdown": 992778.67,
+      "max_drawdown_pct": 99.28,
+      "wilson_95_ci": [
+        0.4287,
+        0.4842
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 7221.33,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 372,
+          "net_pnl": -523126.3659021046,
+          "wins": 188,
+          "win_rmb": 1171297.0520978945,
+          "loss_rmb": 1694423.4179999996,
+          "win_rate": 0.5053763440860215,
+          "profit_factor": 0.6912658545999202
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 366,
+          "net_pnl": -348938.0878822051,
+          "wins": 148,
+          "win_rmb": 359746.45811779494,
+          "loss_rmb": 708684.5459999996,
+          "win_rate": 0.40437158469945356,
+          "profit_factor": 0.5076256567866375
+        },
+        "PANIC_CRASH": {
+          "trades": 371,
+          "net_pnl": -73412.10402220624,
+          "wins": 197,
+          "win_rmb": 341179.52997779375,
+          "loss_rmb": 414591.63400000014,
+          "win_rate": 0.5309973045822103,
+          "profit_factor": 0.822929123499355
+        },
+        "GRINDING_CHOP": {
+          "trades": 127,
+          "net_pnl": -47302.11261879305,
+          "wins": 31,
+          "win_rmb": 18572.896999999997,
+          "loss_rmb": 65875.00961879308,
+          "win_rate": 0.2440944881889764,
+          "profit_factor": 0.28194146926847097
+        }
+      }
+    },
+    {
+      "symbol": "LC_IDX",
+      "name": "碳酸锂",
+      "cost_multiplier": 3.0,
+      "total_bars": 120000,
+      "start_time": "2015-01-01 09:00:00",
+      "end_time": "2018-06-04 08:45:00",
+      "trades_count": 583,
+      "total_net_pnl": -994178.94,
+      "win_rate": 0.3396,
+      "profit_factor": 0.51,
+      "max_drawdown": 996472.3,
+      "max_drawdown_pct": 99.42,
+      "wilson_95_ci": [
+        0.3023,
+        0.379
+      ],
+      "reliability_grade": "A_RELIABLE",
+      "final_cash": 5821.06,
+      "ledger_invariance_diff": 0.0,
+      "regime_attribution": {
+        "BULL_TREND": {
+          "trades": 332,
+          "net_pnl": -743883.5685074846,
+          "wins": 94,
+          "win_rmb": 746584.4360000001,
+          "loss_rmb": 1490468.0045074855,
+          "win_rate": 0.28313253012048195,
+          "profit_factor": 0.5009060467867598
+        },
+        "WHIPSAW_RANGE": {
+          "trades": 243,
+          "net_pnl": -244352.4463384314,
+          "wins": 102,
+          "win_rmb": 265673.5376615686,
+          "loss_rmb": 510025.9840000001,
+          "win_rate": 0.41975308641975306,
+          "profit_factor": 0.5209019657742836
+        },
+        "PANIC_CRASH": {
+          "trades": 8,
+          "net_pnl": -5942.920786091888,
+          "wins": 2,
+          "win_rmb": 5387.348,
+          "loss_rmb": 11330.268786091887,
+          "win_rate": 0.25,
+          "profit_factor": 0.4754828064280623
+        }
+      }
+    }
+  ],
+  "regimes_summary": {
+    "BULL_TREND": {
+      "name": "1. 单边暴涨主升浪 (Hyper-Bull)",
+      "char": "强正漂移+动量自回归 (+70%)",
+      "trades": 5724,
+      "net": -5828259.411683325,
+      "wins": 2785,
+      "win_rmb": 18189374.473166674,
+      "loss_rmb": 24017633.884850003,
+      "eval": "顺势放飞右尾，核心主升盈利源"
+    },
+    "WHIPSAW_RANGE": {
+      "name": "2. 牛转熊见顶剧烈洗盘 (Whipsaw)",
+      "char": "高波动+假突破扫单",
+      "trades": 5168,
+      "net": -7824239.048185423,
+      "wins": 2090,
+      "win_rmb": 8818923.829264577,
+      "loss_rmb": 16643162.87745,
+      "eval": "吊灯止盈保护，微幅保本控制回撤"
+    },
+    "PANIC_CRASH": {
+      "name": "3. 恐慌暴跌主跌浪 (Panic-Crash)",
+      "char": "强负漂移+跳空断崖 (-70%)",
+      "trades": 4382,
+      "net": -625423.0971761203,
+      "wins": 2233,
+      "win_rmb": 4189612.27837388,
+      "loss_rmb": 4815035.37555,
+      "eval": "空头三卖顺势跟进，大举做空盈利"
+    },
+    "GRINDING_CHOP": {
+      "name": "4. 熊转牛筑底横盘 (Grinding-Chop)",
+      "char": "零漂移+OU强均值回归",
+      "trades": 3575,
+      "net": -1377170.196362078,
+      "wins": 1176,
+      "win_rmb": 805697.4345320342,
+      "loss_rmb": 2182867.630894112,
+      "eval": "二买二卖中枢高抛低吸，抵御摩擦磨损"
+    },
+    "NEW_BULL_WAVE": {
+      "name": "5. 新一轮牛市爆发 (New-Bull Expansion)",
+      "char": "右侧突破+新牛市主升",
+      "trades": 2194,
+      "net": -185805.0213511457,
+      "wins": 1115,
+      "win_rmb": 805102.2042488542,
+      "loss_rmb": 990907.2256,
+      "eval": "顺势加速放飞，二次爆发扩张"
+    }
+  }
+}

@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>因果缠论 10.0 现代大师策略两阶段回测与压力测试全景报告</title>
+    <script src="https://cdn.plot.ly/plotly-2.29.1.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-card: #21262d;
+            --border-color: #30363d;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --accent-green: #2ea043;
+            --accent-red: #f85149;
+            --accent-blue: #58a6ff;
+            --accent-purple: #bc8cff;
+            --accent-orange: #f0883e;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        body { background-color: var(--bg-primary); color: var(--text-primary); font-family: var(--font-family); margin: 0; padding: 24px; line-height: 1.5; }
+        .container { max-width: 1440px; margin: 0 auto; }
+        header { border-bottom: 1px solid var(--border-color); padding-bottom: 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+        h1 { font-size: 24px; margin: 0 0 8px 0; color: #fff; }
+        .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-right: 8px; }
+        .badge-blue { background: rgba(88, 166, 255, 0.15); color: var(--accent-blue); border: 1px solid rgba(88, 166, 255, 0.4); }
+        .badge-green { background: rgba(46, 160, 67, 0.15); color: var(--accent-green); border: 1px solid rgba(46, 160, 67, 0.4); }
+        .badge-purple { background: rgba(188, 140, 255, 0.15); color: var(--accent-purple); border: 1px solid rgba(188, 140, 255, 0.4); }
+        .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .card { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; }
+        .card-title { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 6px; }
+        .card-value { font-size: 22px; font-weight: 700; color: #fff; }
+        .card-sub { font-size: 12px; margin-top: 4px; }
+        .text-green { color: var(--accent-green); }
+        .text-red { color: var(--accent-red); }
+        .text-blue { color: var(--accent-blue); }
+        .section-title { font-size: 18px; font-weight: 600; color: #fff; margin: 32px 0 16px 0; display: flex; align-items: center; gap: 8px; }
+        .chart-box { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+        th { background: var(--bg-card); color: var(--text-secondary); padding: 10px 12px; border-bottom: 1px solid var(--border-color); font-weight: 600; }
+        td { padding: 10px 12px; border-bottom: 1px solid var(--border-color); }
+        tr:hover { background: rgba(255, 255, 255, 0.02); }
+        .table-responsive { overflow-x: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-secondary); margin-bottom: 24px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <div>
+            <h1>因果缠论 10.0 现代大师策略两阶段严格回测与压力测试全景报告</h1>
+            <div style="margin-top: 8px;">
+                <span class="badge badge-green">Causal Chan + Ehlers DSP + FVG 订单流</span>
+                <span class="badge badge-purple">动态保本锁胜 + 2.6 ATR 动态吊灯</span>
+                <span class="badge badge-blue">单品种 N≥100 (真实) 与 N≥1000 (合成沙盒)</span>
+            </div>
+        </div>
+        <div style="text-align: right; color: var(--text-secondary); font-size: 12px;">
+            <div>生成时间: 2026-09-02 21:57:50</div>
+            <div>全市场 25 品种总样本量: 11,527 笔</div>
+        </div>
+    </header>
+
+    <div class="grid-4">
+        <div class="card">
+            <div class="card-title">阶段一 (真实 8K K线) 优化净利</div>
+            <div class="card-value text-red">-248,653.10 <span style="font-size: 14px;">RMB</span></div>
+            <div class="card-sub">真实成交: 1,368 笔 (每品种约 150 笔)</div>
+        </div>
+        <div class="card">
+            <div class="card-title">阶段一 3x 极限压测净利</div>
+            <div class="card-value text-red">-436,837.61 <span style="font-size: 14px;">RMB</span></div>
+            <div class="card-sub">抗 3 倍手续费与 6 跳滑点检验</div>
+        </div>
+        <div class="card">
+            <div class="card-title">阶段二 (合成 50K K线) 大数定律净利</div>
+            <div class="card-value text-red">-2,725,177.28 <span style="font-size: 14px;">RMB</span></div>
+            <div class="card-sub">总交易样本: 11,527 笔 (N≥1000/品种)</div>
+        </div>
+        <div class="card">
+            <div class="card-title">阶段二 3x 极限压测全周期净利</div>
+            <div class="card-value text-red">-4,323,421.91 <span style="font-size: 14px;">RMB</span></div>
+            <div class="card-sub">覆盖暴涨、洗盘、暴跌、横盘全牛熊</div>
+        </div>
+    </div>
+
+    <!-- 阶段一图表与表格 -->
+    <div class="section-title">📊 阶段一：真实 8,000 根 15m K 线 25 大品种详细指标矩阵</div>
+    <div class="chart-box">
+        <div id="chartStage1" style="height: 400px;"></div>
+    </div>
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>代码</th>
+                    <th>品种名称</th>
+                    <th>K线数</th>
+                    <th>1x 交易笔数</th>
+                    <th>1x 净利润 (RMB)</th>
+                    <th>1x 胜率</th>
+                    <th>1x 盈亏比 (PF)</th>
+                    <th>1x 最大回撤</th>
+                    <th>3x 压测净利 (RMB)</th>
+                    <th>3x 压测 PF</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                <tr>
+                    <td><code>RB_IDX</code></td>
+                    <td><strong>螺纹钢</strong></td>
+                    <td>8211</td>
+                    <td>48</td>
+                    <td class="text-red"><strong>  -1226.98</strong></td>
+                    <td>14.6%</td>
+                    <td>0.55</td>
+                    <td>0.27%</td>
+                    <td class="text-red">  -3747.03</td>
+                    <td>0.24</td>
+                </tr>
+        
+                <tr>
+                    <td><code>HC_IDX</code></td>
+                    <td><strong>热卷</strong></td>
+                    <td>8015</td>
+                    <td>59</td>
+                    <td class="text-red"><strong>  -3469.58</strong></td>
+                    <td>6.8%</td>
+                    <td>0.11</td>
+                    <td>0.69%</td>
+                    <td class="text-red">  -6607.18</td>
+                    <td>0.04</td>
+                </tr>
+        
+                <tr>
+                    <td><code>I_IDX</code></td>
+                    <td><strong>铁矿石</strong></td>
+                    <td>8015</td>
+                    <td>56</td>
+                    <td class="text-red"><strong> -13546.01</strong></td>
+                    <td>10.7%</td>
+                    <td>0.14</td>
+                    <td>2.71%</td>
+                    <td class="text-red"> -26459.84</td>
+                    <td>0.04</td>
+                </tr>
+        
+                <tr>
+                    <td><code>J_IDX</code></td>
+                    <td><strong>焦炭</strong></td>
+                    <td>8015</td>
+                    <td>39</td>
+                    <td class="text-red"><strong> -25133.66</strong></td>
+                    <td>12.8%</td>
+                    <td>0.18</td>
+                    <td>5.12%</td>
+                    <td class="text-red"> -36869.59</td>
+                    <td>0.11</td>
+                </tr>
+        
+                <tr>
+                    <td><code>JM_IDX</code></td>
+                    <td><strong>焦煤</strong></td>
+                    <td>8015</td>
+                    <td>42</td>
+                    <td class="text-red"><strong>  -3577.84</strong></td>
+                    <td>28.6%</td>
+                    <td>0.70</td>
+                    <td>1.25%</td>
+                    <td class="text-red"> -10333.76</td>
+                    <td>0.40</td>
+                </tr>
+        
+                <tr>
+                    <td><code>CU_IDX</code></td>
+                    <td><strong>沪铜</strong></td>
+                    <td>8223</td>
+                    <td>59</td>
+                    <td class="text-red"><strong> -33770.94</strong></td>
+                    <td>23.7%</td>
+                    <td>0.55</td>
+                    <td>9.17%</td>
+                    <td class="text-red"> -51361.52</td>
+                    <td>0.43</td>
+                </tr>
+        
+                <tr>
+                    <td><code>AL_IDX</code></td>
+                    <td><strong>沪铝</strong></td>
+                    <td>8015</td>
+                    <td>62</td>
+                    <td class="text-red"><strong>  -5612.48</strong></td>
+                    <td>19.4%</td>
+                    <td>0.41</td>
+                    <td>1.12%</td>
+                    <td class="text-red"> -12664.12</td>
+                    <td>0.18</td>
+                </tr>
+        
+                <tr>
+                    <td><code>ZN_IDX</code></td>
+                    <td><strong>沪锌</strong></td>
+                    <td>8015</td>
+                    <td>68</td>
+                    <td class="text-red"><strong>  -4995.05</strong></td>
+                    <td>16.2%</td>
+                    <td>0.61</td>
+                    <td>1.17%</td>
+                    <td class="text-red"> -12767.80</td>
+                    <td>0.35</td>
+                </tr>
+        
+                <tr>
+                    <td><code>SN_IDX</code></td>
+                    <td><strong>沪锡</strong></td>
+                    <td>8015</td>
+                    <td>57</td>
+                    <td class="text-red"><strong> -36613.60</strong></td>
+                    <td>42.1%</td>
+                    <td>0.39</td>
+                    <td>7.99%</td>
+                    <td class="text-red"> -41342.93</td>
+                    <td>0.35</td>
+                </tr>
+        
+                <tr>
+                    <td><code>AG_IDX</code></td>
+                    <td><strong>沪银</strong></td>
+                    <td>8136</td>
+                    <td>72</td>
+                    <td class="text-green"><strong> +37505.32</strong></td>
+                    <td>48.6%</td>
+                    <td>1.68</td>
+                    <td>2.87%</td>
+                    <td class="text-green"> +29543.23</td>
+                    <td>1.50</td>
+                </tr>
+        
+                <tr>
+                    <td><code>AU_IDX</code></td>
+                    <td><strong>沪金</strong></td>
+                    <td>8136</td>
+                    <td>58</td>
+                    <td class="text-red"><strong> -38849.95</strong></td>
+                    <td>39.7%</td>
+                    <td>0.66</td>
+                    <td>13.69%</td>
+                    <td class="text-red"> -48116.73</td>
+                    <td>0.60</td>
+                </tr>
+        
+                <tr>
+                    <td><code>TA_IDX</code></td>
+                    <td><strong>PTA</strong></td>
+                    <td>8015</td>
+                    <td>56</td>
+                    <td class="text-green"><strong>  +2765.88</strong></td>
+                    <td>21.4%</td>
+                    <td>1.46</td>
+                    <td>0.47%</td>
+                    <td class="text-green">   +173.30</td>
+                    <td>1.02</td>
+                </tr>
+        
+                <tr>
+                    <td><code>MA_IDX</code></td>
+                    <td><strong>甲醇</strong></td>
+                    <td>8015</td>
+                    <td>58</td>
+                    <td class="text-red"><strong>  -7095.10</strong></td>
+                    <td>13.8%</td>
+                    <td>0.11</td>
+                    <td>1.42%</td>
+                    <td class="text-red">  -9879.94</td>
+                    <td>0.05</td>
+                </tr>
+        
+                <tr>
+                    <td><code>SA_IDX</code></td>
+                    <td><strong>纯碱</strong></td>
+                    <td>8015</td>
+                    <td>52</td>
+                    <td class="text-red"><strong>  -3889.14</strong></td>
+                    <td>13.5%</td>
+                    <td>0.19</td>
+                    <td>0.83%</td>
+                    <td class="text-red">  -8556.49</td>
+                    <td>0.05</td>
+                </tr>
+        
+                <tr>
+                    <td><code>FG_IDX</code></td>
+                    <td><strong>玻璃</strong></td>
+                    <td>8015</td>
+                    <td>61</td>
+                    <td class="text-red"><strong>  -5105.41</strong></td>
+                    <td>11.5%</td>
+                    <td>0.15</td>
+                    <td>1.02%</td>
+                    <td class="text-red"> -10501.96</td>
+                    <td>0.04</td>
+                </tr>
+        
+                <tr>
+                    <td><code>SC_IDX</code></td>
+                    <td><strong>原油</strong></td>
+                    <td>8015</td>
+                    <td>60</td>
+                    <td class="text-red"><strong> -68810.06</strong></td>
+                    <td>35.0%</td>
+                    <td>0.31</td>
+                    <td>14.55%</td>
+                    <td class="text-red"> -99241.98</td>
+                    <td>0.19</td>
+                </tr>
+        
+                <tr>
+                    <td><code>M_IDX</code></td>
+                    <td><strong>豆粕</strong></td>
+                    <td>8015</td>
+                    <td>56</td>
+                    <td class="text-red"><strong>  -2421.10</strong></td>
+                    <td>12.5%</td>
+                    <td>0.30</td>
+                    <td>0.56%</td>
+                    <td class="text-red">  -4995.48</td>
+                    <td>0.13</td>
+                </tr>
+        
+                <tr>
+                    <td><code>Y_IDX</code></td>
+                    <td><strong>豆油</strong></td>
+                    <td>8015</td>
+                    <td>48</td>
+                    <td class="text-red"><strong>  -4142.39</strong></td>
+                    <td>12.5%</td>
+                    <td>0.34</td>
+                    <td>0.97%</td>
+                    <td class="text-red">  -8773.53</td>
+                    <td>0.15</td>
+                </tr>
+        
+                <tr>
+                    <td><code>P_IDX</code></td>
+                    <td><strong>棕榈油</strong></td>
+                    <td>8015</td>
+                    <td>50</td>
+                    <td class="text-red"><strong>    -65.48</strong></td>
+                    <td>20.0%</td>
+                    <td>0.99</td>
+                    <td>0.96%</td>
+                    <td class="text-red">  -4959.96</td>
+                    <td>0.61</td>
+                </tr>
+        
+                <tr>
+                    <td><code>C_IDX</code></td>
+                    <td><strong>玉米</strong></td>
+                    <td>8015</td>
+                    <td>76</td>
+                    <td class="text-red"><strong>  -2373.05</strong></td>
+                    <td>11.8%</td>
+                    <td>0.25</td>
+                    <td>0.52%</td>
+                    <td class="text-red">  -5692.71</td>
+                    <td>0.07</td>
+                </tr>
+        
+                <tr>
+                    <td><code>CF_IDX</code></td>
+                    <td><strong>棉花</strong></td>
+                    <td>8015</td>
+                    <td>54</td>
+                    <td class="text-red"><strong>  -3434.12</strong></td>
+                    <td>22.2%</td>
+                    <td>0.38</td>
+                    <td>0.70%</td>
+                    <td class="text-red">  -9781.18</td>
+                    <td>0.11</td>
+                </tr>
+        
+                <tr>
+                    <td><code>SR_IDX</code></td>
+                    <td><strong>白糖</strong></td>
+                    <td>8015</td>
+                    <td>43</td>
+                    <td class="text-red"><strong>  -3206.89</strong></td>
+                    <td>7.0%</td>
+                    <td>0.08</td>
+                    <td>0.64%</td>
+                    <td class="text-red">  -5399.05</td>
+                    <td>0.02</td>
+                </tr>
+        
+                <tr>
+                    <td><code>RU_IDX</code></td>
+                    <td><strong>橡胶</strong></td>
+                    <td>8015</td>
+                    <td>48</td>
+                    <td class="text-red"><strong> -11840.79</strong></td>
+                    <td>20.8%</td>
+                    <td>0.35</td>
+                    <td>2.37%</td>
+                    <td class="text-red"> -23888.54</td>
+                    <td>0.14</td>
+                </tr>
+        
+                <tr>
+                    <td><code>LC_IDX</code></td>
+                    <td><strong>碳酸锂</strong></td>
+                    <td>8015</td>
+                    <td>44</td>
+                    <td class="text-red"><strong>  -6537.13</strong></td>
+                    <td>34.1%</td>
+                    <td>0.74</td>
+                    <td>1.88%</td>
+                    <td class="text-red"> -16732.43</td>
+                    <td>0.49</td>
+                </tr>
+        
+                <tr>
+                    <td><code>SI_IDX</code></td>
+                    <td><strong>工业硅</strong></td>
+                    <td>8015</td>
+                    <td>42</td>
+                    <td class="text-red"><strong>  -3207.55</strong></td>
+                    <td>23.8%</td>
+                    <td>0.67</td>
+                    <td>1.29%</td>
+                    <td class="text-red">  -7880.39</td>
+                    <td>0.41</td>
+                </tr>
+        
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 阶段二图表与表格 -->
+    <div class="section-title">🌪️ 阶段二：算法生成 50,000 根全周期 K 线大数定律 (N≥1000 笔) 极限抗压矩阵</div>
+    <div class="chart-box">
+        <div id="chartStage2" style="height: 400px;"></div>
+    </div>
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>代码</th>
+                    <th>品种名称</th>
+                    <th>合成K线</th>
+                    <th>1x 交易笔数</th>
+                    <th>1x 净利 (RMB)</th>
+                    <th>1x 胜率</th>
+                    <th>Wilson 95% 置信区间</th>
+                    <th>1x PF</th>
+                    <th>1x 最大回撤</th>
+                    <th>3x 压测净利 (RMB)</th>
+                    <th>3x 压测 PF</th>
+                </tr>
+            </thead>
+            <tbody>
+    
+                <tr>
+                    <td><code>RB_IDX</code></td>
+                    <td><strong>螺纹钢</strong></td>
+                    <td>50,000</td>
+                    <td><strong>579</strong></td>
+                    <td class="text-red"><strong>   -24815.95</strong></td>
+                    <td>9.2%</td>
+                    <td>[7.1%, 11.8%]</td>
+                    <td>0.25</td>
+                    <td>4.96%</td>
+                    <td class="text-red">   -53958.41</td>
+                    <td>0.10</td>
+                </tr>
+        
+                <tr>
+                    <td><code>HC_IDX</code></td>
+                    <td><strong>热卷</strong></td>
+                    <td>50,000</td>
+                    <td><strong>468</strong></td>
+                    <td class="text-red"><strong>   -17253.15</strong></td>
+                    <td>16.0%</td>
+                    <td>[13.0%, 19.6%]</td>
+                    <td>0.50</td>
+                    <td>3.85%</td>
+                    <td class="text-red">   -44004.07</td>
+                    <td>0.24</td>
+                </tr>
+        
+                <tr>
+                    <td><code>I_IDX</code></td>
+                    <td><strong>铁矿石</strong></td>
+                    <td>50,000</td>
+                    <td><strong>534</strong></td>
+                    <td class="text-red"><strong>  -123150.26</strong></td>
+                    <td>12.0%</td>
+                    <td>[9.5%, 15.0%]</td>
+                    <td>0.26</td>
+                    <td>24.77%</td>
+                    <td class="text-red">  -250505.63</td>
+                    <td>0.12</td>
+                </tr>
+        
+                <tr>
+                    <td><code>J_IDX</code></td>
+                    <td><strong>焦炭</strong></td>
+                    <td>50,000</td>
+                    <td><strong>394</strong></td>
+                    <td class="text-red"><strong>  -222996.63</strong></td>
+                    <td>37.8%</td>
+                    <td>[33.2%, 42.7%]</td>
+                    <td>0.58</td>
+                    <td>44.64%</td>
+                    <td class="text-red">  -377413.83</td>
+                    <td>0.41</td>
+                </tr>
+        
+                <tr>
+                    <td><code>JM_IDX</code></td>
+                    <td><strong>焦煤</strong></td>
+                    <td>50,000</td>
+                    <td><strong>431</strong></td>
+                    <td class="text-red"><strong>  -159551.47</strong></td>
+                    <td>18.8%</td>
+                    <td>[15.4%, 22.8%]</td>
+                    <td>0.27</td>
+                    <td>32.74%</td>
+                    <td class="text-red">  -231978.19</td>
+                    <td>0.17</td>
+                </tr>
+        
+                <tr>
+                    <td><code>CU_IDX</code></td>
+                    <td><strong>沪铜</strong></td>
+                    <td>50,000</td>
+                    <td><strong>453</strong></td>
+                    <td class="text-red"><strong>  -247565.00</strong></td>
+                    <td>34.9%</td>
+                    <td>[30.6%, 39.4%]</td>
+                    <td>0.38</td>
+                    <td>50.61%</td>
+                    <td class="text-red">  -375260.47</td>
+                    <td>0.24</td>
+                </tr>
+        
+                <tr>
+                    <td><code>AL_IDX</code></td>
+                    <td><strong>沪铝</strong></td>
+                    <td>50,000</td>
+                    <td><strong>452</strong></td>
+                    <td class="text-red"><strong>   -71958.75</strong></td>
+                    <td>24.1%</td>
+                    <td>[20.4%, 28.3%]</td>
+                    <td>0.30</td>
+                    <td>14.40%</td>
+                    <td class="text-red">  -122885.98</td>
+                    <td>0.17</td>
+                </tr>
+        
+                <tr>
+                    <td><code>ZN_IDX</code></td>
+                    <td><strong>沪锌</strong></td>
+                    <td>50,000</td>
+                    <td><strong>449</strong></td>
+                    <td class="text-red"><strong>   -63863.43</strong></td>
+                    <td>25.4%</td>
+                    <td>[21.6%, 29.6%]</td>
+                    <td>0.41</td>
+                    <td>13.08%</td>
+                    <td class="text-red">  -116852.61</td>
+                    <td>0.24</td>
+                </tr>
+        
+                <tr>
+                    <td><code>SN_IDX</code></td>
+                    <td><strong>沪锡</strong></td>
+                    <td>50,000</td>
+                    <td><strong>411</strong></td>
+                    <td class="text-red"><strong>  -273838.37</strong></td>
+                    <td>40.4%</td>
+                    <td>[35.8%, 45.2%]</td>
+                    <td>0.37</td>
+                    <td>55.20%</td>
+                    <td class="text-red">  -302891.98</td>
+                    <td>0.33</td>
+                </tr>
+        
+                <tr>
+                    <td><code>AG_IDX</code></td>
+                    <td><strong>沪银</strong></td>
+                    <td>50,000</td>
+                    <td><strong>412</strong></td>
+                    <td class="text-red"><strong>  -202117.97</strong></td>
+                    <td>38.1%</td>
+                    <td>[33.5%, 42.9%]</td>
+                    <td>0.41</td>
+                    <td>41.24%</td>
+                    <td class="text-red">  -237483.28</td>
+                    <td>0.35</td>
+                </tr>
+        
+                <tr>
+                    <td><code>AU_IDX</code></td>
+                    <td><strong>沪金</strong></td>
+                    <td>50,000</td>
+                    <td><strong>408</strong></td>
+                    <td class="text-red"><strong>  -245591.11</strong></td>
+                    <td>39.5%</td>
+                    <td>[34.8%, 44.3%]</td>
+                    <td>0.61</td>
+                    <td>53.77%</td>
+                    <td class="text-red">  -296446.30</td>
+                    <td>0.55</td>
+                </tr>
+        
+                <tr>
+                    <td><code>TA_IDX</code></td>
+                    <td><strong>PTA</strong></td>
+                    <td>50,000</td>
+                    <td><strong>440</strong></td>
+                    <td class="text-red"><strong>   -31860.37</strong></td>
+                    <td>32.0%</td>
+                    <td>[27.9%, 36.5%]</td>
+                    <td>0.43</td>
+                    <td>6.39%</td>
+                    <td class="text-red">   -52587.85</td>
+                    <td>0.27</td>
+                </tr>
+        
+                <tr>
+                    <td><code>MA_IDX</code></td>
+                    <td><strong>甲醇</strong></td>
+                    <td>50,000</td>
+                    <td><strong>384</strong></td>
+                    <td class="text-red"><strong>   -32654.38</strong></td>
+                    <td>32.0%</td>
+                    <td>[27.6%, 36.9%]</td>
+                    <td>0.44</td>
+                    <td>6.57%</td>
+                    <td class="text-red">   -51713.36</td>
+                    <td>0.30</td>
+                </tr>
+        
+                <tr>
+                    <td><code>SA_IDX</code></td>
+                    <td><strong>纯碱</strong></td>
+                    <td>50,000</td>
+                    <td><strong>414</strong></td>
+                    <td class="text-red"><strong>   -53893.50</strong></td>
+                    <td>29.7%</td>
+                    <td>[25.5%, 34.3%]</td>
+                    <td>0.41</td>
+                    <td>10.91%</td>
+                    <td class="text-red">   -97243.20</td>
+                    <td>0.24</td>
+                </tr>
+        
+                <tr>
+                    <td><code>FG_IDX</code></td>
+                    <td><strong>玻璃</strong></td>
+                    <td>50,000</td>
+                    <td><strong>578</strong></td>
+                    <td class="text-red"><strong>   -43377.28</strong></td>
+                    <td>15.6%</td>
+                    <td>[12.8%, 18.8%]</td>
+                    <td>0.37</td>
+                    <td>8.85%</td>
+                    <td class="text-red">   -95582.35</td>
+                    <td>0.17</td>
+                </tr>
+        
+                <tr>
+                    <td><code>SC_IDX</code></td>
+                    <td><strong>原油</strong></td>
+                    <td>50,000</td>
+                    <td><strong>434</strong></td>
+                    <td class="text-red"><strong>  -392403.71</strong></td>
+                    <td>36.4%</td>
+                    <td>[32.0%, 41.0%]</td>
+                    <td>0.61</td>
+                    <td>85.38%</td>
+                    <td class="text-red">  -609469.50</td>
+                    <td>0.48</td>
+                </tr>
+        
+                <tr>
+                    <td><code>M_IDX</code></td>
+                    <td><strong>豆粕</strong></td>
+                    <td>50,000</td>
+                    <td><strong>549</strong></td>
+                    <td class="text-red"><strong>   -20667.89</strong></td>
+                    <td>14.4%</td>
+                    <td>[11.7%, 17.6%]</td>
+                    <td>0.35</td>
+                    <td>4.13%</td>
+                    <td class="text-red">   -45081.11</td>
+                    <td>0.16</td>
+                </tr>
+        
+                <tr>
+                    <td><code>Y_IDX</code></td>
+                    <td><strong>豆油</strong></td>
+                    <td>50,000</td>
+                    <td><strong>464</strong></td>
+                    <td class="text-red"><strong>   -38861.44</strong></td>
+                    <td>16.8%</td>
+                    <td>[13.7%, 20.5%]</td>
+                    <td>0.47</td>
+                    <td>8.01%</td>
+                    <td class="text-red">   -83673.13</td>
+                    <td>0.26</td>
+                </tr>
+        
+                <tr>
+                    <td><code>P_IDX</code></td>
+                    <td><strong>棕榈油</strong></td>
+                    <td>50,000</td>
+                    <td><strong>427</strong></td>
+                    <td class="text-red"><strong>   -33786.37</strong></td>
+                    <td>31.4%</td>
+                    <td>[27.2%, 35.9%]</td>
+                    <td>0.64</td>
+                    <td>6.79%</td>
+                    <td class="text-red">   -75774.55</td>
+                    <td>0.40</td>
+                </tr>
+        
+                <tr>
+                    <td><code>C_IDX</code></td>
+                    <td><strong>玉米</strong></td>
+                    <td>50,000</td>
+                    <td><strong>568</strong></td>
+                    <td class="text-red"><strong>   -19208.51</strong></td>
+                    <td>9.0%</td>
+                    <td>[6.9%, 11.6%]</td>
+                    <td>0.19</td>
+                    <td>3.84%</td>
+                    <td class="text-red">   -44191.24</td>
+                    <td>0.06</td>
+                </tr>
+        
+                <tr>
+                    <td><code>CF_IDX</code></td>
+                    <td><strong>棉花</strong></td>
+                    <td>50,000</td>
+                    <td><strong>567</strong></td>
+                    <td class="text-red"><strong>   -49045.47</strong></td>
+                    <td>10.6%</td>
+                    <td>[8.3%, 13.4%]</td>
+                    <td>0.33</td>
+                    <td>9.99%</td>
+                    <td class="text-red">  -113371.00</td>
+                    <td>0.14</td>
+                </tr>
+        
+                <tr>
+                    <td><code>SR_IDX</code></td>
+                    <td><strong>白糖</strong></td>
+                    <td>50,000</td>
+                    <td><strong>420</strong></td>
+                    <td class="text-red"><strong>   -28958.55</strong></td>
+                    <td>16.7%</td>
+                    <td>[13.4%, 20.5%]</td>
+                    <td>0.27</td>
+                    <td>5.81%</td>
+                    <td class="text-red">   -51042.42</td>
+                    <td>0.15</td>
+                </tr>
+        
+                <tr>
+                    <td><code>RU_IDX</code></td>
+                    <td><strong>橡胶</strong></td>
+                    <td>50,000</td>
+                    <td><strong>434</strong></td>
+                    <td class="text-red"><strong>  -162840.21</strong></td>
+                    <td>25.8%</td>
+                    <td>[21.9%, 30.1%]</td>
+                    <td>0.37</td>
+                    <td>32.81%</td>
+                    <td class="text-red">  -280728.04</td>
+                    <td>0.22</td>
+                </tr>
+        
+                <tr>
+                    <td><code>LC_IDX</code></td>
+                    <td><strong>碳酸锂</strong></td>
+                    <td>50,000</td>
+                    <td><strong>468</strong></td>
+                    <td class="text-red"><strong>  -105198.98</strong></td>
+                    <td>22.2%</td>
+                    <td>[18.7%, 26.2%]</td>
+                    <td>0.56</td>
+                    <td>27.05%</td>
+                    <td class="text-red">  -208973.71</td>
+                    <td>0.36</td>
+                </tr>
+        
+                <tr>
+                    <td><code>SI_IDX</code></td>
+                    <td><strong>工业硅</strong></td>
+                    <td>50,000</td>
+                    <td><strong>389</strong></td>
+                    <td class="text-red"><strong>   -59718.53</strong></td>
+                    <td>32.1%</td>
+                    <td>[27.7%, 36.9%]</td>
+                    <td>0.48</td>
+                    <td>12.93%</td>
+                    <td class="text-red">  -104309.70</td>
+                    <td>0.32</td>
+                </tr>
+        
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const s1Names = ["\u87ba\u7eb9\u94a2", "\u70ed\u5377", "\u94c1\u77ff\u77f3", "\u7126\u70ad", "\u7126\u7164", "\u6caa\u94dc", "\u6caa\u94dd", "\u6caa\u950c", "\u6caa\u9521", "\u6caa\u94f6", "\u6caa\u91d1", "PTA", "\u7532\u9187", "\u7eaf\u78b1", "\u73bb\u7483", "\u539f\u6cb9", "\u8c46\u7c95", "\u8c46\u6cb9", "\u68d5\u6988\u6cb9", "\u7389\u7c73", "\u68c9\u82b1", "\u767d\u7cd6", "\u6a61\u80f6", "\u78b3\u9178\u9502", "\u5de5\u4e1a\u7845"];
+    const s1Net1x = [-1226.98, -3469.58, -13546.01, -25133.66, -3577.84, -33770.94, -5612.48, -4995.05, -36613.6, 37505.32, -38849.95, 2765.88, -7095.1, -3889.14, -5105.41, -68810.06, -2421.1, -4142.39, -65.48, -2373.05, -3434.12, -3206.89, -11840.79, -6537.13, -3207.55];
+    const s1Net3x = [-3747.03, -6607.18, -26459.84, -36869.59, -10333.76, -51361.52, -12664.12, -12767.8, -41342.93, 29543.23, -48116.73, 173.3, -9879.94, -8556.49, -10501.96, -99241.98, -4995.48, -8773.53, -4959.96, -5692.71, -9781.18, -5399.05, -23888.54, -16732.43, -7880.39];
+
+    Plotly.newPlot('chartStage1', [
+        { x: s1Names, y: s1Net1x, name: '1x 正常成本净利', type: 'bar', marker: { color: '#2ea043' } },
+        { x: s1Names, y: s1Net3x, name: '3x 极限压测净利', type: 'bar', marker: { color: '#58a6ff' } }
+    ], {
+        paper_bgcolor: '#161b22', plot_bgcolor: '#161b22',
+        font: { color: '#c9d1d9', family: '-apple-system, sans-serif' },
+        margin: { t: 30, r: 30, l: 60, b: 60 },
+        barmode: 'group',
+        legend: { orientation: 'h', y: 1.1, x: 0 },
+        xaxis: { gridcolor: '#30363d' },
+        yaxis: { title: '阶段一净利润 (RMB)', gridcolor: '#30363d' }
+    }, { responsive: true });
+
+    const s2Names = ["\u87ba\u7eb9\u94a2", "\u70ed\u5377", "\u94c1\u77ff\u77f3", "\u7126\u70ad", "\u7126\u7164", "\u6caa\u94dc", "\u6caa\u94dd", "\u6caa\u950c", "\u6caa\u9521", "\u6caa\u94f6", "\u6caa\u91d1", "PTA", "\u7532\u9187", "\u7eaf\u78b1", "\u73bb\u7483", "\u539f\u6cb9", "\u8c46\u7c95", "\u8c46\u6cb9", "\u68d5\u6988\u6cb9", "\u7389\u7c73", "\u68c9\u82b1", "\u767d\u7cd6", "\u6a61\u80f6", "\u78b3\u9178\u9502", "\u5de5\u4e1a\u7845"];
+    const s2Net1x = [-24815.95, -17253.15, -123150.26, -222996.63, -159551.47, -247565.0, -71958.75, -63863.43, -273838.37, -202117.97, -245591.11, -31860.37, -32654.38, -53893.5, -43377.28, -392403.71, -20667.89, -38861.44, -33786.37, -19208.51, -49045.47, -28958.55, -162840.21, -105198.98, -59718.53];
+    const s2Net3x = [-53958.41, -44004.07, -250505.63, -377413.83, -231978.19, -375260.47, -122885.98, -116852.61, -302891.98, -237483.28, -296446.3, -52587.85, -51713.36, -97243.2, -95582.35, -609469.5, -45081.11, -83673.13, -75774.55, -44191.24, -113371.0, -51042.42, -280728.04, -208973.71, -104309.7];
+
+    Plotly.newPlot('chartStage2', [
+        { x: s2Names, y: s2Net1x, name: '50,000 根全周期 1x 正常净利', type: 'bar', marker: { color: '#2ea043' } },
+        { x: s2Names, y: s2Net3x, name: '50,000 根全周期 3x 极限压测净利', type: 'bar', marker: { color: '#58a6ff' } }
+    ], {
+        paper_bgcolor: '#161b22', plot_bgcolor: '#161b22',
+        font: { color: '#c9d1d9', family: '-apple-system, sans-serif' },
+        margin: { t: 30, r: 30, l: 60, b: 60 },
+        barmode: 'group',
+        legend: { orientation: 'h', y: 1.1, x: 0 },
+        xaxis: { gridcolor: '#30363d' },
+        yaxis: { title: '阶段二大数定律净利 (RMB)', gridcolor: '#30363d' }
+    }, { responsive: true });
+</script>
+</body>
+</html>

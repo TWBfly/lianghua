@@ -17,3 +17,11 @@ data/*_state.json
 scratch/
 .DS_Store
 vnpy/
+akquant/
+node_modules/
+dist/
+**/node_modules/
+**/dist/
+**/target/
+**/gen/
+.pnpm-store/

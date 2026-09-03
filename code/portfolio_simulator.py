@@ -198,11 +198,14 @@ def _atr_exit(position, bar):
             if trailing_stop is not None and stop == trailing_stop
             else "ATR_STOP"
         )
-        # ponytail: 止损价直接成交，不用 min(open, stop)；与实盘对齐更保守
-        return reason, stop
+        # 跳空低开：以开盘价为基准；否则以触发止损价为基准
+        exit_benchmark = min(float(bar["open"]), stop)
+        return reason, exit_benchmark
     take = entry + take_multiple * atr
     if float(bar["high"]) >= take:
-        return "ATR_TAKE_PROFIT", take
+        # 跳空高开：以开盘价为基准；否则以止盈价为基准
+        exit_benchmark = max(float(bar["open"]), take)
+        return "ATR_TAKE_PROFIT", exit_benchmark
     return None
 
 

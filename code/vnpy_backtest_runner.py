@@ -159,14 +159,16 @@ class VnpyBacktestRunner:
             if order.direction == Direction.LONG:
                 # 报单价 >= 最低价即可成交
                 if order.price >= long_cross_price:
-                    # 成交价判定（若开盘直接跳空低开，以开盘价成交；否则以报单价成交）
-                    trade_price = min(order.price, bar.open_price) + self.slippage * self.pricetick
+                    # 成交价判定（若开盘直接跳空低开，以开盘价成交；否则以报单价成交，并加滑点）
+                    raw_trade_price = min(order.price, bar.open_price) + self.slippage * self.pricetick
+                    trade_price = min(bar.high_price, max(bar.low_price, raw_trade_price))
                     self.execute_trade(order, trade_price, bar.datetime)
             # 撮合卖单
             elif order.direction == Direction.SHORT:
                 # 报单价 <= 最高价即可成交
                 if order.price <= short_cross_price:
-                    trade_price = max(order.price, bar.open_price) - self.slippage * self.pricetick
+                    raw_trade_price = max(order.price, bar.open_price) - self.slippage * self.pricetick
+                    trade_price = min(bar.high_price, max(bar.low_price, raw_trade_price))
                     self.execute_trade(order, trade_price, bar.datetime)
 
     def execute_trade(self, order: OrderData, trade_price: float, dt: datetime):
@@ -282,7 +284,8 @@ class VnpyBacktestRunner:
             # 持仓隔夜盯市盈亏 (从昨日收盘到今日收盘)
             res.holding_pnl = res.start_pos * (res.close_price - res.previous_close) * self.size
             res.total_pnl = res.holding_pnl + res.trading_pnl
-            res.net_pnl = res.total_pnl - res.commission - res.slippage
+            # 成交价已计入滑点，净利只扣除手续费
+            res.net_pnl = res.total_pnl - res.commission
 
             daily_rows.append({
                 "date": d.strftime("%Y-%m-%d"),
@@ -303,17 +306,24 @@ class VnpyBacktestRunner:
 
         self.daily_df = pd.DataFrame(daily_rows)
         self.daily_df["balance"] = self.capital + self.daily_df["net_pnl"].cumsum()
-        self.daily_df["daily_return"] = self.daily_df["net_pnl"] / self.capital
-        self.daily_df["peak"] = self.daily_df["balance"].cummax()
-        self.daily_df["drawdown"] = (self.daily_df["balance"] - self.daily_df["peak"]) / self.daily_df["peak"]
+        prev_balances = np.insert(self.daily_df["balance"].values[:-1], 0, self.capital) if not self.daily_df.empty else np.array([])
+        self.daily_df["daily_return"] = self.daily_df["net_pnl"] / prev_balances if len(prev_balances) > 0 else 0.0
+        
+        # 回撤序列锚定初始资金
+        balances_with_init = np.insert(self.daily_df["balance"].values, 0, self.capital) if not self.daily_df.empty else np.array([self.capital])
+        peaks = np.maximum.accumulate(balances_with_init)
+        drawdowns = (balances_with_init - peaks) / peaks
+        max_dd_pct = float(abs(drawdowns.min())) * 100.0 if len(drawdowns) > 0 else 0.0
+
+        self.daily_df["peak"] = self.daily_df["balance"].cummax() if not self.daily_df.empty else 0.0
+        self.daily_df["drawdown"] = (self.daily_df["balance"] - self.daily_df["peak"]) / self.daily_df["peak"] if not self.daily_df.empty else 0.0
 
         # 统计汇总指标
-        total_pnl = float(self.daily_df["net_pnl"].sum())
+        total_pnl = float(self.daily_df["net_pnl"].sum()) if not self.daily_df.empty else 0.0
         total_return_pct = (total_pnl / self.capital) * 100.0
-        max_dd_pct = float(abs(self.daily_df["drawdown"].min())) * 100.0
 
-        daily_returns = self.daily_df["daily_return"].values
-        std_ret = float(np.std(daily_returns))
+        daily_returns = self.daily_df["daily_return"].values if not self.daily_df.empty else np.array([])
+        std_ret = float(np.std(daily_returns)) if len(daily_returns) > 0 else 0.0
         sharpe_ratio = float(np.mean(daily_returns) / (std_ret + 1e-8) * np.sqrt(240)) if std_ret > 0 else 0.0
 
         # 计算胜率与盈亏比

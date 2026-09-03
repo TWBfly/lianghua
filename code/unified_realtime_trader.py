@@ -99,22 +99,10 @@ DOMINANT_NAME_MAP = {
 
 
 def load_tq_credentials() -> tuple[str, str]:
-    """读取天勤凭据"""
+    """读取天勤凭据 (Fail-Closed 原则，严格禁止明文凭证 fallback)"""
+    from runtime_credentials import load_required_credentials
     env_file = PROJECT_ROOT / ".env"
-    acc, pwd = "", ""
-    if env_file.exists():
-        with open(env_file, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if "TQ_ACCOUNT" in line or ("账号" in line and "TQ" in line.upper()) or "天勤" in line:
-                    parts = line.replace("：", ":").split(":", 1) if ":" in line.replace("：", ":") else line.split("=", 1)
-                    if len(parts) > 1:
-                        acc = parts[1].strip()
-                elif "TQ_PASSWORD" in line or ("密码" in line and "TQ" in line.upper()):
-                    parts = line.replace("：", ":").split(":", 1) if ":" in line.replace("：", ":") else line.split("=", 1)
-                    if len(parts) > 1:
-                        pwd = parts[1].strip()
-    return acc or "13800000000", pwd or "redacted_password"
+    return load_required_credentials(env_file, "TQ_ACCOUNT", "TQ_PASSWORD")
 
 
 def init_db():
@@ -629,16 +617,17 @@ class UnifiedRealtimeTrader:
                     exit_reason = f"触发吊灯移动止损线 ¥{tianji_pos['stop_price']:.2f} 或 动量反转 (KER={ker:.2f})"
 
             if exit_trigger:
-                pnl = (curr_p - entry_p) * mult * lots if p_side == "LONG" else (entry_p - curr_p) * mult * lots
+                exit_price = tianji_pos["stop_price"] if ("止损" in exit_reason and ((p_side == "LONG" and curr_l <= tianji_pos["stop_price"]) or (p_side == "SHORT" and curr_h >= tianji_pos["stop_price"]))) else curr_p
+                pnl = (exit_price - entry_p) * mult * lots if p_side == "LONG" else (entry_p - exit_price) * mult * lots
                 self.strat_tianji_15m.balance += pnl
                 self.strat_tianji_15m.log_exit_trade(
                     sym, curr_contract, p_side,
-                    tianji_pos["entry_time"], entry_p, last_bar["dt"], curr_p, lots, pnl, exit_reason,
+                    tianji_pos["entry_time"], entry_p, last_bar["dt"], exit_price, lots, pnl, exit_reason,
                     trade_id=tianji_pos.get("trade_id"), entry_reason=tianji_pos.get("entry_reason", "")
                 )
                 del self.strat_tianji_15m.positions[sym]
                 self.strat_tianji_15m.save()
-                logger.info(f"🏁 [天玑 15m 平仓] {sym:<8} {p_side} | 平仓价: {curr_p:.2f} | 盈亏: ¥{pnl:+,.2f} | 原因: {exit_reason}")
+                logger.info(f"🏁 [天玑 15m 平仓] {sym:<8} {p_side} | 平仓价: {exit_price:.2f} | 盈亏: ¥{pnl:+,.2f} | 原因: {exit_reason}")
 
         # 天玑开仓扫描
         elif not tianji_pos:
@@ -723,16 +712,17 @@ class UnifiedRealtimeTrader:
                     exit_reason = f"达到最大持仓上限 (6 根 Bar) 均值平仓"
 
             if exit_trigger:
-                pnl = (curr_p - entry_p) * mult * lots if p_side == "LONG" else (entry_p - curr_p) * mult * lots
+                exit_price = stop_p if ("硬止损" in exit_reason and ((p_side == "LONG" and curr_l <= stop_p) or (p_side == "SHORT" and curr_h >= stop_p))) else curr_p
+                pnl = (exit_price - entry_p) * mult * lots if p_side == "LONG" else (entry_p - exit_price) * mult * lots
                 self.strat_zscore_15m.balance += pnl
                 self.strat_zscore_15m.log_exit_trade(
                     sym, curr_contract, p_side,
-                    z_pos["entry_time"], entry_p, last_bar["dt"], curr_p, lots, pnl, exit_reason,
+                    z_pos["entry_time"], entry_p, last_bar["dt"], exit_price, lots, pnl, exit_reason,
                     trade_id=z_pos.get("trade_id"), entry_reason=z_pos.get("entry_reason", "")
                 )
                 del self.strat_zscore_15m.positions[sym]
                 self.strat_zscore_15m.save()
-                logger.info(f"🏁 [Z-Score 15m 平仓] {sym:<8} {p_side} | 平仓价: {curr_p:.2f} | 盈亏: ¥{pnl:+,.2f} | 原因: {exit_reason}")
+                logger.info(f"🏁 [Z-Score 15m 平仓] {sym:<8} {p_side} | 平仓价: {exit_price:.2f} | 盈亏: ¥{pnl:+,.2f} | 原因: {exit_reason}")
 
         # Z-Score 开仓扫描
         elif not z_pos:
@@ -837,16 +827,17 @@ class UnifiedRealtimeTrader:
                     exit_reason = f"10m 达到最大持仓上限 6 根 Bar 均值清仓"
 
             if exit_trigger:
-                pnl = (curr_p - entry_p) * mult * lots if p_side == "LONG" else (entry_p - curr_p) * mult * lots
+                exit_price = stop_p if ("硬止损" in exit_reason and ((p_side == "LONG" and curr_l <= stop_p) or (p_side == "SHORT" and curr_h >= stop_p))) else curr_p
+                pnl = (exit_price - entry_p) * mult * lots if p_side == "LONG" else (entry_p - exit_price) * mult * lots
                 self.strat_zscore_10m.balance += pnl
                 self.strat_zscore_10m.log_exit_trade(
                     sym, curr_contract, p_side,
-                    z10_pos["entry_time"], entry_p, last_bar["dt"], curr_p, lots, pnl, exit_reason,
+                    z10_pos["entry_time"], entry_p, last_bar["dt"], exit_price, lots, pnl, exit_reason,
                     trade_id=z10_pos.get("trade_id"), entry_reason=z10_pos.get("entry_reason", "")
                 )
                 del self.strat_zscore_10m.positions[sym]
                 self.strat_zscore_10m.save()
-                logger.info(f"🏁 [Z-Score 10m 平仓] {sym:<8} {p_side} | 平仓价: {curr_p:.2f} | 盈亏: ¥{pnl:+,.2f} | 原因: {exit_reason}")
+                logger.info(f"🏁 [Z-Score 10m 平仓] {sym:<8} {p_side} | 平仓价: {exit_price:.2f} | 盈亏: ¥{pnl:+,.2f} | 原因: {exit_reason}")
 
         # 10m 开仓扫描
         elif not z10_pos:

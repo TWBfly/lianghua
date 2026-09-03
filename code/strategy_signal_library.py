@@ -43,42 +43,42 @@ def crossunder(a: pd.Series, b) -> pd.Series:
 # 来源: SuperTrend.md, AlphaTrend.md, SuperTrend Oscillator [LuxAlgo].md
 
 def supertrend_signal(df: pd.DataFrame, period: int = 10, multiplier: float = 3.0) -> pd.Series:
-    """SuperTrend 趋势方向信号: +1=多头, -1=空头"""
-    hl2 = (df['high'] + df['low']) / 2
-    atr = _atr(df, period)
+    """SuperTrend 趋势方向信号: +1=多头, -1=空头 (NumPy 向量化优化版)"""
+    n = len(df)
+    if n == 0:
+        return pd.Series(dtype=int)
+
+    hl2 = ((df['high'] + df['low']) / 2.0).to_numpy()
+    atr = _atr(df, period).to_numpy()
     upper_band = hl2 + multiplier * atr
     lower_band = hl2 - multiplier * atr
+    closes = df['close'].to_numpy()
 
-    supertrend = pd.Series(np.nan, index=df.index)
-    direction = pd.Series(1, index=df.index)
+    direction = np.ones(n, dtype=int)
 
-    for i in range(1, len(df)):
-        prev_upper = upper_band.iloc[i-1]
-        prev_lower = lower_band.iloc[i-1]
-        curr_close = df['close'].iloc[i]
-        prev_close = df['close'].iloc[i-1]
+    for i in range(1, n):
+        prev_upper = upper_band[i-1]
+        prev_lower = lower_band[i-1]
+        curr_close = closes[i]
+        prev_close = closes[i-1]
 
         # 上轨不收缩
-        if lower_band.iloc[i] > prev_lower or prev_close < prev_lower:
-            lower_band.iloc[i] = lower_band.iloc[i]
-        else:
-            lower_band.iloc[i] = prev_lower
+        if not (lower_band[i] > prev_lower or prev_close < prev_lower):
+            lower_band[i] = prev_lower
 
         # 下轨不扩张
-        if upper_band.iloc[i] < prev_upper or prev_close > prev_upper:
-            upper_band.iloc[i] = upper_band.iloc[i]
-        else:
-            upper_band.iloc[i] = prev_upper
+        if not (upper_band[i] < prev_upper or prev_close > prev_upper):
+            upper_band[i] = prev_upper
 
-        prev_dir = direction.iloc[i-1]
+        prev_dir = direction[i-1]
         if prev_dir == -1 and curr_close > prev_upper:
-            direction.iloc[i] = 1
+            direction[i] = 1
         elif prev_dir == 1 and curr_close < prev_lower:
-            direction.iloc[i] = -1
+            direction[i] = -1
         else:
-            direction.iloc[i] = prev_dir
+            direction[i] = prev_dir
 
-    return direction  # +1 / -1
+    return pd.Series(direction, index=df.index)
 
 
 def supertrend_crossover(df: pd.DataFrame, period: int = 10, multiplier: float = 3.0) -> pd.Series:

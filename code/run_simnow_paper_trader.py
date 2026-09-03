@@ -170,9 +170,12 @@ def start_simnow_paper_trader(symbol: str = "ag2612.SHFE", strategy_type: str = 
     strat_logger.info(f"✅ 策略 [{strategy.strategy_name}] 已成功挂载并在事件循环中激活！")
     strat_logger.info("🟢 正在全天候 24h 监听行情推送与离散事件触发...")
 
-    # 解析合约代码与交易周期
-    tq_user = creds.get("tq_account", "13800000000")
-    tq_pass = creds.get("tq_password", "redacted_password")
+    # 解析合约代码与交易周期 (必须从环境读取，禁止硬编码回退)
+    tq_user = creds.get("tq_account")
+    tq_pass = creds.get("tq_password")
+    if not tq_user or not tq_pass:
+        raise RuntimeError("Missing required TqSdk credentials (TQ_ACCOUNT/TQ_PASSWORD in .env)")
+
     tf_seconds = 600 if "10m" in strat_key else 900
 
     if "." in symbol:
@@ -189,7 +192,8 @@ def start_simnow_paper_trader(symbol: str = "ag2612.SHFE", strategy_type: str = 
         klines = api.get_kline_serial(tq_code, duration_seconds=tf_seconds, data_length=60)
         strat_logger.info(f"📡 成功接入天勤行情流 [{tq_code} | {tf_seconds}s]，实时监听 Bar 完结事件...")
     except Exception as e:
-        strat_logger.warning(f"⚠️ 天勤行情流初始化提示: {e}，将以纯事件仿真心跳模式运行")
+        strat_logger.error(f"❌ 天勤行情流初始化失败: {e}，虚拟盘进程无法获取实时数据，直接退出")
+        raise RuntimeError(f"Failed to initialize TqSdk live market feed: {e}") from e
 
     last_heartbeat = 0
     try:

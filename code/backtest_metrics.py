@@ -139,6 +139,9 @@ def run_monte_carlo_analysis(daily_results, n_simulations: int = 1000,
             "max_drawdown_ci_95": [0.0, 0.0],
         }
 
+    block_size = max(1, min(int(block_size), n_days))
+    n_simulations = max(1, int(n_simulations))
+
     actual_std = np.std(returns, ddof=1) if n_days > 1 else 0.0
     actual_sharpe = (np.mean(returns) / actual_std * np.sqrt(annual_days)) if actual_std > 0 else 0.0
 
@@ -146,13 +149,13 @@ def run_monte_carlo_analysis(daily_results, n_simulations: int = 1000,
     sim_win_rates = []
     sim_max_drawdowns = []
 
-    np.random.seed(42)
+    rng = np.random.default_rng(42)
     max_block_start = max(1, n_days - block_size + 1)
 
     for _ in range(n_simulations):
         sampled_returns = []
         while len(sampled_returns) < n_days:
-            start_idx = np.random.randint(0, max_block_start)
+            start_idx = int(rng.integers(0, max_block_start))
             sampled_returns.extend(returns[start_idx:start_idx + block_size])
         sampled = np.array(sampled_returns[:n_days])
 

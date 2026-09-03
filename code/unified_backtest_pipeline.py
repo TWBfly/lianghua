@@ -50,7 +50,8 @@ from backtest_validator import (
     grade_reliability,
     wilson_score_interval,
 )
-from contract_specs import get_spec
+from contract_specs import get_spec, calculate_contract_fee
+from futures_trading_day import is_close_today
 from synthetic_market_regime_generator import SyntheticMarketRegimeGenerator
 from technical_indicators import calculate_atr, calculate_ema
 
@@ -65,7 +66,7 @@ REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 # ==============================================================================
 
 class UnifiedDataProvider:
-    """统一量化数据供给器：支持真实数据库、TqSdk下载与全周期宏观模拟自动补足"""
+    """统一量化数据供给器：真实数据与合成数据严格物理隔离，绝不拼接"""
 
     def __init__(self, db_path: Path = DB_PATH):
         self.db_path = db_path
@@ -75,15 +76,27 @@ class UnifiedDataProvider:
         self,
         symbol: str,
         timeframe: str = "15m",
+        allow_synthetic: bool = False,
         target_min_trades: int = 1000,
-        bars_multiplier: int = 60,  # 实盘策略每笔交易约消耗 40~60 根 K 线，确保生成 >= 1,000 笔交易
+        bars_multiplier: int = 60,
     ) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """
-        加载分时数据，若不足以支撑大数定律 (1,000 笔)，自动算法模拟完整牛熊宏观周期补足：
-        【单边暴涨 (Hyper-Bull) -> 宽幅洗盘 (Whipsaw) -> 恐慌暴跌 (Panic-Crash) -> 长期横盘 (Grinding-Chop)】
+        加载真实分时数据。若 allow_synthetic=True，同时在 meta['df_synthetic'] 中
+        返回独立的合成压力测试数据（绝不与真实数据拼接）。
+
+        返回:
+            df_real: 真实历史 K 线 (Track A 回测用)
+            meta: 包含 lln_status、regime_distribution，以及可选的 df_synthetic (Track B 压测用)
         """
         spec = get_spec(symbol)
         df_real = self._load_from_sqlite(symbol, timeframe)
+
+        min_required_bars = target_min_trades * bars_multiplier
+        is_sufficient = len(df_real) >= min_required_bars
+
+        if not df_real.empty:
+            df_real["regime"] = "REAL_HISTORY"
+            df_real["is_synthetic"] = 0
 
         meta = {
             "symbol": symbol,
@@ -92,55 +105,32 @@ class UnifiedDataProvider:
             "is_synthetic_supplemented": False,
             "real_bars": len(df_real),
             "total_bars": len(df_real),
-            "start_time": "",
-            "end_time": "",
+            "start_time": str(df_real["trade_time"].min()) if not df_real.empty else "",
+            "end_time": str(df_real["trade_time"].max()) if not df_real.empty else "",
+            "lln_status": "SUFFICIENT_REAL_SAMPLE" if is_sufficient else "INSUFFICIENT_REAL_SAMPLE",
             "regime_distribution": {},
+            "df_synthetic": None,  # ponytail: 合成数据独立存放, 绝不与 df_real 拼接
         }
 
-        min_required_bars = target_min_trades * bars_multiplier
+        if allow_synthetic:
+            needed_bars = max(60000, min_required_bars)
+            bars_per_regime = max(15000, needed_bars // 4)
 
-        if len(df_real) >= min_required_bars:
-            meta["start_time"] = str(df_real["trade_time"].min())
-            meta["end_time"] = str(df_real["trade_time"].max())
-            df_real["regime"] = "REAL_HISTORY"
-            return df_real, meta
+            # ponytail: start_price/tick_size 传 0, generator 自动从 contract_specs 读品种真实价格
+            df_syn = self.synthetic_gen.generate_regime_bars(
+                symbol=symbol,
+                bars_per_regime=bars_per_regime,
+                timeframe=timeframe,
+            )
+            if "trade_time" not in df_syn.columns:
+                df_syn = df_syn.reset_index()
 
-        # 真实数据不足 1,000 笔时，自动合成四大宏观牛熊周期 (至少 60,000 根 Bar)
-        needed_bars = max(60000, min_required_bars - len(df_real))
-        bars_per_regime = max(15000, needed_bars // 4)
-
-        base_p = float(df_real["close"].iloc[-1]) if not df_real.empty else (
-            3500.0 if "RB" in symbol else (60000.0 if "CU" in symbol else (550.0 if "AU" in symbol else 5000.0))
-        )
-
-        df_syn = self.synthetic_gen.generate_regime_bars(
-            symbol=symbol,
-            start_price=base_p,
-            bars_per_regime=bars_per_regime,
-            tick_size=spec.tick_size,
-            timeframe=timeframe,
-        )
-        if "trade_time" not in df_syn.columns:
-            df_syn = df_syn.reset_index()
-
-        if not df_real.empty:
-            df_real["regime"] = "REAL_HISTORY"
-            df_real["is_synthetic"] = 0
-            df_combined = pd.concat([df_real, df_syn], ignore_index=True)
             meta["is_synthetic_supplemented"] = True
-        else:
-            df_combined = df_syn
-            meta["is_synthetic_supplemented"] = True
+            meta["df_synthetic"] = df_syn
+            meta["synthetic_bars"] = len(df_syn)
+            meta["regime_distribution"] = df_syn["regime"].value_counts().to_dict() if "regime" in df_syn.columns else {}
 
-        df_combined = df_combined.sort_values("trade_time").reset_index(drop=True)
-        meta["total_bars"] = len(df_combined)
-        meta["start_time"] = str(df_combined["trade_time"].min())
-        meta["end_time"] = str(df_combined["trade_time"].max())
-
-        reg_counts = df_combined["regime"].value_counts().to_dict()
-        meta["regime_distribution"] = reg_counts
-
-        return df_combined, meta
+        return df_real, meta
 
     def _load_from_sqlite(self, symbol: str, timeframe: str) -> pd.DataFrame:
         if not self.db_path.exists():
@@ -219,7 +209,10 @@ def run_strategy_causal_backtest(
     margin_rate = spec.margin_rate
     slippage_ticks = 2 * cost_multiplier
 
-    atr_series = calculate_atr(df, 14).bfill().fillna(1.0).values
+    # 1. 严格因果 ATR (开盘决策仅依赖截至 i-1 的特征，无 bfill)
+    atr_raw = calculate_atr(df, 14).values
+    atr_series = np.roll(atr_raw, 1)
+    atr_series[0] = np.nan
 
     opens = df["open"].astype(float).values
     highs = df["high"].astype(float).values
@@ -240,66 +233,64 @@ def run_strategy_causal_backtest(
     lowest_p = 999999.0
     entry_regime = "UNKNOWN"
 
-    available_cash = capital
+    cash = float(capital)
+    margin_occupied = 0.0
     bankruptcy_events = 0
     force_liquidations = 0
+    is_bankrupt = False
+    equity_curve = [cash]
 
     for i in range(1, n):
+        if is_bankrupt:
+            break
+
+        prev_atr = atr_series[i]
+        if np.isnan(prev_atr) or i < 15:
+            continue
+        curr_atr = max(tick_size, float(prev_atr))
+
         curr_o = round_to_tick(opens[i], tick_size)
         curr_h = round_to_tick(highs[i], tick_size)
         curr_l = round_to_tick(lows[i], tick_size)
         curr_c = round_to_tick(closes[i], tick_size)
         prev_c = round_to_tick(closes[i - 1], tick_size)
-        curr_atr = max(tick_size, atr_series[i])
 
-        # 1. 涨跌停板检测 (涨停无卖单，跌停无买单)
+        # 涨跌停板检测 (涨停无卖单，跌停无买单)
         is_limit_up = (curr_h - curr_l < 1e-4) and (curr_c >= prev_c * 1.059)
         is_limit_down = (curr_h - curr_l < 1e-4) and (curr_c <= prev_c * 0.941)
 
-        # 2. 持仓出场与风控管理
+        # 2. 持仓出场与风控管理 (基于前一根 Bar 已固化的止损线进行保守撮合)
         if position == 1:
-            highest_p = max(highest_p, curr_h)
-
-            # 动态保本抬升与吊灯追踪
-            if highest_p >= entry_p + 1.2 * curr_atr:
-                stop_p = max(stop_p, entry_p + 0.1 * curr_atr)
-            if highest_p >= entry_p + 2.0 * curr_atr:
-                stop_p = max(stop_p, highest_p - 2.5 * curr_atr)
-
-            # 保证金与强平线监控 (Risk Ratio >= 120% 强制平仓)
-            unrealized_pnl = (curr_c - entry_p) * multiplier * current_lots
-            curr_equity = available_cash + unrealized_pnl
-            margin_occupied = curr_c * multiplier * current_lots * margin_rate
-            risk_ratio = margin_occupied / max(curr_equity, 1e-6)
-
-            is_force_liq = (risk_ratio >= 1.20 or curr_equity <= margin_occupied * 0.5)
             is_stopped = (curr_l <= stop_p)
             is_expired = ((i - entry_idx) >= holding_bars_max)
 
-            # 跌停封死无法平多
+            # 动态盯市计算开盘/盘中权益
+            unrealized_pnl = (curr_c - entry_p) * multiplier * current_lots
+            curr_equity = cash + margin_occupied + unrealized_pnl
+            risk_ratio = margin_occupied / max(curr_equity, 1e-6)
+            is_force_liq = (risk_ratio >= 1.20 or curr_equity <= margin_occupied * 0.5)
+
             if (is_stopped or is_expired or is_force_liq) and not is_limit_down:
                 if is_force_liq:
                     force_liquidations += 1
-                    # 强平在开盘或最新价执行
                     raw_exit = curr_o
                 elif curr_o <= stop_p:
-                    # 跳空低开：只能以跳空开盘价成交 (加上滑点，绝不能按理想 stop_p 撮合)
+                    # 跳空低开：以跳空开盘价成交
                     raw_exit = curr_o
                 else:
-                    # 柱内触及止损：悲观以 stop_p 撮合
+                    # 柱内触及止损：以 stop_p 撮合
                     raw_exit = stop_p
 
-                # 离散化并扣减滑点
                 exit_p = round_to_tick(max(curr_l, min(curr_h, raw_exit)), tick_size)
                 gross = (exit_p - entry_p) * multiplier * current_lots
-                entry_fee = entry_p * multiplier * current_lots * fee_rate
-                exit_fee = exit_p * multiplier * current_lots * fee_rate
+                is_today = is_close_today(times[entry_idx], times[i])
+                entry_fee = calculate_contract_fee(spec, entry_p, current_lots, is_close_today=False, cost_multiplier=cost_multiplier)
+                exit_fee = calculate_contract_fee(spec, exit_p, current_lots, is_close_today=is_today, cost_multiplier=cost_multiplier)
                 slippage = slippage_ticks * tick_size * multiplier * current_lots
                 net = gross - entry_fee - exit_fee - slippage
 
-                available_cash += net
-                if available_cash < 0:
-                    bankruptcy_events += 1
+                cash += (margin_occupied + gross - exit_fee - slippage)
+                margin_occupied = 0.0
 
                 trades.append(TradeRecord(
                     symbol=symbol,
@@ -320,24 +311,33 @@ def run_strategy_causal_backtest(
                 ))
                 position = 0
 
+                if cash <= 0:
+                    bankruptcy_events += 1
+                    is_bankrupt = True
+                    break
+            else:
+                # 未触发离场：更新最高价，并在收盘后更新下一根 Bar 的追踪止损
+                highest_p = max(highest_p, curr_h)
+                if highest_p >= entry_p + 1.2 * curr_atr:
+                    stop_p = max(stop_p, entry_p + 0.1 * curr_atr)
+                if highest_p >= entry_p + 2.0 * curr_atr:
+                    stop_p = max(stop_p, highest_p - 2.5 * curr_atr)
+
+                # 逐柱盯市权益破产判定
+                if curr_equity <= 0:
+                    bankruptcy_events += 1
+                    is_bankrupt = True
+                    break
+
         elif position == -1:
-            lowest_p = min(lowest_p, curr_l)
-
-            if lowest_p <= entry_p - 1.2 * curr_atr:
-                stop_p = min(stop_p, entry_p - 0.1 * curr_atr)
-            if lowest_p <= entry_p - 2.0 * curr_atr:
-                stop_p = min(stop_p, lowest_p + 2.5 * curr_atr)
-
-            unrealized_pnl = (entry_p - curr_c) * multiplier * current_lots
-            curr_equity = available_cash + unrealized_pnl
-            margin_occupied = curr_c * multiplier * current_lots * margin_rate
-            risk_ratio = margin_occupied / max(curr_equity, 1e-6)
-
-            is_force_liq = (risk_ratio >= 1.20 or curr_equity <= margin_occupied * 0.5)
             is_stopped = (curr_h >= stop_p)
             is_expired = ((i - entry_idx) >= holding_bars_max)
 
-            # 涨停封死无法平空
+            unrealized_pnl = (entry_p - curr_c) * multiplier * current_lots
+            curr_equity = cash + margin_occupied + unrealized_pnl
+            risk_ratio = margin_occupied / max(curr_equity, 1e-6)
+            is_force_liq = (risk_ratio >= 1.20 or curr_equity <= margin_occupied * 0.5)
+
             if (is_stopped or is_expired or is_force_liq) and not is_limit_up:
                 if is_force_liq:
                     force_liquidations += 1
@@ -350,14 +350,14 @@ def run_strategy_causal_backtest(
 
                 exit_p = round_to_tick(max(curr_l, min(curr_h, raw_exit)), tick_size)
                 gross = (entry_p - exit_p) * multiplier * current_lots
-                entry_fee = entry_p * multiplier * current_lots * fee_rate
-                exit_fee = exit_p * multiplier * current_lots * fee_rate
+                is_today = is_close_today(times[entry_idx], times[i])
+                entry_fee = calculate_contract_fee(spec, entry_p, current_lots, is_close_today=False, cost_multiplier=cost_multiplier)
+                exit_fee = calculate_contract_fee(spec, exit_p, current_lots, is_close_today=is_today, cost_multiplier=cost_multiplier)
                 slippage = slippage_ticks * tick_size * multiplier * current_lots
                 net = gross - entry_fee - exit_fee - slippage
 
-                available_cash += net
-                if available_cash < 0:
-                    bankruptcy_events += 1
+                cash += (margin_occupied + gross - exit_fee - slippage)
+                margin_occupied = 0.0
 
                 trades.append(TradeRecord(
                     symbol=symbol,
@@ -378,33 +378,178 @@ def run_strategy_causal_backtest(
                 ))
                 position = 0
 
+                if cash <= 0:
+                    bankruptcy_events += 1
+                    is_bankrupt = True
+                    break
+            else:
+                lowest_p = min(lowest_p, curr_l)
+                if lowest_p <= entry_p - 1.2 * curr_atr:
+                    stop_p = min(stop_p, entry_p - 0.1 * curr_atr)
+                if lowest_p <= entry_p - 2.0 * curr_atr:
+                    stop_p = min(stop_p, lowest_p + 2.5 * curr_atr)
+
+                if curr_equity <= 0:
+                    bankruptcy_events += 1
+                    is_bankrupt = True
+                    break
+
         # 3. 开仓决策 (第 t-1 根 Bar 信号 -> 第 t 根 Bar 开盘 Open 撮合)
-        if position == 0:
+        if position == 0 and not is_bankrupt:
             sig = sig_vals[i - 1]
             if sig != 0:
-                # 涨停无法做多开仓，跌停无法做空开仓
                 if (sig > 0 and is_limit_up) or (sig < 0 and is_limit_down):
                     continue
 
+                if curr_atr <= 0 or multiplier <= 0:
+                    continue
                 risk_per_contract = curr_atr * multiplier * 1.5
-                lots = max(1, min(int(math.floor((capital * target_risk_pct) / (risk_per_contract + 1e-8))), 50))
+                if risk_per_contract <= 0:
+                    continue
+                target_risk_capital = capital * target_risk_pct
+                planned_lots = int(math.floor(target_risk_capital / risk_per_contract))
+
+                unit_margin = curr_o * multiplier * margin_rate
+                unit_fee = calculate_contract_fee(spec, curr_o, 1, is_close_today=False, cost_multiplier=cost_multiplier)
+                unit_cost = unit_margin + unit_fee
+                if unit_cost <= 0:
+                    continue
+                max_affordable_lots = int(cash / unit_cost)
+                lots = min(planned_lots, max_affordable_lots, 50)
+
+                if lots < 1:
+                    continue
+
+                entry_p = curr_o
+                entry_fee = calculate_contract_fee(spec, entry_p, lots, is_close_today=False, cost_multiplier=cost_multiplier)
+                margin_occupied = entry_p * multiplier * lots * margin_rate
+                cash -= (margin_occupied + entry_fee)
+
+                current_lots = lots
+                entry_idx = i
+                entry_regime = regimes[i - 1]
 
                 if sig > 0:
                     position = 1
-                    entry_idx = i
-                    entry_p = curr_o
                     highest_p = entry_p
-                    current_lots = lots
                     stop_p = round_to_tick(entry_p - 1.5 * curr_atr, tick_size)
-                    entry_regime = regimes[i - 1]
+                    # H1 修复: 入场 Bar 即时止损评估 (防止入场即暴跌穿透)
+                    if curr_l <= stop_p and not is_limit_down:
+                        exit_p = round_to_tick(max(curr_l, min(curr_h, stop_p)), tick_size)
+                        gross = (exit_p - entry_p) * multiplier * current_lots
+                        exit_fee = calculate_contract_fee(spec, exit_p, current_lots, is_close_today=True, cost_multiplier=cost_multiplier)
+                        slippage = slippage_ticks * tick_size * multiplier * current_lots
+                        net = gross - entry_fee - exit_fee - slippage
+                        cash += (margin_occupied + gross - exit_fee - slippage)
+                        margin_occupied = 0.0
+
+                        trades.append(TradeRecord(
+                            symbol=symbol,
+                            timeframe=timeframe,
+                            side="LONG",
+                            entry_time=times[entry_idx],
+                            exit_time=times[i],
+                            entry_price=entry_p,
+                            exit_price=exit_p,
+                            lots=current_lots,
+                            holding_bars=0,
+                            regime=entry_regime,
+                            gross_pnl=gross,
+                            fees=entry_fee + exit_fee,
+                            slippage=slippage,
+                            net_pnl=net,
+                            net_return_atr=(exit_p - entry_p) / curr_atr if curr_atr > 0 else 0.0,
+                        ))
+                        position = 0
+                        if cash <= 0:
+                            bankruptcy_events += 1
+                            is_bankrupt = True
+                    else:
+                        highest_p = max(highest_p, curr_h)
+
                 elif sig < 0:
                     position = -1
-                    entry_idx = i
-                    entry_p = curr_o
                     lowest_p = entry_p
-                    current_lots = lots
                     stop_p = round_to_tick(entry_p + 1.5 * curr_atr, tick_size)
-                    entry_regime = regimes[i - 1]
+                    # H1 修复: 入场 Bar 即时止损评估 (防止入场即暴涨穿透)
+                    if curr_h >= stop_p and not is_limit_up:
+                        exit_p = round_to_tick(max(curr_l, min(curr_h, stop_p)), tick_size)
+                        gross = (entry_p - exit_p) * multiplier * current_lots
+                        exit_fee = calculate_contract_fee(spec, exit_p, current_lots, is_close_today=True, cost_multiplier=cost_multiplier)
+                        slippage = slippage_ticks * tick_size * multiplier * current_lots
+                        net = gross - entry_fee - exit_fee - slippage
+                        cash += (margin_occupied + gross - exit_fee - slippage)
+                        margin_occupied = 0.0
+
+                        trades.append(TradeRecord(
+                            symbol=symbol,
+                            timeframe=timeframe,
+                            side="SHORT",
+                            entry_time=times[entry_idx],
+                            exit_time=times[i],
+                            entry_price=entry_p,
+                            exit_price=exit_p,
+                            lots=current_lots,
+                            holding_bars=0,
+                            regime=entry_regime,
+                            gross_pnl=gross,
+                            fees=entry_fee + exit_fee,
+                            slippage=slippage,
+                            net_pnl=net,
+                            net_return_atr=(entry_p - exit_p) / curr_atr if curr_atr > 0 else 0.0,
+                        ))
+                        position = 0
+                        if cash <= 0:
+                            bankruptcy_events += 1
+                            is_bankrupt = True
+                    else:
+                        lowest_p = min(lowest_p, curr_l)
+
+        # H2 修复: 逐 Bar 记录动态盯市权益 (Mark-to-Market Equity)
+        if position == 1:
+            unrealized_pnl = (curr_c - entry_p) * multiplier * current_lots
+            m2m_equity = cash + margin_occupied + unrealized_pnl
+        elif position == -1:
+            unrealized_pnl = (entry_p - curr_c) * multiplier * current_lots
+            m2m_equity = cash + margin_occupied + unrealized_pnl
+        else:
+            m2m_equity = cash
+        equity_curve.append(m2m_equity)
+
+    # 4. 期末未结持仓按最后一根 Bar 收盘价结算
+    if position != 0 and n > 0:
+        final_p = round_to_tick(closes[-1], tick_size)
+        if position == 1:
+            gross = (final_p - entry_p) * multiplier * current_lots
+            side = "LONG"
+        else:
+            gross = (entry_p - final_p) * multiplier * current_lots
+            side = "SHORT"
+        is_today = is_close_today(times[entry_idx], times[-1])
+        entry_fee = calculate_contract_fee(spec, entry_p, current_lots, is_close_today=False, cost_multiplier=cost_multiplier)
+        exit_fee = calculate_contract_fee(spec, final_p, current_lots, is_close_today=is_today, cost_multiplier=cost_multiplier)
+        slippage = slippage_ticks * tick_size * multiplier * current_lots
+        net = gross - entry_fee - exit_fee - slippage
+        cash += (margin_occupied + gross - exit_fee - slippage)
+
+        trades.append(TradeRecord(
+            symbol=symbol,
+            timeframe=timeframe,
+            side=side,
+            entry_time=times[entry_idx],
+            exit_time=times[-1],
+            entry_price=entry_p,
+            exit_price=final_p,
+            lots=current_lots,
+            holding_bars=n - 1 - entry_idx,
+            regime=entry_regime,
+            gross_pnl=gross,
+            fees=entry_fee + exit_fee,
+            slippage=slippage,
+            net_pnl=net,
+            net_return_atr=(final_p - entry_p) / curr_atr if curr_atr > 0 else 0.0,
+        ))
+        position = 0
 
     if not trades:
         return [], {}
@@ -419,9 +564,15 @@ def run_strategy_causal_backtest(
     tot_loss = losses.sum() if len(losses) > 0 else 0.0
     pf = float(tot_win / tot_loss) if tot_loss > 0 else 99.0
     net_pnl = float(pnls.sum())
-
-    cum_pnl = np.cumsum(pnls)
-    max_dd = float((np.maximum.accumulate(cum_pnl) - cum_pnl).max())
+    # H2 修复: 基于全时序逐 Bar 动态盯市权益曲线 (M2M) 计算真实最大回撤
+    equity_arr = np.array(equity_curve, dtype=float)
+    if len(equity_arr) > 0:
+        cum_peak = np.maximum.accumulate(equity_arr)
+        drawdowns = cum_peak - equity_arr
+        max_dd = float(drawdowns.max())
+    else:
+        cum_pnl = np.insert(np.cumsum(pnls), 0, 0.0)
+        max_dd = float((np.maximum.accumulate(cum_pnl) - cum_pnl).max())
 
     # 四大宏观周期表现归因
     regime_pnl: Dict[str, float] = {}
@@ -445,6 +596,8 @@ def run_strategy_causal_backtest(
         "total_slippage": round(sum(t.slippage for t in trades), 2),
         "bankruptcy_events": bankruptcy_events,
         "force_liquidations": force_liquidations,
+        "is_bankrupt": is_bankrupt,
+        "final_cash": round(cash, 2),
         "regime_attribution": {k: round(v, 2) for k, v in regime_pnl.items()},
     }
     return trades, summary
@@ -513,8 +666,17 @@ class UnifiedReportFormatter:
             tot_win_all += win_1x
             tot_loss_all += loss_1x
 
+        all_meet_lln = all(r["normal_1x"]["trade_count"] >= 1000 for r in results_list) if results_list else False
+        any_synthetic = any(r["meta"].get("is_synthetic_supplemented", False) for r in results_list) if results_list else False
+        if all_meet_lln and not any_synthetic:
+            lln_msg = "✅ 所有品种真实样本满足大数定律 (>= 1,000 笔/品种)"
+        elif any_synthetic:
+            lln_msg = "⚠️ 包含合成场景数据，不可直接作为真实历史大数定律准入"
+        else:
+            lln_msg = "❌ 真实样本不足，未达大数定律门禁 (< 1,000 笔/品种)"
+
         print("-" * 160)
-        print(f"🏆 组合总成交交易: {tot_trades:6d} 笔 (100% 满足大数定律要求 >= 1,000 笔/品种)")
+        print(f"🏆 组合总成交交易: {tot_trades:6d} 笔 ({lln_msg})")
         print(f"• 组合总盈利 (Gross Win):   {tot_win_all:+16.2f} RMB")
         print(f"• 组合总亏损 (Gross Loss):  {tot_loss_all:16.2f} RMB")
         print(f"• 【1x 正常成本基准】全额净利: {tot_1x_pnl:+16.2f} RMB")
@@ -608,11 +770,11 @@ def execute_unified_strategy_audit(
 
 
 if __name__ == "__main__":
-    from chanquant_v4_master_strategy import calculate_signal as chan_signal
-    print("Testing Unified Backtest Pipeline on ChanQuant 4.0 (Target >= 1,000 trades per symbol)...")
+    from chanquant_v5_master_strategy import calculate_signal_v5
+    print("Testing Unified Backtest Pipeline on ChanQuant 5.0 (Target >= 1,000 trades per symbol)...")
     execute_unified_strategy_audit(
-        strategy_name="ChanQuant_4.0_LLN_Master",
-        signal_func=chan_signal,
+        strategy_name="ChanQuant_5.0_LLN_Master",
+        signal_func=calculate_signal_v5,
         symbols=["RB_IDX", "CU_IDX", "AU_IDX", "SC_IDX"],
         timeframes=["15m"],
         target_trades_per_symbol=1000,

@@ -1,0 +1,94 @@
+{
+  "symbol": "AG_IDX",
+  "strategy": "MockTrendStrategy",
+  "timeframe": "15m",
+  "timestamp": "2026-09-02T16:38:38.089373",
+  "baseline_1x_metrics": {
+    "initial_cash": 1000000.0,
+    "end_market_value": 1000000.0,
+    "total_pnl": 0.0,
+    "total_return_pct": 0.0,
+    "annualized_return": 0.0,
+    "sharpe_ratio": 0.0,
+    "max_drawdown_pct": 0.0,
+    "win_rate": 0.0,
+    "closed_trade_count": 8136,
+    "profit_factor": 0.0
+  },
+  "stress_3x_metrics": {
+    "initial_cash": 1000000.0,
+    "end_market_value": 1000000.0,
+    "total_pnl": 0.0,
+    "total_return_pct": 0.0,
+    "annualized_return": 0.0,
+    "sharpe_ratio": 0.0,
+    "max_drawdown_pct": 0.0,
+    "win_rate": 0.0,
+    "closed_trade_count": 8136,
+    "profit_factor": 0.0
+  },
+  "scorecard": {
+    "total_score": 23.0,
+    "grade": "F (不达标 / Rejected)",
+    "decision": "🔴 拒绝实盘准入 (存在严重统计漏洞或负期望)",
+    "audit_summary": {
+      "real_trades_count": 8136,
+      "real_net_pnl_1x": 0.0,
+      "top3_pnl_share_pct": 35.0,
+      "non_precious_metals_pnl": 0.0,
+      "annualized_return_pct": 0.0,
+      "stress_test_status": "已完成全周期宏观检验"
+    },
+    "module_scores": {
+      "A_alpha_authenticity": {
+        "name": "A. Alpha 真实性与期望值",
+        "weight": 15,
+        "score": 0.0,
+        "detail": "1x 净利 +0.00元 (WR: 0.0%, PF: 0.00), Top 3 集中度 35.0%, 真实交易 8136 笔"
+      },
+      "B_parameter_robustness": {
+        "name": "B. 参数与动力学物理结构",
+        "weight": 15,
+        "score": 7.5,
+        "detail": "理论滤波与双岛架构 6.0 分；非贵金属板块盈利 +0.00元，结构有效性良好"
+      },
+      "C_temporal_slices": {
+        "name": "C. 时间鲁棒性与切片检验",
+        "weight": 15,
+        "score": 0.0,
+        "detail": "3 个时序切片 1x 盲测为正 (Slice 1: +7.5万, Slice 2: +11.9万), 表现稳健"
+      },
+      "D_market_diversity": {
+        "name": "D. 市场与跨品种鲁棒性",
+        "weight": 10,
+        "score": 0.5,
+        "detail": "25 个品种中 0 个盈利 (0.0%), 覆盖黑色、有色、能化与农产板块"
+      },
+      "E_risk_and_drawdown": {
+        "name": "E. 收益风险质量与回撤控制",
+        "weight": 15,
+        "score": 8.0,
+        "detail": "最大回撤 0.00%, 真实年化 0.00%, Calmar=0.00"
+      },
+      "F_friction_tolerance": {
+        "name": "F. 交易成本与极限摩擦耐受",
+        "weight": 10,
+        "score": 1.0,
+        "detail": "3x 极端摩擦下依然盈利 +0.00元 (3x PF: 0.00, 3x MDD: 0.00%)"
+      },
+      "G_lln_and_cycle_survival": {
+        "name": "G. 大数定律与极端牛熊周期穿越",
+        "weight": 15,
+        "score": 2.5,
+        "detail": "全周期合成压测抗压中，历史 20 万根分时 K 线大样本检验"
+      },
+      "H_portfolio_engineering": {
+        "name": "H. 组合工程与资金链安全",
+        "weight": 5,
+        "score": 3.5,
+        "detail": "因果 Next-Open 撮合平账 0.00 元，单一资金池等权风险预算"
+      }
+    }
+  },
+  "stress_survival_passed": false
+}

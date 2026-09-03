@@ -319,12 +319,6 @@ def _yearly_equity_breakdown(simulation):
     points["year"] = points["date"].dt.year.astype(str)
     previous_equity = float(simulation.initial_cash)
     result = []
-    
-    # 提取持仓浮盈
-    open_pnls = [pos["unrealized_pnl"] for pos in simulation.positions.values()]
-    open_wins = sum(p > 0 for p in open_pnls)
-    open_total = len(open_pnls)
-    active_win_rate = round(open_wins / open_total * 100, 1) if open_total > 0 else 0.0
 
     for year, year_points in points.groupby("year", sort=True):
         final_equity = float(year_points.iloc[-1]["equity"])
@@ -333,12 +327,11 @@ def _yearly_equity_breakdown(simulation):
             if pd.Timestamp(trade["sell_date"]).strftime("%Y") == year
         ]
         
-        # 若当年没有平仓卖单，但持仓权益上涨，按当前活持仓浮盈显示真实胜率
         if year_trades:
             win_rate = round(sum(trade["pnl_amount"] > 0 for trade in year_trades) / len(year_trades) * 100, 1)
             t_count = len(year_trades)
         else:
-            win_rate = active_win_rate
+            win_rate = 0.0
             t_count = 0
 
         result.append({
@@ -695,13 +688,10 @@ class KLineBacktestEngine:
         initial_capital = float(initial_capital)
         final_equity = float(simulation.final_equity)
         
-        # 统计已结平仓单 + 实时未结持仓单，综合计算真实胜率与盈亏比
+        # 严格基于已平仓闭合单计算胜率与盈亏比
         closed_pnls = [t["pnl_amount"] for t in simulation.trades]
-        open_pnls = [pos["unrealized_pnl"] for pos in simulation.positions.values()]
-        all_pnls = closed_pnls + open_pnls
-
-        wins = [p for p in all_pnls if p > 0]
-        losses = [p for p in all_pnls if p < 0]
+        wins = [p for p in closed_pnls if p > 0]
+        losses = [p for p in closed_pnls if p < 0]
         average_win = sum(wins) / len(wins) if wins else 0.0
         average_loss = sum(abs(p) for p in losses) / len(losses) if losses else 0.0
 
@@ -718,7 +708,7 @@ class KLineBacktestEngine:
             "return": final_equity / initial_capital - 1.0,
             "wins": wins,
             "losses": losses,
-            "win_rate": len(wins) / len(all_pnls) if all_pnls else 0.0,
+            "win_rate": len(wins) / len(closed_pnls) if closed_pnls else 0.0,
             "profit_loss_ratio": average_win / average_loss if average_loss else 0.0,
             "max_drawdown": max_drawdown,
         }

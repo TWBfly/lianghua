@@ -64,18 +64,18 @@ def calculate_factors(df: pd.DataFrame, vp_window: int = 40, ofi_th: float = 0.5
     prev_c = np.roll(c, 1)
     prev_c[0] = c[0]
     tr = np.maximum(h - l, np.maximum(np.abs(h - prev_c), np.abs(l - prev_c)))
-    atr = pd.Series(tr, index=df.index).rolling(14, min_periods=5).mean().bfill().values + 1e-8
+    atr = pd.Series(tr, index=df.index).rolling(14, min_periods=5).mean().ffill().fillna(1.0).values + 1e-8
 
     # 2. 闭式 Volume Profile 拓扑特征
     typical_p = (h + l + c) / 3.0
     v_s = pd.Series(v, index=df.index)
     pv_s = pd.Series(typical_p * v, index=df.index)
 
-    roll_vol = v_s.rolling(vp_window, min_periods=5).sum().bfill().values + 1e-8
-    roll_pv = pv_s.rolling(vp_window, min_periods=5).sum().bfill().values
-    vwap = roll_pv / roll_vol
+    roll_vol = v_s.rolling(vp_window, min_periods=5).sum().ffill().fillna(1.0).values + 1e-8
+    roll_pv = pv_s.rolling(vp_window, min_periods=5).sum().ffill().fillna(0.0).values
+    vwap = np.where(roll_vol > 1e-6, roll_pv / roll_vol, typical_p)
 
-    p_diff_sq_v = pd.Series((typical_p - vwap) ** 2 * v, index=df.index).rolling(vp_window, min_periods=5).sum().bfill().values
+    p_diff_sq_v = pd.Series((typical_p - vwap) ** 2 * v, index=df.index).rolling(vp_window, min_periods=5).sum().ffill().fillna(0.0).values
     vw_std = np.sqrt(np.maximum(1e-8, p_diff_sq_v / roll_vol))
 
     vah = vwap + 0.8 * vw_std
@@ -87,8 +87,8 @@ def calculate_factors(df: pd.DataFrame, vp_window: int = 40, ofi_th: float = 0.5
     ofi_raw = v * ((c - l) - (h - c)) / bar_range
     ofi_s = pd.Series(ofi_raw, index=df.index)
     ofi_smooth = ofi_s.rolling(3, min_periods=1).mean()
-    ofi_mean = ofi_s.rolling(vp_window, min_periods=10).mean().bfill()
-    ofi_std = ofi_s.rolling(vp_window, min_periods=10).std(ddof=0).bfill() + 1e-8
+    ofi_mean = ofi_s.rolling(vp_window, min_periods=10).mean().ffill().fillna(0.0)
+    ofi_std = ofi_s.rolling(vp_window, min_periods=10).std(ddof=0).ffill().fillna(1.0) + 1e-8
     ofi_z = ((ofi_smooth - ofi_mean) / ofi_std).values
 
     # 4. Ehlers 2-Pole SuperSmoother 零滞后宏观趋势
@@ -103,7 +103,7 @@ def calculate_factors(df: pd.DataFrame, vp_window: int = 40, ofi_th: float = 0.5
     if "open_interest" in df.columns:
         oi = df["open_interest"].astype(float).values
         oi_diff = np.diff(oi, prepend=oi[0])
-        vol_ma20 = pd.Series(v, index=df.index).rolling(20, min_periods=5).mean().bfill().values + 1e-8
+        vol_ma20 = pd.Series(v, index=df.index).rolling(20, min_periods=5).mean().ffill().fillna(1.0).values + 1e-8
         oi_filter_long = oi_diff >= -vol_ma20 * 0.40
         oi_filter_short = oi_diff >= -vol_ma20 * 0.40
 

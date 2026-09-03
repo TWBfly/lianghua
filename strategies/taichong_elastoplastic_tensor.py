@@ -88,7 +88,7 @@ def _calc_local_hurst(series: np.ndarray, max_lag: int = 16) -> float:
 def calculate_factors(
     df: pd.DataFrame,
     window: int = 30,
-    chi2_cutoff_p: float = 0.001,
+    chi2_cutoff_p: float = 0.01,
     yield_threshold: float = 2.2,
     plastic_decay: float = 0.85,
 ) -> pd.DataFrame:
@@ -98,7 +98,7 @@ def calculate_factors(
     参数:
     - df: 包含 open, high, low, close, volume, open_interest (可选)
     - window: 协方差估计与白化基准滚动窗口
-    - chi2_cutoff_p: 卡方结构破裂熔断显著性水平
+    - chi2_cutoff_p: 卡方结构破裂熔断显著性水平 (默认 0.01 对应 99% 置信度，临界值 13.28)
     - yield_threshold: 弹塑性力学屈服应力阈值 (单位: 标准差)
     - plastic_decay: 塑性形变后弹性势能的耗散衰减率
     """
@@ -150,8 +150,16 @@ def calculate_factors(
     feature_matrix = np.column_stack([f0, f1, f2, f3])
     k_features = feature_matrix.shape[1]
 
-    # 卡方临界值 (k=4 自由度): p=0.01 对应 13.28 (99% 置信度), p=0.001 对应 18.47 (99.9% 置信度)
-    chi2_critical = 13.28 if k_features == 4 else 12.0
+    # 卡方临界值 (k=4 自由度): 根据 chi2_cutoff_p 动态自适应设定
+    # p=0.001 对应 18.47 (99.9% 置信度), p=0.01 对应 13.28 (99% 置信度), p=0.05 对应 9.49
+    if chi2_cutoff_p < 0.005:
+        chi2_critical = 18.47
+    elif chi2_cutoff_p <= 0.02:
+        chi2_critical = 13.28
+    elif chi2_cutoff_p <= 0.05:
+        chi2_critical = 9.49
+    else:
+        chi2_critical = 13.28 if k_features == 4 else 12.0
 
     # 2. 向量化滚动 Ledoit-Wolf 收缩协方差与马氏距离平方 (纯因果 shift(1))
     F_df = pd.DataFrame(feature_matrix, index=df.index)
@@ -233,10 +241,13 @@ def calculate_factors(
         oi = df["open_interest"].astype(float).values
         oi_diff = np.diff(oi, prepend=oi[0])
         vol_ma = pd.Series(v).rolling(20, min_periods=5).mean().fillna(0).values
-        # 超卖抄底时，排除空头主动猛烈增仓逼仓
-        oi_filter_long = oi_diff <= vol_ma * 0.40
-        # 超买做空时，排除多头主动猛烈增仓逼仓
-        oi_filter_short = oi_diff <= vol_ma * 0.40
+        # 微观主动进攻持仓量解耦过滤:
+        # 下跌增仓 (空头主动猛烈增仓下砸逼仓): 排除多头抄底
+        short_aggression = (c < prev_c_s) & (oi_diff > vol_ma * 0.25)
+        oi_filter_long = ~short_aggression
+        # 上涨增仓 (多头主动猛烈增仓上推逼空): 排除空头摸顶
+        long_aggression = (c > prev_c_s) & (oi_diff > vol_ma * 0.25)
+        oi_filter_short = ~long_aggression
 
     out_df = pd.DataFrame(
         {

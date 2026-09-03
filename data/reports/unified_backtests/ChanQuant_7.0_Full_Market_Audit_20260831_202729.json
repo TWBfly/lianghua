@@ -1,0 +1,1069 @@
+{
+  "strategy_name": "ChanQuant_7.0_Master",
+  "timestamp": "2026-08-31 20:27:29",
+  "total_trades": 228,
+  "total_1x_pnl_rmb": 102374.32,
+  "total_3x_pnl_rmb": 42442.95,
+  "details": [
+    {
+      "symbol": "RB_IDX",
+      "name": "螺纹钢",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "RB_IDX",
+        "name": "螺纹钢",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": false,
+        "real_bars": 8211,
+        "total_bars": 8211,
+        "start_time": "2025-03-17 09:15:00",
+        "end_time": "2026-08-24 14:45:00",
+        "lln_status": "INSUFFICIENT_REAL_SAMPLE",
+        "regime_distribution": {}
+      },
+      "normal_1x": {
+        "symbol": "RB_IDX",
+        "name": "螺纹钢",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 1,
+        "win_rate": 1.0,
+        "profit_factor": 256803000000.0,
+        "net_pnl": 2568.03,
+        "total_win_rmb": 2568.03,
+        "total_loss_rmb": 0.0,
+        "max_drawdown": 0.0,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": 2568.03
+        }
+      },
+      "stress_3x": {
+        "symbol": "RB_IDX",
+        "name": "螺纹钢",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 1,
+        "win_rate": 1.0,
+        "profit_factor": 230409000000.0,
+        "net_pnl": 2304.09,
+        "total_win_rmb": 2304.09,
+        "total_loss_rmb": 0.0,
+        "max_drawdown": 0.0,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": 2304.09
+        }
+      }
+    },
+    {
+      "symbol": "HC_IDX",
+      "name": "热卷",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "HC_IDX",
+        "name": "热卷",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": false,
+        "real_bars": 8015,
+        "total_bars": 8015,
+        "start_time": "2025-03-17 09:15:00",
+        "end_time": "2026-08-24 14:45:00",
+        "lln_status": "INSUFFICIENT_REAL_SAMPLE",
+        "regime_distribution": {}
+      },
+      "normal_1x": {
+        "symbol": "HC_IDX",
+        "name": "热卷",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 1,
+        "win_rate": 1.0,
+        "profit_factor": 266586000000.0,
+        "net_pnl": 2665.86,
+        "total_win_rmb": 2665.86,
+        "total_loss_rmb": 0.0,
+        "max_drawdown": 0.0,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": 2665.86
+        }
+      },
+      "stress_3x": {
+        "symbol": "HC_IDX",
+        "name": "热卷",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 1,
+        "win_rate": 1.0,
+        "profit_factor": 239758000000.0,
+        "net_pnl": 2397.58,
+        "total_win_rmb": 2397.58,
+        "total_loss_rmb": 0.0,
+        "max_drawdown": 0.0,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": 2397.58
+        }
+      }
+    },
+    {
+      "symbol": "CU_IDX",
+      "name": "沪铜",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "CU_IDX",
+        "name": "沪铜",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": false,
+        "real_bars": 8223,
+        "total_bars": 8223,
+        "start_time": "2025-07-25 23:45:00",
+        "end_time": "2026-08-24 14:45:00",
+        "lln_status": "INSUFFICIENT_REAL_SAMPLE",
+        "regime_distribution": {}
+      },
+      "normal_1x": {
+        "symbol": "CU_IDX",
+        "name": "沪铜",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 5,
+        "win_rate": 0.2,
+        "profit_factor": 0.56,
+        "net_pnl": -2432.79,
+        "total_win_rmb": 3046.56,
+        "total_loss_rmb": 5479.35,
+        "max_drawdown": 4092.25,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": -2432.79
+        }
+      },
+      "stress_3x": {
+        "symbol": "CU_IDX",
+        "name": "沪铜",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 5,
+        "win_rate": 0.2,
+        "profit_factor": 0.38,
+        "net_pnl": -4498.37,
+        "total_win_rmb": 2739.68,
+        "total_loss_rmb": 7238.05,
+        "max_drawdown": 5276.74,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": -4498.37
+        }
+      }
+    },
+    {
+      "symbol": "AL_IDX",
+      "name": "沪铝",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "AL_IDX",
+        "name": "沪铝",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": false,
+        "real_bars": 8015,
+        "total_bars": 8015,
+        "start_time": "2025-07-25 23:45:00",
+        "end_time": "2026-08-24 14:45:00",
+        "lln_status": "INSUFFICIENT_REAL_SAMPLE",
+        "regime_distribution": {}
+      },
+      "normal_1x": {
+        "symbol": "AL_IDX",
+        "name": "沪铝",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 3,
+        "win_rate": 0.6667,
+        "profit_factor": 10.38,
+        "net_pnl": 10891.29,
+        "total_win_rmb": 12051.8,
+        "total_loss_rmb": 1160.51,
+        "max_drawdown": 1160.51,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": 10891.29
+        }
+      },
+      "stress_3x": {
+        "symbol": "AL_IDX",
+        "name": "沪铝",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 3,
+        "win_rate": 0.6667,
+        "profit_factor": 6.3,
+        "net_pnl": 9173.88,
+        "total_win_rmb": 10905.41,
+        "total_loss_rmb": 1731.53,
+        "max_drawdown": 1731.53,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": 9173.88
+        }
+      }
+    },
+    {
+      "symbol": "ZN_IDX",
+      "name": "沪锌",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "ZN_IDX",
+        "name": "沪锌",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": false,
+        "real_bars": 8015,
+        "total_bars": 8015,
+        "start_time": "2025-07-25 23:45:00",
+        "end_time": "2026-08-24 14:45:00",
+        "lln_status": "INSUFFICIENT_REAL_SAMPLE",
+        "regime_distribution": {}
+      },
+      "normal_1x": {
+        "symbol": "ZN_IDX",
+        "name": "沪锌",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 2,
+        "win_rate": 0.5,
+        "profit_factor": 0.86,
+        "net_pnl": -197.17,
+        "total_win_rmb": 1211.1,
+        "total_loss_rmb": 1408.27,
+        "max_drawdown": 0.0,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": -197.17
+        }
+      },
+      "stress_3x": {
+        "symbol": "ZN_IDX",
+        "name": "沪锌",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 2,
+        "win_rate": 0.5,
+        "profit_factor": 0.32,
+        "net_pnl": -1341.51,
+        "total_win_rmb": 633.29,
+        "total_loss_rmb": 1974.8,
+        "max_drawdown": 0.0,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": -1341.51
+        }
+      }
+    },
+    {
+      "symbol": "SN_IDX",
+      "name": "沪锡",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "SN_IDX",
+        "name": "沪锡",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": false,
+        "real_bars": 8015,
+        "total_bars": 8015,
+        "start_time": "2025-07-25 23:45:00",
+        "end_time": "2026-08-24 14:45:00",
+        "lln_status": "INSUFFICIENT_REAL_SAMPLE",
+        "regime_distribution": {}
+      },
+      "normal_1x": {
+        "symbol": "SN_IDX",
+        "name": "沪锡",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 6,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "net_pnl": -14600.63,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 14600.63,
+        "max_drawdown": 13231.96,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": -14600.63
+        }
+      },
+      "stress_3x": {
+        "symbol": "SN_IDX",
+        "name": "沪锡",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 6,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "net_pnl": -15401.88,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 15401.88,
+        "max_drawdown": 13815.87,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": -15401.88
+        }
+      }
+    },
+    {
+      "symbol": "AG_IDX",
+      "name": "沪银",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "AG_IDX",
+        "name": "沪银",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": false,
+        "real_bars": 8136,
+        "total_bars": 8136,
+        "start_time": "2025-09-23 11:15:00",
+        "end_time": "2026-08-24 14:45:00",
+        "lln_status": "INSUFFICIENT_REAL_SAMPLE",
+        "regime_distribution": {}
+      },
+      "normal_1x": {
+        "symbol": "AG_IDX",
+        "name": "沪银",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 58,
+        "win_rate": 0.6724,
+        "profit_factor": 1.86,
+        "net_pnl": 57833.42,
+        "total_win_rmb": 124835.26,
+        "total_loss_rmb": 67001.84,
+        "max_drawdown": 22023.31,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "TREND_MOMENTUM": 57833.42
+        }
+      },
+      "stress_3x": {
+        "symbol": "AG_IDX",
+        "name": "沪银",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 58,
+        "win_rate": 0.6552,
+        "profit_factor": 1.7,
+        "net_pnl": 49000.27,
+        "total_win_rmb": 119205.51,
+        "total_loss_rmb": 70205.25,
+        "max_drawdown": 23079.94,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "TREND_MOMENTUM": 49000.27
+        }
+      }
+    },
+    {
+      "symbol": "AU_IDX",
+      "name": "沪金",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "AU_IDX",
+        "name": "沪金",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": false,
+        "real_bars": 8136,
+        "total_bars": 8136,
+        "start_time": "2025-09-23 11:15:00",
+        "end_time": "2026-08-24 14:45:00",
+        "lln_status": "INSUFFICIENT_REAL_SAMPLE",
+        "regime_distribution": {}
+      },
+      "normal_1x": {
+        "symbol": "AU_IDX",
+        "name": "沪金",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 68,
+        "win_rate": 0.5294,
+        "profit_factor": 1.25,
+        "net_pnl": 44840.85,
+        "total_win_rmb": 221279.54,
+        "total_loss_rmb": 176438.69,
+        "max_drawdown": 45895.33,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "TREND_MOMENTUM": 44840.85
+        }
+      },
+      "stress_3x": {
+        "symbol": "AU_IDX",
+        "name": "沪金",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 68,
+        "win_rate": 0.5294,
+        "profit_factor": 1.19,
+        "net_pnl": 34002.55,
+        "total_win_rmb": 215518.62,
+        "total_loss_rmb": 181516.06,
+        "max_drawdown": 47846.0,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "TREND_MOMENTUM": 34002.55
+        }
+      }
+    },
+    {
+      "symbol": "TA_IDX",
+      "name": "PTA",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "TA_IDX",
+        "name": "PTA",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": false,
+        "real_bars": 8015,
+        "total_bars": 8015,
+        "start_time": "2025-03-17 09:15:00",
+        "end_time": "2026-08-24 14:45:00",
+        "lln_status": "INSUFFICIENT_REAL_SAMPLE",
+        "regime_distribution": {}
+      },
+      "normal_1x": {
+        "symbol": "TA_IDX",
+        "name": "PTA",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 2,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "net_pnl": -1381.39,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 1381.39,
+        "max_drawdown": 916.95,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": -1381.39
+        }
+      },
+      "stress_3x": {
+        "symbol": "TA_IDX",
+        "name": "PTA",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 2,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "net_pnl": -1844.18,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 1844.18,
+        "max_drawdown": 1150.85,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": -1844.18
+        }
+      }
+    },
+    {
+      "symbol": "MA_IDX",
+      "name": "甲醇",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "MA_IDX",
+        "name": "甲醇",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": false,
+        "real_bars": 8015,
+        "total_bars": 8015,
+        "start_time": "2025-03-17 09:15:00",
+        "end_time": "2026-08-24 14:45:00",
+        "lln_status": "INSUFFICIENT_REAL_SAMPLE",
+        "regime_distribution": {}
+      },
+      "normal_1x": {
+        "symbol": "MA_IDX",
+        "name": "甲醇",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 3,
+        "win_rate": 0.3333,
+        "profit_factor": 0.79,
+        "net_pnl": -360.88,
+        "total_win_rmb": 1380.27,
+        "total_loss_rmb": 1741.15,
+        "max_drawdown": 970.93,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": -360.88
+        }
+      },
+      "stress_3x": {
+        "symbol": "MA_IDX",
+        "name": "甲醇",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 3,
+        "win_rate": 0.3333,
+        "profit_factor": 0.51,
+        "net_pnl": -1082.64,
+        "total_win_rmb": 1140.82,
+        "total_loss_rmb": 2223.46,
+        "max_drawdown": 1212.8,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": -1082.64
+        }
+      }
+    },
+    {
+      "symbol": "FG_IDX",
+      "name": "玻璃",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "FG_IDX",
+        "name": "玻璃",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": false,
+        "real_bars": 8015,
+        "total_bars": 8015,
+        "start_time": "2025-03-17 09:15:00",
+        "end_time": "2026-08-24 14:45:00",
+        "lln_status": "INSUFFICIENT_REAL_SAMPLE",
+        "regime_distribution": {}
+      },
+      "normal_1x": {
+        "symbol": "FG_IDX",
+        "name": "玻璃",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 1,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "net_pnl": -722.11,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 722.11,
+        "max_drawdown": 0.0,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": -722.11
+        }
+      },
+      "stress_3x": {
+        "symbol": "FG_IDX",
+        "name": "玻璃",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 1,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "net_pnl": -1166.33,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 1166.33,
+        "max_drawdown": 0.0,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": -1166.33
+        }
+      }
+    },
+    {
+      "symbol": "SC_IDX",
+      "name": "原油",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "SC_IDX",
+        "name": "原油",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": false,
+        "real_bars": 8015,
+        "total_bars": 8015,
+        "start_time": "2025-09-23 11:15:00",
+        "end_time": "2026-08-24 14:45:00",
+        "lln_status": "INSUFFICIENT_REAL_SAMPLE",
+        "regime_distribution": {}
+      },
+      "normal_1x": {
+        "symbol": "SC_IDX",
+        "name": "原油",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 6,
+        "win_rate": 0.1667,
+        "profit_factor": 1.52,
+        "net_pnl": 6381.2,
+        "total_win_rmb": 18639.36,
+        "total_loss_rmb": 12258.17,
+        "max_drawdown": 7258.27,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": 6381.2
+        }
+      },
+      "stress_3x": {
+        "symbol": "SC_IDX",
+        "name": "原油",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 6,
+        "win_rate": 0.1667,
+        "profit_factor": 1.23,
+        "net_pnl": 3343.59,
+        "total_win_rmb": 18118.09,
+        "total_loss_rmb": 14774.51,
+        "max_drawdown": 8774.82,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": 3343.59
+        }
+      }
+    },
+    {
+      "symbol": "M_IDX",
+      "name": "豆粕",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "M_IDX",
+        "name": "豆粕",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": false,
+        "real_bars": 8015,
+        "total_bars": 8015,
+        "start_time": "2025-03-17 09:15:00",
+        "end_time": "2026-08-24 14:45:00",
+        "lln_status": "INSUFFICIENT_REAL_SAMPLE",
+        "regime_distribution": {}
+      },
+      "normal_1x": {
+        "symbol": "M_IDX",
+        "name": "豆粕",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 3,
+        "win_rate": 0.6667,
+        "profit_factor": 2.28,
+        "net_pnl": 854.58,
+        "total_win_rmb": 1520.4,
+        "total_loss_rmb": 665.82,
+        "max_drawdown": 665.82,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": 854.58
+        }
+      },
+      "stress_3x": {
+        "symbol": "M_IDX",
+        "name": "豆粕",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 3,
+        "win_rate": 0.3333,
+        "profit_factor": 1.16,
+        "net_pnl": 163.74,
+        "total_win_rmb": 1158.87,
+        "total_loss_rmb": 995.13,
+        "max_drawdown": 897.47,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": 163.74
+        }
+      }
+    },
+    {
+      "symbol": "Y_IDX",
+      "name": "豆油",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "Y_IDX",
+        "name": "豆油",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": false,
+        "real_bars": 8015,
+        "total_bars": 8015,
+        "start_time": "2025-03-17 09:15:00",
+        "end_time": "2026-08-24 14:45:00",
+        "lln_status": "INSUFFICIENT_REAL_SAMPLE",
+        "regime_distribution": {}
+      },
+      "normal_1x": {
+        "symbol": "Y_IDX",
+        "name": "豆油",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 1,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "net_pnl": -941.18,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 941.18,
+        "max_drawdown": 0.0,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": -941.18
+        }
+      },
+      "stress_3x": {
+        "symbol": "Y_IDX",
+        "name": "豆油",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 1,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "net_pnl": -1423.56,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 1423.56,
+        "max_drawdown": 0.0,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": -1423.56
+        }
+      }
+    },
+    {
+      "symbol": "P_IDX",
+      "name": "棕榈油",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "P_IDX",
+        "name": "棕榈油",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": false,
+        "real_bars": 8015,
+        "total_bars": 8015,
+        "start_time": "2025-03-17 09:15:00",
+        "end_time": "2026-08-24 14:45:00",
+        "lln_status": "INSUFFICIENT_REAL_SAMPLE",
+        "regime_distribution": {}
+      },
+      "normal_1x": {
+        "symbol": "P_IDX",
+        "name": "棕榈油",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 55,
+        "win_rate": 0.5636,
+        "profit_factor": 1.04,
+        "net_pnl": 1244.59,
+        "total_win_rmb": 34190.45,
+        "total_loss_rmb": 32945.86,
+        "max_drawdown": 22032.64,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "TREND_MOMENTUM": 1244.59
+        }
+      },
+      "stress_3x": {
+        "symbol": "P_IDX",
+        "name": "棕榈油",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 55,
+        "win_rate": 0.1273,
+        "profit_factor": 0.6,
+        "net_pnl": -19626.23,
+        "total_win_rmb": 29744.97,
+        "total_loss_rmb": 49371.2,
+        "max_drawdown": 36886.12,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "TREND_MOMENTUM": -19626.23
+        }
+      }
+    },
+    {
+      "symbol": "C_IDX",
+      "name": "玉米",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "C_IDX",
+        "name": "玉米",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": false,
+        "real_bars": 8015,
+        "total_bars": 8015,
+        "start_time": "2025-03-17 09:15:00",
+        "end_time": "2026-08-24 14:45:00",
+        "lln_status": "INSUFFICIENT_REAL_SAMPLE",
+        "regime_distribution": {}
+      },
+      "normal_1x": {
+        "symbol": "C_IDX",
+        "name": "玉米",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 2,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "net_pnl": -668.28,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 668.28,
+        "max_drawdown": 308.66,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": -668.28
+        }
+      },
+      "stress_3x": {
+        "symbol": "C_IDX",
+        "name": "玉米",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 2,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "net_pnl": -1104.83,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 1104.83,
+        "max_drawdown": 525.99,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": -1104.83
+        }
+      }
+    },
+    {
+      "symbol": "CF_IDX",
+      "name": "棉花",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "CF_IDX",
+        "name": "棉花",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": false,
+        "real_bars": 8015,
+        "total_bars": 8015,
+        "start_time": "2025-03-17 09:15:00",
+        "end_time": "2026-08-24 14:45:00",
+        "lln_status": "INSUFFICIENT_REAL_SAMPLE",
+        "regime_distribution": {}
+      },
+      "normal_1x": {
+        "symbol": "CF_IDX",
+        "name": "棉花",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 1,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "net_pnl": -1414.38,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 1414.38,
+        "max_drawdown": 0.0,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": -1414.38
+        }
+      },
+      "stress_3x": {
+        "symbol": "CF_IDX",
+        "name": "棉花",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 1,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "net_pnl": -1993.15,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 1993.15,
+        "max_drawdown": 0.0,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": -1993.15
+        }
+      }
+    },
+    {
+      "symbol": "SR_IDX",
+      "name": "白糖",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "SR_IDX",
+        "name": "白糖",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": false,
+        "real_bars": 8015,
+        "total_bars": 8015,
+        "start_time": "2025-03-17 09:15:00",
+        "end_time": "2026-08-24 14:45:00",
+        "lln_status": "INSUFFICIENT_REAL_SAMPLE",
+        "regime_distribution": {}
+      },
+      "normal_1x": {
+        "symbol": "SR_IDX",
+        "name": "白糖",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 5,
+        "win_rate": 0.4,
+        "profit_factor": 1.47,
+        "net_pnl": 1307.49,
+        "total_win_rmb": 4094.51,
+        "total_loss_rmb": 2787.02,
+        "max_drawdown": 1026.88,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": 1307.49
+        }
+      },
+      "stress_3x": {
+        "symbol": "SR_IDX",
+        "name": "白糖",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 5,
+        "win_rate": 0.4,
+        "profit_factor": 1.01,
+        "net_pnl": 22.46,
+        "total_win_rmb": 3583.52,
+        "total_loss_rmb": 3561.06,
+        "max_drawdown": 1280.65,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": 22.46
+        }
+      }
+    },
+    {
+      "symbol": "RU_IDX",
+      "name": "橡胶",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "RU_IDX",
+        "name": "橡胶",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": false,
+        "real_bars": 8015,
+        "total_bars": 8015,
+        "start_time": "2025-03-17 09:15:00",
+        "end_time": "2026-08-24 14:45:00",
+        "lln_status": "INSUFFICIENT_REAL_SAMPLE",
+        "regime_distribution": {}
+      },
+      "normal_1x": {
+        "symbol": "RU_IDX",
+        "name": "橡胶",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 2,
+        "win_rate": 0.5,
+        "profit_factor": 2.34,
+        "net_pnl": 4214.8,
+        "total_win_rmb": 7357.4,
+        "total_loss_rmb": 3142.6,
+        "max_drawdown": 0.0,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": 4214.8
+        }
+      },
+      "stress_3x": {
+        "symbol": "RU_IDX",
+        "name": "橡胶",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 2,
+        "win_rate": 0.5,
+        "profit_factor": 1.37,
+        "net_pnl": 1644.4,
+        "total_win_rmb": 6072.2,
+        "total_loss_rmb": 4427.8,
+        "max_drawdown": 0.0,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": 1644.4
+        }
+      }
+    },
+    {
+      "symbol": "LC_IDX",
+      "name": "碳酸锂",
+      "timeframe": "15m",
+      "meta": {
+        "symbol": "LC_IDX",
+        "name": "碳酸锂",
+        "timeframe": "15m",
+        "is_synthetic_supplemented": false,
+        "real_bars": 8015,
+        "total_bars": 8015,
+        "start_time": "2024-06-13 13:45:00",
+        "end_time": "2026-08-24 14:45:00",
+        "lln_status": "INSUFFICIENT_REAL_SAMPLE",
+        "regime_distribution": {}
+      },
+      "normal_1x": {
+        "symbol": "LC_IDX",
+        "name": "碳酸锂",
+        "timeframe": "15m",
+        "cost_multiplier": 1.0,
+        "trade_count": 3,
+        "win_rate": 0.3333,
+        "profit_factor": 0.25,
+        "net_pnl": -7708.98,
+        "total_win_rmb": 2521.6,
+        "total_loss_rmb": 10230.58,
+        "max_drawdown": 4896.32,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": -7708.98
+        }
+      },
+      "stress_3x": {
+        "symbol": "LC_IDX",
+        "name": "碳酸锂",
+        "timeframe": "15m",
+        "cost_multiplier": 3.0,
+        "trade_count": 3,
+        "win_rate": 0.3333,
+        "profit_factor": 0.18,
+        "net_pnl": -10126.93,
+        "total_win_rmb": 2264.81,
+        "total_loss_rmb": 12391.74,
+        "max_drawdown": 5888.96,
+        "bankruptcy_events": 0,
+        "force_liquidations": 0,
+        "regime_attribution": {
+          "MEAN_REVERSION": -10126.93
+        }
+      }
+    }
+  ]
+}

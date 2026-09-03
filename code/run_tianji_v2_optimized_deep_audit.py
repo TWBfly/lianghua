@@ -149,9 +149,12 @@ def simulate_4h_macro_trend(
     fee_rate = float(spec.get("fee_rate", 0.0001)) * friction_mult
     slippage = tick_size * friction_mult
 
-    atr = pd.Series(h - l).rolling(14, min_periods=5).mean().bfill().values + 1e-8
-    hh = pd.Series(h).rolling(period, min_periods=5).max().shift(1).bfill().values
-    ll = pd.Series(l).rolling(period, min_periods=5).min().shift(1).bfill().values
+    prev_c = np.roll(c, 1)
+    prev_c[0] = c[0]
+    tr = np.maximum(h - l, np.maximum(np.abs(h - prev_c), np.abs(l - prev_c)))
+    atr = pd.Series(tr).rolling(14, min_periods=5).mean().ffill().fillna(1.0).values + 1e-8
+    hh = pd.Series(h).rolling(period, min_periods=5).max().shift(1).ffill().fillna(h[0]).values
+    ll = pd.Series(l).rolling(period, min_periods=5).min().shift(1).ffill().fillna(l[0]).values
 
     capital = capital_init
     pos = 0
@@ -233,10 +236,17 @@ def simulate_4h_macro_trend(
     peak = np.maximum.accumulate(eq_arr)
     dd_arr = np.where(peak > 0, (peak - eq_arr) / peak, 0.0)
     max_dd = float(np.max(dd_arr) * 100.0) if len(dd_arr) > 0 else 0.0
-
-    bar_rets = np.diff(eq_arr) / (eq_arr[:-1] + 1e-8) if len(eq_arr) > 1 else np.array([0.0])
-    annual_factor = np.sqrt(583)
-    sharpe = (np.mean(bar_rets) / (np.std(bar_rets) + 1e-8)) * annual_factor if len(bar_rets) > 1 and np.std(bar_rets) > 0 else 0.0
+    if "trade_time" in df_4h.columns and len(equity_curve) > 1:
+        date_series = pd.to_datetime(df_4h["trade_time"]).dt.date.iloc[:len(equity_curve)]
+        eq_df = pd.DataFrame({"date": date_series, "equity": equity_curve})
+        daily_eq = eq_df.groupby("date")["equity"].last().values
+        daily_rets = np.diff(daily_eq) / (daily_eq[:-1] + 1e-8) if len(daily_eq) > 1 else np.array([0.0])
+        daily_std = np.std(daily_rets)
+        sharpe = float((np.mean(daily_rets) / (daily_std + 1e-8)) * np.sqrt(252)) if len(daily_rets) > 1 and daily_std > 0 else 0.0
+    else:
+        bar_rets = np.diff(eq_arr) / (eq_arr[:-1] + 1e-8) if len(eq_arr) > 1 else np.array([0.0])
+        bar_std = np.std(bar_rets)
+        sharpe = float((np.mean(bar_rets) / (bar_std + 1e-8)) * np.sqrt(252)) if len(bar_rets) > 1 and bar_std > 0 else 0.0
 
     gross_profit = sum(t for t in trades if t > 0)
     gross_loss = abs(sum(t for t in trades if t < 0))
@@ -304,19 +314,19 @@ def simulate_30m_reversion_v2(
         exit_price = 0.0
 
         if pos == 1:
-            if alpha[i] >= 0.0:
-                exit_reason = 1
-                exit_price = next_o - slippage
-            elif l[i] <= stop_p:
+            if l[i] <= stop_p:
                 exit_reason = 2
                 exit_price = min(stop_p, o[i]) - slippage
-        elif pos == -1:
-            if alpha[i] <= 0.0:
+            elif alpha[i] >= 0.0:
                 exit_reason = 1
-                exit_price = next_o + slippage
-            elif h[i] >= stop_p:
+                exit_price = next_o - slippage
+        elif pos == -1:
+            if h[i] >= stop_p:
                 exit_reason = 2
                 exit_price = max(stop_p, o[i]) + slippage
+            elif alpha[i] <= 0.0:
+                exit_reason = 1
+                exit_price = next_o + slippage
 
         if exit_reason != 0 and pos != 0:
             gross = (exit_price - entry_p) * contract_mult * lots * pos
@@ -350,9 +360,17 @@ def simulate_30m_reversion_v2(
     dd_arr = np.where(peak > 0, (peak - eq_arr) / peak, 0.0)
     max_dd = float(np.max(dd_arr) * 100.0) if len(dd_arr) > 0 else 0.0
 
-    bar_rets = np.diff(eq_arr) / (eq_arr[:-1] + 1e-8) if len(eq_arr) > 1 else np.array([0.0])
-    annual_factor = np.sqrt(4662)
-    sharpe = (np.mean(bar_rets) / (np.std(bar_rets) + 1e-8)) * annual_factor if len(bar_rets) > 1 and np.std(bar_rets) > 0 else 0.0
+    if "trade_time" in df_30m.columns and len(equity_curve) > 1:
+        date_series = pd.to_datetime(df_30m["trade_time"]).dt.date.iloc[:len(equity_curve)]
+        eq_df = pd.DataFrame({"date": date_series, "equity": equity_curve})
+        daily_eq = eq_df.groupby("date")["equity"].last().values
+        daily_rets = np.diff(daily_eq) / (daily_eq[:-1] + 1e-8) if len(daily_eq) > 1 else np.array([0.0])
+        daily_std = np.std(daily_rets)
+        sharpe = float((np.mean(daily_rets) / (daily_std + 1e-8)) * np.sqrt(252)) if len(daily_rets) > 1 and daily_std > 0 else 0.0
+    else:
+        bar_rets = np.diff(eq_arr) / (eq_arr[:-1] + 1e-8) if len(eq_arr) > 1 else np.array([0.0])
+        bar_std = np.std(bar_rets)
+        sharpe = float((np.mean(bar_rets) / (bar_std + 1e-8)) * np.sqrt(252)) if len(bar_rets) > 1 and bar_std > 0 else 0.0
 
     gross_profit = sum(t for t in trades if t > 0)
     gross_loss = abs(sum(t for t in trades if t < 0))

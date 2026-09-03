@@ -104,9 +104,9 @@ class AShareDataEngine:
                 PRIMARY KEY (symbol, trade_date)
             );
             """)
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_stock_daily_symbol_date ON stock_daily(symbol, trade_date);")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_stock_daily_date ON stock_daily(trade_date);")
             cursor.execute("""
+
             CREATE TABLE IF NOT EXISTS stock_daily_catalog (
                 symbol TEXT PRIMARY KEY,
                 price_mode TEXT NOT NULL,

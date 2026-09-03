@@ -61,7 +61,7 @@ def calculate_factors(df: pd.DataFrame, window: int = 40) -> pd.DataFrame:
     prev_c = np.roll(c, 1)
     prev_c[0] = c[0]
     tr = np.maximum(h - l, np.maximum(np.abs(h - prev_c), np.abs(l - prev_c)))
-    atr = pd.Series(tr, index=df.index).rolling(14, min_periods=5).mean().bfill().values + 1e-8
+    atr = pd.Series(tr, index=df.index).rolling(14, min_periods=5).mean().ffill().fillna(1.0).values + 1e-8
 
     # 2. Ehlers 2-Pole SuperSmoother 零滞后中心线与趋势
     filt_fast = calculate_ehlers_supersmoother_2pole(c, period=6)
@@ -75,7 +75,7 @@ def calculate_factors(df: pd.DataFrame, window: int = 40) -> pd.DataFrame:
     c_diff8 = c_s.diff(8)
     tau2 = c_diff2.rolling(window, min_periods=5).std(ddof=0)
     tau8 = c_diff8.rolling(window, min_periods=5).std(ddof=0)
-    hurst = (np.log((tau8 + 1e-8) / (tau2 + 1e-8)) / np.log(4.0)).clip(0.1, 0.9).bfill().values
+    hurst = (np.log((tau8 + 1e-8) / (tau2 + 1e-8)) / np.log(4.0)).clip(0.1, 0.9).ffill().fillna(0.5).values
 
     # 4. 机制分流
     is_trend = hurst >= 0.53
@@ -83,8 +83,8 @@ def calculate_factors(df: pd.DataFrame, window: int = 40) -> pd.DataFrame:
     is_noise = (~is_trend) & (~is_revert)
 
     # 5. 唐奇安通道 (趋势突破)
-    roll_high = pd.Series(h, index=df.index).rolling(20, min_periods=5).max().shift(1).bfill().values
-    roll_low = pd.Series(l, index=df.index).rolling(20, min_periods=5).min().shift(1).bfill().values
+    roll_high = pd.Series(h, index=df.index).rolling(20, min_periods=5).max().shift(1).ffill().fillna(h[0]).values
+    roll_low = pd.Series(l, index=df.index).rolling(20, min_periods=5).min().shift(1).ffill().fillna(l[0]).values
 
     # 6. 均值回归偏离度 (Z-Score from SuperSmoother Centerline)
     dev_atrs = (c - filt_slow) / atr
@@ -94,7 +94,7 @@ def calculate_factors(df: pd.DataFrame, window: int = 40) -> pd.DataFrame:
     body_ratio = np.abs(c - o) / bar_range
 
     # 8. 持仓量过滤
-    vol_ma20 = pd.Series(v, index=df.index).rolling(20, min_periods=5).mean().bfill().values + 1e-8
+    vol_ma20 = pd.Series(v, index=df.index).rolling(20, min_periods=5).mean().ffill().fillna(1.0).values + 1e-8
     oi_filter_long = np.ones(n, dtype=bool)
     oi_filter_short = np.ones(n, dtype=bool)
     if "open_interest" in df.columns:

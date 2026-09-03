@@ -77,7 +77,7 @@ def compute_volume_oi_features(df: pd.DataFrame) -> dict:
     """计算成交量异动与持仓量资金流特征"""
     v = df["volume"].astype(float).values
     n = len(v)
-    vol_ma20 = pd.Series(v).rolling(20).mean().fillna(method="bfill").values
+    vol_ma20 = pd.Series(v).rolling(20).mean().ffill().fillna(0).values
     vol_ratio = np.where(vol_ma20 > 0, v / (vol_ma20 + 1e-8), 1.0)
     vol_burst = vol_ratio >= 1.4  # 放量 1.4 倍以上
 
@@ -106,7 +106,7 @@ def compute_supertrend_vcp_signals(df: pd.DataFrame, period: int = 10, multiplie
 
     c = df_res["close"].values
     o = df_res["open"].values
-    atr_14 = calculate_atr(df_res, 14).fillna(method="bfill").values
+    atr_14 = calculate_atr(df_res, 14).ffill().fillna(0).values
 
     kp = compute_candlestick_patterns(df_res)
     vp = compute_volume_oi_features(df_res)
@@ -119,7 +119,7 @@ def compute_supertrend_vcp_signals(df: pd.DataFrame, period: int = 10, multiplie
         st_flipped_long = (st_dir[i] == 1) and (st_dir[i - 1] == -1)
         st_flipped_short = (st_dir[i] == -1) and (st_dir[i - 1] == 1)
 
-        curr_atr = max(2.0, atr_14[i])
+        curr_atr = atr_14[i] if atr_14[i] > 1e-6 else 1e-6
         curr_body = kp["body"][i]
         curr_vol_burst = vp["vol_burst"][i]
         curr_oi_expand = vp["oi_expanding"][i]
@@ -166,7 +166,7 @@ def compute_alphatrend_vcp_signals(df: pd.DataFrame, period: int = 14, multiplie
 
     c = df_res["close"].values
     o = df_res["open"].values
-    atr_14 = calculate_atr(df_res, 14).fillna(method="bfill").values
+    atr_14 = calculate_atr(df_res, 14).ffill().fillna(0).values
 
     kp = compute_candlestick_patterns(df_res)
     vp = compute_volume_oi_features(df_res)
@@ -179,7 +179,7 @@ def compute_alphatrend_vcp_signals(df: pd.DataFrame, period: int = 14, multiplie
         at_cross_up = (at_line[i] > at_line_2[i]) and (at_line[i - 1] <= at_line_2[i - 1])
         at_cross_down = (at_line[i] < at_line_2[i]) and (at_line[i - 1] >= at_line_2[i - 1])
 
-        curr_atr = max(2.0, atr_14[i])
+        curr_atr = atr_14[i] if atr_14[i] > 1e-6 else 1e-6
         curr_body = kp["body"][i]
         curr_oi_expand = vp["oi_expanding"][i]
 

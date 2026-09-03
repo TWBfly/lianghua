@@ -8,7 +8,10 @@ for p in (ROOT / "code", ROOT / "strategies"):
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
 
-import pytest
+try:
+    import pytest
+except ImportError:
+    pytest = None
 
 from runtime_credentials import load_required_credentials
 
@@ -70,6 +73,22 @@ def test_deployment_sources_require_known_hosts():
         ), path
 
 
+def _is_secret_name(name: str) -> bool:
+    name = name.lower()
+    if "author" in name:
+        return False
+    exact_match_keywords = ("pass", "pwd", "auth", "secret", "token")
+    parts = name.split("_")
+    if any(kw in parts for kw in exact_match_keywords):
+        return True
+    substring_keywords = (
+        "password", "api_key", "apikey", "secret_key",
+        "tq_user", "tq_pass", "tq_account", "tq_password",
+        "private_key", "credential"
+    )
+    return any(kw in name for kw in substring_keywords)
+
+
 def test_project_sources_contain_no_nonempty_password_fallback():
     findings = []
     for path in SECRET_PATHS:
@@ -77,41 +96,49 @@ def test_project_sources_contain_no_nonempty_password_fallback():
             warnings.simplefilter("ignore", DeprecationWarning)
             tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
-            if not isinstance(node, ast.Assign):
-                continue
-            names = [
-                target.id.lower()
-                for target in node.targets
-                if isinstance(target, ast.Name)
-            ]
-            if not any(
-                key in name
-                for name in names
-                for key in (
-                    "password", "secret", "api_key", "apikey", "token",
-                )
-            ):
-                continue
-            value = node.value
-            if (
-                isinstance(value, ast.Constant)
-                and isinstance(value.value, str)
-                and value.value
-            ):
-                findings.append((path.name, node.lineno))
-            if isinstance(value, ast.BoolOp) and any(
-                isinstance(item, ast.Constant)
-                and isinstance(item.value, str)
-                and item.value
-                for item in value.values
-            ):
-                findings.append((path.name, node.lineno))
-            if isinstance(value, ast.Call) and any(
-                isinstance(item, ast.Constant)
-                and isinstance(item.value, str)
-                and item.value
-                for item in value.args[1:]
-            ):
-                findings.append((path.name, node.lineno))
+            if isinstance(node, ast.Assign):
+                names = [
+                    target.id.lower()
+                    for target in node.targets
+                    if isinstance(target, ast.Name)
+                ]
+            elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+                names = [node.target.id.lower()]
+            else:
+                names = []
+
+            # Check dict.get / os.getenv with non-empty default fallback on secret keys
+            if isinstance(node, ast.Call):
+                call_func = getattr(node.func, "attr", "") if isinstance(node.func, ast.Attribute) else getattr(node.func, "id", "")
+                if call_func in ("get", "getenv") and len(node.args) >= 2:
+                    first_arg = node.args[0]
+                    if isinstance(first_arg, ast.Constant) and isinstance(first_arg.value, str):
+                        if _is_secret_name(first_arg.value):
+                            default_arg = node.args[1]
+                            if isinstance(default_arg, ast.Constant) and isinstance(default_arg.value, str) and default_arg.value:
+                                findings.append((path.name, node.lineno, f"Call default: {first_arg.value}={default_arg.value}"))
+
+            if names and any(_is_secret_name(name) for name in names):
+                value = getattr(node, "value", None)
+                if (
+                    isinstance(value, ast.Constant)
+                    and isinstance(value.value, str)
+                    and value.value
+                ):
+                    findings.append((path.name, node.lineno, f"Assign: {names}={value.value}"))
+                elif isinstance(value, ast.BoolOp) and any(
+                    isinstance(item, ast.Constant)
+                    and isinstance(item.value, str)
+                    and item.value
+                    for item in value.values
+                ):
+                    findings.append((path.name, node.lineno, f"BoolOp fallback: {names}"))
+                elif isinstance(value, ast.Call) and any(
+                    isinstance(item, ast.Constant)
+                    and isinstance(item.value, str)
+                    and item.value
+                    for item in value.args[1:]
+                ):
+                    findings.append((path.name, node.lineno, f"Call arg fallback: {names}"))
 
     assert findings == []

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import datetime
 from typing import Dict, Tuple, Optional
+import numpy as np
 import pandas as pd
 
 
@@ -172,11 +173,53 @@ def calculate_roll_friction(
     计算一次主力换月展期的完整摩擦成本 (第一性原理硬成本核算)：
     1. 平掉旧主力合约手续费 + 开立新主力合约手续费 (双重手续费)
     2. 平旧合约滑点 + 开新合约滑点 (双重滑点)
-    # ponytail: 仅计算手续费+滑点摩擦，未做新旧合约价差复权。
-    # 升级路径 = 返回 adjustment_ratio = new_close/old_close，
-    # 调用方对历史序列做后复权 prices *= cumulative_adjustment
     """
     turnover = price * multiplier * lots
     commission_cost = 2.0 * (turnover * fee_rate)
     slippage_cost = 2.0 * (slippage * multiplier * lots)
     return commission_cost + slippage_cost
+
+
+def calculate_roll_adjustment_ratio(old_close: float, new_close: float) -> float:
+    """
+    计算主力换月展期价格调整比例 (用于连续合约比例后复权):
+    adjustment_ratio = new_close / old_close (若 old_close > 0)
+    """
+    if old_close <= 0 or new_close <= 0:
+        return 1.0
+    return float(new_close / old_close)
+
+
+def adjust_continuous_series(
+    df: pd.DataFrame,
+    roll_indices: list[int],
+    ratios: list[float],
+    price_cols: list[str] = None
+) -> pd.DataFrame:
+    """
+    对连续合约历史数据做累积比例后复权，消除换月跳空伪信号。
+    df: 包含 price_cols 的 DataFrame
+    roll_indices: 每次展期发生的行索引列表 (按时间升序)
+    ratios: 每次展期对应的 ratio = new_close / old_close
+    """
+    if price_cols is None:
+        price_cols = [c for c in ["open", "high", "low", "close", "settlement"] if c in df.columns]
+    
+    df_adj = df.copy()
+    if not roll_indices or not ratios or len(roll_indices) != len(ratios):
+        return df_adj
+
+    # 从最新展期向前回溯，累积应用调整因子
+    cum_factor = 1.0
+    # 建立从后向前的调整权重
+    factors = np.ones(len(df_adj), dtype=float)
+    
+    for idx, ratio in reversed(list(zip(roll_indices, ratios))):
+        if idx < len(df_adj) and ratio > 0:
+            cum_factor *= ratio
+            factors[:idx] = cum_factor
+
+    for col in price_cols:
+        df_adj[col] = df_adj[col] * factors
+
+    return df_adj

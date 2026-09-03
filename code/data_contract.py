@@ -237,3 +237,48 @@ def validate_futures_universe(conn: sqlite3.Connection, symbols: list[str], time
     """批量校验期货品种池数据契约"""
     return [validate_futures_contract(conn, s, timeframe) for s in symbols]
 
+
+def check_futures_rollover_gaps(
+    conn: sqlite3.Connection,
+    symbol: str,
+    timeframe: str = "15m",
+    gap_pct_threshold: float = 0.03
+) -> list[dict]:
+    """
+    检查未复权主力连续合约中的换月异常跳空 (Rollover Gaps)。
+    未复权连续数据在主力换月瞬间易出现 >3% 的基差跳跃，回测持仓穿越跳空点会导致伪 PnL。
+    返回所有超过阈值的跳空记录。
+    """
+    value = str(symbol).strip().upper()
+    if not value.endswith("_IDX"):
+        value = f"{value}_IDX"
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT trade_time, open, high, low, close
+        FROM futures_min_bars
+        WHERE symbol = ? AND timeframe = ?
+        ORDER BY trade_time ASC
+    """, (value, str(timeframe).strip().lower()))
+    rows = cursor.fetchall()
+    if len(rows) < 2:
+        return []
+
+    gaps = []
+    for i in range(1, len(rows)):
+        prev_close = rows[i - 1][4]
+        curr_open = rows[i][1]
+        if prev_close and prev_close > 0:
+            jump = (curr_open - prev_close) / prev_close
+            if abs(jump) >= gap_pct_threshold:
+                gaps.append({
+                    "symbol": value,
+                    "timeframe": timeframe,
+                    "prev_time": rows[i - 1][0],
+                    "trade_time": rows[i][0],
+                    "prev_close": prev_close,
+                    "curr_open": curr_open,
+                    "gap_pct": round(jump * 100.0, 3)
+                })
+    return gaps
+
+

@@ -1,0 +1,815 @@
+{
+  "strategy": "chanquant_v8_production_strategy",
+  "normal_1x": {
+    "timestamp": "2026-08-31 22:37:11",
+    "initial_capital": 500000.0,
+    "final_equity": 618319.37,
+    "total_net_pnl": 118319.34,
+    "portfolio_max_drawdown_rmb": 60449.69,
+    "portfolio_max_drawdown_pct": 11.32,
+    "oos_start_time": "2026-03-12 00:15:00",
+    "overall_metrics": {
+      "trades": 244,
+      "net_pnl": 118319.34,
+      "win_rate": 0.4221,
+      "profit_factor": 1.39,
+      "total_win_rmb": 420290.88,
+      "total_loss_rmb": 301971.54,
+      "max_drawdown": 53814.56
+    },
+    "in_sample_metrics": {
+      "trades": 150,
+      "net_pnl": 3980.65,
+      "win_rate": 0.3867,
+      "profit_factor": 1.02,
+      "total_win_rmb": 178787.89,
+      "total_loss_rmb": 174807.24,
+      "max_drawdown": 53814.56
+    },
+    "out_of_sample_metrics": {
+      "trades": 94,
+      "net_pnl": 114338.69,
+      "win_rate": 0.4787,
+      "profit_factor": 1.9,
+      "total_win_rmb": 241502.99,
+      "total_loss_rmb": 127164.3,
+      "max_drawdown": 26481.74
+    },
+    "concentration_analysis": {
+      "top3_trades_pnl": 107597.83,
+      "top3_pnl_share_pct": 90.94,
+      "pnl_without_top3": 10721.51,
+      "ag_au_net_pnl": 86376.25,
+      "non_precious_metals_pnl": 31943.09
+    },
+    "symbols": {
+      "RB_IDX": {
+        "trades": 5,
+        "net_pnl": 1292.74,
+        "win_rate": 0.2,
+        "profit_factor": 2.01,
+        "total_win_rmb": 2568.03,
+        "total_loss_rmb": 1275.29,
+        "max_drawdown": 743.46,
+        "name": "螺纹钢",
+        "wilson_95_ci": [
+          0.0362,
+          0.6245
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "HC_IDX": {
+        "trades": 3,
+        "net_pnl": 2697.61,
+        "win_rate": 0.6667,
+        "profit_factor": 32.79,
+        "total_win_rmb": 2782.48,
+        "total_loss_rmb": 84.87,
+        "max_drawdown": 84.87,
+        "name": "热卷",
+        "wilson_95_ci": [
+          0.2077,
+          0.9385
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "I_IDX": {
+        "trades": 3,
+        "net_pnl": 7560.97,
+        "win_rate": 0.6667,
+        "profit_factor": 234.36,
+        "total_win_rmb": 7593.37,
+        "total_loss_rmb": 32.4,
+        "max_drawdown": 32.4,
+        "name": "铁矿石",
+        "wilson_95_ci": [
+          0.2077,
+          0.9385
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "J_IDX": {
+        "trades": 1,
+        "net_pnl": -3890.51,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 3890.51,
+        "max_drawdown": 3890.51,
+        "name": "焦炭",
+        "wilson_95_ci": [
+          0.0,
+          0.7935
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "JM_IDX": {
+        "trades": 2,
+        "net_pnl": -9050.67,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 9050.67,
+        "max_drawdown": 9050.67,
+        "name": "焦煤",
+        "wilson_95_ci": [
+          0.0,
+          0.6576
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "CU_IDX": {
+        "trades": 6,
+        "net_pnl": -4499.24,
+        "win_rate": 0.1667,
+        "profit_factor": 0.52,
+        "total_win_rmb": 4893.18,
+        "total_loss_rmb": 9392.42,
+        "max_drawdown": 9392.42,
+        "name": "沪铜",
+        "wilson_95_ci": [
+          0.0301,
+          0.5635
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "AL_IDX": {
+        "trades": 6,
+        "net_pnl": 4178.96,
+        "win_rate": 0.3333,
+        "profit_factor": 2.04,
+        "total_win_rmb": 8198.98,
+        "total_loss_rmb": 4020.02,
+        "max_drawdown": 2698.99,
+        "name": "沪铝",
+        "wilson_95_ci": [
+          0.0301,
+          0.5635
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "ZN_IDX": {
+        "trades": 4,
+        "net_pnl": -4387.28,
+        "win_rate": 0.25,
+        "profit_factor": 0.22,
+        "total_win_rmb": 1211.1,
+        "total_loss_rmb": 5598.38,
+        "max_drawdown": 5598.38,
+        "name": "沪锌",
+        "wilson_95_ci": [
+          0.0456,
+          0.6994
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "SN_IDX": {
+        "trades": 8,
+        "net_pnl": -24922.98,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 24922.98,
+        "max_drawdown": 24922.98,
+        "name": "沪锡",
+        "wilson_95_ci": [
+          0.0,
+          0.3244
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "AG_IDX": {
+        "trades": 35,
+        "net_pnl": 62334.0,
+        "win_rate": 0.5714,
+        "profit_factor": 2.3,
+        "total_win_rmb": 110366.95,
+        "total_loss_rmb": 48032.95,
+        "max_drawdown": 13828.77,
+        "name": "沪银",
+        "wilson_95_ci": [
+          0.3819,
+          0.6953
+        ],
+        "reliability_grade": "A_RELIABLE"
+      },
+      "AU_IDX": {
+        "trades": 31,
+        "net_pnl": 24042.25,
+        "win_rate": 0.4516,
+        "profit_factor": 1.44,
+        "total_win_rmb": 79301.83,
+        "total_loss_rmb": 55259.58,
+        "max_drawdown": 21962.65,
+        "name": "沪金",
+        "wilson_95_ci": [
+          0.2642,
+          0.5923
+        ],
+        "reliability_grade": "A_RELIABLE"
+      },
+      "TA_IDX": {
+        "trades": 4,
+        "net_pnl": -6121.62,
+        "win_rate": 0.25,
+        "profit_factor": 0.09,
+        "total_win_rmb": 635.83,
+        "total_loss_rmb": 6757.45,
+        "max_drawdown": 6293.01,
+        "name": "PTA",
+        "wilson_95_ci": [
+          0.0456,
+          0.6994
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "MA_IDX": {
+        "trades": 3,
+        "net_pnl": -360.88,
+        "win_rate": 0.3333,
+        "profit_factor": 0.79,
+        "total_win_rmb": 1380.27,
+        "total_loss_rmb": 1741.15,
+        "max_drawdown": 970.93,
+        "name": "甲醇",
+        "wilson_95_ci": [
+          0.0,
+          0.5615
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "FG_IDX": {
+        "trades": 4,
+        "net_pnl": -2081.9,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 2081.9,
+        "max_drawdown": 2081.9,
+        "name": "玻璃",
+        "wilson_95_ci": [
+          0.0,
+          0.4899
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "SC_IDX": {
+        "trades": 5,
+        "net_pnl": 3080.27,
+        "win_rate": 0.2,
+        "profit_factor": 1.2,
+        "total_win_rmb": 18639.36,
+        "total_loss_rmb": 15559.09,
+        "max_drawdown": 10056.12,
+        "name": "原油",
+        "wilson_95_ci": [
+          0.0362,
+          0.6245
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "M_IDX": {
+        "trades": 4,
+        "net_pnl": 3339.54,
+        "win_rate": 0.75,
+        "profit_factor": 9.03,
+        "total_win_rmb": 3755.35,
+        "total_loss_rmb": 415.81,
+        "max_drawdown": 415.81,
+        "name": "豆粕",
+        "wilson_95_ci": [
+          0.3006,
+          0.9544
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "Y_IDX": {
+        "trades": 1,
+        "net_pnl": 2286.97,
+        "win_rate": 1.0,
+        "profit_factor": 228697000000.0,
+        "total_win_rmb": 2286.97,
+        "total_loss_rmb": 0.0,
+        "max_drawdown": 0.0,
+        "name": "豆油",
+        "wilson_95_ci": [
+          0.2065,
+          1.0
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "P_IDX": {
+        "trades": 55,
+        "net_pnl": 16130.34,
+        "win_rate": 0.5818,
+        "profit_factor": 1.41,
+        "total_win_rmb": 55282.96,
+        "total_loss_rmb": 39152.62,
+        "max_drawdown": 19386.68,
+        "name": "棕榈油",
+        "wilson_95_ci": [
+          0.4327,
+          0.6863
+        ],
+        "reliability_grade": "A_RELIABLE"
+      },
+      "C_IDX": {
+        "trades": 5,
+        "net_pnl": -1444.85,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 1444.85,
+        "max_drawdown": 1444.85,
+        "name": "玉米",
+        "wilson_95_ci": [
+          0.0,
+          0.4345
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "CF_IDX": {
+        "trades": 2,
+        "net_pnl": -5962.49,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 5962.49,
+        "max_drawdown": 5962.49,
+        "name": "棉花",
+        "wilson_95_ci": [
+          0.0,
+          0.6576
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "SR_IDX": {
+        "trades": 5,
+        "net_pnl": 1657.75,
+        "win_rate": 0.4,
+        "profit_factor": 1.68,
+        "total_win_rmb": 4094.51,
+        "total_loss_rmb": 2436.76,
+        "max_drawdown": 1610.14,
+        "name": "白糖",
+        "wilson_95_ci": [
+          0.1176,
+          0.7693
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "RU_IDX": {
+        "trades": 4,
+        "net_pnl": 5735.16,
+        "win_rate": 0.5,
+        "profit_factor": 2.79,
+        "total_win_rmb": 8932.35,
+        "total_loss_rmb": 3197.19,
+        "max_drawdown": 3197.19,
+        "name": "橡胶",
+        "wilson_95_ci": [
+          0.15,
+          0.85
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "LC_IDX": {
+        "trades": 47,
+        "net_pnl": 46716.13,
+        "win_rate": 0.3617,
+        "profit_factor": 1.76,
+        "total_win_rmb": 108367.36,
+        "total_loss_rmb": 61651.23,
+        "max_drawdown": 25245.39,
+        "name": "碳酸锂",
+        "wilson_95_ci": [
+          0.2217,
+          0.4833
+        ],
+        "reliability_grade": "A_RELIABLE"
+      },
+      "SI_IDX": {
+        "trades": 1,
+        "net_pnl": -10.93,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 10.93,
+        "max_drawdown": 10.93,
+        "name": "工业硅",
+        "wilson_95_ci": [
+          0.0,
+          0.7935
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      }
+    },
+    "total_trades_count": 244
+  },
+  "stress_3x": {
+    "timestamp": "2026-08-31 22:38:04",
+    "initial_capital": 500000.0,
+    "final_equity": 515199.31,
+    "total_net_pnl": 15199.28,
+    "portfolio_max_drawdown_rmb": 112962.71,
+    "portfolio_max_drawdown_pct": 21.49,
+    "oos_start_time": "2026-03-12 00:15:00",
+    "overall_metrics": {
+      "trades": 234,
+      "net_pnl": 15199.28,
+      "win_rate": 0.3205,
+      "profit_factor": 1.05,
+      "total_win_rmb": 342932.53,
+      "total_loss_rmb": 327733.25,
+      "max_drawdown": 107717.61
+    },
+    "in_sample_metrics": {
+      "trades": 147,
+      "net_pnl": -65545.06,
+      "win_rate": 0.2789,
+      "profit_factor": 0.69,
+      "total_win_rmb": 146241.88,
+      "total_loss_rmb": 211786.94,
+      "max_drawdown": 107717.61
+    },
+    "out_of_sample_metrics": {
+      "trades": 87,
+      "net_pnl": 80744.34,
+      "win_rate": 0.3908,
+      "profit_factor": 1.7,
+      "total_win_rmb": 196690.65,
+      "total_loss_rmb": 115946.31,
+      "max_drawdown": 46017.21
+    },
+    "concentration_analysis": {
+      "top3_trades_pnl": 99417.99,
+      "top3_pnl_share_pct": 654.1,
+      "pnl_without_top3": -84218.71,
+      "ag_au_net_pnl": 50554.75,
+      "non_precious_metals_pnl": -35355.47
+    },
+    "symbols": {
+      "RB_IDX": {
+        "trades": 5,
+        "net_pnl": -21.78,
+        "win_rate": 0.2,
+        "profit_factor": 0.99,
+        "total_win_rmb": 2304.09,
+        "total_loss_rmb": 2325.87,
+        "max_drawdown": 1530.38,
+        "name": "螺纹钢",
+        "wilson_95_ci": [
+          0.0362,
+          0.6245
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "HC_IDX": {
+        "trades": 3,
+        "net_pnl": 1892.86,
+        "win_rate": 0.3333,
+        "profit_factor": 4.75,
+        "total_win_rmb": 2397.58,
+        "total_loss_rmb": 504.72,
+        "max_drawdown": 504.72,
+        "name": "热卷",
+        "wilson_95_ci": [
+          0.0,
+          0.5615
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "I_IDX": {
+        "trades": 3,
+        "net_pnl": 4528.73,
+        "win_rate": 0.6667,
+        "profit_factor": 19.22,
+        "total_win_rmb": 4777.33,
+        "total_loss_rmb": 248.6,
+        "max_drawdown": 248.6,
+        "name": "铁矿石",
+        "wilson_95_ci": [
+          0.2077,
+          0.9385
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "J_IDX": {
+        "trades": 1,
+        "net_pnl": -4471.53,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 4471.53,
+        "max_drawdown": 4471.53,
+        "name": "焦炭",
+        "wilson_95_ci": [
+          0.0,
+          0.7935
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "JM_IDX": {
+        "trades": 2,
+        "net_pnl": -7410.63,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 7410.63,
+        "max_drawdown": 7410.63,
+        "name": "焦煤",
+        "wilson_95_ci": [
+          0.0,
+          0.6576
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "CU_IDX": {
+        "trades": 6,
+        "net_pnl": -8097.68,
+        "win_rate": 0.1667,
+        "profit_factor": 0.35,
+        "total_win_rmb": 4279.54,
+        "total_loss_rmb": 12377.22,
+        "max_drawdown": 12377.22,
+        "name": "沪铜",
+        "wilson_95_ci": [
+          0.0301,
+          0.5635
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "AL_IDX": {
+        "trades": 6,
+        "net_pnl": 1233.18,
+        "win_rate": 0.3333,
+        "profit_factor": 1.2,
+        "total_win_rmb": 7396.95,
+        "total_loss_rmb": 6163.77,
+        "max_drawdown": 3847.0,
+        "name": "沪铝",
+        "wilson_95_ci": [
+          0.0301,
+          0.5635
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "ZN_IDX": {
+        "trades": 4,
+        "net_pnl": -6211.84,
+        "win_rate": 0.25,
+        "profit_factor": 0.09,
+        "total_win_rmb": 633.29,
+        "total_loss_rmb": 6845.13,
+        "max_drawdown": 6845.13,
+        "name": "沪锌",
+        "wilson_95_ci": [
+          0.0456,
+          0.6994
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "SN_IDX": {
+        "trades": 7,
+        "net_pnl": -19346.53,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 19346.53,
+        "max_drawdown": 19346.53,
+        "name": "沪锡",
+        "wilson_95_ci": [
+          0.0,
+          0.3543
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "AG_IDX": {
+        "trades": 33,
+        "net_pnl": 49103.74,
+        "win_rate": 0.6061,
+        "profit_factor": 2.37,
+        "total_win_rmb": 84875.8,
+        "total_loss_rmb": 35772.06,
+        "max_drawdown": 10798.15,
+        "name": "沪银",
+        "wilson_95_ci": [
+          0.4368,
+          0.7532
+        ],
+        "reliability_grade": "A_RELIABLE"
+      },
+      "AU_IDX": {
+        "trades": 25,
+        "net_pnl": 1451.01,
+        "win_rate": 0.4,
+        "profit_factor": 1.03,
+        "total_win_rmb": 55958.16,
+        "total_loss_rmb": 54507.15,
+        "max_drawdown": 22990.05,
+        "name": "沪金",
+        "wilson_95_ci": [
+          0.234,
+          0.5926
+        ],
+        "reliability_grade": "B_MARGINAL"
+      },
+      "TA_IDX": {
+        "trades": 4,
+        "net_pnl": -5612.85,
+        "win_rate": 0.25,
+        "profit_factor": 0.07,
+        "total_win_rmb": 407.48,
+        "total_loss_rmb": 6020.33,
+        "max_drawdown": 5612.85,
+        "name": "PTA",
+        "wilson_95_ci": [
+          0.0456,
+          0.6994
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "MA_IDX": {
+        "trades": 3,
+        "net_pnl": -1082.64,
+        "win_rate": 0.3333,
+        "profit_factor": 0.51,
+        "total_win_rmb": 1140.82,
+        "total_loss_rmb": 2223.46,
+        "max_drawdown": 1212.8,
+        "name": "甲醇",
+        "wilson_95_ci": [
+          0.0,
+          0.5615
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "FG_IDX": {
+        "trades": 4,
+        "net_pnl": -3845.7,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 3845.7,
+        "max_drawdown": 3845.7,
+        "name": "玻璃",
+        "wilson_95_ci": [
+          0.0,
+          0.4899
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "SC_IDX": {
+        "trades": 5,
+        "net_pnl": 2295.28,
+        "win_rate": 0.2,
+        "profit_factor": 1.15,
+        "total_win_rmb": 18118.09,
+        "total_loss_rmb": 15822.81,
+        "max_drawdown": 12568.36,
+        "name": "原油",
+        "wilson_95_ci": [
+          0.0362,
+          0.6245
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "M_IDX": {
+        "trades": 4,
+        "net_pnl": 2418.62,
+        "win_rate": 0.5,
+        "profit_factor": 4.25,
+        "total_win_rmb": 3163.71,
+        "total_loss_rmb": 745.09,
+        "max_drawdown": 647.43,
+        "name": "豆粕",
+        "wilson_95_ci": [
+          0.15,
+          0.85
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "Y_IDX": {
+        "trades": 1,
+        "net_pnl": 1425.69,
+        "win_rate": 1.0,
+        "profit_factor": 142569000000.0,
+        "total_win_rmb": 1425.69,
+        "total_loss_rmb": 0.0,
+        "max_drawdown": 0.0,
+        "name": "豆油",
+        "wilson_95_ci": [
+          0.2065,
+          1.0
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "P_IDX": {
+        "trades": 55,
+        "net_pnl": -3718.65,
+        "win_rate": 0.2545,
+        "profit_factor": 0.93,
+        "total_win_rmb": 47212.86,
+        "total_loss_rmb": 50931.51,
+        "max_drawdown": 31043.7,
+        "name": "棕榈油",
+        "wilson_95_ci": [
+          0.1437,
+          0.3635
+        ],
+        "reliability_grade": "A_RELIABLE"
+      },
+      "C_IDX": {
+        "trades": 5,
+        "net_pnl": -2534.58,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 2534.58,
+        "max_drawdown": 2534.58,
+        "name": "玉米",
+        "wilson_95_ci": [
+          0.0,
+          0.4345
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "CF_IDX": {
+        "trades": 2,
+        "net_pnl": -7137.46,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 7137.46,
+        "max_drawdown": 7137.46,
+        "name": "棉花",
+        "wilson_95_ci": [
+          0.0,
+          0.6576
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "SR_IDX": {
+        "trades": 5,
+        "net_pnl": 373.22,
+        "win_rate": 0.4,
+        "profit_factor": 1.12,
+        "total_win_rmb": 3583.53,
+        "total_loss_rmb": 3210.31,
+        "max_drawdown": 2130.43,
+        "name": "白糖",
+        "wilson_95_ci": [
+          0.1176,
+          0.7693
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "RU_IDX": {
+        "trades": 4,
+        "net_pnl": 2405.48,
+        "win_rate": 0.5,
+        "profit_factor": 1.48,
+        "total_win_rmb": 7397.06,
+        "total_loss_rmb": 4991.58,
+        "max_drawdown": 4991.58,
+        "name": "橡胶",
+        "wilson_95_ci": [
+          0.15,
+          0.85
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      },
+      "LC_IDX": {
+        "trades": 46,
+        "net_pnl": 17796.12,
+        "win_rate": 0.2826,
+        "profit_factor": 1.22,
+        "total_win_rmb": 97860.55,
+        "total_loss_rmb": 80064.43,
+        "max_drawdown": 47384.8,
+        "name": "碳酸锂",
+        "wilson_95_ci": [
+          0.156,
+          0.4026
+        ],
+        "reliability_grade": "A_RELIABLE"
+      },
+      "SI_IDX": {
+        "trades": 1,
+        "net_pnl": -232.78,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "total_win_rmb": 0.0,
+        "total_loss_rmb": 232.78,
+        "max_drawdown": 232.78,
+        "name": "工业硅",
+        "wilson_95_ci": [
+          0.0,
+          0.7935
+        ],
+        "reliability_grade": "F_UNRELIABLE"
+      }
+    },
+    "total_trades_count": 234
+  }
+}

@@ -53,7 +53,7 @@ def check_data_coverage(start_time: str, end_time: str) -> Dict[str, Any]:
     try:
         t0 = datetime.fromisoformat(start_time)
         t1 = datetime.fromisoformat(end_time)
-        months = (t1.year - t0.year) * 12 + (t1.month - t0.month)
+        months = int(round((t1 - t0).total_seconds() / (30.4375 * 86400)))
     except (ValueError, TypeError):
         months = 0
     return {
