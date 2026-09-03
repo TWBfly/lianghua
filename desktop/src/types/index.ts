@@ -292,3 +292,20 @@ export interface FactorZooItem {
   created_at: string;
 }
 
+export interface ContinuousResearchStatus {
+  is_running: boolean;
+  pid?: number | null;
+  start_time?: number | null;
+  duration_seconds?: number | null;
+  elapsed_seconds?: number | null;
+  remaining_seconds?: number | null;
+  total_evaluated_this_run?: number | null;
+  total_in_zoo?: number | null;
+  latest_factor_id?: string | null;
+  latest_factor_name?: string | null;
+  latest_factor_score?: number | null;
+  latest_factor_status?: string | null;
+  latest_fail_reason?: string | null;
+  updated_at?: string | null;
+}
+

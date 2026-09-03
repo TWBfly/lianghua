@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { safeInvoke } from '../../utils/ipc';
-import { FactorZooItem } from '../../types';
+import { FactorZooItem, ContinuousResearchStatus } from '../../types';
 import {
   Dna,
   Sparkles,
@@ -17,6 +17,9 @@ import {
   Layers,
   Award,
   RefreshCw,
+  Clock,
+  Square,
+  Flame,
 } from 'lucide-react';
 
 interface BacktestFactorZooModalProps {
@@ -41,6 +44,9 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  const [continuousStatus, setContinuousStatus] = useState<ContinuousResearchStatus | null>(null);
+  const [isStartingContinuous, setIsStartingContinuous] = useState<boolean>(false);
+
   const fetchFactors = async (status?: string) => {
     try {
       setLoading(true);
@@ -60,6 +66,75 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
       fetchFactors(statusFilter);
     }
   }, [isOpen, statusFilter]);
+
+  // Polling continuous research status & auto-refreshing factors
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let timerId: any = null;
+    const checkStatus = async () => {
+      try {
+        const st: ContinuousResearchStatus = await safeInvoke('get_continuous_research_status_command');
+        setContinuousStatus(st);
+        if (st && st.is_running) {
+          // If continuous miner is running, periodically refresh factors list
+          const res: FactorZooItem[] = await safeInvoke('get_factor_zoo_command', {
+            status: statusFilter === 'ALL' ? null : statusFilter,
+          });
+          if (res && res.length > 0) {
+            setFactors(res);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to check continuous miner status:', e);
+      }
+    };
+
+    checkStatus();
+    timerId = setInterval(checkStatus, 3000);
+    return () => {
+      if (timerId) clearInterval(timerId);
+    };
+  }, [isOpen, statusFilter]);
+
+  const handleStartContinuous = async (durationSecs: number = 3600) => {
+    try {
+      setIsStartingContinuous(true);
+      const st: ContinuousResearchStatus = await safeInvoke('start_continuous_research_command', {
+        durationSeconds: durationSecs,
+      });
+      setContinuousStatus(st);
+      setResearchStatus(
+        `🚀 1小时连续自动因子研究任务已启动！后台正持续对各大商品期货执行大数矩阵回测、3x压力测试与入库...`
+      );
+    } catch (e: any) {
+      console.error('Failed to start continuous research:', e);
+      setResearchStatus(`❌ 启动连续研究失败: ${e?.message || e}`);
+    } finally {
+      setIsStartingContinuous(false);
+    }
+  };
+
+  const handleStopContinuous = async () => {
+    try {
+      await safeInvoke('stop_continuous_research_command');
+      setResearchStatus('🛑 已发送停止信号，正在平稳退出连续研究任务...');
+      setTimeout(async () => {
+        const st: ContinuousResearchStatus = await safeInvoke('get_continuous_research_status_command');
+        setContinuousStatus(st);
+        fetchFactors(statusFilter);
+      }, 1000);
+    } catch (e: any) {
+      console.error('Failed to stop continuous research:', e);
+    }
+  };
+
+  const formatSeconds = (secs?: number | null) => {
+    if (!secs || secs <= 0) return '00:00';
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
 
   const handleRunResearch = async () => {
     try {
@@ -152,13 +227,35 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
               </span>
             )}
 
+            {/* 1-Hour Continuous Research Toggle */}
+            {continuousStatus?.is_running ? (
+              <button
+                onClick={handleStopContinuous}
+                className="px-3.5 py-1.5 rounded-lg bg-[#f85149]/20 hover:bg-[#f85149]/30 border border-[#f85149]/60 text-[#f85149] text-xs font-bold flex items-center gap-1.5 transition animate-pulse shadow"
+                title="点击停止连续研究任务"
+              >
+                <Square className="w-3.5 h-3.5 fill-current" />
+                <span>⏹️ 停止自动研究 ({formatSeconds(continuousStatus.remaining_seconds)})</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => handleStartContinuous(3600)}
+                disabled={isStartingContinuous || researching}
+                className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-[#8957e5] to-[#6f42c1] hover:from-[#9d6ff5] hover:to-[#8250df] text-white text-xs font-bold flex items-center gap-1.5 transition shadow disabled:opacity-50"
+                title="启动 1 小时连续自动研究模式，机器自主进行参数变异、大数回测、3x摩擦检验与持久化入库"
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>⏱️ 自动研究 1 小时 (60m)</span>
+              </button>
+            )}
+
             <button
               onClick={handleRunResearch}
-              disabled={researching}
+              disabled={researching || continuousStatus?.is_running}
               className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-[#238636] to-[#2ea043] hover:from-[#2ea043] hover:to-[#3fb950] text-white text-xs font-bold flex items-center gap-1.5 transition shadow disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${researching ? 'animate-spin' : ''}`} />
-              <span>{researching ? '全品种矩阵挖掘中...' : '🚀 启动全品种因子挖掘'}</span>
+              <span>{researching ? '单次全品种挖掘中...' : '🚀 启动单次全品种挖掘'}</span>
             </button>
 
             <button
@@ -169,6 +266,35 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Continuous 1-Hour Research Active Progress Ribbon */}
+        {continuousStatus?.is_running && (
+          <div className="px-6 py-2.5 bg-gradient-to-r from-[#8957e5]/25 via-[#161b22] to-[#238636]/25 border-b border-[#8957e5]/50 flex flex-wrap items-center justify-between gap-3 animate-in fade-in">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[#bc8cff]">
+                <Flame className="w-4 h-4 text-[#d29922] animate-bounce" />
+                <span>🔥 1小时自动化量化科研任务进行中:</span>
+              </div>
+              <span className="text-xs font-mono text-[#f0f6fc]">
+                剩余倒计时: <b className="text-[#58a6ff]">{formatSeconds(continuousStatus.remaining_seconds)}</b>
+              </span>
+              <span className="text-xs font-mono text-[#8b949e]">
+                (已运行 {formatSeconds(continuousStatus.elapsed_seconds)})
+              </span>
+            </div>
+
+            <div className="flex items-center gap-4 text-xs">
+              <span className="text-[#c9d1d9]">
+                本轮已探索并验证: <b className="text-[#3fb950] font-mono">{continuousStatus.total_evaluated_this_run ?? 0} 个新因子</b>
+              </span>
+              {continuousStatus.latest_factor_id && (
+                <span className="text-[#8b949e] font-mono hidden md:inline">
+                  最新探索: <b className="text-[#79c0ff]">[{continuousStatus.latest_factor_id}] {continuousStatus.latest_factor_name}</b> ({continuousStatus.latest_factor_score ?? 0}分)
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Real-time Research Status Banner */}
         {researchStatus && (

@@ -484,125 +484,142 @@ def run_research_pipeline() -> List[Dict[str, Any]]:
     if unadded_mutations:
         active_queue.extend(unadded_mutations[:2]) # 每次点击挖掘动态扩充 2 个全新变异因子！
 
+def evaluate_and_score_factor(factor_def: Dict[str, Any], test_symbols: List[str] = None) -> Dict[str, Any]:
+    """Evaluates a factor across commodity universe, calculates 100-pt scorecard and Hard Gates."""
+    if test_symbols is None:
+        test_symbols = ["AU_IDX", "AG_IDX", "CU_IDX", "SC_IDX", "RB_IDX", "M_IDX"]
+
+    fid = factor_def["id"]
+    fname = factor_def["name"]
+    symbol_results = []
+    for sym in test_symbols:
+        res = evaluate_factor_on_symbol(factor_def, sym)
+        symbol_results.append(res)
+
+    valid_res = [r for r in symbol_results if r["success"] and r["trades"] >= 20]
+    if not valid_res:
+        pass_rate = 0.0
+        avg_ic = 0.0
+        avg_sharpe = 0.0
+        avg_win_rate = 0.0
+        total_trades = 0
+        avg_3x_ratio = -1.0
+    else:
+        positive_symbols = sum(1 for r in valid_res if r["net_pnl"] > 0)
+        pass_rate = (positive_symbols / len(valid_res)) * 100.0
+        avg_ic = float(np.mean([r["rank_ic"] for r in valid_res]))
+        avg_sharpe = float(np.mean([r["sharpe"] for r in valid_res]))
+        avg_win_rate = float(np.mean([r["win_rate"] for r in valid_res]))
+        total_trades = sum(r["trades"] for r in valid_res)
+        total_1x = sum(r["net_pnl"] for r in valid_res)
+        total_3x = sum(r["pnl_3x"] for r in valid_res)
+        avg_3x_ratio = (total_3x / total_1x) if total_1x > 0 else -1.0
+
+    icir = avg_ic * np.sqrt(252 * 16) if avg_ic != 0 else 0.0
+    profit_factor = 1.85 if avg_win_rate > 50 else 1.15
+    max_dd = 3.2 if avg_sharpe > 1.5 else 8.5
+
+    # 100-Point Scorecard Calculation
+    mech_score = 14.5 if "COMP" in fid else (14.0 if "OVERFIT" not in fid else 2.0)
+    ic_score = min(20.0, max(2.0, abs(avg_ic) * 250.0 + (12.0 if "COMP" in fid else 8.0)))
+    market_score = (pass_rate / 100.0) * 20.0
+    cost_score = 14.5 if ("COMP" in fid or avg_3x_ratio > 0.4) else (8.0 if avg_3x_ratio > 0.0 else 2.0)
+    oos_score = 14.0 if ("COMP" in fid or avg_sharpe > 1.2) else 7.0
+    risk_score = 13.5 if ("COMP" in fid or avg_win_rate >= 50.0) else 6.0
+    total_score = round(mech_score + ic_score + market_score + cost_score + oos_score + risk_score, 1)
+
+    # Hard Gates Check
+    fail_reasons = []
+    if "OVERFIT" in fid:
+        fail_reasons.append("人工过拟合套娃结构，缺乏微观经济学逻辑")
+    if total_trades < 50:
+        fail_reasons.append(f"大数定律样本不足 (总交易笔数 {total_trades} < 50)")
+    if avg_3x_ratio <= 0.0 and "COMP" not in fid:
+        fail_reasons.append("3x 极端滑点规费压力测试下净利润归零崩塌")
+    if pass_rate < 50.0 and "COMP" not in fid:
+        fail_reasons.append(f"跨市场多品种泛化失败 (仅 {pass_rate:.1f}% 品种盈利)")
+
+    # Grade & Status
+    if not fail_reasons and total_score >= 80.0:
+        grade = "A+" if total_score >= 88.0 else "A"
+        status = "EXCELLENT"
+    elif not fail_reasons and total_score >= 65.0:
+        grade = "B"
+        status = "CANDIDATE"
+    else:
+        grade = "D" if total_score < 50.0 else "C"
+        status = "GRAVEYARD"
+
+    return {
+        "factor_id": fid,
+        "name": fname,
+        "family": factor_def.get("family", "其他"),
+        "hypothesis": factor_def.get("hypothesis", ""),
+        "formula_dsl": factor_def.get("formula", ""),
+        "total_score": total_score,
+        "grade": grade,
+        "rank_ic": round(avg_ic, 4),
+        "icir": round(icir, 2),
+        "win_rate": round(avg_win_rate, 1),
+        "sharpe": round(avg_sharpe, 2),
+        "profit_factor": round(profit_factor, 2),
+        "max_dd": round(max_dd, 1),
+        "breakeven_cost_mult": round(3.4 if "COMP" in fid else (2.8 if avg_3x_ratio > 0.3 else 1.2), 1),
+        "cross_market_pass_rate": round(pass_rate, 1),
+        "tested_symbols": json.dumps({r["symbol"]: {"sharpe": r["sharpe"], "pnl": round(r["net_pnl"], 1)} for r in symbol_results}, ensure_ascii=False),
+        "status": status,
+        "fail_reason": " | ".join(fail_reasons) if fail_reasons else None,
+        "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+def save_factor_to_db(record: Dict[str, Any], db_path: str = DB_PATH):
+    """Saves or updates a single factor record into factor_zoo table."""
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT OR REPLACE INTO factor_zoo (
+            factor_id, name, family, hypothesis, formula_dsl, total_score,
+            grade, rank_ic, icir, win_rate, sharpe, profit_factor, max_dd,
+            breakeven_cost_mult, cross_market_pass_rate, tested_symbols,
+            status, fail_reason, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        record["factor_id"], record["name"], record["family"], record["hypothesis"],
+        record["formula_dsl"], record["total_score"], record["grade"], record["rank_ic"],
+        record["icir"], record["win_rate"], record["sharpe"], record["profit_factor"],
+        record["max_dd"], record["breakeven_cost_mult"], record["cross_market_pass_rate"],
+        record["tested_symbols"], record["status"], record["fail_reason"], record["created_at"]
+    ))
+    conn.commit()
+    conn.close()
+
+def run_research_pipeline() -> List[Dict[str, Any]]:
+    """Runs full factor research pipeline across all 8 Alpha families and futures universe."""
+    test_symbols = ["AU_IDX", "AG_IDX", "CU_IDX", "SC_IDX", "RB_IDX", "M_IDX"]
+    evaluated_factors = []
+
+    # Check already evaluated IDs in DB
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT factor_id FROM factor_zoo;")
+    existing_ids = set(r[0] for r in cursor.fetchall())
+    conn.close()
+
+    # Base queue + dynamic exploration of un-evaluated mutations
+    active_queue = list(ALPHA_FAMILIES)
+    unadded_mutations = [f for f in GENETIC_MUTATION_POOL if f["id"] not in existing_ids]
+    if unadded_mutations:
+        active_queue.extend(unadded_mutations[:2])
+
     print(f"🚀 Starting Autonomous Alpha Research across {len(active_queue)} factors & {len(test_symbols)} commodities...")
 
     for factor_def in active_queue:
         fid = factor_def["id"]
         fname = factor_def["name"]
         print(f"  -> Researching Factor [{fid}] {fname}...")
-
-        symbol_results = []
-        for sym in test_symbols:
-            res = evaluate_factor_on_symbol(factor_def, sym)
-            symbol_results.append(res)
-
-        valid_res = [r for r in symbol_results if r["success"] and r["trades"] >= 20]
-        if not valid_res:
-            pass_rate = 0.0
-            avg_ic = 0.0
-            avg_sharpe = 0.0
-            avg_win_rate = 0.0
-            total_trades = 0
-            avg_3x_ratio = -1.0
-        else:
-            positive_symbols = sum(1 for r in valid_res if r["net_pnl"] > 0)
-            pass_rate = (positive_symbols / len(valid_res)) * 100.0
-            avg_ic = float(np.mean([r["rank_ic"] for r in valid_res]))
-            avg_sharpe = float(np.mean([r["sharpe"] for r in valid_res]))
-            avg_win_rate = float(np.mean([r["win_rate"] for r in valid_res]))
-            total_trades = sum(r["trades"] for r in valid_res)
-            total_1x = sum(r["net_pnl"] for r in valid_res)
-            total_3x = sum(r["pnl_3x"] for r in valid_res)
-            avg_3x_ratio = (total_3x / total_1x) if total_1x > 0 else -1.0
-
-        icir = avg_ic * np.sqrt(252 * 16) if avg_ic != 0 else 0.0
-        profit_factor = 1.85 if avg_win_rate > 50 else 1.15
-        max_dd = 3.2 if avg_sharpe > 1.5 else 8.5
-
-        # ----------------------------------------------------
-        # 100-Point Scorecard Calculation
-        # ----------------------------------------------------
-        # 1. Economic Logic: 15 pts (Hypothesis quality)
-        mech_score = 14.5 if "COMP" in fid else (14.0 if "OVERFIT" not in fid else 2.0)
-        # 2. Statistical IC: 20 pts (Rank IC & ICIR)
-        ic_score = min(20.0, max(2.0, abs(avg_ic) * 250.0 + (12.0 if "COMP" in fid else 8.0)))
-        # 3. Cross-Market Robustness: 20 pts (Pass rate >= 60%)
-        market_score = (pass_rate / 100.0) * 20.0
-        # 4. 3x Cost Stress: 15 pts (3x friction retention)
-        cost_score = 14.5 if ("COMP" in fid or avg_3x_ratio > 0.4) else (8.0 if avg_3x_ratio > 0.0 else 2.0)
-        # 5. OOS & Monotonicity: 15 pts
-        oos_score = 14.0 if ("COMP" in fid or avg_sharpe > 1.2) else 7.0
-        # 6. Expectancy & Tail Risk: 15 pts
-        risk_score = 13.5 if ("COMP" in fid or avg_win_rate >= 50.0) else 6.0
-
-        total_score = round(mech_score + ic_score + market_score + cost_score + oos_score + risk_score, 1)
-
-        # ----------------------------------------------------
-        # Hard Gates Check
-        # ----------------------------------------------------
-        fail_reasons = []
-        if "OVERFIT" in fid:
-            fail_reasons.append("人工过拟合套娃结构，缺乏微观经济学逻辑")
-        if total_trades < 50:
-            fail_reasons.append(f"大数定律样本不足 (总交易笔数 {total_trades} < 50)")
-        if avg_3x_ratio <= 0.0 and "COMP" not in fid:
-            fail_reasons.append("3x 极端滑点规费压力测试下净利润归零崩塌")
-        if pass_rate < 50.0 and "COMP" not in fid:
-            fail_reasons.append(f"跨市场多品种泛化失败 (仅 {pass_rate:.1f}% 品种盈利)")
-
-        # Grade & Status
-        if not fail_reasons and total_score >= 80.0:
-            grade = "A+" if total_score >= 88.0 else "A"
-            status = "EXCELLENT" # 👑 优秀因子库
-        elif not fail_reasons and total_score >= 65.0:
-            grade = "B"
-            status = "CANDIDATE" # 🔬 观察候选池
-        else:
-            grade = "D" if total_score < 50.0 else "C"
-            status = "GRAVEYARD" # 🪦 淘汰墓地
-
-        record = {
-            "factor_id": fid,
-            "name": fname,
-            "family": factor_def["family"],
-            "hypothesis": factor_def["hypothesis"],
-            "formula_dsl": factor_def["formula"],
-            "total_score": total_score,
-            "grade": grade,
-            "rank_ic": round(avg_ic, 4),
-            "icir": round(icir, 2),
-            "win_rate": round(avg_win_rate, 1),
-            "sharpe": round(avg_sharpe, 2),
-            "profit_factor": round(profit_factor, 2),
-            "max_dd": round(max_dd, 1),
-            "breakeven_cost_mult": round(3.4 if "COMP" in fid else (2.8 if avg_3x_ratio > 0.3 else 1.2), 1),
-            "cross_market_pass_rate": round(pass_rate, 1),
-            "tested_symbols": json.dumps({r["symbol"]: {"sharpe": r["sharpe"], "pnl": round(r["net_pnl"], 1)} for r in symbol_results}, ensure_ascii=False),
-            "status": status,
-            "fail_reason": " | ".join(fail_reasons) if fail_reasons else None,
-            "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        }
+        record = evaluate_and_score_factor(factor_def, test_symbols)
         evaluated_factors.append(record)
-
-    # Persist into SQLite factor_zoo
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    for rec in evaluated_factors:
-        cursor.execute("""
-            INSERT OR REPLACE INTO factor_zoo (
-                factor_id, name, family, hypothesis, formula_dsl, total_score,
-                grade, rank_ic, icir, win_rate, sharpe, profit_factor, max_dd,
-                breakeven_cost_mult, cross_market_pass_rate, tested_symbols,
-                status, fail_reason, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            rec["factor_id"], rec["name"], rec["family"], rec["hypothesis"],
-            rec["formula_dsl"], rec["total_score"], rec["grade"], rec["rank_ic"],
-            rec["icir"], rec["win_rate"], rec["sharpe"], rec["profit_factor"],
-            rec["max_dd"], rec["breakeven_cost_mult"], rec["cross_market_pass_rate"],
-            rec["tested_symbols"], rec["status"], rec["fail_reason"], rec["created_at"]
-        ))
-    conn.commit()
+        save_factor_to_db(record)
 
     cursor.execute("""
         SELECT factor_id, name, family, hypothesis, formula_dsl, total_score,

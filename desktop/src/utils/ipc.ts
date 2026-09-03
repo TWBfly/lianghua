@@ -573,5 +573,45 @@ export async function safeInvoke<T>(cmd: string, args?: Record<string, any>): Pr
     ] as unknown as T;
   }
 
+  if (cmd === 'start_continuous_research_command') {
+    return {
+      is_running: true,
+      pid: 12345,
+      start_time: Math.floor(Date.now() / 1000),
+      duration_seconds: 3600,
+      elapsed_seconds: 0,
+      remaining_seconds: 3600,
+      total_evaluated_this_run: 0,
+      total_in_zoo: 27,
+      latest_factor_id: null,
+      latest_factor_name: null,
+      latest_factor_score: null,
+      latest_factor_status: null,
+      updated_at: new Date().toISOString(),
+    } as unknown as T;
+  }
+
+  if (cmd === 'stop_continuous_research_command') {
+    return true as unknown as T;
+  }
+
+  if (cmd === 'get_continuous_research_status_command') {
+    return {
+      is_running: false,
+      pid: null,
+      start_time: null,
+      duration_seconds: 3600,
+      elapsed_seconds: 0,
+      remaining_seconds: 3600,
+      total_evaluated_this_run: 0,
+      total_in_zoo: 27,
+      latest_factor_id: null,
+      latest_factor_name: null,
+      latest_factor_score: null,
+      latest_factor_status: null,
+      updated_at: new Date().toISOString(),
+    } as unknown as T;
+  }
+
   return [] as unknown as T;
 }
