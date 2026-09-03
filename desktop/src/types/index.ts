@@ -79,6 +79,7 @@ export interface BacktestRequest {
   backtest_mode: string;
   data_source?: 'REAL' | 'SYNTHETIC';
   use_synthetic?: boolean;
+  fixed_lots?: number;
 }
 
 export interface BacktestMetrics {

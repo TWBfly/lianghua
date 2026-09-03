@@ -30,6 +30,7 @@ export const App: React.FC = () => {
     backtest_mode: 'RESEARCH_PROXY',
     data_source: 'REAL', // 默认真实 8000 根实盘分时
     use_synthetic: false,
+    fixed_lots: 1, // 默认固定 1 手（纯净无偏基准）
   });
   const [backtestLoading, setBacktestLoading] = useState<boolean>(false);
   const [backtestResult, setBacktestResult] = useState<BacktestResponse | null>(null);

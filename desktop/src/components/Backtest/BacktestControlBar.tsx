@@ -161,6 +161,36 @@ export const BacktestControlBar: React.FC<BacktestControlBarProps> = ({
               className="bg-transparent font-mono font-bold text-[#3fb950] w-24 focus:outline-none"
             />
           </div>
+
+          {/* Order Sizing / Fixed Lots */}
+          <div className="flex items-center gap-1.5 bg-[#0d1117] border border-[#30363d] rounded-md px-2.5 py-1">
+            <span className="text-[#8b949e]">开仓手数:</span>
+            <select
+              value={requestParams.fixed_lots ?? 1}
+              onChange={(e) => {
+                const lots = parseInt(e.target.value, 10);
+                onChangeParams({ fixed_lots: lots });
+                onRunBacktest({ fixed_lots: lots });
+              }}
+              className="bg-transparent text-[#58a6ff] font-bold focus:outline-none cursor-pointer"
+            >
+              <option value={1} className="bg-[#161b22] text-[#f0f6fc]">
+                固定 1 手 (严谨标杆)
+              </option>
+              <option value={2} className="bg-[#161b22] text-[#f0f6fc]">
+                固定 2 手
+              </option>
+              <option value={3} className="bg-[#161b22] text-[#f0f6fc]">
+                固定 3 手
+              </option>
+              <option value={5} className="bg-[#161b22] text-[#f0f6fc]">
+                固定 5 手
+              </option>
+              <option value={0} className="bg-[#161b22] text-[#8b949e]">
+                动态资金 (40%占保)
+              </option>
+            </select>
+          </div>
         </div>
 
         {/* Right Action Buttons */}

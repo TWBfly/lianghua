@@ -13,6 +13,12 @@ pub struct BacktestRequest {
     pub backtest_mode: String,
     pub data_source: Option<String>, // "REAL" | "SYNTHETIC"
     pub use_synthetic: Option<bool>,
+    #[serde(default = "default_fixed_lots")]
+    pub fixed_lots: Option<i64>,
+}
+
+fn default_fixed_lots() -> Option<i64> {
+    Some(1)
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -780,13 +786,23 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
         if let Some((enter_reason, _score)) = pending_entry.take() {
             if shares == 0 {
                 let fill_price = curr.open + slippage;
+                let fixed_lots = req.fixed_lots.unwrap_or(1); // 默认严格固定 1 手（可由用户选择 1手/2手/动态占保）
                 let target_shares = if is_stock {
-                    let s = (cash * 0.95 / fill_price / 100.0).floor() as i64 * 100;
-                    if s < 100 { 100 } else { s }
+                    if fixed_lots > 0 {
+                        (fixed_lots * 100).max(100)
+                    } else {
+                        let s = (cash * 0.95 / fill_price / 100.0).floor() as i64 * 100;
+                        if s < 100 { 100 } else { s }
+                    }
                 } else {
-                    let margin_per_lot = fill_price * multiplier * 0.12;
-                    let lots = (cash * 0.4 / (margin_per_lot + 1e-6)).floor() as i64;
-                    if lots < 1 { 1 } else { lots.min(5) }
+                    if fixed_lots > 0 {
+                        fixed_lots // 严格固定 1 手 (或指定手数)，确保每笔交易点数线性可比
+                    } else {
+                        // 动态占保 (40% 可用资金)
+                        let margin_per_lot = fill_price * multiplier * 0.12;
+                        let lots = (cash * 0.4 / (margin_per_lot + 1e-6)).floor() as i64;
+                        if lots < 1 { 1 } else { lots.min(5) }
+                    }
                 };
 
                 let gross_val = fill_price * (target_shares as f64) * multiplier;
@@ -1447,6 +1463,7 @@ pub fn execute_portfolio_backtest(req: PortfolioBacktestRequest) -> Result<Portf
             backtest_mode: "RESEARCH_PROXY".to_string(),
             data_source: Some(if is_synthetic { "SYNTHETIC".to_string() } else { "REAL".to_string() }),
             use_synthetic: Some(is_synthetic),
+            fixed_lots: Some(1),
         };
 
         if let Ok(res) = execute_backtest(single_req) {
@@ -1897,6 +1914,7 @@ pub fn execute_dual_track_evaluation(req: DualTrackEvaluationRequest) -> Result<
         backtest_mode: "RESEARCH_PROXY".to_string(),
         data_source: Some("REAL".to_string()),
         use_synthetic: Some(false),
+        fixed_lots: Some(1),
     };
     let real_res = execute_backtest(real_req)?;
 
@@ -1910,6 +1928,7 @@ pub fn execute_dual_track_evaluation(req: DualTrackEvaluationRequest) -> Result<
         backtest_mode: "RESEARCH_PROXY".to_string(),
         data_source: Some("SYNTHETIC".to_string()),
         use_synthetic: Some(true),
+        fixed_lots: Some(1),
     };
     let synth_res = execute_backtest(synth_req)?;
 
@@ -2176,6 +2195,7 @@ mod tests {
                 backtest_mode: "RESEARCH_PROXY".to_string(),
                 data_source: Some("REAL".to_string()),
                 use_synthetic: Some(false),
+                fixed_lots: Some(1),
             };
             let res = execute_backtest(req).expect("Strategy backtest failed");
             println!(
@@ -2216,6 +2236,7 @@ mod tests {
                 backtest_mode: "RESEARCH_PROXY".to_string(),
                 data_source: Some("SYNTHETIC".to_string()),
                 use_synthetic: Some(true),
+                fixed_lots: Some(1),
             };
             let res = execute_backtest(req).expect("Synthetic strategy test failed");
             println!(
@@ -2259,6 +2280,7 @@ mod tests {
                 backtest_mode: "RESEARCH_PROXY".to_string(),
                 data_source: Some("SYNTHETIC".to_string()),
                 use_synthetic: Some(true),
+                fixed_lots: Some(1),
             };
             let res = execute_backtest(req).unwrap();
             println!(
@@ -2290,6 +2312,7 @@ mod tests {
                 backtest_mode: "RESEARCH_PROXY".to_string(),
                 data_source: Some("REAL".to_string()),
                 use_synthetic: Some(false),
+                fixed_lots: Some(1),
             };
             let res = execute_backtest(req).unwrap();
             println!(
