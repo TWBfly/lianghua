@@ -133,7 +133,7 @@ pub fn query_synthetic_futures_kline(
 
     let sym_clean = symbol.to_lowercase().replace("_idx", "_idx");
     let tf_clean = match timeframe {
-        "15m" | "30m" | "1h" => timeframe,
+        "1m" | "15m" | "30m" | "1h" => timeframe,
         _ => "15m",
     };
     let tbl = format!("bars_{}_{}", sym_clean, tf_clean);

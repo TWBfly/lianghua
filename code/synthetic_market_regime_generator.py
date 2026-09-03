@@ -54,36 +54,73 @@ def get_trading_session_timeline(
     n_bars: int,
     symbol: str = "AG_IDX",
     start_dt: Optional[datetime.datetime] = None,
+    timeframe: str = "15m",
 ) -> List[datetime.datetime]:
     """
-    生成严格符合中国期货交易所真实开闭盘时钟 (含品种特定夜盘) 且跳过周末的 15m 标准时间序列
+    生成严格符合中国期货交易所真实开闭盘时钟 (含品种特定夜盘) 且跳过周末的 1m 或 15m 标准时间序列
     """
     current_dt = start_dt or datetime.datetime(2015, 1, 5, 9, 0, 0)
     night_end = get_night_session_end(symbol)
     timeline: List[datetime.datetime] = []
 
-    # 白盘固定 15 根 15m Bar (09:00-10:15 [5根], 10:30-11:30 [4根], 13:30-15:00 [6根])
-    day_slots = [
-        (9, 15), (9, 30), (9, 45), (10, 0), (10, 15),
-        (10, 45), (11, 0), (11, 15), (11, 30),
-        (13, 45), (14, 0), (14, 15), (14, 30), (14, 45), (15, 0),
-    ]
+    is_1m = timeframe in ("1m", "1min")
 
-    # 夜盘时段
-    night_slots = []
-    if night_end == "23:00":
-        night_slots = [(21, 15), (21, 30), (21, 45), (22, 0), (22, 15), (22, 30), (22, 45), (23, 0)]
-    elif night_end == "01:00":
-        night_slots = [
-            (21, 15), (21, 30), (21, 45), (22, 0), (22, 15), (22, 30), (22, 45), (23, 0),
-            (23, 15), (23, 30), (23, 45), (0, 0), (0, 15), (0, 30), (0, 45), (1, 0),
+    if is_1m:
+        # 白盘 225 根 1m Bar: 09:00-10:14 (75根), 10:30-11:29 (60根), 13:30-14:59 (90根)
+        day_slots = []
+        for m in range(60):
+            day_slots.append((9, m))
+        for m in range(15):
+            day_slots.append((10, m))
+        for m in range(30, 60):
+            day_slots.append((10, m))
+        for m in range(30):
+            day_slots.append((11, m))
+        for m in range(30, 60):
+            day_slots.append((13, m))
+        for m in range(60):
+            day_slots.append((14, m))
+
+        # 夜盘 1m 时段
+        night_slots = []
+        if night_end in ("23:00", "01:00", "02:30"):
+            for m in range(60):
+                night_slots.append((21, m))
+            for m in range(60):
+                night_slots.append((22, m))
+        if night_end in ("01:00", "02:30"):
+            for m in range(60):
+                night_slots.append((23, m))
+            for m in range(60):
+                night_slots.append((0, m))
+        if night_end == "02:30":
+            for m in range(60):
+                night_slots.append((1, m))
+            for m in range(30):
+                night_slots.append((2, m))
+    else:
+        # 白盘固定 15 根 15m Bar (09:00-10:15 [5根], 10:30-11:30 [4根], 13:30-15:00 [6根])
+        day_slots = [
+            (9, 15), (9, 30), (9, 45), (10, 0), (10, 15),
+            (10, 45), (11, 0), (11, 15), (11, 30),
+            (13, 45), (14, 0), (14, 15), (14, 30), (14, 45), (15, 0),
         ]
-    elif night_end == "02:30":
-        night_slots = [
-            (21, 15), (21, 30), (21, 45), (22, 0), (22, 15), (22, 30), (22, 45), (23, 0),
-            (23, 15), (23, 30), (23, 45), (0, 0), (0, 15), (0, 30), (0, 45), (1, 0),
-            (1, 15), (1, 30), (1, 45), (2, 0), (2, 15), (2, 30),
-        ]
+
+        # 夜盘时段
+        night_slots = []
+        if night_end == "23:00":
+            night_slots = [(21, 15), (21, 30), (21, 45), (22, 0), (22, 15), (22, 30), (22, 45), (23, 0)]
+        elif night_end == "01:00":
+            night_slots = [
+                (21, 15), (21, 30), (21, 45), (22, 0), (22, 15), (22, 30), (22, 45), (23, 0),
+                (23, 15), (23, 30), (23, 45), (0, 0), (0, 15), (0, 30), (0, 45), (1, 0),
+            ]
+        elif night_end == "02:30":
+            night_slots = [
+                (21, 15), (21, 30), (21, 45), (22, 0), (22, 15), (22, 30), (22, 45), (23, 0),
+                (23, 15), (23, 30), (23, 45), (0, 0), (0, 15), (0, 30), (0, 45), (1, 0),
+                (1, 15), (1, 30), (1, 45), (2, 0), (2, 15), (2, 30),
+            ]
 
     curr_date = current_dt.date()
     while len(timeline) < n_bars:
@@ -106,6 +143,7 @@ def get_trading_session_timeline(
         curr_date += datetime.timedelta(days=1)
 
     return timeline
+
 
 
 def aggregate_bars(df_15m: pd.DataFrame, target_tf: str) -> pd.DataFrame:
@@ -180,14 +218,16 @@ class SyntheticMarketRegimeGenerator:
         if os.path.exists(db_path):
             try:
                 conn = sqlite3.connect(db_path)
-                q = "SELECT close FROM futures_min_bars WHERE symbol=? AND timeframe='15m' ORDER BY trade_time"
+                tf_query = "1m" if timeframe in ("1m", "1min") else "15m"
+                q = f"SELECT close FROM futures_min_bars WHERE symbol=? AND timeframe='{tf_query}' ORDER BY trade_time"
                 df = pd.read_sql_query(q, conn, params=(sym_norm,))
                 conn.close()
 
                 if len(df) >= 200:
                     rets = np.log(df["close"] / df["close"].shift(1)).dropna().values
                     real_sigma = float(np.std(rets))
-                    cal["vol_scale"] = max(0.2, real_sigma / self._BASE_SIGMA)
+                    base_sigma = (self._BASE_SIGMA / math.sqrt(15.0)) if tf_query == "1m" else self._BASE_SIGMA
+                    cal["vol_scale"] = max(0.2, real_sigma / base_sigma)
 
                     kurt = float(pd.Series(rets).kurtosis())
                     if kurt > 0.1:
@@ -218,14 +258,22 @@ class SyntheticMarketRegimeGenerator:
         if tick_size <= 0:
             tick_size = spec.tick_size
 
-        # 确定底层 15m 所需 Bar 数量
-        tf_mult = 2 if timeframe in ("30m", "30min") else (4 if timeframe in ("1h", "60m") else 1)
+        # 确定底层所需 Bar 数量
+        is_1m = timeframe in ("1m", "1min")
+        tf_mult = 1 if is_1m else (2 if timeframe in ("30m", "30min") else (4 if timeframe in ("1h", "60m") else 1))
         base_bars_per_regime = bars_per_regime * tf_mult
 
-        cal = self._calibrate_from_real(symbol, "15m")
+        cal = self._calibrate_from_real(symbol, timeframe=timeframe)
         vol_scale = cal["vol_scale"]
         t_df = cal["t_df"]
         t_scale = math.sqrt((t_df - 2.0) / t_df) if t_df > 2.0 else 1.0
+
+        # 1m 动力学时间尺度与跳价频率缩放
+        tf_time_scale = (1.0 / math.sqrt(15.0)) if is_1m else 1.0
+        jump_scale = (1.0 / 15.0) if is_1m else 1.0
+        vol_scale_factor = (1.0 / 15.0) if is_1m else 1.0
+        revert_scale = (1.0 / 15.0) if is_1m else 1.0
+        mom_factor = 0.5 if is_1m else 1.0
 
         # 五大宏观机制动力学配置 (目标收益率缩放 + 动量自回归, 杜绝长时间复利失真)
         regimes_config = [
@@ -235,12 +283,12 @@ class SyntheticMarketRegimeGenerator:
                 "label": "单边暴涨周期",
                 "bars": base_bars_per_regime,
                 "target_ret": 0.45 * vol_scale,
-                "sigma": 0.0040 * vol_scale,
-                "momentum": 0.10,
+                "sigma": 0.0040 * vol_scale * tf_time_scale,
+                "momentum": 0.10 * mom_factor,
                 "mean_revert": 0.0,
-                "jump_prob": 0.006,
-                "jump_mu": 0.001 * vol_scale,
-                "vol_base": 12000,
+                "jump_prob": 0.006 * jump_scale,
+                "jump_mu": 0.001 * vol_scale * tf_time_scale,
+                "vol_base": max(10, int(12000 * vol_scale_factor)),
             },
             # 2. 宽幅剧烈洗盘: 目标累计收益 0%, 高波动率, 负向自相关(频繁假突破), 触轨反弹
             {
@@ -248,12 +296,12 @@ class SyntheticMarketRegimeGenerator:
                 "label": "牛转熊见顶剧烈洗盘周期",
                 "bars": base_bars_per_regime,
                 "target_ret": 0.0,
-                "sigma": 0.0070 * vol_scale,
-                "momentum": -0.10,
-                "mean_revert": 0.03,
-                "jump_prob": 0.012,
-                "jump_mu": -0.001 * vol_scale,
-                "vol_base": 10000,
+                "sigma": 0.0070 * vol_scale * tf_time_scale,
+                "momentum": -0.10 * mom_factor,
+                "mean_revert": 0.03 * revert_scale,
+                "jump_prob": 0.012 * jump_scale,
+                "jump_mu": -0.001 * vol_scale * tf_time_scale,
+                "vol_base": max(10, int(10000 * vol_scale_factor)),
             },
             # 3. 恐慌暴跌: 目标累计跌幅 -40%, 负向动量延续, 波动率飙升, 下跳脉冲
             {
@@ -261,12 +309,12 @@ class SyntheticMarketRegimeGenerator:
                 "label": "恐慌暴跌周期",
                 "bars": base_bars_per_regime,
                 "target_ret": -0.45 * vol_scale,
-                "sigma": 0.0075 * vol_scale,
-                "momentum": 0.12,
+                "sigma": 0.0075 * vol_scale * tf_time_scale,
+                "momentum": 0.12 * mom_factor,
                 "mean_revert": 0.0,
-                "jump_prob": 0.015,
-                "jump_mu": -0.003 * vol_scale,
-                "vol_base": 16000,
+                "jump_prob": 0.015 * jump_scale,
+                "jump_mu": -0.003 * vol_scale * tf_time_scale,
+                "vol_base": max(10, int(16000 * vol_scale_factor)),
             },
             # 4. 熊转牛筑底横盘: 目标累计收益 0%, 极低波动率, 强 OU 均值回归约束, 成交萎缩
             {
@@ -274,12 +322,12 @@ class SyntheticMarketRegimeGenerator:
                 "label": "熊转牛筑底横盘周期",
                 "bars": base_bars_per_regime,
                 "target_ret": 0.0,
-                "sigma": 0.0022 * vol_scale,
-                "momentum": -0.12,
-                "mean_revert": 0.06,
-                "jump_prob": 0.003,
+                "sigma": 0.0022 * vol_scale * tf_time_scale,
+                "momentum": -0.12 * mom_factor,
+                "mean_revert": 0.06 * revert_scale,
+                "jump_prob": 0.003 * jump_scale,
                 "jump_mu": 0.0,
-                "vol_base": 5000,
+                "vol_base": max(10, int(5000 * vol_scale_factor)),
             },
             # 5. 新一轮牛市主升: 目标累计涨幅 +45%, 突破展开, 动量扩张
             {
@@ -287,17 +335,17 @@ class SyntheticMarketRegimeGenerator:
                 "label": "新一轮牛市主升周期",
                 "bars": base_bars_per_regime,
                 "target_ret": 0.45 * vol_scale,
-                "sigma": 0.0045 * vol_scale,
-                "momentum": 0.12,
+                "sigma": 0.0045 * vol_scale * tf_time_scale,
+                "momentum": 0.12 * mom_factor,
                 "mean_revert": 0.0,
-                "jump_prob": 0.008,
-                "jump_mu": 0.002 * vol_scale,
-                "vol_base": 14000,
+                "jump_prob": 0.008 * jump_scale,
+                "jump_mu": 0.002 * vol_scale * tf_time_scale,
+                "vol_base": max(10, int(14000 * vol_scale_factor)),
             },
         ]
 
-        total_15m_bars = sum(r["bars"] for r in regimes_config)
-        timeline = get_trading_session_timeline(total_15m_bars, symbol=symbol, start_dt=datetime.datetime(2015, 1, 5, 9, 0, 0))
+        total_sim_bars = sum(r["bars"] for r in regimes_config)
+        timeline = get_trading_session_timeline(total_sim_bars, symbol=symbol, start_dt=datetime.datetime(2015, 1, 5, 9, 0, 0), timeframe=timeframe)
 
         all_bars = []
         current_price = float(start_price)
@@ -321,7 +369,8 @@ class SyntheticMarketRegimeGenerator:
 
                 # 1. 真实开盘跳空率模拟 (跨交易节/隔夜/周末产生开盘重尾跳空)
                 time_delta_min = (t_time - prev_time).total_seconds() / 60.0
-                is_session_open = (time_delta_min > 35.0) or (bar_global_idx == 0)
+                session_gap_threshold = 5.0 if is_1m else 35.0
+                is_session_open = (time_delta_min > session_gap_threshold) or (bar_global_idx == 0)
 
                 if is_session_open and bar_global_idx > 0:
                     gap_scale = 1.4 if time_delta_min > 1200.0 else 1.0  # 隔夜/周末跳空幅度更大
@@ -369,7 +418,7 @@ class SyntheticMarketRegimeGenerator:
                 all_bars.append({
                     "trade_time": t_time.strftime("%Y-%m-%d %H:%M:%S"),
                     "symbol": f"{symbol}_SYNTHETIC",
-                    "timeframe": "15m",
+                    "timeframe": "1m" if is_1m else "15m",
                     "open": p_open,
                     "high": p_high,
                     "low": p_low,
@@ -384,12 +433,13 @@ class SyntheticMarketRegimeGenerator:
                 current_price = p_close
                 bar_global_idx += 1
 
-        df_15m = pd.DataFrame(all_bars)
-        df_15m["trade_time"] = pd.to_datetime(df_15m["trade_time"])
-        df_15m = df_15m.set_index("trade_time").sort_index()
+        df_base = pd.DataFrame(all_bars)
+        df_base["trade_time"] = pd.to_datetime(df_base["trade_time"])
+        df_base = df_base.set_index("trade_time").sort_index()
 
-        # 5. 跨周期严密自洽聚合 (若请求 30m / 1h，从 15m 底层精确聚合)
-        df_result = aggregate_bars(df_15m, target_tf=timeframe) if tf_mult > 1 else df_15m
+        # 5. 跨周期严密自洽聚合 (若请求 30m / 1h，从 15m 底层精确聚合；若为 1m 则直接返回)
+        df_result = aggregate_bars(df_base, target_tf=timeframe) if (tf_mult > 1 and not is_1m) else df_base
+
 
         if save_to_db:
             self._save_to_sandbox_db(symbol, timeframe, df_result, cal)
@@ -478,7 +528,27 @@ def rebuild_synthetic_sandbox_database(
                 save_to_db=True,
             )
 
-    print(f"\n🎉 整个沙盒数据库 futures_synthetic_bars.db 重建完成！共写入 {len(target_syms) * len(target_tfs)} 张全规范表！")
+def generate_synthetic_1m_sandbox_bars(
+    symbols: Optional[List[str]] = None,
+    bars_per_regime: int = 5000,
+) -> None:
+    """
+    针对指定或全部 25 大主力品种增量生成 1 分钟高保真宏观机制 K 线数据，
+    直接安全持久化至独立物理沙盒数据库 futures_synthetic_bars.db (table: bars_{symbol}_1m)，
+    绝不污染正式数据库 ashare_quant.db。
+    """
+    from contract_specs import SPECS
+    target_syms = symbols or list(SPECS.keys())
+    gen = SyntheticMarketRegimeGenerator(seed=2026)
+    print(f"\n🚀 开始生成 1 分钟沙盒 K 线数据: 共 {len(target_syms)} 个品种 (每机制 {bars_per_regime:,} 根，共 {bars_per_regime * 5:,} 根/品种)...")
+    for sym in target_syms:
+        gen.generate_regime_bars(
+            symbol=sym,
+            bars_per_regime=bars_per_regime,
+            timeframe="1m",
+            save_to_db=True,
+        )
+    print(f"\n🎉 1 分钟沙盒 K 线数据生成完毕！所有表已物理隔离落盘至 futures_synthetic_bars.db！")
 
 
 if __name__ == "__main__":
