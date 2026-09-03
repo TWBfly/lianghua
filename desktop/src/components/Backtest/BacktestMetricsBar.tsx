@@ -31,7 +31,9 @@ export const BacktestMetricsBar: React.FC<BacktestMetricsBarProps> = ({ metrics,
         <div className={`text-base font-bold font-mono ${metrics.annualized_return_pct >= 0 ? 'text-[#3fb950]' : 'text-[#f85149]'}`}>
           {metrics.annualized_return_pct >= 0 ? '+' : ''}{metrics.annualized_return_pct.toFixed(2)}%
         </div>
-        <div className="text-[10px] text-[#8b949e]">复利年化复权</div>
+        <div className="text-[10px] text-[#8b949e]">
+          {metrics.total_bars_count && metrics.total_bars_count < 15000 ? '折算年化 (252日)' : '复利年化复权'}
+        </div>
       </div>
 
       {/* 3. 胜率与大数定律标识 */}
@@ -78,7 +80,7 @@ export const BacktestMetricsBar: React.FC<BacktestMetricsBarProps> = ({ metrics,
             ? `${metrics.avg_holding_days.toFixed(1)} 天`
             : metrics.avg_holding_days * 24 >= 1.0
             ? `${(metrics.avg_holding_days * 24).toFixed(1)} 小时`
-            : `${(metrics.avg_holding_days * 1440).toFixed(0)} 分钟`}
+            : `${Math.max(1, Math.round(metrics.avg_holding_days * 1440))} 分钟`}
         </div>
         <div className="text-[10px] text-[#8b949e] truncate">
           {metrics.data_source_label}

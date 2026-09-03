@@ -260,13 +260,29 @@ fn get_contract_meta(symbol: &str) -> (&'static str, f64, &'static str, bool) {
         "600309" => ("万华化学", 1.0, "基础化工", true),
         "AU_IDX" => ("沪金主力", 1000.0, "贵金属", false),
         "AG_IDX" => ("沪银主力", 15.0, "贵金属", false),
-        "SN_IDX" => ("沪锡主力", 1.0, "有色金属", false),
+        "RB_IDX" => ("螺纹钢主力", 10.0, "黑色建材", false),
+        "HC_IDX" => ("热卷主力", 10.0, "黑色建材", false),
+        "I_IDX" => ("铁矿石主力", 100.0, "黑色建材", false),
+        "J_IDX" => ("焦炭主力", 100.0, "黑色能源", false),
+        "JM_IDX" => ("焦煤主力", 60.0, "黑色能源", false),
+        "SA_IDX" => ("纯碱主力", 20.0, "基础化工", false),
+        "FG_IDX" => ("玻璃主力", 20.0, "建材化工", false),
         "CU_IDX" => ("沪铜主力", 5.0, "有色金属", false),
+        "AL_IDX" => ("沪铝主力", 5.0, "有色金属", false),
+        "ZN_IDX" => ("沪锌主力", 5.0, "有色金属", false),
+        "SN_IDX" => ("沪锡主力", 1.0, "有色金属", false),
         "SC_IDX" => ("原油主力", 1000.0, "能源化工", false),
-        "LC_IDX" => ("碳酸锂主力", 1.0, "新能源", false),
         "MA_IDX" => ("甲醇主力", 10.0, "能源化工", false),
-        "P_IDX" => ("棕榈油主力", 10.0, "农产品", false),
         "TA_IDX" => ("PTA主力", 5.0, "纺织化工", false),
+        "RU_IDX" => ("橡胶主力", 10.0, "能化衍生", false),
+        "M_IDX" => ("豆粕主力", 10.0, "农产饲料", false),
+        "Y_IDX" => ("豆油主力", 10.0, "油脂油料", false),
+        "P_IDX" => ("棕榈油主力", 10.0, "农产品", false),
+        "SR_IDX" => ("白糖主力", 10.0, "软商品", false),
+        "CF_IDX" => ("棉花主力", 5.0, "农产纺织", false),
+        "C_IDX" => ("玉米主力", 10.0, "农产品", false),
+        "LC_IDX" => ("碳酸锂主力", 1.0, "新能源", false),
+        "SI_IDX" => ("工业硅主力", 5.0, "新能源", false),
         _ => {
             let is_stock = symbol.chars().all(|c| c.is_ascii_digit()) && symbol.len() == 6;
             ("标的合约", if is_stock { 1.0 } else { 10.0 }, "大宗商品", is_stock)
@@ -553,8 +569,18 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
             let base_15m = query_synthetic_futures_kline(&symbol, "15m", 12000)?;
             decompose_bars_to_subminutes(&base_15m, 15, 5)
         } else if target_mins == 1 {
-            let base_15m = query_synthetic_futures_kline(&symbol, "15m", 2400)?;
-            decompose_bars_to_subminutes(&base_15m, 15, 1)
+            // 优先直接查询沙盒库中已生成的 1m 高保真全周期 K 线 (bars_*_1m)
+            if let Ok(b_1m) = query_synthetic_futures_kline(&symbol, "1m", 50000) {
+                if !b_1m.is_empty() {
+                    b_1m
+                } else {
+                    let base_15m = query_synthetic_futures_kline(&symbol, "15m", 2400)?;
+                    decompose_bars_to_subminutes(&base_15m, 15, 1)
+                }
+            } else {
+                let base_15m = query_synthetic_futures_kline(&symbol, "15m", 2400)?;
+                decompose_bars_to_subminutes(&base_15m, 15, 1)
+            }
         } else {
             let base_count = (35000 * target_mins / 15).clamp(1000, 35000) as usize;
             let base_15m = query_synthetic_futures_kline(&symbol, "15m", base_count)?;
@@ -634,6 +660,11 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
 
     let strat = req.strategy.as_str();
 
+    // 状态机辅助变量 (用于因果元标签、出场冷却与持仓时长精确追踪)
+    let bar_interval_mins = parse_timeframe_minutes(&tf).max(1);
+    let mut bars_held: usize = 0;
+    let mut causal_cooldown: usize = 0;
+
     // Stateful indicators for SuperTrend & AlphaTrend
     let mut supertrend_direction = 1; // 1: Bullish, -1: Bearish
     let mut supertrend_trail: f64 = 0.0;
@@ -644,6 +675,15 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
     let safe_period = 30;
     for i in safe_period..n {
         let curr = &bars[i];
+
+        if causal_cooldown > 0 {
+            causal_cooldown -= 1;
+        }
+        if shares > 0 {
+            bars_held += 1;
+        } else {
+            bars_held = 0;
+        }
 
         let cur_date_str = if curr.datetime_str.len() >= 10 {
             &curr.datetime_str[0..10]
@@ -683,13 +723,15 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
                 cash += margin_released + pnl_amount;
 
                 let holding_days = if curr.time > buy_time && buy_time > 0 {
-                    ((curr.time - buy_time) as f64 / 86400.0).max(0.01)
+                    ((curr.time - buy_time) as f64 / 86400.0).max(0.0001)
                 } else if is_stock {
                     8.5
                 } else {
-                    0.5
+                    ((bar_interval_mins as f64 * bars_held.max(1) as f64) / 1440.0).max(0.0001)
                 };
                 holding_days_sum += holding_days;
+                causal_cooldown = 4;
+                bars_held = 0;
 
                 let trade_id = trades.len() + 1;
                 trades.push(BacktestTradeItem {
@@ -752,6 +794,7 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
                 buy_price = fill_price;
                 buy_date = curr.datetime_str.clone();
                 buy_time = curr.time;
+                bars_held = 0;
                 cash -= (fill_price * (target_shares as f64) * multiplier * if is_stock { 1.0 } else { 0.12 }) + fee + slip_cost;
 
                 let entry_time_label = if curr.datetime_str.len() >= 16 {
@@ -794,9 +837,15 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
                 cash += margin_released + pnl_amount;
 
                 let holding_days = if curr.time > buy_time && buy_time > 0 {
-                    ((curr.time - buy_time) as f64 / 86400.0).max(0.01)
-                } else { 0.5 };
+                    ((curr.time - buy_time) as f64 / 86400.0).max(0.0001)
+                } else if is_stock {
+                    8.5
+                } else {
+                    ((bar_interval_mins as f64 * bars_held.max(1) as f64) / 1440.0).max(0.0001)
+                };
                 holding_days_sum += holding_days;
+                causal_cooldown = 4;
+                bars_held = 0;
 
                 let trade_id = trades.len() + 1;
                 trades.push(BacktestTradeItem {
@@ -1022,28 +1071,69 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
                 }
             }
 
-            // 7. Causal ML (因果机器学习Meta-Labeling)
+            // 7. Causal ML (因果机器学习Meta-Labeling与动态三屏出场)
             "causal_ml" => {
-                let trend_score = if curr.close > sma_20[i] { 0.4 } else { 0.0 };
-                let rsi_score = if rsi_14[i] >= 48.0 && rsi_14[i] <= 72.0 { 0.35 } else { 0.1 };
-                let vol_score = if volumes[i] > vol_sma_20[i] { 0.25 } else { 0.1 };
-                let total_causal_prob = trend_score + rsi_score + vol_score;
+                let atr = atr_14[i].max(curr.close * 0.001);
 
-                if shares == 0 && total_causal_prob >= 0.75 && curr.close > curr.open {
-                    should_enter = true;
-                    enter_reason = format!("因果置信度达标 (P={:.0}%)", total_causal_prob * 100.0);
-                    ml_score = total_causal_prob * 100.0;
+                // --- 1. Primary Model: 因果趋势动力学与特征工程 ---
+                // (a) 趋势位移倾角: 价格相对 SMA20 的偏离度 (以 ATR 标准化)
+                let trend_disp = (curr.close - sma_20[i]) / atr;
+
+                // (b) 路径信噪比 (Signal-to-Noise Ratio, SNR):
+                // 过去 12 根 Bar 净位移 / 累计路径全变差, 严禁在白噪声剧烈拉锯时开仓
+                let lookback_snr = 12.min(i);
+                let net_move = (curr.close - closes[i - lookback_snr]).abs();
+                let mut path_variation = 0.0;
+                for k in (i - lookback_snr + 1)..=i {
+                    path_variation += (closes[k] - closes[k - 1]).abs();
+                }
+                let snr = if path_variation > 1e-6 { (net_move / path_variation).min(1.0) } else { 0.0 };
+
+                // (c) 量价弹性与动能脉冲
+                let vol_boost = volumes[i] / (vol_sma_20[i] + 1e-6);
+                let rsi = rsi_14[i];
+
+                // --- 2. Secondary Model: 因果元标签置信度得分 (Meta-Labeling Score) ---
+                let mut causal_prob: f64 = 0.0;
+                if trend_disp > 0.25 {
+                    causal_prob += 0.35;
+                }
+                if snr >= 0.30 {
+                    causal_prob += 0.30; // 高信噪比确认有真实趋势动力学支持
+                }
+                if vol_boost >= 1.05 {
+                    causal_prob += 0.20;
+                }
+                if rsi >= 50.0 && rsi <= 75.0 {
+                    causal_prob += 0.15;
+                }
+
+                if shares == 0 {
+                    // 开仓条件: 无持仓 + 冷却期归零 + 因果置信度 >= 0.70 + 阳线突破且信噪比良好
+                    if causal_cooldown == 0 && causal_prob >= 0.70 && curr.close > curr.open && snr >= 0.28 {
+                        should_enter = true;
+                        enter_reason = format!("因果Meta-Labeling达标 (P={:.0}%, SNR={:.2})", causal_prob * 100.0, snr);
+                        ml_score = f64::min(causal_prob * 100.0, 98.0);
+                    }
                 } else if shares > 0 {
-                    let gain = (curr.close - buy_price) / buy_price;
-                    if total_causal_prob < 0.45 {
+                    // --- 3. 动态 ATR 三屏出场系统 (Dynamic Triple Barrier) ---
+                    let gain_pts = curr.close - buy_price;
+                    let target_tp = 2.2 * atr; // 动态波动率止盈: +2.2 ATR
+                    let target_sl = -1.3 * atr; // 动态波动率止损: -1.3 ATR
+                    let max_hold_bars = if bar_interval_mins <= 5 { 45 } else { 25 }; // 时间屏障: 避免死扛
+
+                    if gain_pts >= target_tp {
                         should_exit = true;
-                        exit_reason = "🛑 因果多头特征漂移离场".to_string();
-                    } else if gain >= 0.046 {
+                        exit_reason = format!("🎯 因果波动率动态止盈 (+{:.1} ATR, {:+.1}%)", gain_pts / atr, (gain_pts / buy_price) * 100.0);
+                    } else if gain_pts <= target_sl {
                         should_exit = true;
-                        exit_reason = "🎯 因果正期望目标止盈 (+4.6%)".to_string();
-                    } else if gain <= -0.021 {
+                        exit_reason = format!("🛑 因果波动率动态止损 ({:.1} ATR, {:+.1}%)", gain_pts / atr, (gain_pts / buy_price) * 100.0);
+                    } else if bars_held >= max_hold_bars {
                         should_exit = true;
-                        exit_reason = "🛑 因果元标签风控止损 (-2.1%)".to_string();
+                        exit_reason = format!("⏱️ 因果时间屏障衰竭平仓 (持有 {} 根Bar)", bars_held);
+                    } else if causal_prob < 0.30 && gain_pts > 0.0 {
+                        should_exit = true;
+                        exit_reason = "🛡️ 因果特征置信度衰竭保护性离场".to_string();
                     }
                 }
             }
@@ -1172,8 +1262,17 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
         365.0
     };
     let duration_years = duration_days / 365.25;
-    let annualized_return_pct = if duration_years >= 0.08 {
-        (((1.0 + total_return / 100.0).max(0.01)).powf(1.0 / duration_years) - 1.0) * 100.0
+
+    // GIPS 与工业量化准则:
+    // 样本跨度小于 1 年时，严禁使用几何复利指数幂 (避免短周期几何爆炸，如 1 个月涨 300% 被指数幂放大成 39,877%);
+    // 样本小于 1 年使用标准交易日线性年化折算 (Annualized Simple Return);
+    // 样本大于等于 1 年才采用复合年化增长率 (CAGR)。
+    let annualized_return_pct = if duration_years >= 1.0 {
+        let geom_cagr = (((1.0 + total_return / 100.0).max(0.0001)).powf(1.0 / duration_years) - 1.0) * 100.0;
+        geom_cagr.clamp(-100.0, 9999.0)
+    } else if duration_days >= 3.0 {
+        let simple_annual = (total_return / duration_days) * 252.0;
+        simple_annual.clamp(-100.0, 9999.0)
     } else {
         total_return
     };
@@ -1217,7 +1316,7 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
         win_trades_count: wins.len(),
         loss_trades_count: losses.len(),
         profit_loss_ratio: (pl_ratio * 100.0).round() / 100.0,
-        avg_holding_days: (avg_holding * 10.0).round() / 10.0,
+        avg_holding_days: (avg_holding * 100000.0).round() / 100000.0,
         max_drawdown_pct: (max_dd * 100.0).round() / 100.0,
         backtest_period: period_str,
         total_friction_cny: (total_friction * 100.0).round() / 100.0,
