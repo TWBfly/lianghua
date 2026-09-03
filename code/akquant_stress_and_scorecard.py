@@ -96,10 +96,21 @@ class AkquantStressAndScorecardPipeline:
         trades_1x = m_1x.get("closed_trade_count", 0)
         trades_3x = m_3x.get("closed_trade_count", 0)
 
-        # 集中度估算
+        # 集中度真实度量 (基于真实平仓流水动态排序精确计算，彻底拔除硬编码)
+        trades_1x_list = res_1x.get("closed_trades", [])
+        win_pnls = sorted([float(t.get("net_pnl", 0.0)) for t in trades_1x_list if float(t.get("net_pnl", 0.0)) > 0], reverse=True)
+        tot_win = sum(win_pnls)
+        if tot_win > 0:
+            top3_sum = sum(win_pnls[:3])
+            top3_share = (top3_sum / tot_win) * 100.0
+            pnl_without_top3 = net_1x - top3_sum
+        else:
+            top3_share = 0.0
+            pnl_without_top3 = net_1x
+
         concentration_data = {
-            "top3_pnl_share_pct": 35.0, # 默认保守平滑
-            "pnl_without_top3": net_1x * 0.65 if net_1x > 0 else net_1x,
+            "top3_pnl_share_pct": round(top3_share, 2),
+            "pnl_without_top3": round(pnl_without_top3, 2),
             "non_precious_metals_pnl": net_1x if "AG" not in symbol and "AU" not in symbol else 0.0
         }
 

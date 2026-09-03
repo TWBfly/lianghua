@@ -225,12 +225,23 @@ class TripleDifferentialOracle:
                 warnings.append(
                     f"【门禁失败】{other_key} 收益偏差 ({pair_audit['pnl_relative_diff_pct']}%) 超出 5.0% 容差边界！"
                 )
+            if not pair_audit["mdd_tolerance_passed"]:
+                is_passed = False
+                warnings.append(
+                    f"【门禁失败】{other_key} 最大回撤偏差 ({pair_audit['mdd_diff_pct']}%) 超出 3.0% 容差边界！"
+                )
+
+        if len(engine_keys) < 3:
+            warnings.append(f"【降级提醒】当前仅有 {len(engine_keys)} 条引擎轨道参与差分对账 (完整三轨要求: Lianghua + vn.py + AKQuant)")
+            final_status = "PARTIAL_DIFF_PASS" if is_passed else "FAIL_DIFF_GATE"
+        else:
+            final_status = "PASS" if is_passed else "FAIL_DIFF_GATE"
 
         # -------------------------------------------------------------
         # 5. 组装输出报告
         # -------------------------------------------------------------
         return {
-            "status": "PASS" if is_passed else "FAIL_DIFF_GATE",
+            "status": final_status,
             "symbol": symbol,
             "contract_name": spec.name,
             "multiplier": spec.multiplier,

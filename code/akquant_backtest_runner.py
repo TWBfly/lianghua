@@ -158,8 +158,15 @@ class AkquantBacktestRunner:
         pos_lots = 0 # 正数为多，负数为空
         open_time = None
         open_price = 0.0
-        slippage_tick = spec.tick_size
+        slippage_tick = float(custom_params.get("slippage", spec.tick_size)) if custom_params else float(spec.tick_size)
         multiplier = spec.multiplier
+
+        # 真实压力测试成本穿透 (支持 3x 手续费倍率)
+        fee_multiplier = 1.0
+        if custom_params and "commission_rate" in custom_params and spec.fee_rate > 0:
+            fee_multiplier = float(custom_params["commission_rate"]) / float(spec.fee_rate)
+        elif custom_params and "fee_multiplier" in custom_params:
+            fee_multiplier = float(custom_params["fee_multiplier"])
 
         closed_trades: List[Dict[str, Any]] = []
         equity_series: List[float] = []
@@ -187,7 +194,7 @@ class AkquantBacktestRunner:
                         # 平空
                         close_lots = min(abs(pos_lots), target_qty)
                         is_today = is_close_today(open_time, current_dt)
-                        fee = calculate_contract_fee(spec, fill_p, close_lots, is_close_today=is_today)
+                        fee = calculate_contract_fee(spec, fill_p, close_lots, is_close_today=is_today) * fee_multiplier
                         gross_pnl = (open_price - fill_p) * close_lots * multiplier
                         net_pnl = gross_pnl - fee
                         cash += net_pnl
@@ -215,7 +222,7 @@ class AkquantBacktestRunner:
                     if target_qty > 0 and pos_lots == 0:
                         # 新开多仓
                         open_lots = target_qty
-                        fee = calculate_contract_fee(spec, fill_p, open_lots, is_close_today=False)
+                        fee = calculate_contract_fee(spec, fill_p, open_lots, is_close_today=False) * fee_multiplier
                         cash -= fee
                         total_commission += fee
                         total_slippage_cost += slippage_tick * open_lots * multiplier
@@ -230,7 +237,7 @@ class AkquantBacktestRunner:
                         # 平多
                         close_lots = min(pos_lots, target_qty)
                         is_today = is_close_today(open_time, current_dt)
-                        fee = calculate_contract_fee(spec, fill_p, close_lots, is_close_today=is_today)
+                        fee = calculate_contract_fee(spec, fill_p, close_lots, is_close_today=is_today) * fee_multiplier
                         gross_pnl = (fill_p - open_price) * close_lots * multiplier
                         net_pnl = gross_pnl - fee
                         cash += net_pnl
@@ -258,7 +265,7 @@ class AkquantBacktestRunner:
                     if target_qty > 0 and pos_lots == 0:
                         # 新开空仓
                         open_lots = target_qty
-                        fee = calculate_contract_fee(spec, fill_p, open_lots, is_close_today=False)
+                        fee = calculate_contract_fee(spec, fill_p, open_lots, is_close_today=False) * fee_multiplier
                         cash -= fee
                         total_commission += fee
                         total_slippage_cost += slippage_tick * open_lots * multiplier
@@ -308,7 +315,9 @@ class AkquantBacktestRunner:
         strat.on_stop()
 
         # --- 4. 统计与度量指标计算 ---
-        total_pnl = cash - self.initial_cash
+        eq_arr = np.array(equity_series) if equity_series else np.array([self.initial_cash])
+        final_equity = float(eq_arr[-1]) if len(eq_arr) > 0 else cash
+        total_pnl = final_equity - self.initial_cash
         total_return_pct = (total_pnl / self.initial_cash) * 100.0
 
         wins = [t["net_pnl"] for t in closed_trades if t["net_pnl"] > 0]
@@ -320,8 +329,28 @@ class AkquantBacktestRunner:
         tot_loss_rmb = abs(sum(losses))
         profit_factor = (tot_win_rmb / tot_loss_rmb) if tot_loss_rmb > 0 else (99.0 if tot_win_rmb > 0 else 0.0)
 
+        # 计算真实日历跨度并依据 GIPS 标准计算年化收益率
+        if len(df) > 1 and "datetime" in df.columns:
+            try:
+                t0 = pd.to_datetime(df["datetime"].iloc[0])
+                t1 = pd.to_datetime(df["datetime"].iloc[-1])
+                duration_days = max(1.0, (t1 - t0).total_seconds() / 86400.0)
+            except Exception:
+                duration_days = max(1.0, len(df) / 16.0)
+        else:
+            duration_days = max(1.0, len(df) / 16.0)
+
+        duration_years = duration_days / 365.25
+        if duration_years >= 1.0:
+            geom = (((1.0 + total_return_pct / 100.0) ** (1.0 / duration_years)) - 1.0) * 100.0
+            annualized_return = max(-100.0, min(9999.0, geom))
+        elif duration_days >= 3.0:
+            simple = (total_return_pct / duration_days) * 252.0
+            annualized_return = max(-100.0, min(9999.0, simple))
+        else:
+            annualized_return = total_return_pct
+
         # 计算最大回撤
-        eq_arr = np.array(equity_series) if equity_series else np.array([self.initial_cash])
         cummax = np.maximum.accumulate(eq_arr)
         drawdowns = (cummax - eq_arr) / cummax
         max_drawdown_pct = float(np.max(drawdowns)) * 100.0 if len(drawdowns) > 0 else 0.0
@@ -335,10 +364,10 @@ class AkquantBacktestRunner:
 
         metrics = {
             "initial_cash": self.initial_cash,
-            "end_market_value": round(float(eq_arr[-1]), 2),
+            "end_market_value": round(final_equity, 2),
             "total_pnl": round(total_pnl, 2),
             "total_return_pct": round(total_return_pct, 4),
-            "annualized_return": round(total_return_pct, 4),
+            "annualized_return": round(annualized_return, 4),
             "sharpe_ratio": round(sharpe_ratio, 4),
             "max_drawdown_pct": round(max_drawdown_pct, 4),
             "win_rate": round(win_rate, 2),
@@ -353,6 +382,7 @@ class AkquantBacktestRunner:
             "engine": "AKQuant-Python-Deterministic-Engine",
             "symbol": symbol,
             "metrics": metrics,
+            "closed_trades": closed_trades,
             "closed_trades_sample": closed_trades[:10],
             "total_bars_processed": len(df)
         }

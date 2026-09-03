@@ -40,6 +40,7 @@ for p in (CODE_DIR, STRATEGIES_DIR):
 from contract_specs import get_spec, calculate_contract_fee, calculate_contract_margin
 from technical_indicators import calculate_atr
 from causal_chan_engine import CausalChanEngine
+from futures_trading_day import is_close_today
 try:
     from strategies.chanquant_v8_production_strategy import (
         evaluate_chan_signal,
@@ -561,8 +562,11 @@ class StrictCausalSharedPortfolioEngine:
 
     def _close_position(self, pos: StrictPositionV8, exit_price: float, exit_time: str, reason: str, is_oos: bool, spec: Any, b_idx: int, slice_id: int):
         holding_bars = b_idx - pos.entry_bar_idx if b_idx > pos.entry_bar_idx else 1
-        is_close_today = (holding_bars <= 16)
-        exit_fee = calculate_contract_fee(spec, exit_price, pos.lots, is_close_today=is_close_today, cost_multiplier=self.cost_multiplier)
+        try:
+            is_close_today_val = is_close_today(pos.entry_time, exit_time)
+        except Exception:
+            is_close_today_val = (holding_bars <= 16)
+        exit_fee = calculate_contract_fee(spec, exit_price, pos.lots, is_close_today=is_close_today_val, cost_multiplier=self.cost_multiplier)
         exit_slip = 1.0 * self.cost_multiplier * spec.tick_size * spec.multiplier * pos.lots
 
         gross = (exit_price - pos.entry_price) * pos.side * spec.multiplier * pos.lots
