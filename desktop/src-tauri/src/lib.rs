@@ -20,6 +20,8 @@ pub fn run() {
             run_backtest_command,
             run_portfolio_backtest_command,
             run_strategy_dual_track_evaluation_command,
+            get_factor_zoo_command,
+            run_autonomous_factor_research_command,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

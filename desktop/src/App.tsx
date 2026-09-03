@@ -9,6 +9,7 @@ import { BacktestTradeTable } from './components/Backtest/BacktestTradeTable';
 import { BacktestSidebar } from './components/Backtest/BacktestSidebar';
 import { BacktestPortfolioModal } from './components/Backtest/BacktestPortfolioModal';
 import { BacktestDualTrackModal } from './components/Backtest/BacktestDualTrackModal';
+import { BacktestFactorZooModal } from './components/Backtest/BacktestFactorZooModal';
 import {
   ChartMarker,
   BacktestRequest,
@@ -48,6 +49,9 @@ export const App: React.FC = () => {
   const [showDualTrackModal, setShowDualTrackModal] = useState<boolean>(false);
   const [dualTrackLoading, setDualTrackLoading] = useState<boolean>(false);
   const [dualTrackData, setDualTrackData] = useState<DualTrackEvaluationReport | null>(null);
+
+  // Factor Zoo & Autonomous Strategy Research Modal State
+  const [showFactorZooModal, setShowFactorZooModal] = useState<boolean>(false);
 
   // Execute Backtest
   const handleRunBacktest = async (customParams?: Partial<BacktestRequest>) => {
@@ -144,6 +148,7 @@ export const App: React.FC = () => {
           onRunBacktest={handleRunBacktest}
           onOpenPortfolioModal={handleOpenPortfolioModal}
           onOpenDualTrackModal={handleOpenDualTrackModal}
+          onOpenFactorZooModal={() => setShowFactorZooModal(true)}
         />
 
         {/* Backtest Metrics 7 Cards */}
@@ -239,6 +244,17 @@ export const App: React.FC = () => {
             onClose={() => setShowDualTrackModal(false)}
           />
         )}
+
+        {/* Autonomous Factor & Strategy Research Modal (Factor Zoo) */}
+        <BacktestFactorZooModal
+          isOpen={showFactorZooModal}
+          onClose={() => setShowFactorZooModal(false)}
+          onApplyFactorToBacktest={(symbol, strategyId) => {
+            const newParams = { symbol, strategy: strategyId, timeframe: '15m' };
+            setBacktestParams((prev) => ({ ...prev, ...newParams }));
+            handleRunBacktest(newParams);
+          }}
+        />
       </div>
     </div>
   );

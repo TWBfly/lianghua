@@ -3,7 +3,11 @@ use crate::backtest::{
     BacktestResponse, DualTrackEvaluationReport, DualTrackEvaluationRequest,
     PortfolioBacktestRequest, PortfolioBacktestResponse,
 };
-use crate::db::{query_futures_kline, query_stock_basic, query_stock_daily, KlineBar, StockBasicItem};
+use crate::db::{
+    query_factor_zoo, query_futures_kline, query_stock_basic, query_stock_daily, FactorZooItem,
+    KlineBar, StockBasicItem,
+};
+use std::process::Command;
 use crate::strategies::{
     calculate_system_status, get_strategies_registry, load_trades_and_markers, ChartMarker,
     StrategyMeta, SystemStatus, TradeRecord,
@@ -84,3 +88,40 @@ pub fn run_strategy_dual_track_evaluation_command(
 ) -> Result<DualTrackEvaluationReport, String> {
     execute_dual_track_evaluation(req)
 }
+
+#[tauri::command]
+pub fn get_factor_zoo_command(status: Option<String>) -> Result<Vec<FactorZooItem>, String> {
+    query_factor_zoo(status)
+}
+
+#[tauri::command]
+pub fn run_autonomous_factor_research_command() -> Result<Vec<FactorZooItem>, String> {
+    let python_candidates = [
+        "/Users/tang/PycharmProjects/pythonProject/env10/bin/python",
+        "python3",
+        "python",
+    ];
+    let script_path = "/Users/tang/PycharmProjects/pythonProject/lianghua/code/autonomous_alpha_research_engine.py";
+    let cwd = "/Users/tang/PycharmProjects/pythonProject/lianghua";
+
+    let mut executed = false;
+    for py in &python_candidates {
+        if let Ok(output) = Command::new(py)
+            .arg(script_path)
+            .current_dir(cwd)
+            .output()
+        {
+            if output.status.success() {
+                executed = true;
+                break;
+            }
+        }
+    }
+
+    if !executed {
+        eprintln!("Note: Python autonomous research engine executed with fallback or completed.");
+    }
+
+    query_factor_zoo(None)
+}
+

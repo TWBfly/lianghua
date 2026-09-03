@@ -249,6 +249,78 @@ pub fn query_stock_basic(query: &str) -> Result<Vec<StockBasicItem>, String> {
     Ok(list)
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct FactorZooItem {
+    pub factor_id: String,
+    pub name: String,
+    pub family: String,
+    pub hypothesis: String,
+    pub formula_dsl: String,
+    pub total_score: f64,
+    pub grade: String,
+    pub rank_ic: f64,
+    pub icir: f64,
+    pub win_rate: f64,
+    pub sharpe: f64,
+    pub profit_factor: f64,
+    pub max_dd: f64,
+    pub breakeven_cost_mult: f64,
+    pub cross_market_pass_rate: f64,
+    pub tested_symbols: String,
+    pub status: String,
+    pub fail_reason: Option<String>,
+    pub created_at: String,
+}
+
+pub fn query_factor_zoo(status_filter: Option<String>) -> Result<Vec<FactorZooItem>, String> {
+    let db_path = get_db_path();
+    let conn = Connection::open(&db_path).map_err(|e| format!("Failed to open DB: {}", e))?;
+
+    let mut sql = "SELECT factor_id, name, family, hypothesis, formula_dsl, total_score, grade, rank_ic, icir, win_rate, sharpe, profit_factor, max_dd, breakeven_cost_mult, cross_market_pass_rate, tested_symbols, status, fail_reason, created_at FROM factor_zoo".to_string();
+
+    if let Some(ref s) = status_filter {
+        if !s.is_empty() && s != "ALL" {
+            sql.push_str(&format!(" WHERE status = '{}'", s));
+        }
+    }
+    sql.push_str(" ORDER BY total_score DESC");
+
+    let mut stmt = conn.prepare(&sql).map_err(|e| format!("Failed to prepare SQL: {}", e))?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(FactorZooItem {
+                factor_id: row.get(0)?,
+                name: row.get(1)?,
+                family: row.get(2)?,
+                hypothesis: row.get(3)?,
+                formula_dsl: row.get(4)?,
+                total_score: row.get(5)?,
+                grade: row.get(6)?,
+                rank_ic: row.get(7)?,
+                icir: row.get(8)?,
+                win_rate: row.get(9)?,
+                sharpe: row.get(10)?,
+                profit_factor: row.get(11)?,
+                max_dd: row.get(12)?,
+                breakeven_cost_mult: row.get(13)?,
+                cross_market_pass_rate: row.get(14)?,
+                tested_symbols: row.get(15)?,
+                status: row.get(16)?,
+                fail_reason: row.get(17)?,
+                created_at: row.get(18)?,
+            })
+        })
+        .map_err(|e| format!("Query failed: {}", e))?;
+
+    let mut list = Vec::new();
+    for r in rows {
+        if let Ok(item) = r {
+            list.push(item);
+        }
+    }
+    Ok(list)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

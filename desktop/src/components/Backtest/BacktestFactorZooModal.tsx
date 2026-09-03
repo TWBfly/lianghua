@@ -1,0 +1,443 @@
+import React, { useState, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { FactorZooItem } from '../../types';
+import {
+  Dna,
+  Sparkles,
+  CheckCircle2,
+  AlertTriangle,
+  X,
+  ShieldAlert,
+  Copy,
+  Check,
+  Search,
+  ArrowUpRight,
+  BarChart3,
+  Database,
+  Layers,
+  Award,
+  RefreshCw,
+} from 'lucide-react';
+
+interface BacktestFactorZooModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onApplyFactorToBacktest: (symbol: string, strategyId: string) => void;
+}
+
+export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
+  isOpen,
+  onClose,
+  onApplyFactorToBacktest,
+}) => {
+  const [factors, setFactors] = useState<FactorZooItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [researching, setResearching] = useState<boolean>(false);
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [familyFilter, setFamilyFilter] = useState<string>('ALL');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const fetchFactors = async (status?: string) => {
+    try {
+      setLoading(true);
+      const res: FactorZooItem[] = await invoke('get_factor_zoo_command', {
+        status: status === 'ALL' ? null : status,
+      });
+      setFactors(res || []);
+    } catch (err) {
+      console.error('Failed to fetch factor zoo:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchFactors(statusFilter);
+    }
+  }, [isOpen, statusFilter]);
+
+  const handleRunResearch = async () => {
+    try {
+      setResearching(true);
+      const res: FactorZooItem[] = await invoke('run_autonomous_factor_research_command');
+      setFactors(res || []);
+    } catch (err) {
+      console.error('Failed to run autonomous research:', err);
+    } finally {
+      setResearching(false);
+    }
+  };
+
+  const handleCopyFormula = (id: string, formula: string) => {
+    navigator.clipboard.writeText(formula);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  if (!isOpen) return null;
+
+  // Compute metrics
+  const totalCount = factors.length;
+  const excellentCount = factors.filter((f) => f.status === 'EXCELLENT').length;
+  const candidateCount = factors.filter((f) => f.status === 'CANDIDATE').length;
+  const graveyardCount = factors.filter((f) => f.status === 'GRAVEYARD').length;
+  const avgScore = totalCount > 0 ? (factors.reduce((acc, f) => acc + f.total_score, 0) / totalCount).toFixed(1) : '0';
+  const avgIC = totalCount > 0 ? (factors.reduce((acc, f) => acc + f.rank_ic, 0) / totalCount).toFixed(4) : '0';
+
+  // Distinct families
+  const families = ['ALL', ...Array.from(new Set(factors.map((f) => f.family)))];
+
+  // Filtering
+  const filteredFactors = factors.filter((f) => {
+    const matchStatus = statusFilter === 'ALL' || f.status === statusFilter;
+    const matchFamily = familyFilter === 'ALL' || f.family === familyFilter;
+    const matchSearch =
+      searchQuery.trim() === '' ||
+      f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      f.factor_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      f.hypothesis.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchStatus && matchFamily && matchSearch;
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 sm:p-6 overflow-hidden animate-in fade-in duration-200">
+      <div className="relative w-full max-w-6xl max-h-[92vh] flex flex-col bg-[#0d1117] border border-[#30363d] rounded-2xl shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#30363d] bg-[#161b22]">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#58a6ff]/10 border border-[#58a6ff]/30 flex items-center justify-center text-[#58a6ff]">
+              <Dna className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-[#f0f6fc]">
+                  🧬 因子与策略自动研究实验室 (Autonomous Factor Zoo)
+                </h2>
+                <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-[#8957e5]/20 text-[#bc8cff] border border-[#8957e5]/40">
+                  《研究策略.md》第一性原理落地
+                </span>
+              </div>
+              <p className="text-xs text-[#8b949e] mt-0.5">
+                8大 Alpha 家族 • 四大证据链 • 跨期货品种大数矩阵检验 • 3x 极端滑点规费压力测试 • 100分稳健度体检
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleRunResearch}
+              disabled={researching}
+              className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-[#238636] to-[#2ea043] hover:from-[#2ea043] hover:to-[#3fb950] text-white text-xs font-bold flex items-center gap-1.5 transition shadow disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${researching ? 'animate-spin' : ''}`} />
+              <span>{researching ? '全品种矩阵挖掘中...' : '🚀 启动全品种因子挖掘'}</span>
+            </button>
+
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-[#8b949e] hover:text-[#f0f6fc] hover:bg-[#30363d] transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Top KPI Metrics Bar */}
+        <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 px-6 py-3.5 bg-[#161b22]/50 border-b border-[#30363d]">
+          <div className="bg-[#0d1117] p-2.5 rounded-xl border border-[#30363d]">
+            <span className="text-[11px] text-[#8b949e] flex items-center gap-1">
+              <Database className="w-3 h-3 text-[#58a6ff]" /> 已研因子总数
+            </span>
+            <div className="text-lg font-mono font-bold text-[#f0f6fc] mt-0.5">{totalCount} 个</div>
+          </div>
+
+          <div className="bg-[#0d1117] p-2.5 rounded-xl border border-[#238636]/40">
+            <span className="text-[11px] text-[#3fb950] flex items-center gap-1 font-bold">
+              <CheckCircle2 className="w-3 h-3 text-[#3fb950]" /> 👑 优秀因子库
+            </span>
+            <div className="text-lg font-mono font-bold text-[#3fb950] mt-0.5">{excellentCount} 个</div>
+          </div>
+
+          <div className="bg-[#0d1117] p-2.5 rounded-xl border border-[#d29922]/40">
+            <span className="text-[11px] text-[#d29922] flex items-center gap-1 font-bold">
+              <Sparkles className="w-3 h-3 text-[#d29922]" /> 🔬 候选观察池
+            </span>
+            <div className="text-lg font-mono font-bold text-[#d29922] mt-0.5">{candidateCount} 个</div>
+          </div>
+
+          <div className="bg-[#0d1117] p-2.5 rounded-xl border border-[#f85149]/40">
+            <span className="text-[11px] text-[#f85149] flex items-center gap-1 font-bold">
+              <ShieldAlert className="w-3 h-3 text-[#f85149]" /> 🪦 淘汰墓地
+            </span>
+            <div className="text-lg font-mono font-bold text-[#f85149] mt-0.5">{graveyardCount} 个</div>
+          </div>
+
+          <div className="bg-[#0d1117] p-2.5 rounded-xl border border-[#30363d]">
+            <span className="text-[11px] text-[#8b949e] flex items-center gap-1">
+              <Award className="w-3 h-3 text-[#bc8cff]" /> 平均体检总分
+            </span>
+            <div className="text-lg font-mono font-bold text-[#bc8cff] mt-0.5">{avgScore} 分</div>
+          </div>
+
+          <div className="bg-[#0d1117] p-2.5 rounded-xl border border-[#30363d]">
+            <span className="text-[11px] text-[#8b949e] flex items-center gap-1">
+              <BarChart3 className="w-3 h-3 text-[#79c0ff]" /> 平均 Rank IC
+            </span>
+            <div className="text-lg font-mono font-bold text-[#79c0ff] mt-0.5">{avgIC}</div>
+          </div>
+        </div>
+
+        {/* Filter Controls Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-[#30363d] bg-[#0d1117]">
+          {/* Status Tabs */}
+          <div className="flex items-center gap-1.5 bg-[#161b22] p-1 rounded-xl border border-[#30363d]">
+            {[
+              { id: 'ALL', label: '全部' },
+              { id: 'EXCELLENT', label: '👑 优秀因子库' },
+              { id: 'CANDIDATE', label: '🔬 候选池' },
+              { id: 'GRAVEYARD', label: '🪦 淘汰墓地' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setStatusFilter(tab.id)}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
+                  statusFilter === tab.id
+                    ? 'bg-[#58a6ff]/20 text-[#58a6ff] border border-[#58a6ff]/40 shadow-sm'
+                    : 'text-[#8b949e] hover:text-[#f0f6fc] hover:bg-[#21262d]'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Family & Search */}
+          <div className="flex items-center gap-3">
+            {/* Family Dropdown */}
+            <div className="flex items-center gap-1.5 bg-[#161b22] border border-[#30363d] rounded-lg px-2.5 py-1 text-xs">
+              <Layers className="w-3.5 h-3.5 text-[#8b949e]" />
+              <span className="text-[#8b949e]">家族:</span>
+              <select
+                value={familyFilter}
+                onChange={(e) => setFamilyFilter(e.target.value)}
+                className="bg-transparent text-[#f0f6fc] font-bold focus:outline-none cursor-pointer"
+              >
+                {families.map((fam) => (
+                  <option key={fam} value={fam} className="bg-[#161b22] text-[#f0f6fc]">
+                    {fam === 'ALL' ? '全部分类 (All Families)' : fam}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Search Box */}
+            <div className="relative flex items-center">
+              <Search className="w-3.5 h-3.5 text-[#8b949e] absolute left-2.5 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="搜索因子名/代码/假设..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-[#161b22] border border-[#30363d] rounded-lg pl-8 pr-3 py-1 text-xs text-[#f0f6fc] placeholder-[#8b949e] focus:outline-none focus:border-[#58a6ff] w-48 transition"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Main Factors List Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 text-[#8b949e]">
+              <RefreshCw className="w-8 h-8 animate-spin text-[#58a6ff] mb-3" />
+              <p className="text-sm">正在加载本地数据库 SQLite 因子知识库...</p>
+            </div>
+          ) : filteredFactors.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-[#8b949e]">
+              <AlertTriangle className="w-8 h-8 text-[#d29922] mb-3" />
+              <p className="text-sm">未检索到匹配的量化因子，请调整筛选条件或点击右上角重新挖掘。</p>
+            </div>
+          ) : (
+            filteredFactors.map((f) => {
+              const isExcellent = f.status === 'EXCELLENT';
+              const isCandidate = f.status === 'CANDIDATE';
+              const isGraveyard = f.status === 'GRAVEYARD';
+
+              return (
+                <div
+                  key={f.factor_id}
+                  className={`bg-[#161b22] border rounded-2xl p-4 transition duration-200 hover:border-[#58a6ff]/50 ${
+                    isExcellent
+                      ? 'border-[#238636]/60 shadow-[0_0_15px_rgba(46,160,67,0.1)]'
+                      : isCandidate
+                      ? 'border-[#d29922]/50'
+                      : 'border-[#f85149]/40 opacity-80'
+                  }`}
+                >
+                  {/* Card Header */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#30363d]/60 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <span className="font-mono text-xs px-2 py-0.5 rounded bg-[#21262d] text-[#8b949e] border border-[#30363d]">
+                        {f.factor_id}
+                      </span>
+                      <h3 className="text-sm font-bold text-[#f0f6fc]">{f.name}</h3>
+                      <span className="text-[11px] px-2 py-0.5 rounded bg-[#30363d]/60 text-[#c9d1d9]">
+                        {f.family}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {/* Score Badge */}
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-xs font-mono font-bold border ${
+                          isExcellent
+                            ? 'bg-[#238636]/20 text-[#3fb950] border-[#238636]/60'
+                            : isCandidate
+                            ? 'bg-[#d29922]/20 text-[#d29922] border-[#d29922]/60'
+                            : 'bg-[#f85149]/20 text-[#f85149] border-[#f85149]/60'
+                        }`}
+                      >
+                        {f.grade} 级 • {f.total_score} 分
+                      </span>
+
+                      {/* Status Tag */}
+                      <span
+                        className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                          isExcellent
+                            ? 'bg-[#3fb950]/20 text-[#3fb950]'
+                            : isCandidate
+                            ? 'bg-[#d29922]/20 text-[#d29922]'
+                            : 'bg-[#f85149]/20 text-[#f85149]'
+                        }`}
+                      >
+                        {isExcellent ? '👑 优秀因子' : isCandidate ? '🔬 观察候选' : '🪦 淘汰入墓'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Economic Hypothesis */}
+                  <div className="mt-3 text-xs leading-relaxed text-[#c9d1d9] bg-[#0d1117] p-2.5 rounded-xl border border-[#30363d]/60">
+                    <span className="text-[#58a6ff] font-bold mr-1.5">💡 经济机制假设:</span>
+                    <span className="italic">{f.hypothesis}</span>
+                  </div>
+
+                  {/* Formula DSL */}
+                  <div className="mt-2.5 flex items-center justify-between gap-2 bg-[#0d1117] px-3 py-1.5 rounded-lg border border-[#30363d]/60 font-mono text-[11px] text-[#79c0ff]">
+                    <div className="truncate">
+                      <span className="text-[#8b949e] select-none mr-2">DSL:</span>
+                      {f.formula_dsl}
+                    </div>
+                    <button
+                      onClick={() => handleCopyFormula(f.factor_id, f.formula_dsl)}
+                      className="p-1 text-[#8b949e] hover:text-[#f0f6fc] transition"
+                      title="复制公式"
+                    >
+                      {copiedId === f.factor_id ? (
+                        <Check className="w-3.5 h-3.5 text-[#3fb950]" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Fail Reason if Graveyard */}
+                  {isGraveyard && f.fail_reason && (
+                    <div className="mt-2.5 flex items-center gap-2 bg-[#f85149]/10 border border-[#f85149]/30 px-3 py-1.5 rounded-lg text-xs text-[#f85149]">
+                      <ShieldAlert className="w-4 h-4 shrink-0" />
+                      <span>硬性门禁违规记录: {f.fail_reason}</span>
+                    </div>
+                  )}
+
+                  {/* Metrics Row & Action */}
+                  <div className="mt-3.5 pt-3 border-t border-[#30363d]/40 flex flex-wrap items-center justify-between gap-4">
+                    {/* Metrics Grid */}
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs">
+                      <div>
+                        <span className="text-[#8b949e]">Rank IC: </span>
+                        <span className="font-mono font-bold text-[#f0f6fc]">{f.rank_ic}</span>
+                      </div>
+                      <div>
+                        <span className="text-[#8b949e]">ICIR: </span>
+                        <span className="font-mono font-bold text-[#f0f6fc]">{f.icir}</span>
+                      </div>
+                      <div>
+                        <span className="text-[#8b949e]">回测胜率: </span>
+                        <span
+                          className={`font-mono font-bold ${
+                            f.win_rate >= 50 ? 'text-[#3fb950]' : 'text-[#f85149]'
+                          }`}
+                        >
+                          {f.win_rate}%
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[#8b949e]">夏普比率: </span>
+                        <span
+                          className={`font-mono font-bold ${
+                            f.sharpe >= 1.5 ? 'text-[#3fb950]' : 'text-[#d29922]'
+                          }`}
+                        >
+                          {f.sharpe}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[#8b949e]">3x成本耐受: </span>
+                        <span
+                          className={`font-mono font-bold ${
+                            f.breakeven_cost_mult >= 2.0 ? 'text-[#3fb950]' : 'text-[#f85149]'
+                          }`}
+                        >
+                          {f.breakeven_cost_mult}x
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[#8b949e]">跨品种正收益率: </span>
+                        <span
+                          className={`font-mono font-bold ${
+                            f.cross_market_pass_rate >= 60 ? 'text-[#3fb950]' : 'text-[#d29922]'
+                          }`}
+                        >
+                          {f.cross_market_pass_rate}%
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Apply Button */}
+                    <button
+                      onClick={() => {
+                        let stratId = 'taichong_elastoplastic_tensor';
+                        if (f.factor_id.includes('MOM') || f.factor_id.includes('TQ')) {
+                          stratId = 'causal_ml';
+                        } else if (f.factor_id.includes('BRK') || f.factor_id.includes('COMP_003')) {
+                          stratId = 'chandelier_exit';
+                        } else if (f.factor_id.includes('MR')) {
+                          stratId = 'guiyuan_zscore_reversion';
+                        }
+                        onApplyFactorToBacktest('AU_IDX', stratId);
+                        onClose();
+                      }}
+                      className="px-3 py-1 rounded-lg bg-[#58a6ff]/15 hover:bg-[#58a6ff]/25 text-[#58a6ff] border border-[#58a6ff]/30 text-xs font-bold flex items-center gap-1.5 transition ml-auto"
+                    >
+                      <span>📊 一键应用至主图回测</span>
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-3 border-t border-[#30363d] bg-[#161b22] flex items-center justify-between text-xs text-[#8b949e]">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#3fb950]" />
+            <span>数据源: 本地 SQLite 真实分时数据 (data/ashare_quant.db) • 严格次柱开盘成交</span>
+          </div>
+          <span>天极量化因果科研实验室 • V4.0</span>
+        </div>
+      </div>
+    </div>
+  );
+};

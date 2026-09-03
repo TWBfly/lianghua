@@ -269,3 +269,26 @@ export interface DualTrackEvaluationReport {
   optimization_suggestions: OptimizationItem[];
   executive_verdict: ExecutiveVerdict;
 }
+
+export interface FactorZooItem {
+  factor_id: string;
+  name: string;
+  family: string;
+  hypothesis: string;
+  formula_dsl: string;
+  total_score: number;
+  grade: string;
+  rank_ic: number;
+  icir: number;
+  win_rate: number;
+  sharpe: number;
+  profit_factor: number;
+  max_dd: number;
+  breakeven_cost_mult: number;
+  cross_market_pass_rate: number;
+  tested_symbols: string;
+  status: 'EXCELLENT' | 'CANDIDATE' | 'GRAVEYARD';
+  fail_reason?: string | null;
+  created_at: string;
+}
+

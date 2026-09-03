@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play, RotateCcw, Calendar, Settings2, Clock, Plus, Database, Award, ShieldCheck, Scale } from 'lucide-react';
+import { Play, RotateCcw, Calendar, Settings2, Clock, Plus, Database, Award, ShieldCheck, Scale, Dna } from 'lucide-react';
 import { BacktestRequest } from '../../types';
 
 interface BacktestControlBarProps {
@@ -10,6 +10,7 @@ interface BacktestControlBarProps {
   onRunBacktest: (params?: Partial<BacktestRequest>) => void;
   onOpenPortfolioModal: () => void;
   onOpenDualTrackModal: () => void;
+  onOpenFactorZooModal?: () => void;
 }
 
 const STRATEGY_OPTIONS = [
@@ -33,6 +34,7 @@ export const BacktestControlBar: React.FC<BacktestControlBarProps> = ({
   onRunBacktest,
   onOpenPortfolioModal,
   onOpenDualTrackModal,
+  onOpenFactorZooModal,
 }) => {
   const [showCustomTf, setShowCustomTf] = useState(false);
   const [customTfInput, setCustomTfInput] = useState('');
@@ -213,6 +215,18 @@ export const BacktestControlBar: React.FC<BacktestControlBarProps> = ({
             <Award className="w-3.5 h-3.5" />
             <span>全品种大数矩阵战报 (1000+笔)</span>
           </button>
+
+          {/* Factor Zoo Modal Button */}
+          {onOpenFactorZooModal && (
+            <button
+              onClick={onOpenFactorZooModal}
+              className="px-3 py-1.5 rounded-lg bg-[#238636]/20 hover:bg-[#238636]/30 text-[#3fb950] border border-[#238636]/50 text-xs font-bold flex items-center gap-1.5 transition shadow"
+              title="查看本地数据库中保存的优秀因子、跨品种回测表现与因子墓地淘汰记录"
+            >
+              <Dna className="w-3.5 h-3.5" />
+              <span>🧬 因子实验室 (Factor Zoo)</span>
+            </button>
+          )}
 
           {/* Run Backtest Button */}
           <button
