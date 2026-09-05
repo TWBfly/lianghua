@@ -79,7 +79,7 @@ def calculate_performance(daily_results, initial_capital, annual_days=252):
     calmar = annual_return / max_drawdown if max_drawdown else 0.0
 
     peak_date = dates.iloc[0]
-    peak_equity = float(frame["end_equity"].iloc[0])
+    peak_equity = float(initial_capital)
     max_duration = 0
     for date, equity in zip(dates, frame["end_equity"].astype(float)):
         if equity >= peak_equity:
@@ -163,7 +163,7 @@ def run_monte_carlo_analysis(daily_results, n_simulations: int = 1000,
         sharpe = (np.mean(sampled) / std * np.sqrt(annual_days)) if std > 0 else 0.0
         win_rate = float(np.mean(sampled > 0))
 
-        cum_equity = np.cumprod(1.0 + sampled)
+        cum_equity = np.insert(np.cumprod(1.0 + sampled), 0, 1.0)
         peak = np.maximum.accumulate(cum_equity)
         drawdown = (peak - cum_equity) / peak
         max_dd = float(np.max(drawdown)) if len(drawdown) > 0 else 0.0

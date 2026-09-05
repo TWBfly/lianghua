@@ -462,7 +462,7 @@ def simulate_portfolio(market, decisions, initial_cash,
                         date,
                         daily_volume=exec_volume,
                     )
-                    if gross + buy_fees <= cash:
+                    if (gross + buy_fees <= cash) and (gross <= target_value) and (gross <= exposure_room):
                         break
                     shares -= share_step
                 if shares < minimum_shares:

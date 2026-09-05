@@ -254,6 +254,7 @@ def run_strategy_causal_backtest(
         curr_l = round_to_tick(lows[i], tick_size)
         curr_c = round_to_tick(closes[i], tick_size)
         prev_c = round_to_tick(closes[i - 1], tick_size)
+        exited_this_bar = False
 
         # 涨跌停板检测 (涨停无卖单，跌停无买单)
         is_limit_up = (curr_h - curr_l < 1e-4) and (curr_c >= prev_c * 1.059)
@@ -265,6 +266,10 @@ def run_strategy_causal_backtest(
             is_expired = ((i - entry_idx) >= holding_bars_max)
 
             # 动态盯市计算开盘/盘中权益
+            open_pnl = (curr_o - entry_p) * multiplier * current_lots
+            open_equity = cash + margin_occupied + open_pnl
+            is_open_liq = (margin_occupied / max(open_equity, 1e-6) >= 1.20 or open_equity <= margin_occupied * 0.5)
+
             unrealized_pnl = (curr_c - entry_p) * multiplier * current_lots
             curr_equity = cash + margin_occupied + unrealized_pnl
             risk_ratio = margin_occupied / max(curr_equity, 1e-6)
@@ -273,6 +278,9 @@ def run_strategy_causal_backtest(
             if (is_stopped or is_expired or is_force_liq) and not is_limit_down:
                 if is_force_liq:
                     force_liquidations += 1
+                    raw_exit = curr_o if is_open_liq else curr_c
+                elif is_expired:
+                    # 定时到期：开盘退出
                     raw_exit = curr_o
                 elif curr_o <= stop_p:
                     # 跳空低开：以跳空开盘价成交
@@ -310,6 +318,7 @@ def run_strategy_causal_backtest(
                     net_return_atr=(exit_p - entry_p) / curr_atr,
                 ))
                 position = 0
+                exited_this_bar = True
 
                 if cash <= 0:
                     bankruptcy_events += 1
@@ -333,6 +342,10 @@ def run_strategy_causal_backtest(
             is_stopped = (curr_h >= stop_p)
             is_expired = ((i - entry_idx) >= holding_bars_max)
 
+            open_pnl = (entry_p - curr_o) * multiplier * current_lots
+            open_equity = cash + margin_occupied + open_pnl
+            is_open_liq = (margin_occupied / max(open_equity, 1e-6) >= 1.20 or open_equity <= margin_occupied * 0.5)
+
             unrealized_pnl = (entry_p - curr_c) * multiplier * current_lots
             curr_equity = cash + margin_occupied + unrealized_pnl
             risk_ratio = margin_occupied / max(curr_equity, 1e-6)
@@ -341,6 +354,9 @@ def run_strategy_causal_backtest(
             if (is_stopped or is_expired or is_force_liq) and not is_limit_up:
                 if is_force_liq:
                     force_liquidations += 1
+                    raw_exit = curr_o if is_open_liq else curr_c
+                elif is_expired:
+                    # 定时到期：开盘退出
                     raw_exit = curr_o
                 elif curr_o >= stop_p:
                     # 跳空高开：以跳空开盘价成交
@@ -377,6 +393,7 @@ def run_strategy_causal_backtest(
                     net_return_atr=(entry_p - exit_p) / curr_atr,
                 ))
                 position = 0
+                exited_this_bar = True
 
                 if cash <= 0:
                     bankruptcy_events += 1
@@ -395,7 +412,7 @@ def run_strategy_causal_backtest(
                     break
 
         # 3. 开仓决策 (第 t-1 根 Bar 信号 -> 第 t 根 Bar 开盘 Open 撮合)
-        if position == 0 and not is_bankrupt:
+        if position == 0 and not is_bankrupt and not exited_this_bar:
             sig = sig_vals[i - 1]
             if sig != 0:
                 if (sig > 0 and is_limit_up) or (sig < 0 and is_limit_down):

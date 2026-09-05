@@ -40,10 +40,14 @@ def validate_daily_bars(frame: pd.DataFrame,
     except (TypeError, ValueError) as exc:
         raise MarketDataError(f"invalid bar value: {exc}") from exc
 
+    if clean["trade_date"].isna().any():
+        raise MarketDataError("trade_date contains null or NaT")
     if clean["trade_date"].duplicated().any():
         raise MarketDataError("duplicate trade_date")
     if not np.isfinite(clean[numeric].to_numpy(dtype=float)).all():
         raise MarketDataError("non-finite bar value")
+    if (clean[["open", "high", "low", "close"]] <= 0).any().any():
+        raise MarketDataError("prices must be positive")
     if (clean[["volume", "amount"]] < 0).any().any():
         raise MarketDataError("volume and amount must be non-negative")
     if (

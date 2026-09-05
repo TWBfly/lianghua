@@ -15,7 +15,10 @@ import time
 from pathlib import Path
 import pandas as pd
 import numpy as np
-from tqsdk import TqApi, TqAuth
+try:
+    from tqsdk import TqApi, TqAuth
+except ImportError:
+    TqApi, TqAuth = None, None
 from runtime_credentials import load_required_credentials
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -26,34 +29,36 @@ DB_PATH = DATA_DIR / "ashare_quant.db"
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(message)s")
 logger = logging.getLogger("KlineSync")
 
+BEIJING_TZ = datetime.timezone(datetime.timedelta(hours=8))
+
 SYMBOL_MAP = {
     # 15m 品种
-    ("AG_IDX", "15m", 900): "KQ.i@SHFE.ag",
-    ("AU_IDX", "15m", 900): "KQ.i@SHFE.au",
-    ("CU_IDX", "15m", 900): "KQ.i@SHFE.cu",
-    ("LC_IDX", "15m", 900): "KQ.i@GFEX.lc",
-    ("P_IDX",  "15m", 900): "KQ.i@DCE.p",
-    ("SC_IDX", "15m", 900): "KQ.i@INE.sc",
-    ("TA_IDX", "15m", 900): "KQ.i@CZCE.TA",
-    ("MA_IDX", "15m", 900): "KQ.i@CZCE.MA",
-    ("SA_IDX", "15m", 900): "KQ.i@CZCE.SA",
-    ("HC_IDX", "15m", 900): "KQ.i@SHFE.hc",
-    ("RB_IDX", "15m", 900): "KQ.i@SHFE.rb",
-    ("RU_IDX", "15m", 900): "KQ.i@SHFE.ru",
-    ("J_IDX",  "15m", 900): "KQ.i@DCE.j",
+    ("AG_IDX", "15m", 900): "KQ.m@SHFE.ag",
+    ("AU_IDX", "15m", 900): "KQ.m@SHFE.au",
+    ("CU_IDX", "15m", 900): "KQ.m@SHFE.cu",
+    ("LC_IDX", "15m", 900): "KQ.m@GFEX.lc",
+    ("P_IDX",  "15m", 900): "KQ.m@DCE.p",
+    ("SC_IDX", "15m", 900): "KQ.m@INE.sc",
+    ("TA_IDX", "15m", 900): "KQ.m@CZCE.TA",
+    ("MA_IDX", "15m", 900): "KQ.m@CZCE.MA",
+    ("SA_IDX", "15m", 900): "KQ.m@CZCE.SA",
+    ("HC_IDX", "15m", 900): "KQ.m@SHFE.hc",
+    ("RB_IDX", "15m", 900): "KQ.m@SHFE.rb",
+    ("RU_IDX", "15m", 900): "KQ.m@SHFE.ru",
+    ("J_IDX",  "15m", 900): "KQ.m@DCE.j",
     # 10m 品种
-    ("SN_IDX", "10m", 600): "KQ.i@SHFE.sn",
-    ("AU_IDX", "10m", 600): "KQ.i@SHFE.au",
-    ("AG_IDX", "10m", 600): "KQ.i@SHFE.ag",
-    ("P_IDX",  "10m", 600): "KQ.i@DCE.p",
-    ("MA_IDX", "10m", 600): "KQ.i@CZCE.MA",
+    ("SN_IDX", "10m", 600): "KQ.m@SHFE.sn",
+    ("AU_IDX", "10m", 600): "KQ.m@SHFE.au",
+    ("AG_IDX", "10m", 600): "KQ.m@SHFE.ag",
+    ("P_IDX",  "10m", 600): "KQ.m@DCE.p",
+    ("MA_IDX", "10m", 600): "KQ.m@CZCE.MA",
     # 30m 品种
-    ("SC_IDX", "30m", 1800): "KQ.i@INE.sc",
-    ("LC_IDX", "30m", 1800): "KQ.i@GFEX.lc",
-    ("J_IDX",  "30m", 1800): "KQ.i@DCE.j",
-    ("AL_IDX", "30m", 1800): "KQ.i@SHFE.al",
-    ("TA_IDX", "30m", 1800): "KQ.i@CZCE.TA",
-    ("SI_IDX", "30m", 1800): "KQ.i@GFEX.si",
+    ("SC_IDX", "30m", 1800): "KQ.m@INE.sc",
+    ("LC_IDX", "30m", 1800): "KQ.m@GFEX.lc",
+    ("J_IDX",  "30m", 1800): "KQ.m@DCE.j",
+    ("AL_IDX", "30m", 1800): "KQ.m@SHFE.al",
+    ("TA_IDX", "30m", 1800): "KQ.m@CZCE.TA",
+    ("SI_IDX", "30m", 1800): "KQ.m@GFEX.si",
 }
 
 
@@ -100,7 +105,8 @@ def sync_all_klines():
         db_records = []
         for _, r in kl_df.iterrows():
             dt_ns = r["datetime"]
-            dt_str = datetime.datetime.fromtimestamp(dt_ns / 1e9).strftime("%Y-%m-%d %H:%M:%S")
+            dt_beijing = datetime.datetime.fromtimestamp(dt_ns / 1e9, tz=datetime.timezone.utc).astimezone(BEIJING_TZ)
+            dt_str = dt_beijing.strftime("%Y-%m-%d %H:%M:%S")
             o = float(r["open"])
             h = float(r["high"])
             l = float(r["low"])
@@ -130,6 +136,19 @@ def sync_all_klines():
             (symbol, timeframe, trade_time, open, high, low, close, volume, open_interest)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, db_records)
+
+        # 同步更新元数据行数与时段
+        cursor.execute("""
+            SELECT COUNT(*), MIN(trade_time), MAX(trade_time)
+            FROM futures_min_bars
+            WHERE symbol = ? AND timeframe = ?
+        """, (sym, tf))
+        cnt, st, et = cursor.fetchone()
+        cursor.execute("""
+            UPDATE futures_series_metadata
+            SET row_count = ?, start_time = ?, end_time = ?, imported_at = ?
+            WHERE symbol = ? AND timeframe = ?
+        """, (cnt, st, et, datetime.datetime.now(BEIJING_TZ).strftime("%Y-%m-%d %H:%M:%S"), sym, tf))
 
     conn.commit()
     conn.close()

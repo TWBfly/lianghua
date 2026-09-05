@@ -117,6 +117,7 @@ class ResearchConfig:
     thresholds: tuple = (0.52, 0.55, 0.58)
     costs_bps: tuple = (0, 2, 5, 10, 15, 20)
     seed: int = 42
+    preserve_causal_decisions: bool = False
 
 
 class ResearchRejected(ValueError):
@@ -996,7 +997,10 @@ def build_causal_dataset(segmented, config=ResearchConfig()) -> pd.DataFrame:
     all_features = pd.concat(feature_frames).sort_index()
     features = all_features.loc[ordered.index]
     assert_feature_columns(features)
-    groups = ordered.groupby(["symbol", "segment_id"], sort=False)
+    if getattr(config, "preserve_causal_decisions", False):
+        groups = ordered.groupby("symbol", sort=False)
+    else:
+        groups = ordered.groupby(["symbol", "segment_id"], sort=False)
     entry_time = groups["trade_time"].shift(-1)
     entry_open = groups["open"].shift(-1)
     exit_time = groups["trade_time"].shift(-(config.horizon + 1))
@@ -1070,7 +1074,7 @@ def make_temporal_partitions(dataset, config=ResearchConfig()):
         TemporalFold(f"outer_{number}", development[:initial + sum(len(window) for window in windows[:number - 1])], window)
         for number, window in enumerate(windows, start=1)
     ]
-    evaluation_windows = [fold.evaluation_times for fold in outer_folds] + [holdout_times]
+    evaluation_windows = [fold.evaluation_times for fold in outer_folds]
     eligible = set(dataset["symbol"].dropna().unique())
     for window in evaluation_windows:
         counts = dataset.loc[dataset["decision_time"].isin(window), "symbol"].value_counts()

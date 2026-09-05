@@ -158,6 +158,7 @@ class AkquantBacktestRunner:
         pos_lots = 0 # 正数为多，负数为空
         open_time = None
         open_price = 0.0
+        open_fee = 0.0
         slippage_tick = float(custom_params.get("slippage", spec.tick_size)) if custom_params else float(spec.tick_size)
         multiplier = spec.multiplier
 
@@ -194,11 +195,13 @@ class AkquantBacktestRunner:
                         # 平空
                         close_lots = min(abs(pos_lots), target_qty)
                         is_today = is_close_today(open_time, current_dt)
-                        fee = calculate_contract_fee(spec, fill_p, close_lots, is_close_today=is_today) * fee_multiplier
+                        exit_fee = calculate_contract_fee(spec, fill_p, close_lots, is_close_today=is_today) * fee_multiplier
+                        entry_fee_share = open_fee * (close_lots / abs(pos_lots)) if abs(pos_lots) > 0 else 0.0
+                        open_fee -= entry_fee_share
                         gross_pnl = (open_price - fill_p) * close_lots * multiplier
-                        net_pnl = gross_pnl - fee
-                        cash += net_pnl
-                        total_commission += fee
+                        net_pnl = gross_pnl - entry_fee_share - exit_fee
+                        cash += (gross_pnl - exit_fee)
+                        total_commission += exit_fee
                         total_slippage_cost += slippage_tick * close_lots * multiplier
 
                         closed_trades.append({
@@ -210,14 +213,16 @@ class AkquantBacktestRunner:
                             "close_price": fill_p,
                             "lots": close_lots,
                             "gross_pnl": gross_pnl,
-                            "fee": fee,
+                            "fee": entry_fee_share + exit_fee,
                             "net_pnl": net_pnl,
                             "is_close_today": is_today
                         })
                         pos_lots += close_lots
+                        target_qty -= close_lots
                         if pos_lots == 0:
                             open_time = None
                             open_price = 0.0
+                            open_fee = 0.0
 
                     if target_qty > 0 and pos_lots == 0:
                         # 新开多仓
@@ -229,6 +234,7 @@ class AkquantBacktestRunner:
                         pos_lots = open_lots
                         open_price = fill_p
                         open_time = current_dt
+                        open_fee = fee
 
                 elif action_type == "SELL":
                     # 平多或开空
@@ -237,11 +243,13 @@ class AkquantBacktestRunner:
                         # 平多
                         close_lots = min(pos_lots, target_qty)
                         is_today = is_close_today(open_time, current_dt)
-                        fee = calculate_contract_fee(spec, fill_p, close_lots, is_close_today=is_today) * fee_multiplier
+                        exit_fee = calculate_contract_fee(spec, fill_p, close_lots, is_close_today=is_today) * fee_multiplier
+                        entry_fee_share = open_fee * (close_lots / pos_lots) if pos_lots > 0 else 0.0
+                        open_fee -= entry_fee_share
                         gross_pnl = (fill_p - open_price) * close_lots * multiplier
-                        net_pnl = gross_pnl - fee
-                        cash += net_pnl
-                        total_commission += fee
+                        net_pnl = gross_pnl - entry_fee_share - exit_fee
+                        cash += (gross_pnl - exit_fee)
+                        total_commission += exit_fee
                         total_slippage_cost += slippage_tick * close_lots * multiplier
 
                         closed_trades.append({
@@ -253,14 +261,16 @@ class AkquantBacktestRunner:
                             "close_price": fill_p,
                             "lots": close_lots,
                             "gross_pnl": gross_pnl,
-                            "fee": fee,
+                            "fee": entry_fee_share + exit_fee,
                             "net_pnl": net_pnl,
                             "is_close_today": is_today
                         })
                         pos_lots -= close_lots
+                        target_qty -= close_lots
                         if pos_lots == 0:
                             open_time = None
                             open_price = 0.0
+                            open_fee = 0.0
 
                     if target_qty > 0 and pos_lots == 0:
                         # 新开空仓
@@ -272,6 +282,7 @@ class AkquantBacktestRunner:
                         pos_lots = -open_lots
                         open_price = fill_p
                         open_time = current_dt
+                        open_fee = fee
 
                 pending_action = None
 

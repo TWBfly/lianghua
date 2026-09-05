@@ -210,13 +210,20 @@ def validate_futures_contract(conn: sqlite3.Connection, symbol: str, timeframe: 
     # 2. 检查实际表记录与元数据一致性
     actual = cursor.execute("""
         SELECT COUNT(*), MIN(trade_time), MAX(trade_time),
-               SUM(CASE WHEN volume = 0 OR volume IS NULL THEN 1 ELSE 0 END),
-               SUM(CASE WHEN high < low OR high < open OR high < close OR low > open OR low > close OR close <= 0 THEN 1 ELSE 0 END)
+               SUM(CASE WHEN volume = 0 THEN 1 ELSE 0 END),
+               SUM(CASE
+                   WHEN open IS NULL OR high IS NULL OR low IS NULL OR close IS NULL OR volume IS NULL
+                     OR open <= 0 OR high <= 0 OR low <= 0 OR close <= 0
+                     OR volume < 0
+                     OR high < low OR high < open OR high < close OR low > open OR low > close
+                   THEN 1 ELSE 0 END)
         FROM futures_min_bars
         WHERE symbol = ? AND timeframe = ?
     """, (value, tf)).fetchone()
 
     actual_cnt, actual_start, actual_end, zero_vol_cnt, ohlc_err_cnt = actual
+    ohlc_err_cnt = ohlc_err_cnt or 0
+    zero_vol_cnt = zero_vol_cnt or 0
     if actual_cnt != provenance["row_count"]:
         raise DataContractError(f"期货标的 [{value} {tf}] 表内行数 ({actual_cnt}) 与元数据声明 ({provenance['row_count']}) 不一致！", "ROW_COUNT_MISMATCH")
 
@@ -224,7 +231,7 @@ def validate_futures_contract(conn: sqlite3.Connection, symbol: str, timeframe: 
         raise DataContractError(f"期货标的 [{value} {tf}] 表内时段与元数据声明不一致！", "TIME_RANGE_MISMATCH")
 
     if ohlc_err_cnt > 0:
-        raise DataContractError(f"期货标的 [{value} {tf}] 发现 {ohlc_err_cnt} 处 OHLC 物理几何倒挂或非正价格！", "OHLC_INVARIANT_VIOLATION")
+        raise DataContractError(f"期货标的 [{value} {tf}] 发现 {ohlc_err_cnt} 处数据损坏、缺失、几何倒挂或非正价格/负成交量！", "OHLC_INVARIANT_VIOLATION")
 
     if zero_vol_cnt / max(1, actual_cnt) > 0.05:
         raise DataContractError(f"期货标的 [{value} {tf}] 零成交量占比高达 {zero_vol_cnt/actual_cnt*100:.1f}%，违反流动性契约！", "ILLIQUID_ASSET")

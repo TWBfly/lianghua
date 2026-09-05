@@ -420,12 +420,6 @@ class DecoupledSymbolStrategyRunner:
             else:
                 last_contract = curr_contract
 
-            unrealized = (curr_p - entry_p) * multiplier * lots if pos == 1 else (
-                (entry_p - curr_p) * multiplier * lots if pos == -1 else 0.0
-            )
-            eq_curve.append(max(0.0, capital + unrealized))
-            datetime_list.append(curr_dt)
-
             if pos != 0:
                 holding_bars += 1
                 unrealized_atr = (curr_p - entry_p) / curr_atr if pos == 1 else (entry_p - curr_p) / curr_atr
@@ -442,42 +436,13 @@ class DecoupledSymbolStrategyRunner:
 
             # 达利欧非对称盈亏比与 PPO 自适应减半锁利
             if pos == 1:
-                highest_p = max(highest_p, curr_h)
-                profit_atrs = (highest_p - entry_p) / curr_atr
-                if profit_atrs >= be_atr_mult:
-                    sl_p = max(sl_p, entry_p + be_lock_offset * curr_atr)
-                if profit_atrs >= trail_atr_mult:
-                    sl_p = max(sl_p, highest_p - 1.2 * curr_atr)
-
-                # PPO 锁利微调：当利润达到 3.5 ATR 且未减仓时，若 lots > 1 则执行减半锁利
-                if ppo_act == 2 and not half_locked and lots >= 2:
-                    half_lots = lots // 2
-                    lock_pnl = (curr_p - entry_p) * multiplier * half_lots - (curr_p + entry_p) * multiplier * half_lots * fee_rate
-                    capital += lock_pnl
-                    lots -= half_lots
-                    half_locked = True
-                    trades.append({
-                        "symbol": symbol,
-                        "name": cfg["name"],
-                        "pos_side": "做多 (LONG)",
-                        "lots": half_lots,
-                        "entry_dt": entry_time,
-                        "entry_price": round(float(entry_p), 2),
-                        "entry_reason": entry_reason_desc,
-                        "exit_dt": curr_dt,
-                        "exit_price": round(float(curr_p), 2),
-                        "exit_reason": f"PPO 阶梯减半锁利 (浮盈达 {profit_atrs:.1f} ATR，锁定 50% 仓位利润)",
-                        "pnl_rmb": round(float(lock_pnl), 2),
-                        "return_pct": round((curr_p - entry_p) / entry_p * 100, 2),
-                        "holding_bars": holding_bars,
-                        "type": "LONG_PPO_LOCK"
-                    })
-
                 if curr_l <= sl_p:
-                    exit_p = sl_p - slippage
+                    # 触发止损/止盈离场 (严格基于上一根 Bar 已固化的防守线)
+                    raw_exit = curr_o if curr_o <= sl_p else sl_p
+                    exit_p = max(curr_l - slippage, min(curr_h, raw_exit - slippage))
                     pnl = (exit_p - entry_p) * multiplier * lots - (abs(exit_p) + abs(entry_p)) * multiplier * lots * fee_rate
                     capital += pnl
-                    
+                    profit_atrs = (highest_p - entry_p) / curr_atr
                     if profit_atrs >= trail_atr_mult:
                         exit_desc = f"PPO 吊灯追踪止盈 (最高价 {highest_p:.2f} 回撤 1.2 ATR 触发止盈线 {sl_p:.2f})"
                     elif profit_atrs >= be_atr_mult:
@@ -503,44 +468,47 @@ class DecoupledSymbolStrategyRunner:
                     })
                     pos = 0
                     half_locked = False
+                else:
+                    # 未触发离场：在当根收盘后根据 curr_h 更新下一根 Bar 的追踪止损
+                    highest_p = max(highest_p, curr_h)
+                    profit_atrs = (highest_p - entry_p) / curr_atr
+                    if profit_atrs >= be_atr_mult:
+                        sl_p = max(sl_p, entry_p + be_lock_offset * curr_atr)
+                    if profit_atrs >= trail_atr_mult:
+                        sl_p = max(sl_p, highest_p - 1.2 * curr_atr)
+
+                    # PPO 锁利微调：当利润达到 3.5 ATR 且未减仓时，若 lots > 1 则执行减半锁利
+                    if ppo_act == 2 and not half_locked and lots >= 2:
+                        half_lots = lots // 2
+                        lock_pnl = (curr_p - entry_p) * multiplier * half_lots - (curr_p + entry_p) * multiplier * half_lots * fee_rate
+                        capital += lock_pnl
+                        lots -= half_lots
+                        half_locked = True
+                        trades.append({
+                            "symbol": symbol,
+                            "name": cfg["name"],
+                            "pos_side": "做多 (LONG)",
+                            "lots": half_lots,
+                            "entry_dt": entry_time,
+                            "entry_price": round(float(entry_p), 2),
+                            "entry_reason": entry_reason_desc,
+                            "exit_dt": curr_dt,
+                            "exit_price": round(float(curr_p), 2),
+                            "exit_reason": f"PPO 阶梯减半锁利 (浮盈达 {profit_atrs:.1f} ATR，锁定 50% 仓位利润)",
+                            "pnl_rmb": round(float(lock_pnl), 2),
+                            "return_pct": round((curr_p - entry_p) / entry_p * 100, 2),
+                            "holding_bars": holding_bars,
+                            "type": "LONG_PPO_LOCK"
+                        })
 
             elif pos == -1:
-                lowest_p = min(lowest_p, curr_l)
-                profit_atrs = (entry_p - lowest_p) / curr_atr
-                if profit_atrs >= be_atr_mult:
-                    sl_p = min(sl_p, entry_p - be_lock_offset * curr_atr)
-                if profit_atrs >= trail_atr_mult:
-                    sl_p = min(sl_p, lowest_p + 1.2 * curr_atr)
-
-                # PPO 锁利微调
-                if ppo_act == 2 and not half_locked and lots >= 2:
-                    half_lots = lots // 2
-                    lock_pnl = (entry_p - curr_p) * multiplier * half_lots - (curr_p + entry_p) * multiplier * half_lots * fee_rate
-                    capital += lock_pnl
-                    lots -= half_lots
-                    half_locked = True
-                    trades.append({
-                        "symbol": symbol,
-                        "name": cfg["name"],
-                        "pos_side": "做空 (SHORT)",
-                        "lots": half_lots,
-                        "entry_dt": entry_time,
-                        "entry_price": round(float(entry_p), 2),
-                        "entry_reason": entry_reason_desc,
-                        "exit_dt": curr_dt,
-                        "exit_price": round(float(curr_p), 2),
-                        "exit_reason": f"PPO 阶梯减半锁利 (浮盈达 {profit_atrs:.1f} ATR，锁定 50% 仓位利润)",
-                        "pnl_rmb": round(float(lock_pnl), 2),
-                        "return_pct": round((entry_p - curr_p) / entry_p * 100, 2),
-                        "holding_bars": holding_bars,
-                        "type": "SHORT_PPO_LOCK"
-                    })
-
                 if curr_h >= sl_p:
-                    exit_p = sl_p + slippage
+                    # 触发止损/止盈离场 (严格基于上一根 Bar 已固化的防守线)
+                    raw_exit = curr_o if curr_o >= sl_p else sl_p
+                    exit_p = min(curr_h + slippage, max(curr_l, raw_exit + slippage))
                     pnl = (entry_p - exit_p) * multiplier * lots - (abs(exit_p) + abs(entry_p)) * multiplier * lots * fee_rate
                     capital += pnl
-                    
+                    profit_atrs = (entry_p - lowest_p) / curr_atr
                     if profit_atrs >= trail_atr_mult:
                         exit_desc = f"PPO 吊灯追踪止盈 (最低价 {lowest_p:.2f} 反弹 1.2 ATR 触发止盈线 {sl_p:.2f})"
                     elif profit_atrs >= be_atr_mult:
@@ -566,83 +534,118 @@ class DecoupledSymbolStrategyRunner:
                     })
                     pos = 0
                     half_locked = False
+                else:
+                    # 未触发离场：在当根收盘后根据 curr_l 更新下一根 Bar 的追踪止损
+                    lowest_p = min(lowest_p, curr_l)
+                    profit_atrs = (entry_p - lowest_p) / curr_atr
+                    if profit_atrs >= be_atr_mult:
+                        sl_p = min(sl_p, entry_p - be_lock_offset * curr_atr)
+                    if profit_atrs >= trail_atr_mult:
+                        sl_p = min(sl_p, lowest_p + 1.2 * curr_atr)
 
-            if pos != 0:
-                continue
+                    # PPO 锁利微调
+                    if ppo_act == 2 and not half_locked and lots >= 2:
+                        half_lots = lots // 2
+                        lock_pnl = (entry_p - curr_p) * multiplier * half_lots - (curr_p + entry_p) * multiplier * half_lots * fee_rate
+                        capital += lock_pnl
+                        lots -= half_lots
+                        half_locked = True
+                        trades.append({
+                            "symbol": symbol,
+                            "name": cfg["name"],
+                            "pos_side": "做空 (SHORT)",
+                            "lots": half_lots,
+                            "entry_dt": entry_time,
+                            "entry_price": round(float(entry_p), 2),
+                            "entry_reason": entry_reason_desc,
+                            "exit_dt": curr_dt,
+                            "exit_price": round(float(exit_p), 2),
+                            "exit_reason": f"PPO 阶梯减半锁利 (浮盈达 {profit_atrs:.1f} ATR，锁定 50% 仓位利润)",
+                            "pnl_rmb": round(float(lock_pnl), 2),
+                            "return_pct": round((entry_p - curr_p) / entry_p * 100, 2),
+                            "holding_bars": holding_bars,
+                            "type": "SHORT_PPO_LOCK"
+                        })
 
-            pl = prob_long[i]
-            ps = prob_short[i]
-            t1h = t1h_arr[i]
-            sq = squeeze_arr[i]
-            vr = vol_ratio_arr[i]
-            dd = dd_arr[i]
+            if pos == 0:
+                pl = prob_long[i]
+                ps = prob_short[i]
+                t1h = t1h_arr[i]
+                sq = squeeze_arr[i]
+                vr = vol_ratio_arr[i]
+                dd = dd_arr[i]
 
-            sl_dist = sl_atr_mult * curr_atr
-            calc_lots = max(1, min(max_lots, int((capital * 0.01) / (sl_dist * multiplier + 1e-6))))
-            margin_req = curr_p * multiplier * calc_lots * margin_rate
-            if capital < margin_req:
-                continue
+                sl_dist = sl_atr_mult * curr_atr
+                calc_lots = max(1, min(max_lots, int((capital * 0.01) / (sl_dist * multiplier + 1e-6))))
+                margin_req = curr_p * multiplier * calc_lots * margin_rate
+                if capital >= margin_req:
+                    strat_mode = cfg.get("strategy_mode", "ml_ppo_breakout")
 
-            strat_mode = cfg.get("strategy_mode", "ml_ppo_breakout")
+                    if strat_mode == "zscore_ppo_reversal":
+                        z_thresh = cfg.get("z_thresh", 2.2)
+                        zs = zscore_arr[i]
+                        if t1h == 1 and zs <= -z_thresh:
+                            pos = 1
+                            lots = calc_lots
+                            entry_p = next_o + slippage
+                            entry_time = curr_dt
+                            sl_p = entry_p - sl_dist
+                            highest_p = entry_p
+                            holding_bars = 0
+                            half_locked = False
+                            entry_reason_desc = (
+                                f"1h主趋势向上(trend=1) + 15m Z-Score极值超跌(Z={zs:.2f}<=-{z_thresh}) 均值回归反转入场"
+                            )
+                        elif t1h == -1 and zs >= z_thresh:
+                            pos = -1
+                            lots = calc_lots
+                            entry_p = next_o - slippage
+                            entry_time = curr_dt
+                            sl_p = entry_p + sl_dist
+                            lowest_p = entry_p
+                            holding_bars = 0
+                            half_locked = False
+                            entry_reason_desc = (
+                                f"1h主趋势向下(trend=-1) + 15m Z-Score极值超涨(Z={zs:.2f}>={z_thresh}) 均值回归反转入场"
+                            )
+                    else:
+                        # 标准 15m 波动率挤压突破 + 1h 顺势放量入场
+                        vr_thresh = cfg.get("vr_thresh", 1.05)
+                        if t1h == 1 and sq < squeeze_limit and vr > vr_thresh:
+                            if not np.isnan(pl) and pl >= prob_thresh:
+                                pos = 1
+                                lots = calc_lots
+                                entry_p = next_o + slippage
+                                entry_time = curr_dt
+                                sl_p = entry_p - sl_dist
+                                highest_p = entry_p
+                                holding_bars = 0
+                                half_locked = False
+                                entry_reason_desc = (
+                                    f"1h主趋势向上(trend=1) + 波动挤压突破(sq={sq:.2f}<{squeeze_limit}) + "
+                                    f"成交量放大(vr={vr:.2f}>{vr_thresh}) + LightGBM多头预测概率(P={pl:.1%}>={prob_thresh:.0%})"
+                                )
+                        elif t1h == -1 and sq < squeeze_limit and vr > vr_thresh:
+                            if not np.isnan(ps) and ps >= prob_thresh:
+                                pos = -1
+                                lots = calc_lots
+                                entry_p = next_o - slippage
+                                entry_time = curr_dt
+                                sl_p = entry_p + sl_dist
+                                lowest_p = entry_p
+                                holding_bars = 0
+                                half_locked = False
+                                entry_reason_desc = (
+                                    f"1h主趋势向下(trend=-1) + 波动挤压突破(sq={sq:.2f}<{squeeze_limit}) + "
+                                    f"成交量放大(vr={vr:.2f}>{vr_thresh}) + LightGBM空头预测概率(P={ps:.1%}>={prob_thresh:.0%})"
+                                )
 
-            if strat_mode == "zscore_ppo_reversal":
-                z_thresh = cfg.get("z_thresh", 2.2)
-                zs = zscore_arr[i]
-                if t1h == 1 and zs <= -z_thresh:
-                    pos = 1
-                    lots = calc_lots
-                    entry_p = next_o + slippage
-                    entry_time = curr_dt
-                    sl_p = entry_p - sl_dist
-                    highest_p = entry_p
-                    holding_bars = 0
-                    half_locked = False
-                    entry_reason_desc = (
-                        f"1h主趋势向上(trend=1) + 15m Z-Score极值超跌(Z={zs:.2f}<=-{z_thresh}) 均值回归反转入场"
-                    )
-                elif t1h == -1 and zs >= z_thresh:
-                    pos = -1
-                    lots = calc_lots
-                    entry_p = next_o - slippage
-                    entry_time = curr_dt
-                    sl_p = entry_p + sl_dist
-                    lowest_p = entry_p
-                    holding_bars = 0
-                    half_locked = False
-                    entry_reason_desc = (
-                        f"1h主趋势向下(trend=-1) + 15m Z-Score极值超涨(Z={zs:.2f}>={z_thresh}) 均值回归反转入场"
-                    )
-            else:
-                # 标准 15m 波动率挤压突破 + 1h 顺势放量入场
-                vr_thresh = cfg.get("vr_thresh", 1.05)
-                if t1h == 1 and sq < squeeze_limit and vr > vr_thresh:
-                    if not np.isnan(pl) and pl >= prob_thresh:
-                        pos = 1
-                        lots = calc_lots
-                        entry_p = next_o + slippage
-                        entry_time = curr_dt
-                        sl_p = entry_p - sl_dist
-                        highest_p = entry_p
-                        holding_bars = 0
-                        half_locked = False
-                        entry_reason_desc = (
-                            f"1h主趋势向上(trend=1) + 波动挤压突破(sq={sq:.2f}<{squeeze_limit}) + "
-                            f"成交量放大(vr={vr:.2f}>{vr_thresh}) + LightGBM多头预测概率(P={pl:.1%}>={prob_thresh:.0%})"
-                        )
-                elif t1h == -1 and sq < squeeze_limit and vr > vr_thresh:
-                    if not np.isnan(ps) and ps >= prob_thresh:
-                        pos = -1
-                        lots = calc_lots
-                        entry_p = next_o - slippage
-                        entry_time = curr_dt
-                        sl_p = entry_p + sl_dist
-                        lowest_p = entry_p
-                        holding_bars = 0
-                        half_locked = False
-                        entry_reason_desc = (
-                            f"1h主趋势向下(trend=-1) + 波动挤压突破(sq={sq:.2f}<{squeeze_limit}) + "
-                            f"成交量放大(vr={vr:.2f}>{vr_thresh}) + LightGBM空头预测概率(P={ps:.1%}>={prob_thresh:.0%})"
-                        )
+            # 记录当根 Bar 结束时的真实动态盯市权益 (含已平仓 capital 与未平仓持仓浮动盈亏)
+            unrealized = (curr_p - entry_p) * multiplier * lots if pos == 1 else (
+                (entry_p - curr_p) * multiplier * lots if pos == -1 else 0.0
+            )
+            eq_curve.append(max(0.0, capital + unrealized))
+            datetime_list.append(curr_dt)
 
         wins = [t for t in trades if t["pnl_rmb"] > 0]
         losses = [t for t in trades if t["pnl_rmb"] < 0]
@@ -653,7 +656,12 @@ class DecoupledSymbolStrategyRunner:
         avg_loss = abs(float(np.mean([t["pnl_rmb"] for t in losses]))) if losses else 1.0
         pl_ratio = (avg_win / avg_loss) if avg_loss > 0 else 0.0
 
-        net_profit = capital - initial_capital
+        # 期末未平仓持仓真实盯市权益结算，保证资产负债与曲线对账
+        final_unrealized = (curr_p - entry_p) * multiplier * lots if pos == 1 else (
+            (entry_p - curr_p) * multiplier * lots if pos == -1 else 0.0
+        )
+        final_equity = capital + final_unrealized
+        net_profit = final_equity - initial_capital
         tot_return = net_profit / initial_capital * 100.0
 
         eq_arr = np.array(eq_curve) if len(eq_curve) > 0 else np.array([initial_capital])
@@ -677,8 +685,13 @@ class DecoupledSymbolStrategyRunner:
         df_eq = df_eq.set_index("datetime").sort_index()
 
         df_daily = df_eq.resample("1D").last().dropna()
-        df_daily["daily_pnl"] = df_daily["equity"].diff().fillna(0.0)
-        df_daily["daily_ret"] = df_daily["equity"].pct_change().fillna(0.0) * 100.0
+        if not df_daily.empty:
+            df_daily["daily_pnl"] = df_daily["equity"].diff()
+            df_daily.iloc[0, df_daily.columns.get_loc("daily_pnl")] = df_daily["equity"].iloc[0] - initial_capital
+            df_daily["daily_ret"] = df_daily["daily_pnl"] / initial_capital * 100.0
+        else:
+            df_daily["daily_pnl"] = pd.Series(dtype=float)
+            df_daily["daily_ret"] = pd.Series(dtype=float)
         df_daily["year"] = df_daily.index.year
         df_daily["month"] = df_daily.index.month
 
@@ -728,7 +741,7 @@ class DecoupledSymbolStrategyRunner:
             "start_time": datetime_list[0] if datetime_list else "N/A",
             "end_time": datetime_list[-1] if datetime_list else "N/A",
             "initial_capital": initial_capital,
-            "final_equity": round(capital, 2),
+            "final_equity": round(final_equity, 2),
             "net_profit_rmb": round(net_profit, 2),
             "total_return_pct": round(tot_return, 2),
             "win_rate_pct": round(win_rate, 1),
