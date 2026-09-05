@@ -65,8 +65,8 @@ def add_security_headers(response):
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
     return response
 
-# 10m 战队与 30m 战队核心品种定义
-SQUAD_10M_SYMBOLS = ["SN_IDX", "AU_IDX", "AG_IDX", "MA_IDX", "P_IDX"]
+# 10m 战队与 30m 战队核心品种定义 (排除贵金属长动量标的，聚焦高震荡工业品)
+SQUAD_10M_SYMBOLS = ["SN_IDX", "RB_IDX", "SA_IDX", "MA_IDX", "P_IDX"]
 SQUAD_30M_SYMBOLS = ["SC_IDX", "LC_IDX", "J_IDX", "AL_IDX", "TA_IDX", "SI_IDX"]
 DUAL_SQUAD_SYMBOLS = SQUAD_10M_SYMBOLS + SQUAD_30M_SYMBOLS
 TIER_1_15M_SYMBOLS = ["AU_IDX", "AG_IDX", "SC_IDX", "TA_IDX", "MA_IDX", "SA_IDX", "HC_IDX", "P_IDX"]
@@ -91,7 +91,7 @@ STRATEGY_REGISTRY = {
     },
     "taichong_dual_squad": {
         "id": "taichong_dual_squad",
-        "name": "🔮 【太冲·弹塑性张量】双战队 (10m微观弹性 + 30m波段中枢回归)",
+        "name": "🔮 【太冲·弹塑性张量】双战队 (10m高震荡工业品 + 30m波段中枢回归)",
         "short_name": "太冲·双战队全景 (10m+30m 11主力)",
         "timeframe": "10m/30m",
         "symbols": DUAL_SQUAD_SYMBOLS,
@@ -106,7 +106,7 @@ STRATEGY_REGISTRY = {
     },
     "taichong_10m_squad": {
         "id": "taichong_10m_squad",
-        "name": "⚡ 【太冲·10m微观战队】沪锡/沪金/沪银/甲醇/棕榈油 (5h日内谐振+50m均线落袋)",
+        "name": "⚡ 【太冲·10m微观战队】沪锡/螺纹/纯碱/甲醇/棕榈油 (5h日内谐振+50m均线落袋)",
         "short_name": "太冲·10m微观战队 (5大主力)",
         "timeframe": "10m",
         "symbols": SQUAD_10M_SYMBOLS,
@@ -677,7 +677,14 @@ def get_cached_strategy_data(strategy_id: str, symbol: str):
 
         else:
             # 太冲弹塑性张量策略买卖点生成器
-            signals = calculate_signal(df_feat)
+            is_precious_trend = symbol in ["AU_IDX", "AU", "AG_IDX", "AG"]
+            sym_meta = SYMBOL_CONFIGS.get(symbol, {})
+            multiplier = float(sym_meta.get("multiplier", 10.0))
+            if is_precious_trend:
+                # ⚠️ 策略-品种相性刚性熔断: 沪金/沪银属宏观长动量厚尾资产，严禁左侧摸顶抄底！
+                signals = pd.Series(0, index=df_feat.index)
+            else:
+                signals = calculate_signal(df_feat)
             df_feat["signal"] = signals
             df_feat["sma5"] = df_feat["close"].rolling(5).mean()
 
@@ -694,10 +701,10 @@ def get_cached_strategy_data(strategy_id: str, symbol: str):
                     entry_p = float(df_feat["open"].iloc[i])
                     trades.append({"action": "ENTRY", "side": "LONG" if pos > 0 else "SHORT", "entry_dt": dt_s, "entry_p": entry_p, "reason": "太冲·弹塑性张量共振", "lots": 1})
                 elif pos > 0 and curr_c >= sma5_val:
-                    trades.append({"action": "EXIT", "side": "LONG", "exit_dt": dt_s, "exit_p": curr_c, "exit_reason": "SMA(5)均线极速落袋", "pnl_rmb": (curr_c - entry_p) * 10.0, "lots": 1})
+                    trades.append({"action": "EXIT", "side": "LONG", "exit_dt": dt_s, "exit_p": curr_c, "exit_reason": "SMA(5)均线极速落袋", "pnl_rmb": (curr_c - entry_p) * multiplier, "lots": 1})
                     pos = 0
                 elif pos < 0 and curr_c <= sma5_val:
-                    trades.append({"action": "EXIT", "side": "SHORT", "exit_dt": dt_s, "exit_p": curr_c, "exit_reason": "SMA(5)均线极速落袋", "pnl_rmb": (entry_p - curr_c) * 10.0, "lots": 1})
+                    trades.append({"action": "EXIT", "side": "SHORT", "exit_dt": dt_s, "exit_p": curr_c, "exit_reason": "SMA(5)均线极速落袋", "pnl_rmb": (entry_p - curr_c) * multiplier, "lots": 1})
                     pos = 0
 
         res_data = {

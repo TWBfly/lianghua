@@ -26,8 +26,8 @@ from guiyuan_zscore_reversion import calculate_signal
 
 DB_PATH = PROJECT_ROOT / "data" / "ashare_quant.db"
 DEFAULT_OUTPUT = PROJECT_ROOT / "data" / "reports" / "guiyuan_15m_lln_20260827"
-AUDIT_CACHE_VERSION = 1
-PARAMETER_GRID = [(stop, trail) for stop in (2.0, 2.5, 3.0, 3.5) for trail in (4.0, 5.0, 6.0, 7.0)]
+AUDIT_CACHE_VERSION = 2
+PARAMETER_GRID = [(stop, trail) for stop in (1.5, 1.8, 2.0, 2.5) for trail in (1.5, 2.0, 2.5, 3.0)]
 
 
 TRADE_COLUMNS = [
@@ -160,12 +160,13 @@ def simulate_guiyuan(
     signals: pd.Series,
     spec: dict[str, float],
     initial_capital: float = 1_000_000.0,
-    stop_atr_mult: float = 2.5,
-    breakeven_atr_mult: float = 2.0,
-    trail_atr_mult: float = 5.0,
+    stop_atr_mult: float = 1.8,
+    breakeven_atr_mult: float = 1.0,
+    trail_atr_mult: float = 2.0,
+    max_holding_bars: int = 14,
     cost_multiplier: float = 1.0,
 ) -> dict[str, Any]:
-    """以 t 收盘信号在 t+1 开盘成交，并完整记录期货双边成本。"""
+    """以 t 收盘信号在 t+1 开盘成交，并完整记录期货双边成本与 CMR 目标出场。"""
     required = {"open", "high", "low", "close"}
     missing = required.difference(df.columns)
     if missing:
@@ -198,8 +199,8 @@ def simulate_guiyuan(
         ],
         axis=1,
     ).max(axis=1)
-    atr = true_range.rolling(14, min_periods=14).mean().to_numpy()
-    sma5 = bars["close"].rolling(5, min_periods=5).mean().to_numpy()
+    atr = true_range.rolling(14, min_periods=5).mean().bfill().to_numpy()
+    sma20 = bars["close"].rolling(20, min_periods=5).mean().bfill().to_numpy()
 
     multiplier = float(spec["multiplier"])
     tick = float(spec["tick"])
@@ -259,25 +260,33 @@ def simulate_guiyuan(
             stop_price = entry_price - position * stop_atr_mult * entry_atr
             favorable_extreme = entry_price
 
-        if position > 0 and low[i] <= stop_price:
-            close_position(i, min(open_[i], stop_price), "stop")
-        elif position < 0 and high[i] >= stop_price:
-            close_position(i, max(open_[i], stop_price), "stop")
-
         if position > 0:
+            holding_bars = i - entry_index
             favorable_extreme = max(favorable_extreme, high[i])
             if favorable_extreme - entry_price >= breakeven_atr_mult * entry_atr:
-                stop_price = max(stop_price, entry_price)
-            if np.isfinite(sma5[i]) and close[i] >= sma5[i]:
-                stop_price = max(stop_price, entry_price)
+                stop_price = max(stop_price, entry_price + 0.1 * entry_atr)
             stop_price = max(stop_price, favorable_extreme - trail_atr_mult * entry_atr)
+
+            if np.isfinite(sma20[i - 1]) and high[i] >= sma20[i - 1]:
+                close_position(i, max(open_[i], sma20[i - 1]), "target_mean")
+            elif low[i] <= stop_price:
+                close_position(i, min(open_[i], stop_price), "stop")
+            elif holding_bars >= max_holding_bars:
+                close_position(i, close[i], "time_stop")
+
         elif position < 0:
+            holding_bars = i - entry_index
             favorable_extreme = min(favorable_extreme, low[i])
             if entry_price - favorable_extreme >= breakeven_atr_mult * entry_atr:
-                stop_price = min(stop_price, entry_price)
-            if np.isfinite(sma5[i]) and close[i] <= sma5[i]:
-                stop_price = min(stop_price, entry_price)
+                stop_price = min(stop_price, entry_price - 0.1 * entry_atr)
             stop_price = min(stop_price, favorable_extreme + trail_atr_mult * entry_atr)
+
+            if np.isfinite(sma20[i - 1]) and low[i] <= sma20[i - 1]:
+                close_position(i, min(open_[i], sma20[i - 1]), "target_mean")
+            elif high[i] >= stop_price:
+                close_position(i, max(open_[i], stop_price), "stop")
+            elif holding_bars >= max_holding_bars:
+                close_position(i, close[i], "time_stop")
 
         unrealized = (
             (close[i] - entry_price) * multiplier * lots * position if position else 0.0
@@ -690,9 +699,9 @@ def write_report(output_dir: Path, result: dict[str, Any]) -> None:
 
 ## 回测口径
 
-- 策略：`guiyuan_zscore_reversion` 原始 Z-Score、RSI(2)、Pin Bar 与持仓量过滤条件，未放宽信号。
+- 策略：`guiyuan_zscore_reversion` 重构版 (CMR-V2.0: 稳健Z-Score + 真实Connors RSI + ER/Hurst动力学门禁 + 做市商微观吸收状态机)。
 - 周期：15m；信号在 Bar `t` 收盘形成，Bar `t+1` 开盘成交。
-- 风控：2.5 ATR 初始止损、2.0 ATR 保本触发、5.0 ATR 追踪；每笔风险预算为初始资金 0.5%，最多 50 手。
+- 风控：1.8 ATR 初始止损、1.0 ATR 保本触发、2.0 ATR 动态吊灯与 SMA20 目标中枢止盈、14-Bar 半衰期时间清仓；每笔风险预算为初始资金 0.5%，最多 50 手。
 - 摩擦：开平双边手续费及各 1 Tick 滑点；3 倍成本压力轨同时执行。
 - 合成轨：固定种子的单边上涨、宽幅洗盘、恐慌下跌、窄幅横盘四状态；每批从品种基准价独立启动，每品种累计平仓交易严格大于 1,000。
 - 统计：Wilson 95% 胜率区间、按时间顺序的 70/30 批次留出、16 组止损/追踪参数平原、逐笔账本对账。

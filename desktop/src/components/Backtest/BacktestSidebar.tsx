@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layers, ChevronRight } from 'lucide-react';
 
 interface BacktestSidebarProps {
@@ -22,21 +22,45 @@ const STOCK_POOL = [
 const FUTURES_POOL = [
   { symbol: 'AU_IDX', name: '沪金主力', pe: 0, mv: '贵金属' },
   { symbol: 'AG_IDX', name: '沪银主力', pe: 0, mv: '贵金属' },
-  { symbol: 'SN_IDX', name: '沪锡主力', pe: 0, mv: '有色' },
-  { symbol: 'CU_IDX', name: '沪铜主力', pe: 0, mv: '有色' },
+  { symbol: 'SN_IDX', name: '沪锡主力', pe: 0, mv: '有色金属' },
+  { symbol: 'CU_IDX', name: '沪铜主力', pe: 0, mv: '有色金属' },
+  { symbol: 'RB_IDX', name: '螺纹主力', pe: 0, mv: '黑色建材' },
+  { symbol: 'HC_IDX', name: '热卷主力', pe: 0, mv: '黑色金属' },
+  { symbol: 'SA_IDX', name: '纯碱主力', pe: 0, mv: '化工' },
+  { symbol: 'FG_IDX', name: '玻璃主力', pe: 0, mv: '建材' },
   { symbol: 'SC_IDX', name: '原油主力', pe: 0, mv: '能源化工' },
   { symbol: 'LC_IDX', name: '碳酸锂主力', pe: 0, mv: '新能源' },
   { symbol: 'MA_IDX', name: '甲醇主力', pe: 0, mv: '化工' },
   { symbol: 'P_IDX', name: '棕榈油主力', pe: 0, mv: '农产品' },
   { symbol: 'TA_IDX', name: 'PTA主力', pe: 0, mv: '化工' },
+  { symbol: 'I_IDX', name: '铁矿主力', pe: 0, mv: '黑色金属' },
+  { symbol: 'J_IDX', name: '焦炭主力', pe: 0, mv: '煤焦' },
+  { symbol: 'AL_IDX', name: '沪铝主力', pe: 0, mv: '有色金属' },
+  { symbol: 'ZN_IDX', name: '沪锌主力', pe: 0, mv: '有色金属' },
+  { symbol: 'SI_IDX', name: '工业硅主力', pe: 0, mv: '新能源' },
 ];
 
 export const BacktestSidebar: React.FC<BacktestSidebarProps> = ({
   currentSymbol,
   onSelectSymbol,
 }) => {
-  const [activeTab, setActiveTab] = useState<'STOCK' | 'FUTURES'>('STOCK');
+  const isCurrentFutures =
+    currentSymbol.endsWith('_IDX') ||
+    FUTURES_POOL.some((f) => f.symbol === currentSymbol);
+
+  const [activeTab, setActiveTab] = useState<'STOCK' | 'FUTURES'>(
+    isCurrentFutures ? 'FUTURES' : 'STOCK'
+  );
   const [search, setSearch] = useState('');
+
+  // 标的切换时自动联动切换 Tab
+  useEffect(() => {
+    if (isCurrentFutures) {
+      setActiveTab('FUTURES');
+    } else {
+      setActiveTab('STOCK');
+    }
+  }, [currentSymbol, isCurrentFutures]);
 
   const pool = activeTab === 'STOCK' ? STOCK_POOL : FUTURES_POOL;
   const filtered = pool.filter(
@@ -46,16 +70,16 @@ export const BacktestSidebar: React.FC<BacktestSidebarProps> = ({
   );
 
   return (
-    <aside className="w-64 bg-[#161b22] border-r border-[#30363d] flex flex-col h-full select-none">
+    <aside className="w-64 bg-[#161b22] border-r border-[#30363d] flex flex-col flex-shrink-0 h-full min-h-0 select-none">
       {/* Category Tabs */}
-      <div className="p-3 border-b border-[#30363d]">
-        <label className="text-[11px] font-semibold uppercase text-[#8b949e] tracking-wider mb-2 block">
+      <div className="p-2.5 border-b border-[#30363d] flex-shrink-0">
+        <label className="text-[11px] font-semibold uppercase text-[#8b949e] tracking-wider mb-1.5 block">
           回测标的资产池
         </label>
         <div className="grid grid-cols-2 gap-1 bg-[#0d1117] p-0.5 rounded-lg border border-[#30363d]">
           <button
             onClick={() => setActiveTab('STOCK')}
-            className={`py-1 rounded text-xs font-semibold transition ${
+            className={`py-1 rounded text-xs font-semibold transition cursor-pointer ${
               activeTab === 'STOCK'
                 ? 'bg-[#1f6feb] text-white shadow'
                 : 'text-[#8b949e] hover:text-[#f0f6fc]'
@@ -65,19 +89,19 @@ export const BacktestSidebar: React.FC<BacktestSidebarProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('FUTURES')}
-            className={`py-1 rounded text-xs font-semibold transition ${
+            className={`py-1 rounded text-xs font-semibold transition cursor-pointer ${
               activeTab === 'FUTURES'
                 ? 'bg-[#1f6feb] text-white shadow'
                 : 'text-[#8b949e] hover:text-[#f0f6fc]'
             }`}
           >
-            🏆 商品期货
+            🏆 商品期货 ({FUTURES_POOL.length})
           </button>
         </div>
       </div>
 
       {/* Search Box */}
-      <div className="px-3 py-2 border-b border-[#30363d]/60">
+      <div className="px-2.5 py-1.5 border-b border-[#30363d]/60 flex-shrink-0">
         <input
           type="text"
           placeholder="搜索回测标的..."
@@ -87,40 +111,55 @@ export const BacktestSidebar: React.FC<BacktestSidebarProps> = ({
         />
       </div>
 
-      {/* List */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-1">
+      {/* List (具备自适应高度空间与内部滚动条，可随抽屉上下伸缩) */}
+      <div className="flex-1 min-h-0 overflow-y-auto p-1.5 space-y-1">
         {filtered.map((item) => {
           const isSelected = item.symbol === currentSymbol;
           return (
             <div
               key={item.symbol}
               onClick={() => onSelectSymbol(item.symbol, item.name)}
-              className={`px-3 py-2 rounded-md cursor-pointer transition flex items-center justify-between ${
+              className={`px-2.5 py-1.5 rounded-md cursor-pointer transition flex items-center justify-between ${
                 isSelected
-                  ? 'bg-[#1f6feb]/20 border border-[#58a6ff]/50 text-[#f0f6fc]'
+                  ? 'bg-[#1f6feb]/25 border border-[#58a6ff] text-[#f0f6fc]'
                   : 'hover:bg-[#21262d] text-[#8b949e] hover:text-[#f0f6fc] border border-transparent'
               }`}
             >
               <div className="flex flex-col">
-                <span className={`text-xs font-bold ${isSelected ? 'text-[#58a6ff]' : 'text-[#f0f6fc]'}`}>
+                <span
+                  className={`text-xs font-bold ${
+                    isSelected ? 'text-[#58a6ff]' : 'text-[#f0f6fc]'
+                  }`}
+                >
                   {item.name}
                 </span>
-                <span className="text-[10px] text-[#8b949e] font-mono">{item.symbol}</span>
+                <span className="text-[10px] text-[#8b949e] font-mono">
+                  {item.symbol}
+                </span>
               </div>
 
-              <div className="flex items-center gap-1.5 text-right">
+              <div className="flex items-center gap-1 text-right">
                 <span className="text-[10px] text-[#8b949e] font-mono">
                   {activeTab === 'STOCK' ? `PE ${item.pe}` : item.mv}
                 </span>
-                <ChevronRight className={`w-3.5 h-3.5 ${isSelected ? 'text-[#58a6ff]' : 'text-[#484f58]'}`} />
+                <ChevronRight
+                  className={`w-3.5 h-3.5 ${
+                    isSelected ? 'text-[#58a6ff]' : 'text-[#484f58]'
+                  }`}
+                />
               </div>
             </div>
           );
         })}
+        {filtered.length === 0 && (
+          <div className="py-6 text-center text-xs text-[#8b949e]">
+            未匹配到标的代码或名称
+          </div>
+        )}
       </div>
 
       {/* Footer */}
-      <div className="p-3 border-t border-[#30363d] bg-[#0d1117]/50 text-[11px] text-[#8b949e]">
+      <div className="p-2 border-t border-[#30363d] bg-[#0d1117]/50 text-[11px] text-[#8b949e] flex-shrink-0">
         <div className="flex items-center gap-1.5 font-medium text-[#3fb950]">
           <Layers className="w-3.5 h-3.5" />
           <span>点击标的即刻载入回测</span>

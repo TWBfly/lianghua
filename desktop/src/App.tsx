@@ -100,6 +100,7 @@ export const App: React.FC = () => {
 
   // Execute Dual-Track Benchmark 100-Point Audit
   const handleOpenDualTrackModal = async () => {
+    setDualTrackData(null);
     setShowDualTrackModal(true);
     setDualTrackLoading(true);
     try {
@@ -137,8 +138,8 @@ export const App: React.FC = () => {
       {/* Top Header */}
       <TopNav onSelectStock={handleSelectStock} />
 
-      {/* Pure Strategy Backtest Studio */}
-      <div className="flex-1 flex flex-col min-h-0">
+      {/* Pure Strategy Backtest Studio (支持整页上下平滑滚动与各板块自适应展开) */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden scroll-smooth">
         {/* Backtest Controls with dual data source & default 15m */}
         <BacktestControlBar
           requestParams={backtestParams}
@@ -155,10 +156,22 @@ export const App: React.FC = () => {
         <BacktestMetricsBar
           metrics={backtestResult?.metrics || null}
           timeframe={backtestResult?.timeframe || backtestParams.timeframe}
+          symbol={backtestParams.symbol}
+          strategyId={backtestParams.strategy}
+          onSwitchStrategy={(stratId) => {
+            const nextParams = { strategy: stratId };
+            setBacktestParams((prev) => ({ ...prev, ...nextParams }));
+            handleRunBacktest(nextParams);
+          }}
+          onSwitchSymbol={(sym) => {
+            const nextParams = { symbol: sym, timeframe: '15m' };
+            setBacktestParams((prev) => ({ ...prev, ...nextParams }));
+            handleRunBacktest(nextParams);
+          }}
         />
 
-        {/* Main Backtest Workspace */}
-        <div className="flex-1 flex min-h-0 relative">
+        {/* Main Backtest Workspace (图表与标的资产池专属高度，充裕清晰) */}
+        <div className="h-[460px] min-h-[420px] flex-shrink-0 flex relative">
           {/* Left Backtest Preset Assets */}
           <BacktestSidebar
             currentSymbol={backtestParams.symbol}

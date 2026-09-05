@@ -32,7 +32,7 @@ export const BacktestDualTrackModal: React.FC<BacktestDualTrackModalProps> = ({
 
   const handleCopyReport = () => {
     if (!data) return;
-    const reportText = `# 【天极量化】真实 K 线 vs 算法全域 K 线策略双轨对冲体检报告 (满分 100 分)
+    const reportText = `# 【天极量化】${data.strategy_name} • 真实 vs 算法全域 K 线策略双轨对冲体检报告 (满分 100 分)
 
 ## 1. 策略概览与综合评分
 - **策略名称**: ${data.strategy_name} (${data.strategy_id})
@@ -103,8 +103,10 @@ ${data.executive_verdict.potential_risks.map((r) => `  * ${r}`).join('\n')}
             </div>
             <div>
               <div className="flex items-center gap-2.5">
-                <h2 className="text-sm font-bold text-[#f0f6fc] tracking-wide">
-                  真实 K 线 vs 算法全域 K 线策略双轨对冲体检报告
+                <h2 className="text-sm font-bold text-[#f0f6fc] tracking-wide flex items-center gap-2">
+                  <span className="text-[#bc8cff]">{data?.strategy_name || '量化策略'}</span>
+                  <span className="text-[#8b949e] font-normal">•</span>
+                  <span>真实 vs 算法双轨对冲体检报告</span>
                 </h2>
                 {data && (
                   <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#3fb950]/20 text-[#3fb950] border border-[#3fb950]/40 font-bold font-mono flex items-center gap-1">
@@ -115,7 +117,7 @@ ${data.executive_verdict.potential_risks.map((r) => `  * ${r}`).join('\n')}
               <p className="text-[11px] text-[#8b949e] mt-0.5">
                 标的: <span className="text-[#f0f6fc] font-semibold">{data?.symbol_name} ({data?.symbol})</span> • 
                 周期: <span className="text-[#00ff88] font-mono">{data?.timeframe_label}</span> • 
-                策略: <span className="text-[#58a6ff] font-semibold">{data?.strategy_name}</span>
+                策略代码: <span className="text-[#58a6ff] font-mono font-semibold">{data?.strategy_id}</span>
               </p>
             </div>
           </div>
@@ -253,7 +255,7 @@ ${data.executive_verdict.potential_risks.map((r) => `  * ${r}`).join('\n')}
                       <div className="text-[11px] text-[#8b949e] flex justify-between pt-2 border-t border-[#30363d]/60">
                         <span>交易笔数: <strong className="text-[#f0f6fc] font-mono">{data.real_benchmark.total_trades} 笔</strong></span>
                         <span>最大回撤: <strong className="text-[#f85149] font-mono">-{data.real_benchmark.max_drawdown_pct.toFixed(2)}%</strong></span>
-                        <span>单笔期望: <strong className="text-[#3fb950] font-mono">+¥{data.real_benchmark.expectancy_cny.toFixed(0)}</strong></span>
+                        <span>单笔期望: <strong className={`font-mono ${data.real_benchmark.expectancy_cny >= 0 ? 'text-[#3fb950]' : 'text-[#f85149]'}`}>{data.real_benchmark.expectancy_cny >= 0 ? '+' : '-'}¥{Math.abs(data.real_benchmark.expectancy_cny).toFixed(0)}</strong></span>
                       </div>
                     </div>
 
@@ -300,7 +302,7 @@ ${data.executive_verdict.potential_risks.map((r) => `  * ${r}`).join('\n')}
                       <div className="text-[11px] text-[#8b949e] flex justify-between pt-2 border-t border-[#30363d]/60">
                         <span>大数规模: <strong className="text-[#00ff88] font-mono">{data.synthetic_benchmark.total_trades} 笔</strong> (达标)</span>
                         <span>最大回撤: <strong className="text-[#f85149] font-mono">-{data.synthetic_benchmark.max_drawdown_pct.toFixed(2)}%</strong></span>
-                        <span>单笔期望: <strong className="text-[#3fb950] font-mono">+¥{data.synthetic_benchmark.expectancy_cny.toFixed(0)}</strong></span>
+                        <span>单笔期望: <strong className={`font-mono ${data.synthetic_benchmark.expectancy_cny >= 0 ? 'text-[#3fb950]' : 'text-[#f85149]'}`}>{data.synthetic_benchmark.expectancy_cny >= 0 ? '+' : '-'}¥{Math.abs(data.synthetic_benchmark.expectancy_cny).toFixed(0)}</strong></span>
                       </div>
                     </div>
                   </div>
@@ -367,10 +369,14 @@ ${data.executive_verdict.potential_risks.map((r) => `  * ${r}`).join('\n')}
 
                         <tr className="hover:bg-[#161b22]/70">
                           <td className="py-2 px-4 text-[#8b949e] font-sans">累计实现净利润</td>
-                          <td className="py-2 px-4 font-bold text-[#3fb950]">+¥{data.real_benchmark.total_net_pnl.toLocaleString()}</td>
-                          <td className="py-2 px-4 font-bold text-[#3fb950]">+¥{data.synthetic_benchmark.total_net_pnl.toLocaleString()}</td>
-                          <td className="py-2 px-4 text-right font-sans text-[#3fb950]">
-                            ✓ 长期宏观四机制复利累积效应显著
+                          <td className={`py-2 px-4 font-bold ${data.real_benchmark.total_net_pnl >= 0 ? 'text-[#3fb950]' : 'text-[#f85149]'}`}>
+                            {data.real_benchmark.total_net_pnl >= 0 ? '+' : '-'}¥{Math.abs(data.real_benchmark.total_net_pnl).toLocaleString()}
+                          </td>
+                          <td className={`py-2 px-4 font-bold ${data.synthetic_benchmark.total_net_pnl >= 0 ? 'text-[#3fb950]' : 'text-[#f85149]'}`}>
+                            {data.synthetic_benchmark.total_net_pnl >= 0 ? '+' : '-'}¥{Math.abs(data.synthetic_benchmark.total_net_pnl).toLocaleString()}
+                          </td>
+                          <td className={`py-2 px-4 text-right font-sans ${data.synthetic_benchmark.total_net_pnl >= 0 ? 'text-[#3fb950]' : 'text-[#f85149]'}`}>
+                            {data.synthetic_benchmark.total_net_pnl >= 0 ? '✓ 长期宏观四机制复利累积效应显著' : '⚠️ 需关注下行风险与抗压表现'}
                           </td>
                         </tr>
 
@@ -394,19 +400,27 @@ ${data.executive_verdict.potential_risks.map((r) => `  * ${r}`).join('\n')}
 
                         <tr className="hover:bg-[#161b22]/70">
                           <td className="py-2 px-4 text-[#8b949e] font-sans">单笔交易数学期望 (Expectancy)</td>
-                          <td className="py-2 px-4 font-bold text-[#3fb950]">+¥{data.real_benchmark.expectancy_cny.toFixed(1)} / 笔</td>
-                          <td className="py-2 px-4 font-bold text-[#3fb950]">+¥{data.synthetic_benchmark.expectancy_cny.toFixed(1)} / 笔</td>
+                          <td className={`py-2 px-4 font-bold ${data.real_benchmark.expectancy_cny >= 0 ? 'text-[#3fb950]' : 'text-[#f85149]'}`}>
+                            {data.real_benchmark.expectancy_cny >= 0 ? '+' : '-'}¥{Math.abs(data.real_benchmark.expectancy_cny).toFixed(1)} / 笔
+                          </td>
+                          <td className={`py-2 px-4 font-bold ${data.synthetic_benchmark.expectancy_cny >= 0 ? 'text-[#3fb950]' : 'text-[#f85149]'}`}>
+                            {data.synthetic_benchmark.expectancy_cny >= 0 ? '+' : '-'}¥{Math.abs(data.synthetic_benchmark.expectancy_cny).toFixed(1)} / 笔
+                          </td>
                           <td className="py-2 px-4 text-right font-sans text-[#58a6ff]">
-                            ✓ 大数定律下单笔期望值恒正
+                            {data.synthetic_benchmark.expectancy_cny >= 0 ? '✓ 大数定律下单笔期望值恒正' : '⚠️ 单笔期望为负，需升级出场与门禁'}
                           </td>
                         </tr>
 
                         <tr className="hover:bg-[#161b22]/70">
                           <td className="py-2 px-4 text-[#8b949e] font-sans">3x 极端滑点压力测试净利</td>
-                          <td className="py-2 px-4 font-bold text-[#3fb950]">+¥{data.real_benchmark.stress_test_3x_pnl.toLocaleString()}</td>
-                          <td className="py-2 px-4 font-bold text-[#3fb950]">+¥{data.synthetic_benchmark.stress_test_3x_pnl.toLocaleString()}</td>
-                          <td className="py-2 px-4 text-right font-sans text-[#00ff88]">
-                            ✓ 3倍极端摩擦冲击仍保全净盈余
+                          <td className={`py-2 px-4 font-bold ${data.real_benchmark.stress_test_3x_pnl >= 0 ? 'text-[#3fb950]' : 'text-[#f85149]'}`}>
+                            {data.real_benchmark.stress_test_3x_pnl >= 0 ? '+' : '-'}¥{Math.abs(data.real_benchmark.stress_test_3x_pnl).toLocaleString()}
+                          </td>
+                          <td className={`py-2 px-4 font-bold ${data.synthetic_benchmark.stress_test_3x_pnl >= 0 ? 'text-[#3fb950]' : 'text-[#f85149]'}`}>
+                            {data.synthetic_benchmark.stress_test_3x_pnl >= 0 ? '+' : '-'}¥{Math.abs(data.synthetic_benchmark.stress_test_3x_pnl).toLocaleString()}
+                          </td>
+                          <td className={`py-2 px-4 text-right font-sans ${data.synthetic_benchmark.stress_test_3x_pnl >= 0 ? 'text-[#00ff88]' : 'text-[#f85149]'}`}>
+                            {data.synthetic_benchmark.stress_test_3x_pnl >= 0 ? '✓ 3倍极端摩擦冲击仍保全净盈余' : '⚠️ 3倍极端摩擦冲击下承受亏损'}
                           </td>
                         </tr>
                       </tbody>

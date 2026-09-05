@@ -18,18 +18,18 @@ body {
 
 /* Custom scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: #0d1117;
 }
 ::-webkit-scrollbar-thumb {
   background: #30363d;
-  border-radius: 3px;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #484f58;
+  background: #58a6ff;
 }
 
 .pulsing-dot {

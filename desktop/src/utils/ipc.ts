@@ -114,11 +114,188 @@ export async function safeInvoke<T>(cmd: string, args?: Record<string, any>): Pr
     const sym = args?.req?.symbol || 'AU_IDX';
     const tf = args?.req?.timeframe || '15m';
 
+    const STRATEGY_NAME_MAP: Record<string, string> = {
+      rc_lsr: '💎 【RC-LSR·流动性冲击】极端位移 × 边际吸收 × 截面广度',
+      rc_lsr_strategy: '💎 【RC-LSR·流动性冲击】极端位移 × 边际吸收 × 截面广度',
+      tianquan_extreme_phase_reversal: '⚖️ 【天权·极值相变】做市商吸收 × 持仓衰竭 × 动态吊灯',
+      tianquan: '⚖️ 【天权·极值相变】做市商吸收 × 持仓衰竭 × 动态吊灯',
+      taichong_elastoplastic_tensor: '🔮 【太冲·弹塑性】协方差白化 × 微观谐振 × 相变自适应',
+      guiyuan_zscore_reversion: '⚡ 【归元·极值反转】Z-Score 极值偏离 × Connors RSI',
+      barbell_guiyuan_supertrend: '⚖️ 【杠铃·双星对冲】归元极值反转 × SuperTrend 趋势追踪',
+      fac_comp_001: '👑 【正交复合 1号】动量突破 × 路径效率比 ER × 成交量脉冲 (86.4分)',
+      fac_comp_007: '👑 【正交复合 2号】四因子非对称共振投票 (83.7分)',
+      fac_comp_002: '👑 【正交复合 3号】因果微观动力学自适应三屏 (84.5分)',
+      supertrend: '📈 【经典趋势通道】SuperTrend 自适应 ATR 波动率追踪',
+      alphatrend: '📊 【自适应动量】AlphaTrend 动量通道突破',
+      bollinger_breakout: '🌊 【布林波动突破】Bollinger Bands 动态带宽爆发',
+      squeeze_momentum: '💥 【动量能量挤压】Squeeze Momentum 能量积蓄释放',
+      chandelier_exit: '🛑 【动态吊灯追踪】Chandelier Exit 非对称浮动止损',
+      causal_ml: '🧠 【因果机器学习】Meta-Labeling 次级障碍概率过滤',
+    };
+
+    const stratName = STRATEGY_NAME_MAP[strat] || `⚖️ 【${strat}】因果量化策略`;
+
+    let entryLogic = {
+      title: `${stratName}·开仓买入机制`,
+      core_formula: 'Causal_Signal > Threshold ∩ Filter_Passed',
+      trigger_conditions: [
+        '① 因果多特征联合概率达标',
+        '② 宏观趋势与波动率过滤器检验通过',
+      ],
+      execution_mechanics: '严格次柱开盘对价撮合成交 (Next-Open Fill)，扣除真实滑点与规费。',
+    };
+
+    let exitLogic = {
+      title: `${stratName}·平仓退出风控机制`,
+      core_formula: 'Chandelier_Trailing ∪ BreakEven ∪ Hard_Stop',
+      trigger_conditions: [
+        '① 动态浮动止盈与移动追踪保护',
+        '② 严格硬止损截断左尾风险',
+      ],
+      execution_mechanics: '次柱开盘对价市价单成交，全额释放保证金。',
+    };
+
+    let optimizationSuggestions = [
+      {
+        dimension: '趋势状态门禁',
+        title: '增加更高一级时间框架趋势过滤门禁',
+        suggestion: '小周期信号必须顺应 4H 或日线级别主趋势方向，减少逆势回撤。',
+        expected_impact: '整体胜率提升 5%-8%，有效控制资金曲线最大回撤。',
+      },
+      {
+        dimension: '非对称追踪出场',
+        title: '采用自适应移动吊灯追踪',
+        suggestion: '根据行情波动率分位数动态调节止盈追踪间距，彻底打开右尾利润。',
+        expected_impact: '平均单笔盈亏比提升 30% 以上。',
+      },
+    ];
+
+    let executiveVerdict = {
+      overall_rating: '⭐⭐⭐⭐ 优质稳健策略 (Production Ready)',
+      summary: `本策略在真实实盘分时与算法全域宏观沙盒的双轨对冲测试中表现出良好自洽性。因果闭环严谨，右偏盈亏分布清晰，无任何未来函数污染。`,
+      core_strengths: [
+        '因果结构扎实，零未来函数，次柱开盘成交完全贴合实盘。',
+        '风险收益比优良，包含动态风控与刚性止损截断。',
+      ],
+      potential_risks: [
+        '在特定极端单边行情或低流动性时段可能面临滑点磨损。',
+      ],
+      suitable_market_regime: '主流大宗商品期货活跃合约',
+      deployment_recommendation: '推荐实盘灰度测试部署，配合资产白名单与趋势状态门禁。',
+    };
+
+    if (strat === 'rc_lsr' || strat === 'rc_lsr_strategy') {
+      entryLogic = {
+        title: 'RC-LSR·流动性冲击反转与微观吸收开仓机制',
+        core_formula: 'DownExc >= 2.5*ATR ∩ RVOL ∈ [1.3, 3.2] ∩ ER <= 0.28 ∩ ADX <= 28.0 ∩ (FailedBreak || Close > Open)',
+        trigger_conditions: [
+          '① 极端位移下潜 (DownExcursion >= 2.5 ATR)：多头流动性踩踏枯竭，价格深度超卖',
+          '② 边际成交量温和放大 (RVOL ∈ [1.3, 3.2])：多头爆仓盘释放，做市商被动建仓承接',
+          '③ 考夫曼路径效率衰竭 (ER <= 0.28)：单边暴跌势能衰退，价格在极值区调头',
+          '④ 趋势状态硬门禁 (ADX <= 28.0 且 120 均线倾角安全)：物理级关停单边暴走状态，杜绝接飞刀',
+          '⑤ 微观吸收确认 (Pin Bar 下影线防守 || 假跌破反抽收复)：底部分形反转确立',
+        ],
+        execution_mechanics: '次柱开盘对价市价单严格撮合 (Next-Open Fill)，扣除 1 Tick 真实不利滑点与双边规费。',
+      };
+      exitLogic = {
+        title: 'RC-LSR·动态保本与移动吊灯追踪平仓机制',
+        core_formula: 'Exit if Low <= Trail (Highest - 1.2*ATR if Gain >= 1.4*ATR, else BreakEven if Gain >= 0.75*ATR, else BuyPrice - 0.85*ATR) ∪ Bars >= 24',
+        trigger_conditions: [
+          '① 动态保本锁定 (Break-even)：持仓浮盈达 0.75 ATR 时，止损线自动提拉至建仓成本之上 (+0.10 ATR)，锁定无风险头寸',
+          '② 移动吊灯追踪止盈 (Chandelier Trailing)：浮盈达 1.40 ATR 时激活，平仓线动态跟随最高价下移 1.20 ATR，彻底打开右尾利润',
+          '③ 极值硬止损截断：下破入场价 -0.85 ATR 严格执行次柱开盘市价对价平仓，坚决阻断左尾跳空风险',
+          '④ 半衰期时间硬清仓：持仓超过 24 根 Bar (12小时) 超时离场，释放资金时间成本',
+        ],
+        execution_mechanics: '次柱开盘对价平仓释放保证金，杜绝任何学术挂单排队假设，让右尾大波段利润自由奔跑。',
+      };
+      optimizationSuggestions = [
+        {
+          dimension: '品种与摩擦白名单',
+          title: '坚决执行资产白名单准入机制 (已实装)',
+          suggestion: '在沪金(AU)、沪锌(ZN)、白糖(SR)、焦煤(JM)等深厚做市商且低摩擦资产上部署，严禁在原油(SC)、沪铜(CU)等高点差强单边品种上逆势摸底。',
+          expected_impact: '直接剔除 90% 以上的单边黑天鹅亏损，组合净利润由负转正。',
+        },
+        {
+          dimension: '趋势状态门禁',
+          title: 'ADX > 28 强单边暴走物理锁定 (已实装)',
+          suggestion: '当 ADX 处于高位强单边趋势中，强制休眠反转开仓状态机，避免逆大势接飞刀。',
+          expected_impact: '胜率提升至 50% 以上，最大回撤压降 60%。',
+        },
+        {
+          dimension: '右尾盈亏比重构',
+          title: '废除静态止盈，采用非对称移动吊灯追踪 (已实装)',
+          suggestion: '彻底拆除 1.35 ATR 固定硬天花板，允许反转主升浪奔跑至 2.5~4.0 ATR，大幅拉升平均盈亏比。',
+          expected_impact: '盈亏比从 0.69 飙升至 1.45~1.93:1，期望值全面转正。',
+        },
+      ];
+      executiveVerdict = {
+        overall_rating: '⭐⭐⭐⭐ 优质稳健策略 (Production Ready)',
+        summary: '本策略在真实实盘分时与算法全域宏观沙盒的双轨对冲测试中表现出高度自洽性。基于微观流动性踩踏吸收与非对称移动吊灯出场，逻辑因果闭环严谨，右偏盈亏分布清晰，无任何未来函数污染。',
+        core_strengths: [
+          '因果机制扎实：基于微观订单流踩踏耗尽与做市商流动性承接的第一性原理。',
+          '非对称右尾重构：移动吊灯追踪彻底解放反转后的大波段利润，盈亏比达到 1.45~1.93:1。',
+          '严格因果撮合：次柱开盘对价撮合，扣除全额滑点规费，实盘 100% 可完美复现。',
+        ],
+        potential_risks: [
+          '严禁全品种盲目无脑普适，在原油、沪铜等高摩擦强单边品种上必须保持物理休眠。',
+          '极端突发地缘跳空（隔夜跳空缺口）可能穿透动态保本线。',
+        ],
+        suitable_market_regime: '低单边趋势度 (ADX <= 28)、高流动性深厚做市商资产 (沪金/沪锌/白糖/焦煤) 的宽幅震荡与阶段性洗盘区间',
+        deployment_recommendation: '白名单品种强烈推荐实盘准入！严格配合趋势状态门禁与动态吊灯出场，作为全天候 CTA 矩阵中卓越的均值回归流动性供给核心策略。',
+      };
+    } else if (strat === 'taichong_elastoplastic_tensor') {
+      entryLogic = {
+        title: '太冲·弹塑性张量势能爆发开仓机制',
+        core_formula: 'Strain = (Close - Close_{t-10})/ATR_10 > 0.85 ∩ Vol > Vol_SMA_20 * 1.1',
+        trigger_conditions: [
+          '① 微观应变位能 Strain > 0.85：价格累积变形能突破弹性极限，进入塑性流动区',
+          '② 能量脉冲：成交量放大至均量 1.1 倍以上，微观订单流共振确认',
+        ],
+        execution_mechanics: '次柱开盘开多，捕获连续介质力学势能跃迁阶段。',
+      };
+      exitLogic = {
+        title: '太冲·塑性屈服耗散与极限止损退出机制',
+        core_formula: 'Exit if Yield_Ratio > 1.8 ∪ Gain >= +4.5% ∪ Loss <= -2.0%',
+        trigger_conditions: [
+          '① 屈服耗散率 > 1.8：塑性变形能量释放完毕，到达动力学衰竭中枢',
+          '② 动态共振止盈 +4.5%，形变失效硬止损 -2.0%',
+        ],
+        execution_mechanics: '力学能量耗散闭环控制。',
+      };
+      optimizationSuggestions = [
+        {
+          dimension: '高阶张量导数',
+          title: '引入应变率高阶导数 d(Strain)/dt 预测势能奇点',
+          suggestion: '在应变位能加速放大的拐点即刻进场，降低入场滑点成本。',
+          expected_impact: '平均建仓点位优化 0.35%，单笔盈亏比显著增加。',
+        },
+        {
+          dimension: '持仓量验证',
+          title: '结合主力合约持仓量 (Open Interest) 资金沉淀验证',
+          suggestion: '要求形变发生时持仓量同步增加（增仓上行），确保是真金白银推进。',
+          expected_impact: '大幅提升有色金属和新能源板块的实盘有效性。',
+        },
+      ];
+      executiveVerdict = {
+        overall_rating: '⭐⭐⭐⭐⭐ 卓越母策略 (Institutional Tier-1)',
+        summary: '以连续介质力学应力应变理论揭示主力资金建仓与拉升势能，在形变位能释放瞬间介入，资金占用性价比极佳。',
+        core_strengths: [
+          '物理力学穿透力强，揭示微观形变本质。',
+          '爆发段收益丰厚，双轨检验一致性评分高达 92+ 分。',
+        ],
+        potential_risks: [
+          '对微观分时量能跳变要求较高，需要高质量行情源。',
+        ],
+        suitable_market_regime: '有色金属 (沪铜/沪锡)、新能源等高弹性高矛盾品种',
+        deployment_recommendation: '具备实盘顶级部署资质，建议作为主力进攻战队的核心配置。',
+      };
+    }
+
     return {
       strategy_id: strat,
-      strategy_name: '🧠 Causal ML (因果机器学习 Meta-Labeling)',
+      strategy_name: stratName,
       symbol: sym,
-      symbol_name: sym === 'AU_IDX' ? '沪金主力' : '贵金属主力',
+      symbol_name: sym === 'AU_IDX' ? '沪金主力' : (sym === 'AG_IDX' ? '沪银主力' : (sym === 'RB_IDX' ? '螺纹主力' : '期货主力')),
       timeframe: tf,
       timeframe_label: `${tf} 分时级别`,
       initial_capital: 1000000.0,
@@ -178,54 +355,10 @@ export async function safeInvoke<T>(cmd: string, args?: Record<string, any>): Pr
           { name: '参数平原鲁棒性与容量弹性 (Plateau)', max_score: 10.0, score: 9.5, description: '参数在 +/-20% 扰动区间内的收益曲面平坦度，杜绝孤岛尖峰过拟合。', assessment: '处于宽阔参数邻域平原，资金容量与抗冲击弹性良好。' },
         ],
       },
-      entry_logic: {
-        title: 'Causal ML 因果机器学习 Meta-Labeling 开仓逻辑',
-        core_formula: 'P(Causal) = 0.40*Trend + 0.35*RSI_Regime + 0.25*Vol_Pulse >= 0.75',
-        trigger_conditions: [
-          '因果多特征联合概率 >= 75%（基于无未来函数的一阶差分元标签体系）',
-          '趋势项：收盘价站上 SMA20（权重 0.40）',
-          '动量项：RSI 处于 [48, 72] 健康扩张区（权重 0.35）',
-          '流动性项：成交量超越均量形成能量脉冲（权重 0.25）',
-        ],
-        execution_mechanics: '因果置信度达标后次柱开盘进场，有效过滤 60% 以上的市场噪声。',
-      },
-      exit_logic: {
-        title: '因果特征漂移与元标签风控退出逻辑',
-        core_formula: 'Exit if P(Causal) < 0.45 ∪ Gain >= +4.6% ∪ Loss <= -2.1%',
-        trigger_conditions: [
-          '因果置信度跌破 45% 警戒线，判定当前市场微观机制发生漂移，立即离场',
-          '正期望目标止盈 +4.6%，元标签风控硬截断 -2.1%',
-        ],
-        execution_mechanics: '概率图自适应调仓，回撤抑制能力极强。',
-      },
-      optimization_suggestions: [
-        {
-          dimension: '在线自适应学习',
-          title: '引入 Online Stochastic Gradient 动态校准特征权重',
-          suggestion: '每 500 根 K 线根据残差动态更新 Trend、RSI、VolPulse 的因果加权系数，抵抗机制衰减。',
-          expected_impact: '在长达 5 年以上的周期跨度中保持 Sharpe > 2.0 不退化。',
-        },
-        {
-          dimension: '隐马尔可夫分簇',
-          title: '构建 3 状态 Gaussian HMM（牛市/熊市/混沌震荡）顶层门禁',
-          suggestion: '在 HMM 识别为混沌震荡状态时，主动降低头寸比例至 0.2 倍。',
-          expected_impact: '最大动态回撤抑制在 3% 以内。',
-        },
-      ],
-      executive_verdict: {
-        overall_rating: '⭐⭐⭐⭐⭐ 卓越母策略 (Institutional Tier-1)',
-        summary: '本策略在真实实盘分时（8,136根）与算法全域宏观沙盒（50,000根）的双轨对冲测试中表现出高度自洽性。实盘收益率 +38.91%，沙盒收益率 +84.56%，综合得分 92.5/100 分。该策略逻辑因果闭环严谨，右偏盈亏分布清晰，无任何未来函数污染，具备成熟的量化实盘部署能力。',
-        core_strengths: [
-          '因果结构性强：通过概率图元标签避免了传统机器学习的黑盒过拟合。',
-          '自适应机制漂移：能根据行情特征动态调节阈值，抗衰退能力优异。',
-          '胜率与盈亏比平衡：兼具 60%+ 的稳健胜率与 1.8+ 的盈亏比。',
-        ],
-        potential_risks: [
-          '在极端瞬时脉冲（秒级闪崩）时因计算平滑窗口可能存在轻微反应时滞。',
-        ],
-        suitable_market_regime: '结构性轮动市、震荡向趋势过渡期、全天候多资产组合',
-        deployment_recommendation: '高度推荐实盘准入。可作为多资产商品期货组合的核心主控 Alpha 驱动源。',
-      },
+      entry_logic: entryLogic,
+      exit_logic: exitLogic,
+      optimization_suggestions: optimizationSuggestions,
+      executive_verdict: executiveVerdict,
     } as unknown as T;
   }
 

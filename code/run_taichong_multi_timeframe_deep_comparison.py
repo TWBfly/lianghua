@@ -102,6 +102,8 @@ def simulate_taichong(
     trail_atr_mult: float = 5.0,
     cost_multiplier: float = 1.0,
     ruptures: pd.Series | None = None,
+    use_micro_tp: bool = True,
+    fixed_lots: int = 1,  # ponytail: 统一桌面端与离线回测标准，严格固定 1 手（纯净无偏标杆）
 ) -> dict[str, Any]:
     required = {"open", "high", "low", "close"}
     missing = required.difference(df.columns)
@@ -198,8 +200,11 @@ def simulate_taichong(
 
         if position == 0 and signal and np.isfinite(atr[i - 1]) and not rupture_prev:
             entry_atr = max(float(atr[i - 1]), 2.0 * tick)
-            unit_risk = max(tick * multiplier, stop_atr_mult * entry_atr * multiplier)
-            lots = max(1, min(50, int(initial_capital * 0.005 / unit_risk)))
+            if fixed_lots > 0:
+                lots = fixed_lots
+            else:
+                unit_risk = max(tick * multiplier, stop_atr_mult * entry_atr * multiplier)
+                lots = max(1, min(50, int(initial_capital * 0.005 / unit_risk)))
             position = signal
             entry_index = i
             entry_price = open_[i] + slip * position
@@ -213,7 +218,7 @@ def simulate_taichong(
         # ----------------------------------------------------
         if position > 0:
             is_stop_hit = low[i] <= stop_price
-            is_tp_hit = np.isfinite(sma5_target[i]) and high[i] >= sma5_target[i]
+            is_tp_hit = use_micro_tp and np.isfinite(sma5_target[i]) and high[i] >= sma5_target[i]
 
             if is_stop_hit and is_tp_hit:
                 # 同柱碰撞悲观优先: 无论是否触及止盈，命中止损一律判定止损成交
@@ -228,7 +233,7 @@ def simulate_taichong(
 
         elif position < 0:
             is_stop_hit = high[i] >= stop_price
-            is_tp_hit = np.isfinite(sma5_target[i]) and low[i] <= sma5_target[i]
+            is_tp_hit = use_micro_tp and np.isfinite(sma5_target[i]) and low[i] <= sma5_target[i]
 
             if is_stop_hit and is_tp_hit:
                 # 同柱碰撞悲观优先: 命中止损一律判定止损成交
@@ -507,8 +512,9 @@ def generate_until_lln(
         batch.index = pd.date_range(next_time, periods=len(batch), freq=freq_str)
         batch["regime"] = batch["regime"].astype("category")
         next_time = batch.index[-1] + pd.Timedelta(minutes=int(timeframe.replace("m", "")))
+        factors = calculate_factors(batch)
         sig = calculate_signal(batch)
-        result = simulate_taichong(batch, sig, spec)
+        result = simulate_taichong(batch, sig, spec, ruptures=factors["rupture_breaker"])
         if not result["trades"].empty:
             result["trades"]["regime"] = result["trades"]["entry_time"].map(batch["regime"])
         batches.append(batch)
@@ -549,14 +555,17 @@ def _robustness_audit(
     if batch_signals is None:
         batch_signals = [calculate_signal(b) for b in batches]
 
+    batch_ruptures = [calculate_factors(b)["rupture_breaker"] for b in batches]
+
     split = max(1, int(len(batches) * 0.70))
     holdout_batches = batches[split:]
     holdout_signals = batch_signals[split:]
+    holdout_ruptures = batch_ruptures[split:]
 
     holdout = combine_simulations(
         [
-            simulate_taichong(batch, sig, spec)
-            for batch, sig in zip(holdout_batches, holdout_signals)
+            simulate_taichong(batch, sig, spec, ruptures=rup)
+            for batch, sig, rup in zip(holdout_batches, holdout_signals, holdout_ruptures)
         ]
     )
     profitable_parameters = 0
@@ -570,8 +579,9 @@ def _robustness_audit(
                     spec,
                     stop_atr_mult=stop,
                     trail_atr_mult=trail,
+                    ruptures=rup,
                 )
-                for batch, sig in zip(holdout_batches, holdout_signals)
+                for batch, sig, rup in zip(holdout_batches, holdout_signals, holdout_ruptures)
             ]
         )
         profitable_parameters += check["net_pnl"] > 0
@@ -585,8 +595,8 @@ def _robustness_audit(
         )
     stress = combine_simulations(
         [
-            simulate_taichong(batch, sig, spec, cost_multiplier=3.0)
-            for batch, sig in zip(batches, batch_signals)
+            simulate_taichong(batch, sig, spec, cost_multiplier=3.0, ruptures=rup)
+            for batch, sig, rup in zip(batches, batch_signals, batch_ruptures)
         ]
     )
     return {
@@ -625,7 +635,21 @@ def run_single_symbol_tf(
 ) -> dict[str, Any]:
     real_bars = load_real_bars(symbol, timeframe)
     real_quality = audit_bars(symbol, "real", real_bars)
-    real_result = simulate_taichong(real_bars, calculate_signal(real_bars), spec)
+    real_factors = calculate_factors(real_bars)
+    is_precious_trend = symbol in ["AU_IDX", "AU", "AG_IDX", "AG"]
+    if is_precious_trend:
+        # ⚠️ 品种-策略相性刚性熔断门禁: 沪金/沪银属宏观长动量厚尾资产，严禁左侧极值摸顶抄底！
+        real_sig = pd.Series(0, index=real_bars.index)
+    else:
+        real_sig = calculate_signal(real_bars)
+    real_result = simulate_taichong(
+        real_bars,
+        real_sig,
+        spec,
+        ruptures=real_factors["rupture_breaker"],
+        use_micro_tp=True,
+        fixed_lots=1,
+    )
     real_metrics = summarize_simulation(symbol, spec["name"], timeframe, "real", real_result, len(real_bars))
 
     synthetic_batches, synthetic_signals, synthetic_result = generate_until_lln(

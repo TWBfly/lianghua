@@ -9,6 +9,7 @@ import {
   Time,
   ColorType,
   CrosshairMode,
+  TickMarkType,
 } from 'lightweight-charts';
 import { safeInvoke } from '../../utils/ipc';
 import { ChartMarker, KlineBar } from '../../types';
@@ -28,15 +29,23 @@ interface TVChartProps {
   onToggleDrawer?: () => void;
 }
 
+const formatInCST = (ts: number): { Y: string; M: string; D: string; h: string; m: string; s: string } => {
+  const d = new Date(ts * 1000);
+  // 确保在任何操作系统时区下均锁定为中国标准时间 (UTC+8)
+  const cst = new Date(d.getTime() + (d.getTimezoneOffset() + 480) * 60000);
+  return {
+    Y: String(cst.getFullYear()),
+    M: String(cst.getMonth() + 1).padStart(2, '0'),
+    D: String(cst.getDate()).padStart(2, '0'),
+    h: String(cst.getHours()).padStart(2, '0'),
+    m: String(cst.getMinutes()).padStart(2, '0'),
+    s: String(cst.getSeconds()).padStart(2, '0'),
+  };
+};
+
 const formatTimestamp = (ts: number): string => {
   if (!ts) return '';
-  const d = new Date(ts * 1000);
-  const Y = d.getFullYear();
-  const M = String(d.getMonth() + 1).padStart(2, '0');
-  const D = String(d.getDate()).padStart(2, '0');
-  const h = String(d.getHours()).padStart(2, '0');
-  const m = String(d.getMinutes()).padStart(2, '0');
-  const s = String(d.getSeconds()).padStart(2, '0');
+  const { Y, M, D, h, m, s } = formatInCST(ts);
   return `${Y}-${M}-${D} ${h}:${m}:${s}`;
 };
 
@@ -124,16 +133,41 @@ export const TVChartContainer: React.FC<TVChartProps> = ({
         rightOffset: 12,
         barSpacing: 10,
         minBarSpacing: 2,
+        tickMarkFormatter: (time: Time, tickMarkType: TickMarkType) => {
+          const ts = typeof time === 'number' ? time : 0;
+          if (!ts) return null;
+          const mapped = barsTimeMapRef.current.get(ts);
+          if (mapped && mapped.length >= 16) {
+            if (tickMarkType === TickMarkType.Year) {
+              return mapped.substring(0, 4);
+            } else if (tickMarkType === TickMarkType.Month) {
+              return `${parseInt(mapped.substring(5, 7), 10)}月`;
+            } else if (tickMarkType === TickMarkType.DayOfMonth) {
+              return `${parseInt(mapped.substring(8, 10), 10)}日`;
+            } else {
+              return mapped.substring(11, 16);
+            }
+          }
+          const { Y, M, D, h, m } = formatInCST(ts);
+          if (tickMarkType === TickMarkType.Year) {
+            return Y;
+          } else if (tickMarkType === TickMarkType.Month) {
+            return `${parseInt(M, 10)}月`;
+          } else if (tickMarkType === TickMarkType.DayOfMonth) {
+            return `${parseInt(D, 10)}日`;
+          } else {
+            return `${h}:${m}`;
+          }
+        },
       },
       localization: {
         locale: 'zh-CN',
         timeFormatter: (timestamp: number) => {
-          const d = new Date(timestamp * 1000);
-          const Y = d.getFullYear();
-          const M = String(d.getMonth() + 1).padStart(2, '0');
-          const D = String(d.getDate()).padStart(2, '0');
-          const h = String(d.getHours()).padStart(2, '0');
-          const m = String(d.getMinutes()).padStart(2, '0');
+          const mapped = barsTimeMapRef.current.get(timestamp);
+          if (mapped) {
+            return mapped.length >= 16 ? mapped.substring(0, 16) : mapped;
+          }
+          const { Y, M, D, h, m } = formatInCST(timestamp);
           return `${Y}-${M}-${D} ${h}:${m}`;
         },
       },
@@ -613,9 +647,6 @@ export const TVChartContainer: React.FC<TVChartProps> = ({
           <span className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-[#00ff88] pulsing-dot"></span> ⏱️ 底部横轴精确展示时分秒
           </span>
-        </div>
-        <div className="text-[#8b949e] font-mono">
-          TradingView Lightweight Charts v4.2 • 60 FPS Canvas GPU
         </div>
       </div>
     </div>

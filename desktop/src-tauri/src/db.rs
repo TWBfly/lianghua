@@ -58,19 +58,25 @@ pub fn get_synthetic_db_path() -> PathBuf {
 
 pub fn parse_trade_time(dt_str: &str) -> i64 {
     let dt_str = dt_str.trim();
+    // 基础数据存储为北京时间 (UTC+8)，换算为标准 UTC Unix 秒数需扣减 8 小时 (28,800秒)
+    const BEIJING_OFFSET_SECS: i64 = 8 * 3600;
     if dt_str.contains(' ') {
         if let Ok(dt) = NaiveDateTime::parse_from_str(dt_str, "%Y-%m-%d %H:%M:%S") {
-            return dt.and_utc().timestamp();
+            return dt.and_utc().timestamp() - BEIJING_OFFSET_SECS;
         }
         if let Ok(dt) = NaiveDateTime::parse_from_str(dt_str, "%Y-%m-%d %H:%M") {
-            return dt.and_utc().timestamp();
+            return dt.and_utc().timestamp() - BEIJING_OFFSET_SECS;
         }
     } else {
         if let Ok(d) = NaiveDate::parse_from_str(dt_str, "%Y-%m-%d") {
-            return d.and_hms_opt(15, 0, 0).unwrap().and_utc().timestamp();
+            if let Some(dt) = d.and_hms_opt(15, 0, 0) {
+                return dt.and_utc().timestamp() - BEIJING_OFFSET_SECS;
+            }
         }
         if let Ok(d) = NaiveDate::parse_from_str(dt_str, "%Y%m%d") {
-            return d.and_hms_opt(15, 0, 0).unwrap().and_utc().timestamp();
+            if let Some(dt) = d.and_hms_opt(15, 0, 0) {
+                return dt.and_utc().timestamp() - BEIJING_OFFSET_SECS;
+            }
         }
     }
     0

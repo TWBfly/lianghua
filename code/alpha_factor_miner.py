@@ -370,7 +370,73 @@ def factor_oi_momentum_surge(df: pd.DataFrame) -> pd.Series:
         oi = df["open_interest"].astype(float)
         oi_diff = oi.diff().fillna(0)
         return vol_ratio * np.sign(oi_diff)
-    return vol_ratio
+# ==============================================================================
+# 6. Liquidity Shock Reversal (RC-LSR) Microstructure Factors
+# ==============================================================================
+
+@FactorRegistry.register("rc_lsr_down_excursion", "microstructure", "RC-LSR Downward Extreme Excursion (EMA20 - Low) / ATR_median")
+def factor_rc_lsr_down_excursion(df: pd.DataFrame) -> pd.Series:
+    close = df["close"].astype(float)
+    low = df["low"].astype(float)
+    high = df["high"].astype(float)
+    prev_close = close.shift(1).fillna(close)
+    tr = pd.concat([high - low, (high - prev_close).abs(), (low - prev_close).abs()], axis=1).max(axis=1)
+    atr = tr.rolling(20, min_periods=5).median().replace(0, np.nan)
+    ema20 = close.ewm(span=20, adjust=False).mean()
+    return (ema20 - low) / atr
+
+
+@FactorRegistry.register("rc_lsr_efficiency_ratio", "regime", "RC-LSR Kaufman Efficiency Ratio (Net Direction / Total Path)")
+def factor_rc_lsr_efficiency_ratio(df: pd.DataFrame) -> pd.Series:
+    close = df["close"].astype(float)
+    net_path = (close - close.shift(20)).abs()
+    total_path = close.diff().abs().rolling(20, min_periods=5).sum().replace(0, np.nan)
+    return net_path / total_path
+
+
+@FactorRegistry.register("rc_lsr_volatility_ratio", "volatility", "RC-LSR Volatility State Ratio (ATR5 / ATR60)")
+def factor_rc_lsr_volatility_ratio(df: pd.DataFrame) -> pd.Series:
+    close = df["close"].astype(float)
+    low = df["low"].astype(float)
+    high = df["high"].astype(float)
+    prev_close = close.shift(1).fillna(close)
+    tr = pd.concat([high - low, (high - prev_close).abs(), (low - prev_close).abs()], axis=1).max(axis=1)
+    atr5 = tr.rolling(5, min_periods=2).mean()
+    atr60 = tr.rolling(60, min_periods=10).mean().replace(0, np.nan)
+    return atr5 / atr60
+
+
+@FactorRegistry.register("rc_lsr_rvol_20", "volume", "RC-LSR Relative Volume vs 20-period median")
+def factor_rc_lsr_rvol_20(df: pd.DataFrame) -> pd.Series:
+    vol = df["volume"].astype(float)
+    median_vol = vol.rolling(20, min_periods=5).median().replace(0, np.nan)
+    return vol / median_vol
+
+
+@FactorRegistry.register("rc_lsr_marginal_impact_decay", "microstructure", "RC-LSR Marginal Price Impact Decay Rate")
+def factor_rc_lsr_marginal_impact_decay(df: pd.DataFrame) -> pd.Series:
+    low = df["low"].astype(float)
+    high = df["high"].astype(float)
+    close = df["close"].astype(float)
+    vol = df["volume"].astype(float)
+    prev_close = close.shift(1).fillna(close)
+    tr = pd.concat([high - low, (high - prev_close).abs(), (low - prev_close).abs()], axis=1).max(axis=1)
+    atr = tr.rolling(20, min_periods=5).median().replace(0, np.nan)
+    median_vol = vol.rolling(20, min_periods=5).median().replace(0, np.nan)
+    rvol = (vol / median_vol).clip(lower=0.1)
+    
+    marginal_down = (low.shift(1) - low).clip(lower=0.0) / atr
+    impact = marginal_down / np.sqrt(rvol)
+    prev_impact = impact.shift(1).replace(0, np.nan)
+    return (impact / prev_impact).fillna(1.0)
+
+
+@FactorRegistry.register("rc_lsr_failed_breakdown", "microstructure", "RC-LSR Failed Breakdown of 20-period Low Indicator")
+def factor_rc_lsr_failed_breakdown(df: pd.DataFrame) -> pd.Series:
+    low = df["low"].astype(float)
+    close = df["close"].astype(float)
+    roll_low_20 = low.shift(1).rolling(20, min_periods=5).min()
+    return ((low < roll_low_20) & (close > roll_low_20)).astype(float)
 
 
 # ==============================================================================

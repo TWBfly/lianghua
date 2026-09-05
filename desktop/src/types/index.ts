@@ -100,6 +100,11 @@ export interface BacktestMetrics {
   lln_compliant: boolean;
   data_source_label: string;
   total_bars_count: number;
+  sharpe_ratio?: number;
+  calmar_ratio?: number;
+  duration_days?: number;
+  is_annual_distorted?: boolean;
+  sample_warning?: string;
 }
 
 export interface BacktestTradeItem {

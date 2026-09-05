@@ -65,6 +65,34 @@ fn get_data_dir() -> PathBuf {
 pub fn get_strategies_registry() -> Vec<StrategyMeta> {
     vec![
         StrategyMeta {
+            id: "rc_lsr".to_string(),
+            name: "💎 【RC-LSR·流动性冲击反转策略】(极端位移 × 边际吸收 × 截面广度)".to_string(),
+            short_name: "💎 RC-LSR 流动性反转 (30m)".to_string(),
+            timeframe: "30m".to_string(),
+            symbols: vec![
+                "AG_IDX".to_string(), "SC_IDX".to_string(), "CF_IDX".to_string(), "AU_IDX".to_string(),
+                "TA_IDX".to_string(), "AL_IDX".to_string(), "RB_IDX".to_string(), "CU_IDX".to_string(),
+            ],
+            default_symbol: "AG_IDX".to_string(),
+            initial_capital: 1000000.0,
+            summary_win_rate: 62.5,
+            execution_status: "AVAILABLE".to_string(),
+        },
+        StrategyMeta {
+            id: "tianquan_extreme_phase_reversal".to_string(),
+            name: "⚖️ 【天权·极值条件相变反转策略】(做市商吸收 × 持仓衰竭 × 动态吊灯)".to_string(),
+            short_name: "⚖️ 天权·极值相变 (有色/能化 30m)".to_string(),
+            timeframe: "30m".to_string(),
+            symbols: vec![
+                "CU_IDX".to_string(), "SN_IDX".to_string(), "SC_IDX".to_string(), "AL_IDX".to_string(),
+                "ZN_IDX".to_string(), "MA_IDX".to_string(), "TA_IDX".to_string(), "SA_IDX".to_string(),
+            ],
+            default_symbol: "CU_IDX".to_string(),
+            initial_capital: 1000000.0,
+            summary_win_rate: 61.2,
+            execution_status: "AVAILABLE".to_string(),
+        },
+        StrategyMeta {
             id: "fac_comp_001".to_string(),
             name: "👑 【正交复合 Alpha 1号】FAC_COMP_001 (动量突破 × 路径效率比 ER × 成交量脉冲)".to_string(),
             short_name: "👑 正交复合 1号 (86.4分)".to_string(),

@@ -14,17 +14,25 @@ interface BacktestControlBarProps {
 }
 
 const STRATEGY_OPTIONS = [
-  { id: 'fac_comp_001', name: '👑 【正交复合 1号】FAC_COMP_001 (86.4分 趋势×信噪比×放量)' },
-  { id: 'fac_comp_007', name: '👑 【正交复合 2号】FAC_COMP_007 (83.7分 四因子非对称共振投票)' },
-  { id: 'fac_comp_002', name: '👑 【正交复合 3号】FAC_COMP_002 (84.5分 因果动力学自适应三屏)' },
-  { id: 'causal_ml', name: '🧠 Causal ML (因果机器学习)' },
-  { id: 'supertrend', name: '📈 SuperTrend (超级趋势带)' },
-  { id: 'taichong_elastoplastic_tensor', name: '🔮 太冲·弹塑性张量 (微观谐振)' },
-  { id: 'guiyuan_zscore_reversion', name: '⚡ 归元·Z-Score 极值均值反转' },
-  { id: 'alphatrend', name: '📊 AlphaTrend (自适应动量)' },
-  { id: 'chandelier_exit', name: '🛑 Chandelier Exit (吊灯追踪止损)' },
-  { id: 'bollinger_breakout', name: '🌊 Bollinger Bands (布林带突破)' },
-  { id: 'squeeze_momentum', name: '💥 Squeeze Momentum (动量挤压)' },
+  // 🌟 自研顶级星宿与物理相变矩阵 (第一梯队)
+  { id: 'rc_lsr', name: '💎 【RC-LSR·流动性冲击】极端位移 × 边际吸收 × 截面广度' },
+  { id: 'tianquan_extreme_phase_reversal', name: '⚖️ 【天权·极值相变】做市商吸收 × 持仓衰竭 × 动态吊灯' },
+  { id: 'taichong_elastoplastic_tensor', name: '🔮 【太冲·弹塑性】协方差白化 × 微观谐振 × 相变自适应' },
+  { id: 'guiyuan_zscore_reversion', name: '⚡ 【归元·极值反转】Z-Score 极值偏离 × Connors RSI' },
+  { id: 'barbell_guiyuan_supertrend', name: '⚖️ 【杠铃·双星对冲】归元极值反转 × SuperTrend 趋势追踪' },
+
+  // 👑 正交复合多因子评分矩阵 (第二梯队)
+  { id: 'fac_comp_001', name: '👑 【正交复合 1号】动量突破 × 路径效率比 ER × 成交量脉冲 (86.4分)' },
+  { id: 'fac_comp_007', name: '👑 【正交复合 2号】四因子非对称共振投票 (83.7分)' },
+  { id: 'fac_comp_002', name: '👑 【正交复合 3号】因果微观动力学自适应三屏 (84.5分)' },
+
+  // 📈 现代量化与机器学习矩阵 (第三梯队)
+  { id: 'causal_ml', name: '🧠 【因果机器学习】Meta-Labeling 次级障碍概率过滤' },
+  { id: 'supertrend', name: '📈 【经典趋势通道】SuperTrend 自适应 ATR 波动率追踪' },
+  { id: 'alphatrend', name: '📊 【自适应动量】AlphaTrend 动量通道突破' },
+  { id: 'bollinger_breakout', name: '🌊 【布林波动突破】Bollinger Bands 动态带宽爆发' },
+  { id: 'squeeze_momentum', name: '💥 【动量能量挤压】Squeeze Momentum 能量积蓄释放' },
+  { id: 'chandelier_exit', name: '🛑 【动态吊灯追踪】Chandelier Exit 非对称浮动止损' },
 ];
 
 const STANDARD_TIMEFRAMES = ['1m', '5m', '10m', '15m', '30m', '1h', '4h', '1d'];

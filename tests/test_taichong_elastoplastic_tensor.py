@@ -182,14 +182,14 @@ class TestTaichongElastoplasticTensor(unittest.TestCase):
         self.assertNotEqual("take_profit_sma5", trades.iloc[0]["exit_reason"])
 
     def test_directional_oi_filter(self):
-        """测试非对称持仓量(OI)微观主动进攻过滤：下跌增仓拦截多头抄底"""
+        """测试非对称持仓量(OI)微观主动进攻过滤：多周期下跌增仓拦截多头抄底"""
         df = self.df.copy()
-        c = df["close"].values
         df["volume"] = 1000.0
         oi = np.full(len(df), 10000.0)
-        # 模拟下跌增仓 (空头主动砸盘): 在 225 处价格低于前值且持仓量突增
-        df.iloc[225, df.columns.get_loc("close")] = df.iloc[224]["close"] - 10.0
-        oi[225] = oi[224] + 5000.0
+        # 模拟多周期连续下跌增仓 (空头主动砸盘): 在 223~225 处价格持续下挫且持仓量持续突增
+        for idx in [223, 224, 225]:
+            df.iloc[idx, df.columns.get_loc("close")] = df.iloc[222]["close"] - 15.0 * (idx - 222)
+            oi[idx] = oi[222] + 2500.0 * (idx - 222)
         df["open_interest"] = oi
 
         factors = calculate_factors(df)

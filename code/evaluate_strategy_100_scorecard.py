@@ -85,16 +85,16 @@ def calculate_100_point_scorecard(
 
     # 惩罚 2: 小样本惩罚 (N=51 远不足 1000 笔, 乘以样本置信衰减系数)
     sample_factor_a = min(1.0, np.sqrt(trades_1x / 200.0))  # 51 笔时衰减系数约为 0.505
-    score_a = round(max(0.0, (raw_score_a - penalty_conc_a) * sample_factor_a + 2.0), 1)
+    score_a = round(max(0.0, (raw_score_a - penalty_conc_a) * sample_factor_a), 1)
 
     # -------------------------------------------------------------------------
     # 模块 B: 参数与结构鲁棒性 (满分 15 分)
     # -------------------------------------------------------------------------
-    # 理论结构设计分 (零滞后滤波、混沌门禁) = 6.0 分
-    # 实证参数平原与非过拟合检验 = 需根据非贵金属表现与胜率衰减动态计算
-    score_b_design = 6.0
-    score_b_empirical = 3.0 if (non_precious_pnl > 0) else 1.5  # 非贵金属为负扣分
-    score_b = round(score_b_design + score_b_empirical, 1)
+    # ponytail: 剔除硬编码送分。由跨品种实证广度与参数平原表现客观打分
+    score_b_empirical = 6.0 if (non_precious_pnl > 0 and symbol_breadth >= 0.5) else (3.0 if non_precious_pnl > 0 else 1.0)
+    plateau_ratio = float(real_report_data.get("robustness", {}).get("plateau_profitable_ratio", 0.0))
+    score_b_param = min(9.0, plateau_ratio * 9.0) if plateau_ratio > 0 else (4.0 if symbol_breadth >= 0.4 else 1.5)
+    score_b = round(score_b_param + score_b_empirical, 1)
 
     # -------------------------------------------------------------------------
     # 模块 C: 时间鲁棒性与切片检验 (满分 15 分)
@@ -104,39 +104,36 @@ def calculate_100_point_scorecard(
     slices_3x = real_report_data.get("slices_3x", [])
     oos_pos_3x = sum(1 for sl in slices_3x if sl.get("out_of_sample_metrics", {}).get("net_pnl", 0.0) > 0)
 
-    score_c_base = oos_pos_1x * 3.0 + oos_pos_3x * 1.5  # 3*3 + 2*1.5 = 12.0
+    score_c_base = oos_pos_1x * 3.0 + oos_pos_3x * 1.5
     # 小样本切片惩罚 (每个切片仅 10~18 笔)
     score_c = round(min(15.0, score_c_base * 0.8), 1)
 
     # -------------------------------------------------------------------------
     # 模块 D: 市场与跨品种鲁棒性 (满分 10 分)
     # -------------------------------------------------------------------------
-    # 25 个品种中只有 10 个盈利 (40.0%), 非贵金属合计亏损 -3,042 元
-    score_d_breadth = symbol_breadth * 10.0  # 40% -> 4.0 分
+    # 25 个品种中盈利品种占比与非贵金属板块贡献
+    score_d_breadth = symbol_breadth * 10.0
     score_d_sector = 2.0 if non_precious_pnl > 0 else 0.5  # 板块分散度
     score_d = round(score_d_breadth + score_d_sector, 1)
 
     # -------------------------------------------------------------------------
     # 模块 E: 收益风险质量与回撤控制 (满分 15 分)
     # -------------------------------------------------------------------------
-    # 1x 最大回撤 3.41%（低回撤部分源于 95% 时间空仓）
-    # 仓位利用率调整：真实年化仅 2.53%, Calmar = 2.53 / 3.41 = 0.74 (未达机构级 2.0)
-    annualized_return_pct = (net_1x / 500000.0) / 2.19 * 100.0  # 约 2.53%
+    annualized_return_pct = (net_1x / 500000.0) / 2.19 * 100.0
     calmar_ratio = annualized_return_pct / max(mdd_1x_pct, 0.5)
     
-    score_e_mdd = 6.0 if mdd_1x_pct <= 5.0 else 4.0
-    score_e_calmar = min(5.0, calmar_ratio * 3.0)  # 0.74 * 3 = 2.22 分
-    score_e_tail = 2.0  # 尾部控制
+    score_e_mdd = 6.0 if mdd_1x_pct <= 5.0 else (4.0 if mdd_1x_pct <= 10.0 else 1.5)
+    score_e_calmar = min(5.0, max(0.0, calmar_ratio * 3.0))
+    score_e_tail = 2.0 if mdd_1x_pct <= 8.0 else 0.5
     score_e = round(score_e_mdd + score_e_calmar + score_e_tail, 1)
 
     # -------------------------------------------------------------------------
     # 模块 F: 交易成本与极限摩擦耐受度 (满分 10 分)
     # -------------------------------------------------------------------------
-    # 3x 摩擦下手滑点吃掉 81.4% 利润，3x PF 仅 1.11，单笔中位数为负
     if net_3x > 0 and profit_factor_3x >= 1.30:
         score_f = 8.5
     elif net_3x > 0 and profit_factor_3x >= 1.05:
-        score_f = 5.5  # 虽有微利但极其脆弱
+        score_f = 5.5
     elif net_3x > 0:
         score_f = 4.0
     else:
@@ -145,25 +142,25 @@ def calculate_100_point_scorecard(
     # -------------------------------------------------------------------------
     # 模块 G: 大数定律与极端牛熊周期穿越 (满分 15 分)
     # -------------------------------------------------------------------------
-    # 真实接入实际压力测试 JSON (若无或亏损，按实际表现严格给分，彻底拒绝硬编码)
+    # 真实接入实际压力测试 JSON (未测试则记 0 分，绝不硬编码虚拟亏损数字充数)
     if stress_report_data:
-        stress_net = stress_report_data.get("total_net_pnl", -369361.86)
-        stress_pf = stress_report_data.get("overall_metrics", {}).get("profit_factor", 0.34)
-        stress_mdd = stress_report_data.get("portfolio_max_drawdown_pct", 75.25)
+        stress_net = stress_report_data.get("total_net_pnl", 0.0)
+        stress_pf = stress_report_data.get("overall_metrics", {}).get("profit_factor", 0.0)
         if stress_net > 0 and stress_pf >= 1.10:
             score_g = 13.5
         elif stress_net > 0:
             score_g = 8.0
         else:
-            # 真实合成压测亏损 -36.9 万，回撤 75.25%，评分给予真实警戒低分
             score_g = 2.5
     else:
-        score_g = 2.5
+        score_g = 0.0  # 未执行压测为 0 分
 
     # -------------------------------------------------------------------------
     # 模块 H: 组合工程与资金链安全 (满分 5 分)
     # -------------------------------------------------------------------------
-    score_h = 3.5
+    # ponytail: 由严格对账结果断言驱动 (对账平衡给 5 分，对账失败给 0 分)
+    reconciled = real_report_data.get("ledger_reconciled", b1x.get("ledger_reconciled", True))
+    score_h = 5.0 if reconciled else 0.0
 
     # -------------------------------------------------------------------------
     # 计算真实总分与评级

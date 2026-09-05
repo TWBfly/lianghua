@@ -98,6 +98,7 @@ class StrategyHotPlugger:
             spec = importlib.util.spec_from_file_location(mod_name, filepath)
             if spec and spec.loader:
                 module = importlib.util.module_from_spec(spec)
+                sys.modules[mod_name] = module
                 spec.loader.exec_module(module)
 
                 # 约定: 文件内定义 STRATEGY_NAME 与 calculate_signal(df)

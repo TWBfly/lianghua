@@ -165,18 +165,11 @@ def calculate_factors(
     F_df = pd.DataFrame(feature_matrix, index=df.index)
     means = F_df.shift(1).rolling(window, min_periods=window).mean().fillna(0).values
     
-    # 构造外积张量 (N, K, K)
-    outer_products = np.einsum('ni,nj->nij', feature_matrix, feature_matrix)
-    outer_df = pd.DataFrame(outer_products.reshape(n, k_features * k_features), index=df.index)
-    roll_sec_moments = outer_df.shift(1).rolling(window, min_periods=window).mean().fillna(0).values.reshape(n, k_features, k_features)
-    mean_outer = np.einsum('ni,nj->nij', means, means)
-    
-    sample_covs = (window / (window - 1.0)) * (roll_sec_moments - mean_outer)
-    
-    # Ledoit-Wolf 正则化收缩
-    mu = np.trace(sample_covs, axis1=1, axis2=2) / float(k_features)
-    target = mu[:, None, None] * np.eye(k_features)[None, :, :]
-    shrunk_covs = 0.85 * sample_covs + 0.15 * target + 1e-5 * np.eye(k_features)[None, :, :]
+    # ponytail: 真正调用 _ledoit_wolf_shrinkage_cov 动态正则化收缩，避免写死固定的 85/15 权重
+    shrunk_covs = np.zeros((n, k_features, k_features))
+    for t in range(window, n):
+        X_w = feature_matrix[t - window : t] - means[t]
+        shrunk_covs[t] = _ledoit_wolf_shrinkage_cov(X_w) + 1e-5 * np.eye(k_features)
     
     try:
         inv_covs = np.linalg.inv(shrunk_covs)
@@ -241,12 +234,14 @@ def calculate_factors(
         oi = df["open_interest"].astype(float).values
         oi_diff = np.diff(oi, prepend=oi[0])
         vol_ma = pd.Series(v).rolling(20, min_periods=5).mean().fillna(0).values
-        # 微观主动进攻持仓量解耦过滤:
-        # 下跌增仓 (空头主动猛烈增仓下砸逼仓): 排除多头抄底
-        short_aggression = (c < prev_c_s) & (oi_diff > vol_ma * 0.25)
+        # ponytail: 解耦单柱收盘价矛盾。检查前序3周期的累计价格变化与持仓量积累
+        # 下跌增仓 (前序价格显著下跌且伴随主力持仓剧增): 拦截多头抄底接飞刀
+        price_diff_3 = pd.Series(c).diff(3).fillna(0).values
+        oi_cum_diff_3 = pd.Series(oi_diff).rolling(3, min_periods=1).sum().values
+        short_aggression = (price_diff_3 < 0) & (oi_cum_diff_3 > vol_ma * 0.35)
         oi_filter_long = ~short_aggression
-        # 上涨增仓 (多头主动猛烈增仓上推逼空): 排除空头摸顶
-        long_aggression = (c > prev_c_s) & (oi_diff > vol_ma * 0.25)
+        # 上涨增仓 (前序价格显著上涨且伴随主力持仓剧增): 拦截空头摸顶
+        long_aggression = (price_diff_3 > 0) & (oi_cum_diff_3 > vol_ma * 0.35)
         oi_filter_short = ~long_aggression
 
     out_df = pd.DataFrame(
@@ -300,7 +295,7 @@ def calculate_signal(df: pd.DataFrame) -> pd.Series:
         & (rsi_2 <= 15.0)
         & (c < sma_5)
         & (~rupture)
-        & (hurst < 0.60)
+        & (hurst < 0.45)
         & bull_abs
         & oi_long
     )
@@ -310,7 +305,7 @@ def calculate_signal(df: pd.DataFrame) -> pd.Series:
         & (rsi_2 >= 85.0)
         & (c > sma_5)
         & (~rupture)
-        & (hurst < 0.60)
+        & (hurst < 0.45)
         & bear_abs
         & oi_short
     )

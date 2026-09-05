@@ -76,6 +76,7 @@ class AkquantStressAndScorecardPipeline:
         # -----------------------------------------------------------------
         stress_params = dict(base_params or {})
         stress_params["commission_rate"] = spec.fee_rate * 3.0
+        stress_params["fee_multiplier"] = 3.0
         stress_params["slippage"] = spec.tick_size * 3.0
 
         res_3x = self.runner.run(

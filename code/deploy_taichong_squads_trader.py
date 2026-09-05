@@ -17,7 +17,10 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from tqsdk import TargetPosTask, TqApi, TqAuth, TqSim
+try:
+    from tqsdk import TargetPosTask, TqApi, TqAuth, TqSim
+except ImportError:
+    TargetPosTask = TqApi = TqAuth = TqSim = None
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 STRATEGIES_DIR = PROJECT_ROOT / "strategies"
@@ -51,23 +54,23 @@ ch.setFormatter(formatter)
 logger.addHandler(fh)
 logger.addHandler(ch)
 
-# 10分钟微观战队配置 (5 大核心品种)
+# 10分钟微观战队配置 (5 大核心品种 - 修正为真实可交易主力连续代码 KQ.m@)
 SQUAD_10M_CONFIG = {
-    "SN_IDX": {"symbol": "SN_IDX", "tq_symbol": "KQ.i@SHFE.sn", "name": "沪锡", "timeframe_sec": 600, "stop_atr_mult": 2.5, "trail_atr_mult": 5.0, "weight": 0.35},
-    "AU_IDX": {"symbol": "AU_IDX", "tq_symbol": "KQ.i@SHFE.au", "name": "沪金", "timeframe_sec": 600, "stop_atr_mult": 2.5, "trail_atr_mult": 5.0, "weight": 0.20},
-    "AG_IDX": {"symbol": "AG_IDX", "tq_symbol": "KQ.i@SHFE.ag", "name": "沪银", "timeframe_sec": 600, "stop_atr_mult": 2.5, "trail_atr_mult": 5.0, "weight": 0.20},
-    "P_IDX":  {"symbol": "P_IDX",  "tq_symbol": "KQ.i@DCE.p",    "name": "棕榈油", "timeframe_sec": 600, "stop_atr_mult": 2.5, "trail_atr_mult": 5.0, "weight": 0.15},
-    "MA_IDX": {"symbol": "MA_IDX", "tq_symbol": "KQ.i@CZCE.MA",  "name": "甲醇", "timeframe_sec": 600, "stop_atr_mult": 2.5, "trail_atr_mult": 5.0, "weight": 0.10},
+    "SN_IDX": {"symbol": "SN_IDX", "tq_symbol": "KQ.m@SHFE.sn", "name": "沪锡", "timeframe_sec": 600, "stop_atr_mult": 2.5, "trail_atr_mult": 5.0, "weight": 0.35},
+    "AU_IDX": {"symbol": "AU_IDX", "tq_symbol": "KQ.m@SHFE.au", "name": "沪金", "timeframe_sec": 600, "stop_atr_mult": 2.5, "trail_atr_mult": 5.0, "weight": 0.20},
+    "AG_IDX": {"symbol": "AG_IDX", "tq_symbol": "KQ.m@SHFE.ag", "name": "沪银", "timeframe_sec": 600, "stop_atr_mult": 2.5, "trail_atr_mult": 5.0, "weight": 0.20},
+    "P_IDX":  {"symbol": "P_IDX",  "tq_symbol": "KQ.m@DCE.p",    "name": "棕榈油", "timeframe_sec": 600, "stop_atr_mult": 2.5, "trail_atr_mult": 5.0, "weight": 0.15},
+    "MA_IDX": {"symbol": "MA_IDX", "tq_symbol": "KQ.m@CZCE.MA",  "name": "甲醇", "timeframe_sec": 600, "stop_atr_mult": 2.5, "trail_atr_mult": 5.0, "weight": 0.10},
 }
 
-# 30分钟波段战队配置 (6 大核心品种)
+# 30分钟波段战队配置 (6 大核心品种 - 修正为真实可交易主力连续代码 KQ.m@)
 SQUAD_30M_CONFIG = {
-    "SC_IDX": {"symbol": "SC_IDX", "tq_symbol": "KQ.i@INE.sc",   "name": "原油", "timeframe_sec": 1800, "stop_atr_mult": 2.5, "trail_atr_mult": 5.0, "weight": 0.30},
-    "LC_IDX": {"symbol": "LC_IDX", "tq_symbol": "KQ.i@GFEX.lc",  "name": "碳酸锂", "timeframe_sec": 1800, "stop_atr_mult": 2.5, "trail_atr_mult": 5.0, "weight": 0.20},
-    "J_IDX":  {"symbol": "J_IDX",  "tq_symbol": "KQ.i@DCE.j",    "name": "焦炭", "timeframe_sec": 1800, "stop_atr_mult": 2.5, "trail_atr_mult": 5.0, "weight": 0.15},
-    "AL_IDX": {"symbol": "AL_IDX", "tq_symbol": "KQ.i@SHFE.al",  "name": "沪铝", "timeframe_sec": 1800, "stop_atr_mult": 2.5, "trail_atr_mult": 5.0, "weight": 0.15},
-    "TA_IDX": {"symbol": "TA_IDX", "tq_symbol": "KQ.i@CZCE.TA",  "name": "PTA", "timeframe_sec": 1800, "stop_atr_mult": 2.5, "trail_atr_mult": 5.0, "weight": 0.10},
-    "SI_IDX": {"symbol": "SI_IDX", "tq_symbol": "KQ.i@GFEX.si",  "name": "工业硅", "timeframe_sec": 1800, "stop_atr_mult": 2.5, "trail_atr_mult": 5.0, "weight": 0.10},
+    "SC_IDX": {"symbol": "SC_IDX", "tq_symbol": "KQ.m@INE.sc",   "name": "原油", "timeframe_sec": 1800, "stop_atr_mult": 2.5, "trail_atr_mult": 5.0, "weight": 0.30},
+    "LC_IDX": {"symbol": "LC_IDX", "tq_symbol": "KQ.m@GFEX.lc",  "name": "碳酸锂", "timeframe_sec": 1800, "stop_atr_mult": 2.5, "trail_atr_mult": 5.0, "weight": 0.20},
+    "J_IDX":  {"symbol": "J_IDX",  "tq_symbol": "KQ.m@DCE.j",    "name": "焦炭", "timeframe_sec": 1800, "stop_atr_mult": 2.5, "trail_atr_mult": 5.0, "weight": 0.15},
+    "AL_IDX": {"symbol": "AL_IDX", "tq_symbol": "KQ.m@SHFE.al",  "name": "沪铝", "timeframe_sec": 1800, "stop_atr_mult": 2.5, "trail_atr_mult": 5.0, "weight": 0.15},
+    "TA_IDX": {"symbol": "TA_IDX", "tq_symbol": "KQ.m@CZCE.TA",  "name": "PTA", "timeframe_sec": 1800, "stop_atr_mult": 2.5, "trail_atr_mult": 5.0, "weight": 0.10},
+    "SI_IDX": {"symbol": "SI_IDX", "tq_symbol": "KQ.m@GFEX.si",  "name": "工业硅", "timeframe_sec": 1800, "stop_atr_mult": 2.5, "trail_atr_mult": 5.0, "weight": 0.10},
 }
 
 
@@ -127,22 +130,25 @@ class TaiChongDualSquadTrader:
                 api = TqApi(sim, auth=TqAuth(self.account, self.password))
                 logger.info("✅ 天勤量化网关连接成功！开始订阅 11 个主力合约 K 线...")
 
-                # 订阅 10m 和 30m K 线数据流
+                # 订阅 10m 和 30m K 线数据流与行情快照
                 klines_10m = {}
                 klines_30m = {}
+                quotes = {}
                 target_pos_tasks = {}
 
                 for sym, cfg in SQUAD_10M_CONFIG.items():
                     tq_sym = cfg["tq_symbol"]
                     klines_10m[sym] = api.get_kline_serial(tq_sym, duration_seconds=600, data_length=300)
+                    quotes[sym] = api.get_quote(tq_sym)
                     target_pos_tasks[sym] = TargetPosTask(api, tq_sym)
-                    logger.info(f"  [10m] 已订阅 {sym} ({cfg['name']}) -> {tq_sym} 10分钟K线")
+                    logger.info(f"  [10m] 已订阅 {sym} ({cfg['name']}) -> {tq_sym} 10分钟K线与行情切片")
 
                 for sym, cfg in SQUAD_30M_CONFIG.items():
                     tq_sym = cfg["tq_symbol"]
                     klines_30m[sym] = api.get_kline_serial(tq_sym, duration_seconds=1800, data_length=300)
+                    quotes[sym] = api.get_quote(tq_sym)
                     target_pos_tasks[sym] = TargetPosTask(api, tq_sym)
-                    logger.info(f"  [30m] 已订阅 {sym} ({cfg['name']}) -> {tq_sym} 30分钟K线")
+                    logger.info(f"  [30m] 已订阅 {sym} ({cfg['name']}) -> {tq_sym} 30分钟K线与行情切片")
 
                 logger.info("🟢 双战队策略实时监控引擎已完全就绪，开始事件循环驱动...")
 
@@ -151,6 +157,33 @@ class TaiChongDualSquadTrader:
 
                 while True:
                     api.wait_update()
+
+                    # 0. 盘中实时 Tick 级硬止损安全巡检 (杜绝只能等Bar走完的被动穿仓风险)
+                    for sym, pos_info in list(self.state["positions"].items()):
+                        current_pos = pos_info.get("pos", 0)
+                        if current_pos != 0 and sym in quotes:
+                            q = quotes[sym]
+                            last_p = float(q.last_price) if np.isfinite(q.last_price) else 0.0
+                            stop_p = float(pos_info.get("stop_price", 0.0))
+                            if last_p > 0 and stop_p > 0:
+                                hit_stop = (current_pos > 0 and last_p <= stop_p) or (current_pos < 0 and last_p >= stop_p)
+                                if hit_stop:
+                                    logger.warning(f"🚨 [盘中实时硬止损触发] {sym} 当前价 {last_p:.2f} 击穿止损价 {stop_p:.2f}! 立即市价平仓")
+                                    target_task = target_pos_tasks.get(sym)
+                                    if target_task:
+                                        target_task.set_target_volume(0)
+                                    spec = ACTIVE_CONTRACT_SPECS.get(sym, {"multiplier": 10.0, "tick": 1.0, "fee_rate": 0.0001})
+                                    mult = float(spec.get("multiplier", 10.0))
+                                    tick_sz = float(spec.get("tick", 1.0))
+                                    fee_r = float(spec.get("fee_rate", 0.0001))
+                                    lots_cnt = pos_info.get("lots", 1)
+                                    fees = (pos_info["entry_price"] + last_p) * mult * lots_cnt * fee_r
+                                    slips = 2.0 * tick_sz * mult * lots_cnt
+                                    gross_pnl = (last_p - pos_info["entry_price"]) * mult * lots_cnt * current_pos
+                                    net_pnl = gross_pnl - fees - slips
+                                    self.record_trade(sym, pos_info.get("timeframe", "realtime"), pos_info.get("entry_time", ""), str(datetime.datetime.now()), "LONG" if current_pos > 0 else "SHORT", lots_cnt, pos_info["entry_price"], last_p, net_pnl, "intraday_tick_stop_loss")
+                                    self.state["positions"][sym] = {"pos": 0, "entry_price": 0.0, "entry_time": "", "stop_price": 0.0, "lots": 0}
+                                    self.save_state()
 
                     # 1. 驱动 10m 战队
                     for sym, cfg in SQUAD_10M_CONFIG.items():
@@ -189,53 +222,86 @@ class TaiChongDualSquadTrader:
                 index=pd.to_datetime(kl_df["datetime"], unit="ns"),
             )
 
-            # 计算太冲微观信号
+            # 计算太冲微观特征与破裂熔断
+            factors = calculate_factors(df)
             signals = calculate_signal(df)
             current_signal = int(signals.iloc[-1])
+            is_rupture = bool(factors["rupture_breaker"].iloc[-1])
             curr_price = float(df["close"].iloc[-1])
             curr_time = str(df.index[-1])
 
-            # 计算 ATR 与 SMA5
+            # 计算因果 ATR 与 SMA5
             atr_s = pd.concat([df["high"] - df["low"], (df["high"] - df["close"].shift(1)).abs(), (df["low"] - df["close"].shift(1)).abs()], axis=1).max(axis=1)
             atr = float(atr_s.rolling(14).mean().iloc[-1])
-            sma5 = float(df["close"].rolling(5).mean().iloc[-1])
+            sma5 = float(df["close"].shift(1).rolling(5).mean().iloc[-1])
 
-            pos_info = self.state["positions"].get(symbol, {"pos": 0, "entry_price": 0.0, "entry_time": "", "stop_price": 0.0, "lots": 0})
+            pos_info = self.state["positions"].get(symbol, {"pos": 0, "entry_price": 0.0, "entry_time": "", "stop_price": 0.0, "lots": 0, "favorable_extreme": 0.0})
             current_pos = pos_info["pos"]
             lots = pos_info["lots"]
 
             spec = ACTIVE_CONTRACT_SPECS.get(symbol, {"multiplier": 10.0, "tick": 1.0, "fee_rate": 0.0001})
             multiplier = float(spec.get("multiplier", 10.0))
             tick = float(spec.get("tick", 1.0))
+            fee_rate = float(spec.get("fee_rate", 0.0001))
 
-            # 离场判断
-            exit_reason = None
+            # 动态更新保本与吊灯追踪止损
             if current_pos > 0:
-                if curr_price >= sma5:
-                    exit_reason = "take_profit_sma5"
-                elif curr_price <= pos_info["stop_price"]:
-                    exit_reason = "stop_loss"
-                elif current_signal == -1:
-                    exit_reason = "reverse_signal"
+                favorable = max(float(pos_info.get("favorable_extreme", pos_info["entry_price"])), float(df["high"].iloc[-1]))
+                pos_info["favorable_extreme"] = favorable
+                # 保本锁: 浮盈达到 1.5 ATR 推进至成本线
+                if favorable - pos_info["entry_price"] >= 1.5 * atr:
+                    pos_info["stop_price"] = max(pos_info["stop_price"], pos_info["entry_price"])
+                # 吊灯追踪
+                trail_mult = float(cfg.get("trail_atr_mult", 5.0))
+                pos_info["stop_price"] = max(pos_info["stop_price"], favorable - trail_mult * atr)
+
             elif current_pos < 0:
-                if curr_price <= sma5:
-                    exit_reason = "take_profit_sma5"
-                elif curr_price >= pos_info["stop_price"]:
-                    exit_reason = "stop_loss"
-                elif current_signal == 1:
-                    exit_reason = "reverse_signal"
+                favorable = min(float(pos_info.get("favorable_extreme", pos_info["entry_price"])), float(df["low"].iloc[-1]))
+                pos_info["favorable_extreme"] = favorable
+                # 保本锁
+                if pos_info["entry_price"] - favorable >= 1.5 * atr:
+                    pos_info["stop_price"] = min(pos_info["stop_price"], pos_info["entry_price"])
+                # 吊灯追踪
+                trail_mult = float(cfg.get("trail_atr_mult", 5.0))
+                pos_info["stop_price"] = min(pos_info["stop_price"], favorable + trail_mult * atr)
+
+            # 离场判断: 优先卡方破裂熔断强平 -> 硬止损 -> 反向信号 -> SMA5目标
+            exit_reason = None
+            if current_pos != 0:
+                if is_rupture:
+                    exit_reason = "rupture_breaker"
+                elif current_pos > 0:
+                    if curr_price <= pos_info["stop_price"]:
+                        exit_reason = "stop_loss"
+                    elif current_signal == -1:
+                        exit_reason = "reverse_signal"
+                    elif np.isfinite(sma5) and curr_price >= sma5:
+                        exit_reason = "take_profit_sma5"
+                elif current_pos < 0:
+                    if curr_price >= pos_info["stop_price"]:
+                        exit_reason = "stop_loss"
+                    elif current_signal == 1:
+                        exit_reason = "reverse_signal"
+                    elif np.isfinite(sma5) and curr_price <= sma5:
+                        exit_reason = "take_profit_sma5"
 
             if exit_reason and current_pos != 0:
-                logger.info(f"🔔 [{timeframe} 战队] {symbol} 平仓信号: {exit_reason} (持仓: {current_pos}手 @ {pos_info['entry_price']:.2f}, 当前价: {curr_price:.2f})")
+                logger.info(f"🔔 [{timeframe} 战队] {symbol} 平仓信号触发: {exit_reason} (持仓: {current_pos}手 @ {pos_info['entry_price']:.2f}, 当前价: {curr_price:.2f})")
                 target_task.set_target_volume(0)
-                pnl = (curr_price - pos_info["entry_price"]) * multiplier * lots * current_pos
-                self.record_trade(symbol, timeframe, pos_info["entry_time"], curr_time, "LONG" if current_pos > 0 else "SHORT", lots, pos_info["entry_price"], curr_price, pnl, exit_reason)
-                self.state["positions"][symbol] = {"pos": 0, "entry_price": 0.0, "entry_time": "", "stop_price": 0.0, "lots": 0}
+                # 扣除全额手续费与滑点成本
+                entry_fee = pos_info["entry_price"] * multiplier * lots * fee_rate
+                exit_fee = curr_price * multiplier * lots * fee_rate
+                slippage_cost = 2.0 * tick * multiplier * lots
+                gross_pnl = (curr_price - pos_info["entry_price"]) * multiplier * lots * current_pos
+                net_pnl = gross_pnl - entry_fee - exit_fee - slippage_cost
+
+                self.record_trade(symbol, timeframe, pos_info["entry_time"], curr_time, "LONG" if current_pos > 0 else "SHORT", lots, pos_info["entry_price"], curr_price, net_pnl, exit_reason)
+                self.state["positions"][symbol] = {"pos": 0, "entry_price": 0.0, "entry_time": "", "stop_price": 0.0, "lots": 0, "favorable_extreme": 0.0}
                 self.save_state()
                 current_pos = 0
 
-            # 开仓判断
-            if current_pos == 0 and current_signal != 0:
+            # 开仓判断: 无持仓且无破裂时准入
+            if current_pos == 0 and current_signal != 0 and not is_rupture:
                 weight = float(cfg["weight"])
                 allocated_fund = 1_000_000.0 * weight
                 unit_risk = max(tick * multiplier, 2.5 * atr * multiplier)
@@ -253,6 +319,7 @@ class TaiChongDualSquadTrader:
                     "entry_price": curr_price,
                     "entry_time": curr_time,
                     "stop_price": stop_price,
+                    "favorable_extreme": curr_price,
                     "timeframe": timeframe,
                 }
                 self.save_state()

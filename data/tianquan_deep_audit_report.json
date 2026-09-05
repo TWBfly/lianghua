@@ -1,0 +1,4702 @@
+{
+  "strategy": "tianquan_extreme_phase_reversal",
+  "description": "「天权·极值相变」: 动力学体制门禁 + 复合极值检测 + 做市商吸收与持仓衰竭 + 动态吊灯非对称追踪",
+  "universe": [
+    "AU_IDX",
+    "AG_IDX",
+    "RB_IDX",
+    "CU_IDX",
+    "SC_IDX",
+    "TA_IDX",
+    "MA_IDX",
+    "LC_IDX",
+    "SN_IDX",
+    "SA_IDX"
+  ],
+  "timeframe_metrics": {
+    "15m": {
+      "total_net_pnl_1x": -872973.4,
+      "total_trades_1x": 210,
+      "profitable_symbols_pct": 10.0,
+      "total_net_pnl_3x": -1502707.29,
+      "total_net_pnl_oos": -64727.62,
+      "symbols_detail": [
+        {
+          "symbol": "AU_IDX",
+          "trades": 24,
+          "net_pnl": -91254.64,
+          "win_rate": 45.83,
+          "profit_factor": 0.46,
+          "max_dd_pct": 11.83,
+          "sharpe": -1.02,
+          "avg_trade_pnl": -3802.28,
+          "trades_list": [
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 5,
+              "entry_price": 861.28,
+              "exit_price": 859.7092857392857,
+              "net_pnl": 7423.323982136309,
+              "holding_bars": 14,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 3,
+              "entry_price": 919.98,
+              "exit_price": 927.02,
+              "net_pnl": -21397.04999999989,
+              "holding_bars": 8,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": 1,
+              "lots": 2,
+              "entry_price": 925.5799999999999,
+              "exit_price": 932.7778571178573,
+              "net_pnl": 14209.878450002863,
+              "holding_bars": 25,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 7,
+              "entry_price": 961.34,
+              "exit_price": 963.8,
+              "net_pnl": -17893.798999999457,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 7,
+              "entry_price": 985.96,
+              "exit_price": 987.8348571548571,
+              "net_pnl": -13814.828284003675,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 3,
+              "entry_price": 1026.8,
+              "exit_price": 1026.4622857132856,
+              "net_pnl": 705.1535172860415,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 2,
+              "entry_price": 1045.14,
+              "exit_price": 1047.36,
+              "net_pnl": -4649.2499999996,
+              "holding_bars": 12,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 2,
+              "entry_price": 1126.56,
+              "exit_price": 1126.18,
+              "net_pnl": 534.7259999997635,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": 1,
+              "lots": 1,
+              "entry_price": 984.9399999999999,
+              "exit_price": 985.7805714295714,
+              "net_pnl": 742.0354009999902,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": 1,
+              "lots": 3,
+              "entry_price": 1008.26,
+              "exit_price": 1002.98,
+              "net_pnl": -16141.685999999918,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 4,
+              "entry_price": 1050.48,
+              "exit_price": 1055.0,
+              "net_pnl": -18501.09599999993,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": 1,
+              "lots": 4,
+              "entry_price": 1048.9,
+              "exit_price": 1049.1265714295716,
+              "net_pnl": 486.6804040002846,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": 1,
+              "lots": 3,
+              "entry_price": 1042.92,
+              "exit_price": 1043.0944285724286,
+              "net_pnl": 210.38355299962495,
+              "holding_bars": 12,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": 1,
+              "lots": 5,
+              "entry_price": 1030.18,
+              "exit_price": 1027.6794285594287,
+              "net_pnl": -13017.32205999646,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": 1,
+              "lots": 4,
+              "entry_price": 987.04,
+              "exit_price": 987.1,
+              "net_pnl": -154.82799999976356,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 4,
+              "entry_price": 999.72,
+              "exit_price": 1002.68,
+              "net_pnl": -12240.47999999969,
+              "holding_bars": 14,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 4,
+              "entry_price": 985.34,
+              "exit_price": 980.76,
+              "net_pnl": 17926.780000000163,
+              "holding_bars": 13,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": 1,
+              "lots": 4,
+              "entry_price": 901.4,
+              "exit_price": 898.115999988,
+              "net_pnl": -13495.903247997514,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": 1,
+              "lots": 2,
+              "entry_price": 872.04,
+              "exit_price": 879.1592856892858,
+              "net_pnl": 14063.451450002649,
+              "holding_bars": 14,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": 1,
+              "lots": 5,
+              "entry_price": 871.84,
+              "exit_price": 869.4679999880001,
+              "net_pnl": -12295.32705999672,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": 1,
+              "lots": 6,
+              "entry_price": 891.88,
+              "exit_price": 889.8714285594286,
+              "net_pnl": -12585.954071995982,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 4,
+              "entry_price": 890.04,
+              "exit_price": 892.9297142977142,
+              "net_pnl": -11915.45113371654,
+              "holding_bars": 7,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 6,
+              "entry_price": 957.0600000000001,
+              "exit_price": 956.898999999,
+              "net_pnl": 391.81230600058575,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 4,
+              "entry_price": 981.58,
+              "exit_price": 976.4435714535714,
+              "net_pnl": 20154.10947142387,
+              "holding_bars": 9,
+              "reason": "STOP_OR_TRAILING"
+            }
+          ]
+        },
+        {
+          "symbol": "AG_IDX",
+          "trades": 28,
+          "net_pnl": -86657.77,
+          "win_rate": 46.43,
+          "profit_factor": 0.52,
+          "max_dd_pct": 11.92,
+          "sharpe": -0.9,
+          "avg_trade_pnl": -3094.92,
+          "trades_list": [
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 13,
+              "entry_price": 11270.0,
+              "exit_price": 11264.085714284714,
+              "net_pnl": 933.5783787664135,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 23,
+              "entry_price": 11373.0,
+              "exit_price": 11417.285714297714,
+              "net_pnl": -15671.703861282842,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 11,
+              "entry_price": 11984.0,
+              "exit_price": 11894.628571416572,
+              "net_pnl": -14943.284401979889,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 12,
+              "entry_price": 13693.0,
+              "exit_price": 13686.957142856143,
+              "net_pnl": 841.294671608548,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 7,
+              "entry_price": 16809.0,
+              "exit_price": 16738.321428596428,
+              "net_pnl": 7245.126559874958,
+              "holding_bars": 10,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 6,
+              "entry_price": 17782.0,
+              "exit_price": 17769.385714284716,
+              "net_pnl": 975.3044786613234,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 3,
+              "entry_price": 21713.0,
+              "exit_price": 22018.0,
+              "net_pnl": -13823.39475,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 3,
+              "entry_price": 23519.0,
+              "exit_price": 23881.0,
+              "net_pnl": -16396.65,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 4,
+              "entry_price": 21906.0,
+              "exit_price": 21683.599999988,
+              "net_pnl": -13474.768800719934,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 3,
+              "entry_price": 19092.0,
+              "exit_price": 19115.992857143858,
+              "net_pnl": 993.7105875450225,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 3,
+              "entry_price": 16719.0,
+              "exit_price": 16756.157142858145,
+              "net_pnl": 1596.7523250450786,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 4,
+              "entry_price": 16633.0,
+              "exit_price": 16398.171428559428,
+              "net_pnl": -14188.807800719997,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 3,
+              "entry_price": 18355.0,
+              "exit_price": 18210.250000025,
+              "net_pnl": 6431.478186374935,
+              "holding_bars": 20,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 4,
+              "entry_price": 18810.0,
+              "exit_price": 19000.085714297715,
+              "net_pnl": -11518.573115005776,
+              "holding_bars": 9,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 8,
+              "entry_price": 19265.0,
+              "exit_price": 19373.057142869144,
+              "net_pnl": -13198.68548715446,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 6,
+              "entry_price": 19584.0,
+              "exit_price": 19568.0,
+              "net_pnl": -1616.184,
+              "holding_bars": 12,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 7,
+              "entry_price": 18387.0,
+              "exit_price": 18571.0,
+              "net_pnl": -19514.0295,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 6,
+              "entry_price": 19158.0,
+              "exit_price": 19056.000000025,
+              "net_pnl": 9008.03699774987,
+              "holding_bars": 21,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 6,
+              "entry_price": 18137.0,
+              "exit_price": 17925.89285716786,
+              "net_pnl": 18837.359837035445,
+              "holding_bars": 16,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 7,
+              "entry_price": 15377.0,
+              "exit_price": 15336.0,
+              "net_pnl": -4466.2432499999995,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 8,
+              "entry_price": 13957.0,
+              "exit_price": 13853.657142845143,
+              "net_pnl": -12568.00680143997,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 11,
+              "entry_price": 14666.0,
+              "exit_price": 14662.0,
+              "net_pnl": -901.956,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 15,
+              "entry_price": 14278.0,
+              "exit_price": 14282.178571429571,
+              "net_pnl": 618.8765627249134,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 11,
+              "entry_price": 14091.0,
+              "exit_price": 14010.285714273714,
+              "net_pnl": -13549.692751979966,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 13,
+              "entry_price": 13776.0,
+              "exit_price": 13771.428571427572,
+              "net_pnl": 622.8411430520365,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 10,
+              "entry_price": 13989.0,
+              "exit_price": 14144.892857117857,
+              "net_pnl": 23172.92437125012,
+              "holding_bars": 18,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 10,
+              "entry_price": 16220.0,
+              "exit_price": 16306.714285726286,
+              "net_pnl": -13251.093216085863,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 7,
+              "entry_price": 16719.0,
+              "exit_price": 16515.928571453573,
+              "net_pnl": 21148.01662237474,
+              "holding_bars": 8,
+              "reason": "STOP_OR_TRAILING"
+            }
+          ]
+        },
+        {
+          "symbol": "RB_IDX",
+          "trades": 18,
+          "net_pnl": -52245.62,
+          "win_rate": 22.22,
+          "profit_factor": 0.46,
+          "max_dd_pct": 5.27,
+          "sharpe": -0.74,
+          "avg_trade_pnl": -2902.53,
+          "trades_list": [
+            {
+              "symbol": "RB_IDX",
+              "direction": 1,
+              "lots": 71,
+              "entry_price": 3078.0,
+              "exit_price": 3078.807142858143,
+              "net_pnl": 354.5047757100123,
+              "holding_bars": 8,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": 1,
+              "lots": 85,
+              "entry_price": 3057.0,
+              "exit_price": 3057.4928571438572,
+              "net_pnl": 159.0626258500368,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": -1,
+              "lots": 81,
+              "entry_price": 3135.0,
+              "exit_price": 3154.514285726286,
+              "net_pnl": -16061.29676686344,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 3102.0,
+              "exit_price": 3114.057142869143,
+              "net_pnl": -12367.945726286265,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 3039.0,
+              "exit_price": 3029.1714285594285,
+              "net_pnl": -10131.980011999494,
+              "holding_bars": 7,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 3016.0,
+              "exit_price": 3024.3714285834285,
+              "net_pnl": -8673.447154857668,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 3152.0,
+              "exit_price": 3116.7857143107144,
+              "net_pnl": 34900.84640357006,
+              "holding_bars": 19,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 3119.0,
+              "exit_price": 3109.5357143107144,
+              "net_pnl": 9152.858903570053,
+              "holding_bars": 21,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 3076.0,
+              "exit_price": 3085.3142857262856,
+              "net_pnl": -9622.351440571876,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 3124.0,
+              "exit_price": 3123.4857142867145,
+              "net_pnl": -826.6599989998526,
+              "holding_bars": 11,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 3110.0,
+              "exit_price": 3101.799999988,
+              "net_pnl": -8510.590011999546,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 3146.0,
+              "exit_price": 3156.000000012,
+              "net_pnl": -10315.100012000474,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 3103.0,
+              "exit_price": 3105.0,
+              "net_pnl": -2310.4,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 3214.0,
+              "exit_price": 3205.714285702286,
+              "net_pnl": -8606.700011999208,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 3183.0,
+              "exit_price": 3182.542857143857,
+              "net_pnl": -775.4199990002295,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 3223.0,
+              "exit_price": 3222.9714285704285,
+              "net_pnl": -293.7271418570645,
+              "holding_bars": 13,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 3093.0,
+              "exit_price": 3085.485714273714,
+              "net_pnl": -7823.21001199952,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 3012.0,
+              "exit_price": 3012.192857141857,
+              "net_pnl": -494.0667847141683,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            }
+          ]
+        },
+        {
+          "symbol": "CU_IDX",
+          "trades": 30,
+          "net_pnl": -237742.13,
+          "win_rate": 23.33,
+          "profit_factor": 0.01,
+          "max_dd_pct": 23.77,
+          "sharpe": -2.62,
+          "avg_trade_pnl": -7924.74,
+          "trades_list": [
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 21,
+              "entry_price": 78720.0,
+              "exit_price": 78570.28571427372,
+              "net_pnl": -16545.774001259404,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 24,
+              "entry_price": 78150.0,
+              "exit_price": 78146.07142857242,
+              "net_pnl": -1409.2049998805142,
+              "holding_bars": 23,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 26,
+              "entry_price": 79290.0,
+              "exit_price": 79412.28571429772,
+              "net_pnl": -16928.707715845943,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 30,
+              "entry_price": 78650.0,
+              "exit_price": 78545.71428570228,
+              "net_pnl": -16821.825001800087,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 22,
+              "entry_price": 79660.0,
+              "exit_price": 79690.0,
+              "net_pnl": -4176.425,
+              "holding_bars": 13,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 20,
+              "entry_price": 78760.0,
+              "exit_price": 78761.92857142957,
+              "net_pnl": -594.7524999002205,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 21,
+              "entry_price": 79890.0,
+              "exit_price": 79660.0,
+              "net_pnl": -24987.6375,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 18,
+              "entry_price": 81370.0,
+              "exit_price": 81525.71428572628,
+              "net_pnl": -14747.316429651026,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 13,
+              "entry_price": 86560.0,
+              "exit_price": 86552.85714285614,
+              "net_pnl": -98.33107136343801,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 18,
+              "entry_price": 86840.0,
+              "exit_price": 86836.57142857043,
+              "net_pnl": -472.9731427673323,
+              "holding_bars": 14,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 12,
+              "entry_price": 87450.0,
+              "exit_price": 87677.71428572628,
+              "net_pnl": -14188.240286434018,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 10,
+              "entry_price": 86100.0,
+              "exit_price": 86112.64285714386,
+              "net_pnl": 201.61125005009762,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 17,
+              "entry_price": 85940.0,
+              "exit_price": 85590.0,
+              "net_pnl": -30479.0025,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 14,
+              "entry_price": 87130.0,
+              "exit_price": 87121.92857142758,
+              "net_pnl": -44.881749930292926,
+              "holding_bars": 12,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 4,
+              "entry_price": 92550.0,
+              "exit_price": 91560.0,
+              "net_pnl": -19984.11,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 5,
+              "entry_price": 97310.0,
+              "exit_price": 97280.999999999,
+              "net_pnl": 481.7612500251033,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 4,
+              "entry_price": 104390.0,
+              "exit_price": 104460.0,
+              "net_pnl": -1608.85,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 4,
+              "entry_price": 102600.0,
+              "exit_price": 102565.78571428472,
+              "net_pnl": 479.11992859130333,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 2,
+              "entry_price": 109600.0,
+              "exit_price": 110672.000000012,
+              "net_pnl": -10830.13600012006,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 5,
+              "entry_price": 95830.0,
+              "exit_price": 95803.42857142758,
+              "net_pnl": 424.74392859632394,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 6,
+              "entry_price": 101060.0,
+              "exit_price": 100990.0,
+              "net_pnl": -2403.075,
+              "holding_bars": 12,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 7,
+              "entry_price": 107220.0,
+              "exit_price": 107205.71428571329,
+              "net_pnl": 124.75500003499911,
+              "holding_bars": 7,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 7,
+              "entry_price": 104360.0,
+              "exit_price": 104708.57142858343,
+              "net_pnl": -12565.870000419916,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 9,
+              "entry_price": 105460.0,
+              "exit_price": 105731.42857144057,
+              "net_pnl": -12689.466429111415,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 8,
+              "entry_price": 102340.0,
+              "exit_price": 102039.42857141657,
+              "net_pnl": -12431.616000479857,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 7,
+              "entry_price": 101940.0,
+              "exit_price": 101955.85714285815,
+              "net_pnl": 198.18225003521388,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 8,
+              "entry_price": 104830.0,
+              "exit_price": 104548.28571427372,
+              "net_pnl": -11687.328000479774,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 11,
+              "entry_price": 104810.0,
+              "exit_price": 104602.85714284514,
+              "net_pnl": -11968.742500660146,
+              "holding_bars": 7,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 3,
+              "entry_price": 108170.0,
+              "exit_price": 108210.42857142957,
+              "net_pnl": 444.14325001496695,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 8,
+              "entry_price": 108020.0,
+              "exit_price": 108070.0,
+              "net_pnl": -2432.1800000000003,
+              "holding_bars": 7,
+              "reason": "STOP_OR_TRAILING"
+            }
+          ]
+        },
+        {
+          "symbol": "SC_IDX",
+          "trades": 33,
+          "net_pnl": -150150.33,
+          "win_rate": 27.27,
+          "profit_factor": 0.51,
+          "max_dd_pct": 23.77,
+          "sharpe": -0.9,
+          "avg_trade_pnl": -4550.01,
+          "trades_list": [
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 10,
+              "entry_price": 488.2,
+              "exit_price": 488.16214285614285,
+              "net_pnl": -109.60963285668691,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 7,
+              "entry_price": 481.1,
+              "exit_price": 478.94285713085713,
+              "net_pnl": -15436.015083996013,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 5,
+              "entry_price": 462.2,
+              "exit_price": 465.3,
+              "net_pnl": -15731.875000000113,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 11,
+              "entry_price": 460.6,
+              "exit_price": 459.28285713085717,
+              "net_pnl": -14994.507131993387,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 10,
+              "entry_price": 452.09999999999997,
+              "exit_price": 453.56285715485717,
+              "net_pnl": -15081.402977149468,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 9,
+              "entry_price": 447.3,
+              "exit_price": 449.1285714035714,
+              "net_pnl": 16053.749775011012,
+              "holding_bars": 12,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 10,
+              "entry_price": 451.40000000000003,
+              "exit_price": 451.29999999999995,
+              "net_pnl": -1451.3500000007957,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 10,
+              "entry_price": 443.09999999999997,
+              "exit_price": 445.3,
+              "net_pnl": -22444.200000000455,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 9,
+              "entry_price": 434.59999999999997,
+              "exit_price": 436.0971428691429,
+              "net_pnl": -13866.09953657739,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 9,
+              "entry_price": 431.4,
+              "exit_price": 434.3,
+              "net_pnl": -26489.565000000304,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 5,
+              "entry_price": 417.20000000000005,
+              "exit_price": 414.459999988,
+              "net_pnl": -13907.915059997264,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 7,
+              "entry_price": 419.9,
+              "exit_price": 421.680000012,
+              "net_pnl": -12754.553084004314,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 6,
+              "entry_price": 429.59999999999997,
+              "exit_price": 431.560000012,
+              "net_pnl": -12018.348072003739,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 6,
+              "entry_price": 444.0,
+              "exit_price": 440.27500002500005,
+              "net_pnl": 22084.717349992177,
+              "holding_bars": 17,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 3,
+              "entry_price": 472.1,
+              "exit_price": 472.3785714295714,
+              "net_pnl": 694.0425029997647,
+              "holding_bars": 7,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 4,
+              "entry_price": 462.4,
+              "exit_price": 465.90000000000003,
+              "net_pnl": -14185.660000000227,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 3,
+              "entry_price": 471.5,
+              "exit_price": 466.1,
+              "net_pnl": 16059.359999999931,
+              "holding_bars": 17,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 7,
+              "entry_price": 483.29999999999995,
+              "exit_price": 485.27714286914284,
+              "net_pnl": -14179.002084004367,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 3,
+              "entry_price": 486.2,
+              "exit_price": 490.1571428691429,
+              "net_pnl": -12017.882178859069,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 1,
+              "entry_price": 729.3,
+              "exit_price": 747.3057142977143,
+              "net_pnl": -18079.544583429233,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 1,
+              "entry_price": 657.9,
+              "exit_price": 636.4657142737143,
+              "net_pnl": -21499.004011999365,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 1,
+              "entry_price": 733.5,
+              "exit_price": 745.9942857262857,
+              "net_pnl": -12568.260440572054,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 1,
+              "entry_price": 682.7,
+              "exit_price": 685.6107142607142,
+              "net_pnl": 2842.2987250011083,
+              "holding_bars": 14,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 2,
+              "entry_price": 632.5,
+              "exit_price": 636.6628571548572,
+              "net_pnl": -8452.630595429871,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 2,
+              "entry_price": 675.6999999999999,
+              "exit_price": 680.5,
+              "net_pnl": -9735.620000000137,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 3,
+              "entry_price": 617.4,
+              "exit_price": 617.6035714295714,
+              "net_pnl": 425.46375299979877,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 1,
+              "entry_price": 616.0,
+              "exit_price": 609.3085714165713,
+              "net_pnl": -6752.694011999489,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 2,
+              "entry_price": 582.3000000000001,
+              "exit_price": 576.9457142737143,
+              "net_pnl": -10824.496023998876,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 2,
+              "entry_price": 553.1,
+              "exit_price": 551.5,
+              "net_pnl": -3310.4600000000455,
+              "holding_bars": 7,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 2,
+              "entry_price": 562.8,
+              "exit_price": 532.7821428821429,
+              "net_pnl": 59926.15602142586,
+              "holding_bars": 40,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 5,
+              "entry_price": 550.9,
+              "exit_price": 551.9,
+              "net_pnl": 4724.3,
+              "holding_bars": 7,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 4,
+              "entry_price": 559.1,
+              "exit_price": 551.0464285964287,
+              "net_pnl": 31992.256328566185,
+              "holding_bars": 13,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 2,
+              "entry_price": 593.4,
+              "exit_price": 597.8714285834286,
+              "net_pnl": -9061.984309715608,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            }
+          ]
+        },
+        {
+          "symbol": "TA_IDX",
+          "trades": 20,
+          "net_pnl": -70369.86,
+          "win_rate": 30.0,
+          "profit_factor": 0.39,
+          "max_dd_pct": 8.11,
+          "sharpe": -0.98,
+          "avg_trade_pnl": -3518.49,
+          "trades_list": [
+            {
+              "symbol": "TA_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 4894.0,
+              "exit_price": 4894.4428571418575,
+              "net_pnl": -466.1396423573116,
+              "holding_bars": 9,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 4520.0,
+              "exit_price": 4546.857142869143,
+              "net_pnl": -13655.242863143223,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": 1,
+              "lots": 57,
+              "entry_price": 4782.0,
+              "exit_price": 4784.728571429571,
+              "net_pnl": 641.3169752849419,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 4766.0,
+              "exit_price": 4789.428571440571,
+              "net_pnl": -11953.17143457173,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 4564.0,
+              "exit_price": 4563.300000001,
+              "net_pnl": -578.1824995001667,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 4644.0,
+              "exit_price": 4642.0,
+              "net_pnl": -1232.15,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 4732.0,
+              "exit_price": 4747.3714285834285,
+              "net_pnl": -7922.698577428834,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 4666.0,
+              "exit_price": 4698.0,
+              "net_pnl": -16234.1,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": -1,
+              "lots": 62,
+              "entry_price": 5396.0,
+              "exit_price": 5396.0,
+              "net_pnl": -167.276,
+              "holding_bars": 8,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": -1,
+              "lots": 48,
+              "entry_price": 5464.0,
+              "exit_price": 5524.285714297715,
+              "net_pnl": -14600.430860023065,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": -1,
+              "lots": 46,
+              "entry_price": 6618.0,
+              "exit_price": 6679.657142869143,
+              "net_pnl": -14334.065917045924,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": 1,
+              "lots": 24,
+              "entry_price": 6364.0,
+              "exit_price": 6583.2857142607145,
+              "net_pnl": 26236.601997000173,
+              "holding_bars": 25,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": -1,
+              "lots": 38,
+              "entry_price": 6846.0,
+              "exit_price": 6808.428571453572,
+              "net_pnl": 7008.854352392559,
+              "holding_bars": 17,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": 1,
+              "lots": 20,
+              "entry_price": 6380.0,
+              "exit_price": 6344.0,
+              "net_pnl": -3663.62,
+              "holding_bars": 13,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": 1,
+              "lots": 72,
+              "entry_price": 6420.0,
+              "exit_price": 6378.0,
+              "net_pnl": -15350.364,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": 1,
+              "lots": 71,
+              "entry_price": 6288.0,
+              "exit_price": 6289.100000001,
+              "net_pnl": 167.2564753549462,
+              "holding_bars": 7,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": -1,
+              "lots": 77,
+              "entry_price": 6492.0,
+              "exit_price": 6530.3428571548575,
+              "net_pnl": -15012.680104620362,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": 1,
+              "lots": 87,
+              "entry_price": 5474.0,
+              "exit_price": 5474.542857143857,
+              "net_pnl": -1.9879495650998251,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": -1,
+              "lots": 73,
+              "entry_price": 5832.0,
+              "exit_price": 5802.000000025,
+              "net_pnl": 10737.679490874474,
+              "holding_bars": 17,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": -1,
+              "lots": 87,
+              "entry_price": 5758.0,
+              "exit_price": 5757.399999999,
+              "net_pnl": 10.540050434977616,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            }
+          ]
+        },
+        {
+          "symbol": "MA_IDX",
+          "trades": 11,
+          "net_pnl": 17855.12,
+          "win_rate": 36.36,
+          "profit_factor": 1.49,
+          "max_dd_pct": 3.64,
+          "sharpe": 0.29,
+          "avg_trade_pnl": 1623.19,
+          "trades_list": [
+            {
+              "symbol": "MA_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 2415.0,
+              "exit_price": 2416.0,
+              "net_pnl": -1241.55,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "MA_IDX",
+              "direction": 1,
+              "lots": 82,
+              "entry_price": 2464.0,
+              "exit_price": 2442.0,
+              "net_pnl": -18241.146,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "MA_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 2427.0,
+              "exit_price": 2427.0285714275715,
+              "net_pnl": -271.2728561428567,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "MA_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 2339.0,
+              "exit_price": 2338.6285714295714,
+              "net_pnl": -605.3099990001126,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "MA_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 2190.0,
+              "exit_price": 2189.9285714295715,
+              "net_pnl": -290.4249989999306,
+              "holding_bars": 8,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "MA_IDX",
+              "direction": 1,
+              "lots": 92,
+              "entry_price": 2286.0,
+              "exit_price": 2269.142857130857,
+              "net_pnl": -15718.10801103957,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "MA_IDX",
+              "direction": -1,
+              "lots": 55,
+              "entry_price": 2335.0,
+              "exit_price": 2333.4714285704285,
+              "net_pnl": 712.3313219786146,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "MA_IDX",
+              "direction": -1,
+              "lots": 30,
+              "entry_price": 3194.0,
+              "exit_price": 3194.0,
+              "net_pnl": -95.82000000000001,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "MA_IDX",
+              "direction": 1,
+              "lots": 28,
+              "entry_price": 2845.0,
+              "exit_price": 2926.7857142607145,
+              "net_pnl": 22819.194993000405,
+              "holding_bars": 30,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "MA_IDX",
+              "direction": 1,
+              "lots": 57,
+              "entry_price": 2630.0,
+              "exit_price": 2631.192857143857,
+              "net_pnl": 529.984575569921,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "MA_IDX",
+              "direction": 1,
+              "lots": 64,
+              "entry_price": 2564.0,
+              "exit_price": 2611.5357142607145,
+              "net_pnl": 30257.239984000928,
+              "holding_bars": 22,
+              "reason": "STOP_OR_TRAILING"
+            }
+          ]
+        },
+        {
+          "symbol": "LC_IDX",
+          "trades": 14,
+          "net_pnl": -124631.79,
+          "win_rate": 28.57,
+          "profit_factor": 0.12,
+          "max_dd_pct": 12.52,
+          "sharpe": -1.88,
+          "avg_trade_pnl": -8902.27,
+          "trades_list": [
+            {
+              "symbol": "LC_IDX",
+              "direction": -1,
+              "lots": 18,
+              "entry_price": 76850.0,
+              "exit_price": 77697.14285715486,
+              "net_pnl": -15387.663857358926,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "LC_IDX",
+              "direction": -1,
+              "lots": 12,
+              "entry_price": 76700.0,
+              "exit_price": 77902.85714286914,
+              "net_pnl": -14527.04742871535,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "LC_IDX",
+              "direction": -1,
+              "lots": 23,
+              "entry_price": 77700.0,
+              "exit_price": 77058.92857145357,
+              "net_pnl": 14566.670088710825,
+              "holding_bars": 27,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "LC_IDX",
+              "direction": 1,
+              "lots": 41,
+              "entry_price": 64510.0,
+              "exit_price": 64105.14285713086,
+              "net_pnl": -16862.80390049198,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "LC_IDX",
+              "direction": -1,
+              "lots": 33,
+              "entry_price": 62450.0,
+              "exit_price": 62938.85714286914,
+              "net_pnl": -16339.177328967453,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "LC_IDX",
+              "direction": 1,
+              "lots": 9,
+              "entry_price": 75530.0,
+              "exit_price": 75612.14285714386,
+              "net_pnl": 671.2717500090175,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "LC_IDX",
+              "direction": 1,
+              "lots": 12,
+              "entry_price": 79930.0,
+              "exit_price": 78726.28571427372,
+              "net_pnl": -14539.765200143933,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "LC_IDX",
+              "direction": 1,
+              "lots": 21,
+              "entry_price": 73970.0,
+              "exit_price": 73270.28571427372,
+              "net_pnl": -14848.602300251881,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "LC_IDX",
+              "direction": -1,
+              "lots": 10,
+              "entry_price": 101510.0,
+              "exit_price": 101445.999999999,
+              "net_pnl": 538.5220000100413,
+              "holding_bars": 8,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "LC_IDX",
+              "direction": -1,
+              "lots": 5,
+              "entry_price": 128730.0,
+              "exit_price": 130730.0,
+              "net_pnl": -10064.865,
+              "holding_bars": 12,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "LC_IDX",
+              "direction": -1,
+              "lots": 4,
+              "entry_price": 150850.0,
+              "exit_price": 153963.42857144057,
+              "net_pnl": -12514.67697147657,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "LC_IDX",
+              "direction": 1,
+              "lots": 6,
+              "entry_price": 185970.0,
+              "exit_price": 183799.42857141656,
+              "net_pnl": -13134.359400072066,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "LC_IDX",
+              "direction": -1,
+              "lots": 7,
+              "entry_price": 172570.0,
+              "exit_price": 174370.2857142977,
+              "net_pnl": -12723.429100083911,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "LC_IDX",
+              "direction": 1,
+              "lots": 7,
+              "entry_price": 142610.0,
+              "exit_price": 142700.57142857244,
+              "net_pnl": 534.1413000070719,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            }
+          ]
+        },
+        {
+          "symbol": "SN_IDX",
+          "trades": 15,
+          "net_pnl": -67048.05,
+          "win_rate": 46.67,
+          "profit_factor": 0.32,
+          "max_dd_pct": 9.31,
+          "sharpe": -1.04,
+          "avg_trade_pnl": -4469.87,
+          "trades_list": [
+            {
+              "symbol": "SN_IDX",
+              "direction": 1,
+              "lots": 29,
+              "entry_price": 265190.0,
+              "exit_price": 265226.2857142867,
+              "net_pnl": 283.1821000294183,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": 1,
+              "lots": 34,
+              "entry_price": 268830.0,
+              "exit_price": 269668.57142854645,
+              "net_pnl": 27595.980999150743,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": 1,
+              "lots": 15,
+              "entry_price": 289380.0,
+              "exit_price": 288359.4285714166,
+              "net_pnl": -15741.876000179727,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": -1,
+              "lots": 5,
+              "entry_price": 316470.0,
+              "exit_price": 319415.7142857263,
+              "net_pnl": -14887.54285720298,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": -1,
+              "lots": 14,
+              "entry_price": 316670.0,
+              "exit_price": 317746.28571429773,
+              "net_pnl": -15512.091400168229,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": -1,
+              "lots": 13,
+              "entry_price": 326020.0,
+              "exit_price": 325960.0,
+              "net_pnl": 356.21299999999997,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": -1,
+              "lots": 4,
+              "entry_price": 401440.0,
+              "exit_price": 401680.0,
+              "net_pnl": -1120.624,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": -1,
+              "lots": 2,
+              "entry_price": 453210.0,
+              "exit_price": 458276.28571429773,
+              "net_pnl": -10223.72005716689,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": -1,
+              "lots": 6,
+              "entry_price": 375490.0,
+              "exit_price": 375332.07142857043,
+              "net_pnl": 722.3248071488445,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": -1,
+              "lots": 5,
+              "entry_price": 446190.0,
+              "exit_price": 445975.2857142847,
+              "net_pnl": 850.5301071479714,
+              "holding_bars": 7,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": -1,
+              "lots": 6,
+              "entry_price": 413050.0,
+              "exit_price": 415220.000000012,
+              "net_pnl": -13268.481000071948,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": 1,
+              "lots": 9,
+              "entry_price": 406880.0,
+              "exit_price": 407003.0714285724,
+              "net_pnl": 741.3954750088305,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": 1,
+              "lots": 7,
+              "entry_price": 431920.0,
+              "exit_price": 429969.4285714166,
+              "net_pnl": -13955.661300083873,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": -1,
+              "lots": 8,
+              "entry_price": 428670.0,
+              "exit_price": 430335.14285715483,
+              "net_pnl": -13664.744914381512,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": 1,
+              "lots": 8,
+              "entry_price": 424310.0,
+              "exit_price": 424449.5714285724,
+              "net_pnl": 777.0676000078493,
+              "holding_bars": 10,
+              "reason": "STOP_OR_TRAILING"
+            }
+          ]
+        },
+        {
+          "symbol": "SA_IDX",
+          "trades": 17,
+          "net_pnl": -10728.33,
+          "win_rate": 17.65,
+          "profit_factor": 0.87,
+          "max_dd_pct": 4.83,
+          "sharpe": -0.12,
+          "avg_trade_pnl": -631.08,
+          "trades_list": [
+            {
+              "symbol": "SA_IDX",
+              "direction": 1,
+              "lots": 57,
+              "entry_price": 1290.0,
+              "exit_price": 1324.749999975,
+              "net_pnl": 39465.95922150147,
+              "holding_bars": 21,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": -1,
+              "lots": 85,
+              "entry_price": 1219.0,
+              "exit_price": 1219.199999999,
+              "net_pnl": -547.2469983000103,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": -1,
+              "lots": 41,
+              "entry_price": 1345.0,
+              "exit_price": 1364.9428571548572,
+              "net_pnl": -16464.250524126222,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": 1,
+              "lots": 51,
+              "entry_price": 1376.0,
+              "exit_price": 1381.499999975,
+              "net_pnl": 5469.367474501313,
+              "holding_bars": 13,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 1278.0,
+              "exit_price": 1277.5928571438571,
+              "net_pnl": -1069.844998000095,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": -1,
+              "lots": 88,
+              "entry_price": 1309.0,
+              "exit_price": 1309.307142856143,
+              "net_pnl": -770.982455382925,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 1163.0,
+              "exit_price": 1156.0857142737143,
+              "net_pnl": -14060.480023998767,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 1153.0,
+              "exit_price": 1152.6285714295714,
+              "net_pnl": -973.4199980002251,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 1110.0,
+              "exit_price": 1109.5642857152857,
+              "net_pnl": -1093.3849980001733,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": -1,
+              "lots": 78,
+              "entry_price": 1228.0,
+              "exit_price": 1212.2142857392857,
+              "net_pnl": 24435.377532426577,
+              "holding_bars": 20,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": -1,
+              "lots": 74,
+              "entry_price": 1256.0,
+              "exit_price": 1257.0,
+              "net_pnl": -1665.962,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": -1,
+              "lots": 81,
+              "entry_price": 1272.0,
+              "exit_price": 1280.0,
+              "net_pnl": -13166.712,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 1140.0,
+              "exit_price": 1139.4642857152858,
+              "net_pnl": -1299.3749979999911,
+              "holding_bars": 8,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 1229.0,
+              "exit_price": 1229.4857142847143,
+              "net_pnl": -1217.277140857025,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 1104.0,
+              "exit_price": 1104.549999999,
+              "net_pnl": -1320.8549979998302,
+              "holding_bars": 11,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 1004.0,
+              "exit_price": 996.0,
+              "net_pnl": -16200.0,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 963.0,
+              "exit_price": 957.9714285594285,
+              "net_pnl": -10249.240023998851,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            }
+          ]
+        }
+      ]
+    },
+    "30m": {
+      "total_net_pnl_1x": -523305.4,
+      "total_trades_1x": 232,
+      "profitable_symbols_pct": 20.0,
+      "total_net_pnl_3x": -1065956.12,
+      "total_net_pnl_oos": -305588.34,
+      "symbols_detail": [
+        {
+          "symbol": "AU_IDX",
+          "trades": 29,
+          "net_pnl": -202422.39,
+          "win_rate": 41.38,
+          "profit_factor": 0.12,
+          "max_dd_pct": 20.53,
+          "sharpe": -2.43,
+          "avg_trade_pnl": -6980.08,
+          "trades_list": [
+            {
+              "symbol": "AU_IDX",
+              "direction": 1,
+              "lots": 8,
+              "entry_price": 612.12,
+              "exit_price": 612.2577142867143,
+              "net_pnl": 611.9632079997086,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 10,
+              "entry_price": 633.34,
+              "exit_price": 633.2551428561429,
+              "net_pnl": 215.2738671429994,
+              "holding_bars": 9,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 7,
+              "entry_price": 675.62,
+              "exit_price": 675.2264285964285,
+              "net_pnl": 2282.203574991846,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 7,
+              "entry_price": 681.88,
+              "exit_price": 681.7337142847142,
+              "net_pnl": 546.7352070008453,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 10,
+              "entry_price": 682.78,
+              "exit_price": 684.24,
+              "net_pnl": -15283.510000000364,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": 1,
+              "lots": 10,
+              "entry_price": 684.0,
+              "exit_price": 684.1004285724285,
+              "net_pnl": 320.23550999919553,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 8,
+              "entry_price": 681.6,
+              "exit_price": 681.445000025,
+              "net_pnl": 694.7817999900777,
+              "holding_bars": 15,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 6,
+              "entry_price": 802.1800000000001,
+              "exit_price": 804.6514285834286,
+              "net_pnl": -15310.620929146144,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": 1,
+              "lots": 4,
+              "entry_price": 750.3199999999999,
+              "exit_price": 747.1062857022856,
+              "net_pnl": -13154.342447997731,
+              "holding_bars": 11,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 4,
+              "entry_price": 782.7,
+              "exit_price": 782.4548571418571,
+              "net_pnl": 667.5404611432793,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 3,
+              "entry_price": 787.08,
+              "exit_price": 782.0914285964286,
+              "net_pnl": 14730.338496424818,
+              "holding_bars": 13,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 8,
+              "entry_price": 774.66,
+              "exit_price": 776.3308571548571,
+              "net_pnl": -13987.25358171888,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 7,
+              "entry_price": 776.9200000000001,
+              "exit_price": 778.8617142977143,
+              "net_pnl": -14136.523684004093,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": 1,
+              "lots": 5,
+              "entry_price": 782.4,
+              "exit_price": 779.9302857022857,
+              "net_pnl": -12739.154059997023,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 5,
+              "entry_price": 847.32,
+              "exit_price": 849.7725714405715,
+              "net_pnl": -12687.130345717305,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 2,
+              "entry_price": 920.12,
+              "exit_price": 927.02,
+              "net_pnl": -13984.713999999954,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": 1,
+              "lots": 2,
+              "entry_price": 926.16,
+              "exit_price": 928.5135714035715,
+              "net_pnl": 4521.675450002743,
+              "holding_bars": 14,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 2,
+              "entry_price": 1026.44,
+              "exit_price": 1025.9824285704285,
+              "net_pnl": 709.9006162860458,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 2,
+              "entry_price": 1044.34,
+              "exit_price": 1051.080000012,
+              "net_pnl": -13689.54202400142,
+              "holding_bars": 11,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 2,
+              "entry_price": 1177.08,
+              "exit_price": 1183.7600000119999,
+              "net_pnl": -13596.084024001073,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": 1,
+              "lots": 1,
+              "entry_price": 1151.18,
+              "exit_price": 1131.34,
+              "net_pnl": -19954.126000000146,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": 1,
+              "lots": 1,
+              "entry_price": 1021.0799999999999,
+              "exit_price": 1022.1767142867143,
+              "net_pnl": 994.5514510000236,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 2,
+              "entry_price": 943.74,
+              "exit_price": 943.2698571418572,
+              "net_pnl": 751.5847305714578,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 3,
+              "entry_price": 899.38,
+              "exit_price": 903.76,
+              "net_pnl": -13410.470999999985,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": 1,
+              "lots": 2,
+              "entry_price": 877.62,
+              "exit_price": 873.2508571308572,
+              "net_pnl": -8913.372823998725,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": 1,
+              "lots": 3,
+              "entry_price": 873.98,
+              "exit_price": 869.8508571308572,
+              "net_pnl": -12649.00323599806,
+              "holding_bars": 8,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": -1,
+              "lots": 3,
+              "entry_price": 884.1800000000001,
+              "exit_price": 887.4554285834287,
+              "net_pnl": -10092.031064573335,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": 1,
+              "lots": 1,
+              "entry_price": 887.66,
+              "exit_price": 880.7331428451428,
+              "net_pnl": -7015.27681199946,
+              "holding_bars": 11,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AU_IDX",
+              "direction": 1,
+              "lots": 3,
+              "entry_price": 889.8199999999999,
+              "exit_price": 883.62,
+              "net_pnl": -18866.015999999796,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            }
+          ]
+        },
+        {
+          "symbol": "AG_IDX",
+          "trades": 26,
+          "net_pnl": -164051.55,
+          "win_rate": 34.62,
+          "profit_factor": 0.34,
+          "max_dd_pct": 16.41,
+          "sharpe": -1.35,
+          "avg_trade_pnl": -6309.68,
+          "trades_list": [
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 29,
+              "entry_price": 7786.0,
+              "exit_price": 7821.114285726286,
+              "net_pnl": -15614.169026648846,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 18,
+              "entry_price": 7910.0,
+              "exit_price": 7967.0,
+              "net_pnl": -15604.3395,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 26,
+              "entry_price": 7600.0,
+              "exit_price": 7637.000000012,
+              "net_pnl": -14727.121504680184,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 27,
+              "entry_price": 7743.0,
+              "exit_price": 7744.928571429571,
+              "net_pnl": 467.4408754048439,
+              "holding_bars": 8,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 34,
+              "entry_price": 7970.0,
+              "exit_price": 7971.4428571438575,
+              "net_pnl": 329.3503505101612,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 22,
+              "entry_price": 8149.0,
+              "exit_price": 8156.0,
+              "net_pnl": 2040.9675,
+              "holding_bars": 8,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 31,
+              "entry_price": 8109.0,
+              "exit_price": 8077.228571416572,
+              "net_pnl": -15150.044105579516,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 28,
+              "entry_price": 8814.0,
+              "exit_price": 8780.342857130858,
+              "net_pnl": -14505.481205039498,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 30,
+              "entry_price": 8658.0,
+              "exit_price": 8759.107142832143,
+              "net_pnl": 45106.3293637506,
+              "holding_bars": 33,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 35,
+              "entry_price": 8833.0,
+              "exit_price": 8861.600000012,
+              "net_pnl": -15479.48325630044,
+              "holding_bars": 11,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 41,
+              "entry_price": 8882.0,
+              "exit_price": 8857.771428559428,
+              "net_pnl": -15446.069407379744,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 45,
+              "entry_price": 9232.0,
+              "exit_price": 9253.657142869142,
+              "net_pnl": -15242.46236524286,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 33,
+              "entry_price": 9246.0,
+              "exit_price": 9206.0,
+              "net_pnl": -20256.687,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 24,
+              "entry_price": 9101.0,
+              "exit_price": 9062.885714273714,
+              "net_pnl": -14048.092804319795,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 18,
+              "entry_price": 9932.0,
+              "exit_price": 9934.878571429572,
+              "net_pnl": 509.0114252700924,
+              "holding_bars": 12,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 18,
+              "entry_price": 10245.0,
+              "exit_price": 10301.0,
+              "net_pnl": -15397.371,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 4,
+              "entry_price": 14521.0,
+              "exit_price": 14333.657142845143,
+              "net_pnl": -11327.135400719984,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 1,
+              "entry_price": 23400.0,
+              "exit_price": 23381.0,
+              "net_pnl": 249.91424999999998,
+              "holding_bars": 10,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 1,
+              "entry_price": 23193.0,
+              "exit_price": 23164.257142856142,
+              "net_pnl": 396.3749143007233,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 3,
+              "entry_price": 22008.0,
+              "exit_price": 21720.285714273716,
+              "net_pnl": -13045.531500539908,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 2,
+              "entry_price": 16860.0,
+              "exit_price": 17967.178571403572,
+              "net_pnl": 33163.116374250065,
+              "holding_bars": 15,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 3,
+              "entry_price": 18725.0,
+              "exit_price": 19004.400000012,
+              "net_pnl": -12657.891150540005,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 4,
+              "entry_price": 20262.0,
+              "exit_price": 20468.114285726286,
+              "net_pnl": -12489.047486434323,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 3,
+              "entry_price": 19232.0,
+              "exit_price": 18945.057142845144,
+              "net_pnl": -12998.326950539922,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": -1,
+              "lots": 4,
+              "entry_price": 19166.0,
+              "exit_price": 19103.14285716786,
+              "net_pnl": 3656.6211413569627,
+              "holding_bars": 15,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "AG_IDX",
+              "direction": 1,
+              "lots": 4,
+              "entry_price": 13703.0,
+              "exit_price": 13438.0,
+              "net_pnl": -15981.423,
+              "holding_bars": 10,
+              "reason": "STOP_OR_TRAILING"
+            }
+          ]
+        },
+        {
+          "symbol": "RB_IDX",
+          "trades": 17,
+          "net_pnl": -48890.63,
+          "win_rate": 23.53,
+          "profit_factor": 0.58,
+          "max_dd_pct": 4.89,
+          "sharpe": -0.51,
+          "avg_trade_pnl": -2875.92,
+          "trades_list": [
+            {
+              "symbol": "RB_IDX",
+              "direction": 1,
+              "lots": 81,
+              "entry_price": 3854.0,
+              "exit_price": 3853.0,
+              "net_pnl": -1122.1335,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": 1,
+              "lots": 85,
+              "entry_price": 3646.0,
+              "exit_price": 3627.4285714165712,
+              "net_pnl": -16094.835010199658,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 3570.0,
+              "exit_price": 3569.9928571418573,
+              "net_pnl": -349.8567847143503,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": 1,
+              "lots": 91,
+              "entry_price": 3485.0,
+              "exit_price": 3467.8857142737143,
+              "net_pnl": -15890.35631091948,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": -1,
+              "lots": 59,
+              "entry_price": 3224.0,
+              "exit_price": 3249.4285714405714,
+              "net_pnl": -15193.823292794641,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": -1,
+              "lots": 28,
+              "entry_price": 3689.0,
+              "exit_price": 3525.892857167857,
+              "net_pnl": 45568.99149299967,
+              "holding_bars": 16,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": -1,
+              "lots": 62,
+              "entry_price": 3444.0,
+              "exit_price": 3443.149999999,
+              "net_pnl": 313.49835061996805,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": 1,
+              "lots": 61,
+              "entry_price": 3075.0,
+              "exit_price": 3076.171428572429,
+              "net_pnl": 526.9607006101057,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": -1,
+              "lots": 86,
+              "entry_price": 3143.0,
+              "exit_price": 3161.400000012,
+              "net_pnl": -16095.089210320486,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 2968.0,
+              "exit_price": 2966.0,
+              "net_pnl": -2296.7,
+              "holding_bars": 8,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 3160.0,
+              "exit_price": 3173.942857154857,
+              "net_pnl": -14259.554297714682,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": -1,
+              "lots": 84,
+              "entry_price": 3145.0,
+              "exit_price": 3119.642857167857,
+              "net_pnl": 21036.88497899901,
+              "holding_bars": 18,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 3135.0,
+              "exit_price": 3121.999999988,
+              "net_pnl": -13312.850011999273,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 3126.0,
+              "exit_price": 3126.0285714275715,
+              "net_pnl": -341.1728561428567,
+              "holding_bars": 8,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 3117.0,
+              "exit_price": 3124.514285726286,
+              "net_pnl": -7826.361440572148,
+              "holding_bars": 8,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 3215.0,
+              "exit_price": 3218.0,
+              "net_pnl": -3321.65,
+              "holding_bars": 7,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "RB_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 3178.0,
+              "exit_price": 3187.914285726286,
+              "net_pnl": -10232.58144057224,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            }
+          ]
+        },
+        {
+          "symbol": "CU_IDX",
+          "trades": 34,
+          "net_pnl": 161469.76,
+          "win_rate": 52.94,
+          "profit_factor": 1.87,
+          "max_dd_pct": 5.11,
+          "sharpe": 0.79,
+          "avg_trade_pnl": 4749.11,
+          "trades_list": [
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 11,
+              "entry_price": 73690.0,
+              "exit_price": 73600.0,
+              "net_pnl": -5355.0475,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 8,
+              "entry_price": 72770.0,
+              "exit_price": 72750.07142857043,
+              "net_pnl": 506.10271432563013,
+              "holding_bars": 10,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 5,
+              "entry_price": 77700.0,
+              "exit_price": 77716.14285714386,
+              "net_pnl": 209.30125002504883,
+              "holding_bars": 16,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 11,
+              "entry_price": 77030.0,
+              "exit_price": 77016.57142857043,
+              "net_pnl": 314.94335719774136,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 12,
+              "entry_price": 76330.0,
+              "exit_price": 76341.92857142957,
+              "net_pnl": 257.69850005986774,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 17,
+              "entry_price": 74410.0,
+              "exit_price": 73880.71428573929,
+              "net_pnl": 44359.050176445955,
+              "holding_bars": 26,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 20,
+              "entry_price": 75100.0,
+              "exit_price": 74938.28571427372,
+              "net_pnl": -16921.620001199433,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 11,
+              "entry_price": 80060.0,
+              "exit_price": 80160.0,
+              "net_pnl": -5940.605,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 8,
+              "entry_price": 79930.0,
+              "exit_price": 79945.57142857242,
+              "net_pnl": 303.10600003982864,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 6,
+              "entry_price": 72070.0,
+              "exit_price": 74460.0,
+              "net_pnl": 71480.205,
+              "holding_bars": 29,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 15,
+              "entry_price": 78340.0,
+              "exit_price": 78336.999999999,
+              "net_pnl": -362.53874992469014,
+              "holding_bars": 13,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 16,
+              "entry_price": 77970.0,
+              "exit_price": 77950.0,
+              "net_pnl": -2223.6800000000003,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 18,
+              "entry_price": 77940.0,
+              "exit_price": 77945.07142857242,
+              "net_pnl": -245.05424991038558,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 15,
+              "entry_price": 79390.0,
+              "exit_price": 79166.57142855943,
+              "net_pnl": -17351.730000899886,
+              "holding_bars": 10,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 23,
+              "entry_price": 79270.0,
+              "exit_price": 79416.28571429772,
+              "net_pnl": -17735.303287094488,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 21,
+              "entry_price": 78780.0,
+              "exit_price": 78783.14285714386,
+              "net_pnl": -497.2064998947949,
+              "holding_bars": 11,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 17,
+              "entry_price": 79560.0,
+              "exit_price": 79755.14285715486,
+              "net_pnl": -17264.23221530604,
+              "holding_bars": 9,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 14,
+              "entry_price": 81430.0,
+              "exit_price": 81119.28571431071,
+              "net_pnl": 21181.07749825019,
+              "holding_bars": 13,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 11,
+              "entry_price": 81860.0,
+              "exit_price": 83184.999999975,
+              "net_pnl": 72421.12624862506,
+              "holding_bars": 24,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 4,
+              "entry_price": 91600.0,
+              "exit_price": 92579.64285711785,
+              "net_pnl": 19408.67749949998,
+              "holding_bars": 12,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 3,
+              "entry_price": 99300.0,
+              "exit_price": 99381.64285714386,
+              "net_pnl": 1075.6316250150294,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 5,
+              "entry_price": 102160.0,
+              "exit_price": 102846.28571429772,
+              "net_pnl": -17413.400714585758,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 5,
+              "entry_price": 104140.0,
+              "exit_price": 103684.28571431071,
+              "net_pnl": 11133.076785089354,
+              "holding_bars": 12,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 6,
+              "entry_price": 100610.0,
+              "exit_price": 100038.57142855943,
+              "net_pnl": -17443.830000359954,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 8,
+              "entry_price": 100920.0,
+              "exit_price": 100942.85714285815,
+              "net_pnl": 510.5600000402444,
+              "holding_bars": 9,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 10,
+              "entry_price": 99360.0,
+              "exit_price": 99026.85714284514,
+              "net_pnl": -17153.110000600132,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 4,
+              "entry_price": 93090.0,
+              "exit_price": 94870.35714283214,
+              "net_pnl": 35419.182499500064,
+              "holding_bars": 14,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 10,
+              "entry_price": 96820.0,
+              "exit_price": 96801.14285714185,
+              "net_pnl": 458.8042857645963,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 6,
+              "entry_price": 97680.0,
+              "exit_price": 98242.000000012,
+              "net_pnl": -17153.883000360176,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 6,
+              "entry_price": 106470.0,
+              "exit_price": 106996.85714286914,
+              "net_pnl": -16125.914571788375,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 7,
+              "entry_price": 104270.0,
+              "exit_price": 104743.71428572628,
+              "net_pnl": -16945.774000419842,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 9,
+              "entry_price": 102010.0,
+              "exit_price": 103520.0,
+              "net_pnl": 67487.5575,
+              "holding_bars": 28,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": -1,
+              "lots": 9,
+              "entry_price": 104870.0,
+              "exit_price": 104848.999999999,
+              "net_pnl": 473.13225004518597,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "CU_IDX",
+              "direction": 1,
+              "lots": 8,
+              "entry_price": 106980.0,
+              "exit_price": 107005.78571428671,
+              "net_pnl": 603.4570000399949,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            }
+          ]
+        },
+        {
+          "symbol": "SC_IDX",
+          "trades": 39,
+          "net_pnl": -16277.03,
+          "win_rate": 51.28,
+          "profit_factor": 0.94,
+          "max_dd_pct": 10.71,
+          "sharpe": -0.04,
+          "avg_trade_pnl": -417.36,
+          "trades_list": [
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 8,
+              "entry_price": 532.5,
+              "exit_price": 534.6,
+              "net_pnl": -17226.840000000182,
+              "holding_bars": 16,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 6,
+              "entry_price": 535.6999999999999,
+              "exit_price": 535.6221428561428,
+              "net_pnl": 145.74622028611066,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 6,
+              "entry_price": 541.9,
+              "exit_price": 539.5628571308571,
+              "net_pnl": -14347.296071996625,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 3,
+              "entry_price": 611.6,
+              "exit_price": 611.3742857132858,
+              "net_pnl": 493.69671728580136,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 5,
+              "entry_price": 521.9,
+              "exit_price": 524.5714285834285,
+              "net_pnl": -13618.760774288681,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 3,
+              "entry_price": 545.2,
+              "exit_price": 541.4914285594286,
+              "net_pnl": -11288.718035998127,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 3,
+              "entry_price": 493.29999999999995,
+              "exit_price": 493.149999999,
+              "net_pnl": 302.03250300005004,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 5,
+              "entry_price": 480.5,
+              "exit_price": 477.8885714165714,
+              "net_pnl": -13296.74005999724,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 4,
+              "entry_price": 450.70000000000005,
+              "exit_price": 453.2285714035714,
+              "net_pnl": 9933.499900004623,
+              "holding_bars": 12,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 4,
+              "entry_price": 498.1,
+              "exit_price": 516.5,
+              "net_pnl": 73397.07999999991,
+              "holding_bars": 40,
+              "reason": "TIMEOUT"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 6,
+              "entry_price": 513.2,
+              "exit_price": 513.3164285724285,
+              "net_pnl": 390.61650599929357,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 4,
+              "entry_price": 506.6,
+              "exit_price": 506.2,
+              "net_pnl": -1802.5600000001364,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 5,
+              "entry_price": 525.8000000000001,
+              "exit_price": 526.0535714035714,
+              "net_pnl": 1004.8936250056067,
+              "holding_bars": 13,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 7,
+              "entry_price": 505.5,
+              "exit_price": 503.44571427371426,
+              "net_pnl": -14733.131083995986,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 6,
+              "entry_price": 483.20000000000005,
+              "exit_price": 480.79999999999995,
+              "net_pnl": -14689.200000000546,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 9,
+              "entry_price": 485.6,
+              "exit_price": 485.6414285724286,
+              "net_pnl": -64.20149100044586,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 7,
+              "entry_price": 480.40000000000003,
+              "exit_price": 489.399999975,
+              "net_pnl": 62660.56982500861,
+              "holding_bars": 22,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 6,
+              "entry_price": 491.7,
+              "exit_price": 486.70000000000005,
+              "net_pnl": 29706.479999999658,
+              "holding_bars": 31,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 8,
+              "entry_price": 488.0,
+              "exit_price": 487.9357142847143,
+              "net_pnl": 123.911436571536,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 4,
+              "entry_price": 446.20000000000005,
+              "exit_price": 450.81428568928567,
+              "net_pnl": 18277.739900004635,
+              "holding_bars": 26,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 7,
+              "entry_price": 434.70000000000005,
+              "exit_price": 434.79857142957144,
+              "net_pnl": 385.6755069994031,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 5,
+              "entry_price": 456.9,
+              "exit_price": 462.8,
+              "net_pnl": -29729.92500000017,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 8,
+              "entry_price": 451.5,
+              "exit_price": 449.4885714165714,
+              "net_pnl": -16451.824095995402,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 3,
+              "entry_price": 416.20000000000005,
+              "exit_price": 416.4071428581429,
+              "net_pnl": 496.53750299981334,
+              "holding_bars": 11,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 5,
+              "entry_price": 429.29999999999995,
+              "exit_price": 432.06571429771424,
+              "net_pnl": -14043.912917145843,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 6,
+              "entry_price": 445.4,
+              "exit_price": 445.2914285704286,
+              "net_pnl": 384.2211488571767,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 6,
+              "entry_price": 440.3,
+              "exit_price": 437.84285713085717,
+              "net_pnl": -15006.30007199631,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 3,
+              "entry_price": 465.7,
+              "exit_price": 464.0642857392857,
+              "net_pnl": 4767.6781392819485,
+              "holding_bars": 14,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 5,
+              "entry_price": 483.29999999999995,
+              "exit_price": 485.9885714405714,
+              "net_pnl": -13685.179345717255,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 1,
+              "entry_price": 700.1,
+              "exit_price": 736.9321428321429,
+              "net_pnl": 36760.29122500123,
+              "holding_bars": 26,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 1,
+              "entry_price": 738.1,
+              "exit_price": 738.8435714295714,
+              "net_pnl": 669.7242509998965,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 2,
+              "entry_price": 670.9,
+              "exit_price": 670.514999999,
+              "net_pnl": 635.8585020000606,
+              "holding_bars": 11,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 2,
+              "entry_price": 635.3,
+              "exit_price": 640.8514285834285,
+              "net_pnl": -11230.472309715464,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 2,
+              "entry_price": 593.5,
+              "exit_price": 599.2057142977143,
+              "net_pnl": -11530.699166858332,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 2,
+              "entry_price": 482.2,
+              "exit_price": 481.8742857132857,
+              "net_pnl": 555.0211448572464,
+              "holding_bars": 8,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 2,
+              "entry_price": 511.59999999999997,
+              "exit_price": 519.6,
+              "net_pnl": -16103.120000000114,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 2,
+              "entry_price": 547.1999999999999,
+              "exit_price": 553.0171428691428,
+              "net_pnl": -11744.30745257274,
+              "holding_bars": 9,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": -1,
+              "lots": 2,
+              "entry_price": 548.9,
+              "exit_price": 559.9,
+              "net_pnl": -22110.88,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SC_IDX",
+              "direction": 1,
+              "lots": 1,
+              "entry_price": 532.5,
+              "exit_price": 537.8892856892857,
+              "net_pnl": 5335.766225001193,
+              "holding_bars": 25,
+              "reason": "STOP_OR_TRAILING"
+            }
+          ]
+        },
+        {
+          "symbol": "TA_IDX",
+          "trades": 18,
+          "net_pnl": -69387.91,
+          "win_rate": 22.22,
+          "profit_factor": 0.43,
+          "max_dd_pct": 8.28,
+          "sharpe": -0.87,
+          "avg_trade_pnl": -3854.88,
+          "trades_list": [
+            {
+              "symbol": "TA_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 5834.0,
+              "exit_price": 5842.0,
+              "net_pnl": -4291.9,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 6038.0,
+              "exit_price": 6040.0,
+              "net_pnl": -1301.95,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 6014.0,
+              "exit_price": 6013.628571427572,
+              "net_pnl": -114.97642807161026,
+              "holding_bars": 14,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 5612.0,
+              "exit_price": 5624.0,
+              "net_pnl": -6280.9,
+              "holding_bars": 7,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": 1,
+              "lots": 60,
+              "entry_price": 4746.0,
+              "exit_price": 4695.142857130857,
+              "net_pnl": -15398.76000359986,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": -1,
+              "lots": 69,
+              "entry_price": 4906.0,
+              "exit_price": 4960.0,
+              "net_pnl": -18800.1885,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": -1,
+              "lots": 95,
+              "entry_price": 5258.0,
+              "exit_price": 5289.828571440571,
+              "net_pnl": -15369.08236284297,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 5002.0,
+              "exit_price": 4977.199999988,
+              "net_pnl": -12649.480005999727,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 4752.0,
+              "exit_price": 4748.0,
+              "net_pnl": -2237.5,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": -1,
+              "lots": 91,
+              "entry_price": 4896.0,
+              "exit_price": 4877.071428596429,
+              "net_pnl": 8390.162613624403,
+              "holding_bars": 17,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": -1,
+              "lots": 70,
+              "entry_price": 4796.0,
+              "exit_price": 4837.600000012,
+              "net_pnl": -14728.588004200294,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 4786.0,
+              "exit_price": 4762.0,
+              "net_pnl": 11761.3,
+              "holding_bars": 7,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 4696.0,
+              "exit_price": 4696.042857141857,
+              "net_pnl": -256.22964235703876,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 4620.0,
+              "exit_price": 4683.999999975,
+              "net_pnl": 31767.39998750053,
+              "holding_bars": 23,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": 1,
+              "lots": 29,
+              "entry_price": 5968.0,
+              "exit_price": 5868.6285714165715,
+              "net_pnl": -14494.672701739903,
+              "holding_bars": 9,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": 1,
+              "lots": 61,
+              "entry_price": 5474.0,
+              "exit_price": 5475.9428571438575,
+              "net_pnl": 425.58480030509645,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": -1,
+              "lots": 60,
+              "entry_price": 6020.0,
+              "exit_price": 6024.0,
+              "net_pnl": -1380.66,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "TA_IDX",
+              "direction": 1,
+              "lots": 38,
+              "entry_price": 5664.0,
+              "exit_price": 5588.6285714165715,
+              "net_pnl": -14427.471402279873,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            }
+          ]
+        },
+        {
+          "symbol": "MA_IDX",
+          "trades": 13,
+          "net_pnl": -119628.49,
+          "win_rate": 15.38,
+          "profit_factor": 0.11,
+          "max_dd_pct": 13.37,
+          "sharpe": -1.8,
+          "avg_trade_pnl": -9202.19,
+          "trades_list": [
+            {
+              "symbol": "MA_IDX",
+              "direction": -1,
+              "lots": 81,
+              "entry_price": 2475.0,
+              "exit_price": 2494.514285726286,
+              "net_pnl": -16007.83676686344,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "MA_IDX",
+              "direction": 1,
+              "lots": 64,
+              "entry_price": 2398.0,
+              "exit_price": 2367.0,
+              "net_pnl": -19992.48,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "MA_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 2416.0,
+              "exit_price": 2430.800000012,
+              "net_pnl": -15042.340012000655,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "MA_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 2486.0,
+              "exit_price": 2472.5714285594286,
+              "net_pnl": -13676.500011999404,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "MA_IDX",
+              "direction": -1,
+              "lots": 96,
+              "entry_price": 2651.0,
+              "exit_price": 2666.5714285834288,
+              "net_pnl": -15203.814868663623,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "MA_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 2535.0,
+              "exit_price": 2523.542857130857,
+              "net_pnl": -11710.070011999442,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "MA_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 2250.0,
+              "exit_price": 2237.257142845143,
+              "net_pnl": -12967.220011999378,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "MA_IDX",
+              "direction": 1,
+              "lots": 34,
+              "entry_price": 2388.0,
+              "exit_price": 2388.0,
+              "net_pnl": -81.19200000000001,
+              "holding_bars": 12,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "MA_IDX",
+              "direction": -1,
+              "lots": 100,
+              "entry_price": 2416.0,
+              "exit_price": 2418.0,
+              "net_pnl": -2241.7,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "MA_IDX",
+              "direction": -1,
+              "lots": 77,
+              "entry_price": 2346.0,
+              "exit_price": 2345.3214285704285,
+              "net_pnl": 341.88412577013037,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "MA_IDX",
+              "direction": -1,
+              "lots": 40,
+              "entry_price": 2305.0,
+              "exit_price": 2339.4285714405714,
+              "net_pnl": -13864.317147657384,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "MA_IDX",
+              "direction": 1,
+              "lots": 25,
+              "entry_price": 2795.0,
+              "exit_price": 2742.2285714165714,
+              "net_pnl": -13262.072502999854,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "MA_IDX",
+              "direction": 1,
+              "lots": 43,
+              "entry_price": 2561.0,
+              "exit_price": 2594.0,
+              "net_pnl": 14079.1675,
+              "holding_bars": 13,
+              "reason": "STOP_OR_TRAILING"
+            }
+          ]
+        },
+        {
+          "symbol": "LC_IDX",
+          "trades": 12,
+          "net_pnl": -28585.25,
+          "win_rate": 33.33,
+          "profit_factor": 0.73,
+          "max_dd_pct": 5.92,
+          "sharpe": -0.28,
+          "avg_trade_pnl": -2382.1,
+          "trades_list": [
+            {
+              "symbol": "LC_IDX",
+              "direction": 1,
+              "lots": 5,
+              "entry_price": 185050.0,
+              "exit_price": 184750.0,
+              "net_pnl": -1592.45,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "LC_IDX",
+              "direction": 1,
+              "lots": 5,
+              "entry_price": 158400.0,
+              "exit_price": 155427.14285713085,
+              "net_pnl": -14942.742500060034,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "LC_IDX",
+              "direction": 1,
+              "lots": 9,
+              "entry_price": 149800.0,
+              "exit_price": 148211.42857141656,
+              "net_pnl": -14431.248000108098,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "LC_IDX",
+              "direction": 1,
+              "lots": 8,
+              "entry_price": 103550.0,
+              "exit_price": 101729.999999988,
+              "net_pnl": -14642.112000096038,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "LC_IDX",
+              "direction": -1,
+              "lots": 9,
+              "entry_price": 76700.0,
+              "exit_price": 78198.57142858343,
+              "net_pnl": -13556.847214393692,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "LC_IDX",
+              "direction": -1,
+              "lots": 30,
+              "entry_price": 76670.0,
+              "exit_price": 76042.85714288215,
+              "net_pnl": 18585.216427821324,
+              "holding_bars": 27,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "LC_IDX",
+              "direction": -1,
+              "lots": 33,
+              "entry_price": 61810.0,
+              "exit_price": 60005.000000025,
+              "net_pnl": 59364.00524917495,
+              "holding_bars": 17,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "LC_IDX",
+              "direction": -1,
+              "lots": 25,
+              "entry_price": 62390.0,
+              "exit_price": 63036.571428583426,
+              "net_pnl": -16321.06892887137,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "LC_IDX",
+              "direction": -1,
+              "lots": 15,
+              "entry_price": 66790.0,
+              "exit_price": 66756.28571428472,
+              "net_pnl": 405.55457144347747,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "LC_IDX",
+              "direction": -1,
+              "lots": 17,
+              "entry_price": 73570.0,
+              "exit_price": 73549.85714285614,
+              "net_pnl": 217.37669287417776,
+              "holding_bars": 10,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "LC_IDX",
+              "direction": -1,
+              "lots": 8,
+              "entry_price": 93630.0,
+              "exit_price": 95950.0,
+              "net_pnl": -18635.832,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "LC_IDX",
+              "direction": -1,
+              "lots": 3,
+              "entry_price": 159590.0,
+              "exit_price": 163918.85714286915,
+              "net_pnl": -13035.09775717888,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            }
+          ]
+        },
+        {
+          "symbol": "SN_IDX",
+          "trades": 26,
+          "net_pnl": 103242.65,
+          "win_rate": 69.23,
+          "profit_factor": 1.98,
+          "max_dd_pct": 4.16,
+          "sharpe": 0.77,
+          "avg_trade_pnl": 3970.87,
+          "trades_list": [
+            {
+              "symbol": "SN_IDX",
+              "direction": -1,
+              "lots": 7,
+              "entry_price": 262460.0,
+              "exit_price": 264579.42857144057,
+              "net_pnl": -15020.463800083999,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": 1,
+              "lots": 9,
+              "entry_price": 257610.0,
+              "exit_price": 261260.7142856893,
+              "net_pnl": 32622.936749775046,
+              "holding_bars": 25,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": -1,
+              "lots": 12,
+              "entry_price": 252400.0,
+              "exit_price": 252340.0,
+              "net_pnl": 417.15599999999995,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": 1,
+              "lots": 12,
+              "entry_price": 247820.0,
+              "exit_price": 247905.21428571528,
+              "net_pnl": 725.1363000119236,
+              "holding_bars": 14,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": -1,
+              "lots": 12,
+              "entry_price": 262860.0,
+              "exit_price": 262772.2142857133,
+              "net_pnl": 738.0492428693171,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": -1,
+              "lots": 6,
+              "entry_price": 287190.0,
+              "exit_price": 286983.9285714276,
+              "net_pnl": 1064.1763928630305,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": -1,
+              "lots": 13,
+              "entry_price": 266670.0,
+              "exit_price": 267802.000000012,
+              "net_pnl": -15063.406800155888,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": -1,
+              "lots": 14,
+              "entry_price": 269800.0,
+              "exit_price": 269715.499999999,
+              "net_pnl": 805.3391500138541,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": 1,
+              "lots": 13,
+              "entry_price": 261970.0,
+              "exit_price": 265937.14285711787,
+              "net_pnl": 51229.71749967518,
+              "holding_bars": 18,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": 1,
+              "lots": 18,
+              "entry_price": 264450.0,
+              "exit_price": 264515.7857142867,
+              "net_pnl": 708.0736500182596,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": 1,
+              "lots": 20,
+              "entry_price": 265190.0,
+              "exit_price": 265243.000000001,
+              "net_pnl": 529.5670000197896,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": 1,
+              "lots": 20,
+              "entry_price": 267300.0,
+              "exit_price": 266512.57142855943,
+              "net_pnl": -16282.38400023997,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": 1,
+              "lots": 16,
+              "entry_price": 271370.0,
+              "exit_price": 274160.0,
+              "net_pnl": 44203.576,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": 1,
+              "lots": 9,
+              "entry_price": 281910.0,
+              "exit_price": 282065.2857142867,
+              "net_pnl": 1143.7825500091299,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": 1,
+              "lots": 12,
+              "entry_price": 279620.0,
+              "exit_price": 279938.2142856893,
+              "net_pnl": 3482.8364997000626,
+              "holding_bars": 15,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": 1,
+              "lots": 8,
+              "entry_price": 312750.0,
+              "exit_price": 312906.14285714383,
+              "net_pnl": 998.8804000077828,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": -1,
+              "lots": 6,
+              "entry_price": 327540.0,
+              "exit_price": 330223.42857144057,
+              "net_pnl": -16297.900457214855,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": -1,
+              "lots": 5,
+              "entry_price": 344690.0,
+              "exit_price": 344462.35714285617,
+              "net_pnl": 965.9261964334362,
+              "holding_bars": 7,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": -1,
+              "lots": 3,
+              "entry_price": 370680.0,
+              "exit_price": 375675.14285715483,
+              "net_pnl": -15097.381842893066,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": -1,
+              "lots": 2,
+              "entry_price": 395610.0,
+              "exit_price": 402608.28571429773,
+              "net_pnl": -14076.39325716689,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": 1,
+              "lots": 1,
+              "entry_price": 386270.0,
+              "exit_price": 385380.0,
+              "net_pnl": -928.5825,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": 1,
+              "lots": 1,
+              "entry_price": 363010.0,
+              "exit_price": 363660.7857142867,
+              "net_pnl": 614.4521750010144,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": 1,
+              "lots": 2,
+              "entry_price": 373180.0,
+              "exit_price": 392581.07142854645,
+              "net_pnl": 38725.56674995004,
+              "holding_bars": 21,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": 1,
+              "lots": 3,
+              "entry_price": 335080.0,
+              "exit_price": 344769.2857142607,
+              "net_pnl": 28965.879749924992,
+              "holding_bars": 13,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": -1,
+              "lots": 3,
+              "entry_price": 419790.0,
+              "exit_price": 424042.85714286915,
+              "net_pnl": -12885.14635717888,
+              "holding_bars": 7,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SN_IDX",
+              "direction": -1,
+              "lots": 5,
+              "entry_price": 418610.0,
+              "exit_price": 418377.499999999,
+              "net_pnl": 953.2531250049478,
+              "holding_bars": 9,
+              "reason": "STOP_OR_TRAILING"
+            }
+          ]
+        },
+        {
+          "symbol": "SA_IDX",
+          "trades": 18,
+          "net_pnl": -138774.56,
+          "win_rate": 22.22,
+          "profit_factor": 0.17,
+          "max_dd_pct": 14.3,
+          "sharpe": -1.67,
+          "avg_trade_pnl": -7709.7,
+          "trades_list": [
+            {
+              "symbol": "SA_IDX",
+              "direction": -1,
+              "lots": 25,
+              "entry_price": 2132.0,
+              "exit_price": 2123.5357143107144,
+              "net_pnl": 4125.7544517850265,
+              "holding_bars": 6,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": -1,
+              "lots": 19,
+              "entry_price": 2271.0,
+              "exit_price": 2268.7785714275715,
+              "net_pnl": 757.8870646657144,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": -1,
+              "lots": 34,
+              "entry_price": 1860.0,
+              "exit_price": 1883.0285714405713,
+              "net_pnl": -15786.691551017491,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": 1,
+              "lots": 46,
+              "entry_price": 1626.0,
+              "exit_price": 1595.0,
+              "net_pnl": -28668.166,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": -1,
+              "lots": 19,
+              "entry_price": 1670.0,
+              "exit_price": 1708.800000012,
+              "net_pnl": -14808.197204560249,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": 1,
+              "lots": 32,
+              "entry_price": 1501.0,
+              "exit_price": 1536.3214285464285,
+              "net_pnl": 22508.51998400074,
+              "holding_bars": 24,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": -1,
+              "lots": 52,
+              "entry_price": 1564.0,
+              "exit_price": 1564.0,
+              "net_pnl": -162.65600000000003,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": 1,
+              "lots": 77,
+              "entry_price": 1240.0,
+              "exit_price": 1229.657142845143,
+              "net_pnl": -16118.1636184789,
+              "holding_bars": 7,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": -1,
+              "lots": 32,
+              "entry_price": 1336.0,
+              "exit_price": 1359.2857142977143,
+              "net_pnl": -14989.106293394692,
+              "holding_bars": 9,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": -1,
+              "lots": 54,
+              "entry_price": 1342.0,
+              "exit_price": 1341.8142857132857,
+              "net_pnl": 55.64545822292774,
+              "holding_bars": 4,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": 1,
+              "lots": 71,
+              "entry_price": 1294.0,
+              "exit_price": 1283.2285714165714,
+              "net_pnl": -15478.41181703917,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": 1,
+              "lots": 71,
+              "entry_price": 1215.0,
+              "exit_price": 1214.9714285724285,
+              "net_pnl": -213.09939858014138,
+              "holding_bars": 9,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": 1,
+              "lots": 76,
+              "entry_price": 1153.0,
+              "exit_price": 1152.7142857152858,
+              "net_pnl": -609.5199984799933,
+              "holding_bars": 2,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": -1,
+              "lots": 54,
+              "entry_price": 1255.0,
+              "exit_price": 1277.0,
+              "net_pnl": -23896.728,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": 1,
+              "lots": 50,
+              "entry_price": 1250.0,
+              "exit_price": 1244.0,
+              "net_pnl": -6124.7,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": -1,
+              "lots": 62,
+              "entry_price": 1233.0,
+              "exit_price": 1244.7142857262857,
+              "net_pnl": -14679.332586309238,
+              "holding_bars": 1,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": -1,
+              "lots": 91,
+              "entry_price": 1105.0,
+              "exit_price": 1105.4357142847143,
+              "net_pnl": -994.1496481799755,
+              "holding_bars": 5,
+              "reason": "STOP_OR_TRAILING"
+            },
+            {
+              "symbol": "SA_IDX",
+              "direction": 1,
+              "lots": 100,
+              "entry_price": 1042.0,
+              "exit_price": 1035.2571428451429,
+              "net_pnl": -13693.440023998754,
+              "holding_bars": 3,
+              "reason": "STOP_OR_TRAILING"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "decision": "REVISE_PARAMETERS",
+  "summary": {
+    "all_pnl_1x": -1396278.8,
+    "all_pnl_3x": -2568663.41,
+    "all_pnl_oos": -370315.96
+  }
+}

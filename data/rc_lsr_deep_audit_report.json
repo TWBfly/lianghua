@@ -1,0 +1,6038 @@
+{
+  "strategy": "RC-LSR (Regime-Conditioned Liquidity Shock Reversal)",
+  "timeframe": "30m",
+  "oos_split_date": "2025-07-01",
+  "friction_0x": {
+    "AU_IDX": {
+      "symbol": "AU_IDX",
+      "name": "沪金",
+      "sector": "贵金属",
+      "overall": {
+        "total_trades": 33,
+        "win_trades": 19,
+        "loss_trades": 14,
+        "net_profit": 71585.5,
+        "profit_factor": 1.33,
+        "win_rate": 0.5758,
+        "max_drawdown": 0.0745,
+        "avg_trade_pnl": 2169.26
+      },
+      "train": {
+        "total_trades": 13,
+        "win_trades": 8,
+        "loss_trades": 5,
+        "net_profit": 62461.0,
+        "profit_factor": 2.1,
+        "win_rate": 0.6154,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 4804.69
+      },
+      "oos": {
+        "total_trades": 20,
+        "win_trades": 11,
+        "loss_trades": 9,
+        "net_profit": 9124.5,
+        "profit_factor": 1.06,
+        "win_rate": 0.55,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 456.22
+      },
+      "exit_reasons": {
+        "CHANDELIER_TRAIL": 13,
+        "STOP_LOSS": 8,
+        "GAP_STOP_LOSS": 8,
+        "BE_LOCK": 3,
+        "STRUCTURAL_RUPTURE": 1
+      },
+      "trades_count": 33,
+      "trades_sample": [
+        {
+          "symbol": "AU_IDX",
+          "direction": 1,
+          "lots": 13,
+          "entry_price": 611.02,
+          "entry_time": "2024-11-28T10:00:00.000000000",
+          "exit_price": 614.116,
+          "exit_time": "2024-11-28T22:30:00.000000000",
+          "net_pnl": 40248.0,
+          "holding_bars": 10,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "AU_IDX",
+          "direction": 1,
+          "lots": 13,
+          "entry_price": 614.06,
+          "entry_time": "2024-12-02T10:00:00.000000000",
+          "exit_price": 612.9125,
+          "exit_time": "2024-12-02T10:30:00.000000000",
+          "net_pnl": -14917.5,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "AU_IDX",
+          "direction": 1,
+          "lots": 14,
+          "entry_price": 618.28,
+          "entry_time": "2024-12-04T22:00:00.000000000",
+          "exit_price": 618.32,
+          "exit_time": "2024-12-04T23:00:00.000000000",
+          "net_pnl": 560.0,
+          "holding_bars": 3,
+          "reason": "GAP_STOP_LOSS"
+        }
+      ]
+    },
+    "AG_IDX": {
+      "symbol": "AG_IDX",
+      "name": "沪银",
+      "sector": "贵金属",
+      "overall": {
+        "total_trades": 40,
+        "win_trades": 19,
+        "loss_trades": 21,
+        "net_profit": 317323.49,
+        "profit_factor": 1.89,
+        "win_rate": 0.475,
+        "max_drawdown": 0.1111,
+        "avg_trade_pnl": 7933.09
+      },
+      "train": {
+        "total_trades": 12,
+        "win_trades": 6,
+        "loss_trades": 6,
+        "net_profit": 354495.0,
+        "profit_factor": 5.63,
+        "win_rate": 0.5,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 29541.25
+      },
+      "oos": {
+        "total_trades": 28,
+        "win_trades": 13,
+        "loss_trades": 15,
+        "net_profit": -37171.51,
+        "profit_factor": 0.87,
+        "win_rate": 0.4643,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -1327.55
+      },
+      "exit_reasons": {
+        "GAP_STOP_LOSS": 10,
+        "BE_LOCK": 6,
+        "STOP_LOSS": 16,
+        "CHANDELIER_TRAIL": 8
+      },
+      "trades_count": 40,
+      "trades_sample": [
+        {
+          "symbol": "AG_IDX",
+          "direction": -1,
+          "lots": 38,
+          "entry_price": 7780.0,
+          "entry_time": "2024-11-22T21:30:00.000000000",
+          "exit_price": 7782.0,
+          "exit_time": "2024-11-22T22:00:00.000000000",
+          "net_pnl": -1140.0,
+          "holding_bars": 2,
+          "reason": "GAP_STOP_LOSS"
+        },
+        {
+          "symbol": "AG_IDX",
+          "direction": 1,
+          "lots": 39,
+          "entry_price": 7758.0,
+          "entry_time": "2024-12-06T23:00:00.000000000",
+          "exit_price": 7761.0,
+          "exit_time": "2024-12-06T23:30:00.000000000",
+          "net_pnl": 1755.0,
+          "holding_bars": 2,
+          "reason": "BE_LOCK"
+        },
+        {
+          "symbol": "AG_IDX",
+          "direction": 1,
+          "lots": 53,
+          "entry_price": 7917.0,
+          "entry_time": "2024-12-11T14:30:00.000000000",
+          "exit_price": 7898.3,
+          "exit_time": "2024-12-11T21:00:00.000000000",
+          "net_pnl": -14866.5,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "RB_IDX": {
+      "symbol": "RB_IDX",
+      "name": "螺纹钢",
+      "sector": "黑色建材",
+      "overall": {
+        "total_trades": 54,
+        "win_trades": 26,
+        "loss_trades": 26,
+        "net_profit": 40885.0,
+        "profit_factor": 1.19,
+        "win_rate": 0.4815,
+        "max_drawdown": 0.0753,
+        "avg_trade_pnl": 757.13
+      },
+      "train": {
+        "total_trades": 30,
+        "win_trades": 16,
+        "loss_trades": 12,
+        "net_profit": 88235.0,
+        "profit_factor": 1.75,
+        "win_rate": 0.5333,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 2941.17
+      },
+      "oos": {
+        "total_trades": 24,
+        "win_trades": 10,
+        "loss_trades": 14,
+        "net_profit": -47350.0,
+        "profit_factor": 0.51,
+        "win_rate": 0.4167,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -1972.92
+      },
+      "exit_reasons": {
+        "GAP_STOP_LOSS": 7,
+        "CHANDELIER_TRAIL": 13,
+        "STOP_LOSS": 23,
+        "BE_LOCK": 11
+      },
+      "trades_count": 54,
+      "trades_sample": [
+        {
+          "symbol": "RB_IDX",
+          "direction": -1,
+          "lots": 100,
+          "entry_price": 4049.0,
+          "entry_time": "2024-01-02T11:00:00.000000000",
+          "exit_price": 4049.0,
+          "exit_time": "2024-01-02T21:00:00.000000000",
+          "net_pnl": 0.0,
+          "holding_bars": 5,
+          "reason": "GAP_STOP_LOSS"
+        },
+        {
+          "symbol": "RB_IDX",
+          "direction": -1,
+          "lots": 100,
+          "entry_price": 3833.0,
+          "entry_time": "2024-02-19T10:00:00.000000000",
+          "exit_price": 3821.6,
+          "exit_time": "2024-02-19T14:00:00.000000000",
+          "net_pnl": 11400.0,
+          "holding_bars": 5,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "RB_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 3765.0,
+          "entry_time": "2024-02-26T09:30:00.000000000",
+          "exit_price": 3753.1,
+          "exit_time": "2024-02-26T09:30:00.000000000",
+          "net_pnl": -11900.0,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "HC_IDX": {
+      "symbol": "HC_IDX",
+      "name": "热卷",
+      "sector": "黑色建材",
+      "overall": {
+        "total_trades": 47,
+        "win_trades": 25,
+        "loss_trades": 20,
+        "net_profit": 45473.25,
+        "profit_factor": 1.28,
+        "win_rate": 0.5319,
+        "max_drawdown": 0.0813,
+        "avg_trade_pnl": 967.52
+      },
+      "train": {
+        "total_trades": 26,
+        "win_trades": 18,
+        "loss_trades": 6,
+        "net_profit": 110348.25,
+        "profit_factor": 2.55,
+        "win_rate": 0.6923,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 4244.16
+      },
+      "oos": {
+        "total_trades": 21,
+        "win_trades": 7,
+        "loss_trades": 14,
+        "net_profit": -64875.0,
+        "profit_factor": 0.29,
+        "win_rate": 0.3333,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -3089.29
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 16,
+        "CHANDELIER_TRAIL": 13,
+        "BE_LOCK": 9,
+        "GAP_STOP_LOSS": 9
+      },
+      "trades_count": 47,
+      "trades_sample": [
+        {
+          "symbol": "HC_IDX",
+          "direction": -1,
+          "lots": 100,
+          "entry_price": 4029.0,
+          "entry_time": "2023-11-24T21:30:00.000000000",
+          "exit_price": 4043.45,
+          "exit_time": "2023-11-27T09:00:00.000000000",
+          "net_pnl": -14450.0,
+          "holding_bars": 4,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "HC_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 3980.0,
+          "entry_time": "2023-11-30T10:30:00.000000000",
+          "exit_price": 3983.6,
+          "exit_time": "2023-11-30T13:30:00.000000000",
+          "net_pnl": 3600.0,
+          "holding_bars": 3,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "HC_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 4113.0,
+          "entry_time": "2023-12-28T21:30:00.000000000",
+          "exit_price": 4114.35,
+          "exit_time": "2023-12-29T09:00:00.000000000",
+          "net_pnl": 1350.0,
+          "holding_bars": 4,
+          "reason": "BE_LOCK"
+        }
+      ]
+    },
+    "I_IDX": {
+      "symbol": "I_IDX",
+      "name": "铁矿石",
+      "sector": "黑色原料",
+      "overall": {
+        "total_trades": 47,
+        "win_trades": 24,
+        "loss_trades": 23,
+        "net_profit": 63781.25,
+        "profit_factor": 1.2,
+        "win_rate": 0.5106,
+        "max_drawdown": 0.1378,
+        "avg_trade_pnl": 1357.05
+      },
+      "train": {
+        "total_trades": 26,
+        "win_trades": 16,
+        "loss_trades": 10,
+        "net_profit": 118682.5,
+        "profit_factor": 1.8,
+        "win_rate": 0.6154,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 4564.71
+      },
+      "oos": {
+        "total_trades": 21,
+        "win_trades": 8,
+        "loss_trades": 13,
+        "net_profit": -54901.25,
+        "profit_factor": 0.68,
+        "win_rate": 0.381,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -2614.35
+      },
+      "exit_reasons": {
+        "BE_LOCK": 6,
+        "STOP_LOSS": 21,
+        "CHANDELIER_TRAIL": 13,
+        "GAP_STOP_LOSS": 7
+      },
+      "trades_count": 47,
+      "trades_sample": [
+        {
+          "symbol": "I_IDX",
+          "direction": 1,
+          "lots": 27,
+          "entry_price": 972.0,
+          "entry_time": "2023-11-23T14:00:00.000000000",
+          "exit_price": 972.675,
+          "exit_time": "2023-11-23T21:00:00.000000000",
+          "net_pnl": 1822.5,
+          "holding_bars": 3,
+          "reason": "BE_LOCK"
+        },
+        {
+          "symbol": "I_IDX",
+          "direction": 1,
+          "lots": 30,
+          "entry_price": 961.0,
+          "entry_time": "2023-11-28T10:00:00.000000000",
+          "exit_price": 956.1125,
+          "exit_time": "2023-11-28T10:00:00.000000000",
+          "net_pnl": -14662.5,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "I_IDX",
+          "direction": 1,
+          "lots": 33,
+          "entry_price": 943.0,
+          "entry_time": "2023-12-13T14:30:00.000000000",
+          "exit_price": 946.2,
+          "exit_time": "2023-12-13T22:00:00.000000000",
+          "net_pnl": 10560.0,
+          "holding_bars": 4,
+          "reason": "CHANDELIER_TRAIL"
+        }
+      ]
+    },
+    "J_IDX": {
+      "symbol": "J_IDX",
+      "name": "焦炭",
+      "sector": "黑色原料",
+      "overall": {
+        "total_trades": 47,
+        "win_trades": 25,
+        "loss_trades": 22,
+        "net_profit": 893.75,
+        "profit_factor": 1.0,
+        "win_rate": 0.5319,
+        "max_drawdown": 0.1786,
+        "avg_trade_pnl": 19.02
+      },
+      "train": {
+        "total_trades": 32,
+        "win_trades": 16,
+        "loss_trades": 16,
+        "net_profit": -20805.0,
+        "profit_factor": 0.91,
+        "win_rate": 0.5,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -650.16
+      },
+      "oos": {
+        "total_trades": 15,
+        "win_trades": 9,
+        "loss_trades": 6,
+        "net_profit": 21698.75,
+        "profit_factor": 1.25,
+        "win_rate": 0.6,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 1446.58
+      },
+      "exit_reasons": {
+        "CHANDELIER_TRAIL": 15,
+        "STOP_LOSS": 19,
+        "BE_LOCK": 6,
+        "GAP_STOP_LOSS": 7
+      },
+      "trades_count": 47,
+      "trades_sample": [
+        {
+          "symbol": "J_IDX",
+          "direction": -1,
+          "lots": 7,
+          "entry_price": 2655.5,
+          "entry_time": "2023-11-22T22:00:00.000000000",
+          "exit_price": 2604.7,
+          "exit_time": "2023-11-23T10:00:00.000000000",
+          "net_pnl": 35560.0,
+          "holding_bars": 5,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "J_IDX",
+          "direction": 1,
+          "lots": 8,
+          "entry_price": 2577.0,
+          "entry_time": "2023-12-04T11:00:00.000000000",
+          "exit_price": 2558.3,
+          "exit_time": "2023-12-04T13:30:00.000000000",
+          "net_pnl": -14960.0,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "J_IDX",
+          "direction": 1,
+          "lots": 7,
+          "entry_price": 2610.0,
+          "entry_time": "2023-12-11T10:30:00.000000000",
+          "exit_price": 2658.5,
+          "exit_time": "2023-12-11T14:30:00.000000000",
+          "net_pnl": 33950.0,
+          "holding_bars": 5,
+          "reason": "CHANDELIER_TRAIL"
+        }
+      ]
+    },
+    "JM_IDX": {
+      "symbol": "JM_IDX",
+      "name": "焦煤",
+      "sector": "黑色原料",
+      "overall": {
+        "total_trades": 35,
+        "win_trades": 15,
+        "loss_trades": 20,
+        "net_profit": -49665.75,
+        "profit_factor": 0.83,
+        "win_rate": 0.4286,
+        "max_drawdown": 0.1451,
+        "avg_trade_pnl": -1419.02
+      },
+      "train": {
+        "total_trades": 24,
+        "win_trades": 10,
+        "loss_trades": 14,
+        "net_profit": -40589.25,
+        "profit_factor": 0.8,
+        "win_rate": 0.4167,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -1691.22
+      },
+      "oos": {
+        "total_trades": 11,
+        "win_trades": 5,
+        "loss_trades": 6,
+        "net_profit": -9076.5,
+        "profit_factor": 0.9,
+        "win_rate": 0.4545,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -825.14
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 20,
+        "CHANDELIER_TRAIL": 8,
+        "BE_LOCK": 4,
+        "GAP_STOP_LOSS": 3
+      },
+      "trades_count": 35,
+      "trades_sample": [
+        {
+          "symbol": "JM_IDX",
+          "direction": 1,
+          "lots": 11,
+          "entry_price": 2046.0,
+          "entry_time": "2023-12-04T11:00:00.000000000",
+          "exit_price": 2024.75,
+          "exit_time": "2023-12-04T11:00:00.000000000",
+          "net_pnl": -14025.0,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "JM_IDX",
+          "direction": 1,
+          "lots": 14,
+          "entry_price": 2022.5,
+          "entry_time": "2023-12-07T22:30:00.000000000",
+          "exit_price": 2005.075,
+          "exit_time": "2023-12-08T09:00:00.000000000",
+          "net_pnl": -14637.0,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "JM_IDX",
+          "direction": -1,
+          "lots": 25,
+          "entry_price": 1830.0,
+          "entry_time": "2024-01-22T10:00:00.000000000",
+          "exit_price": 1839.775,
+          "exit_time": "2024-01-22T10:30:00.000000000",
+          "net_pnl": -14662.5,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "CU_IDX": {
+      "symbol": "CU_IDX",
+      "name": "沪铜",
+      "sector": "有色金属",
+      "overall": {
+        "total_trades": 45,
+        "win_trades": 23,
+        "loss_trades": 22,
+        "net_profit": -29476.25,
+        "profit_factor": 0.9,
+        "win_rate": 0.5111,
+        "max_drawdown": 0.0918,
+        "avg_trade_pnl": -655.03
+      },
+      "train": {
+        "total_trades": 15,
+        "win_trades": 6,
+        "loss_trades": 9,
+        "net_profit": -19203.75,
+        "profit_factor": 0.81,
+        "win_rate": 0.4,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -1280.25
+      },
+      "oos": {
+        "total_trades": 30,
+        "win_trades": 17,
+        "loss_trades": 13,
+        "net_profit": -10272.5,
+        "profit_factor": 0.94,
+        "win_rate": 0.5667,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -342.42
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 17,
+        "GAP_STOP_LOSS": 10,
+        "BE_LOCK": 7,
+        "CHANDELIER_TRAIL": 11
+      },
+      "trades_count": 45,
+      "trades_sample": [
+        {
+          "symbol": "CU_IDX",
+          "direction": -1,
+          "lots": 18,
+          "entry_price": 73980.0,
+          "entry_time": "2024-08-23T23:00:00.000000000",
+          "exit_price": 74141.5,
+          "exit_time": "2024-08-23T23:00:00.000000000",
+          "net_pnl": -14535.0,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "CU_IDX",
+          "direction": 1,
+          "lots": 12,
+          "entry_price": 76750.0,
+          "entry_time": "2024-10-09T22:00:00.000000000",
+          "exit_price": 77120.0,
+          "exit_time": "2024-10-10T13:30:00.000000000",
+          "net_pnl": 22200.0,
+          "holding_bars": 12,
+          "reason": "GAP_STOP_LOSS"
+        },
+        {
+          "symbol": "CU_IDX",
+          "direction": 1,
+          "lots": 15,
+          "entry_price": 77190.0,
+          "entry_time": "2024-10-14T22:00:00.000000000",
+          "exit_price": 76990.25,
+          "exit_time": "2024-10-14T22:00:00.000000000",
+          "net_pnl": -14981.25,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "AL_IDX": {
+      "symbol": "AL_IDX",
+      "name": "沪铝",
+      "sector": "有色金属",
+      "overall": {
+        "total_trades": 46,
+        "win_trades": 25,
+        "loss_trades": 21,
+        "net_profit": 156574.37,
+        "profit_factor": 1.56,
+        "win_rate": 0.5435,
+        "max_drawdown": 0.0892,
+        "avg_trade_pnl": 3403.79
+      },
+      "train": {
+        "total_trades": 23,
+        "win_trades": 13,
+        "loss_trades": 10,
+        "net_profit": 208696.87,
+        "profit_factor": 2.77,
+        "win_rate": 0.5652,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 9073.78
+      },
+      "oos": {
+        "total_trades": 23,
+        "win_trades": 12,
+        "loss_trades": 11,
+        "net_profit": -52122.5,
+        "profit_factor": 0.67,
+        "win_rate": 0.5217,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -2266.2
+      },
+      "exit_reasons": {
+        "CHANDELIER_TRAIL": 11,
+        "GAP_STOP_LOSS": 10,
+        "STOP_LOSS": 17,
+        "BE_LOCK": 8
+      },
+      "trades_count": 46,
+      "trades_sample": [
+        {
+          "symbol": "AL_IDX",
+          "direction": -1,
+          "lots": 94,
+          "entry_price": 19425.0,
+          "entry_time": "2024-07-23T10:00:00.000000000",
+          "exit_price": 19318.0,
+          "exit_time": "2024-07-23T14:30:00.000000000",
+          "net_pnl": 50290.0,
+          "holding_bars": 6,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "AL_IDX",
+          "direction": -1,
+          "lots": 74,
+          "entry_price": 19830.0,
+          "entry_time": "2024-08-30T14:30:00.000000000",
+          "exit_price": 19710.0,
+          "exit_time": "2024-09-02T09:00:00.000000000",
+          "net_pnl": 44400.0,
+          "holding_bars": 10,
+          "reason": "GAP_STOP_LOSS"
+        },
+        {
+          "symbol": "AL_IDX",
+          "direction": -1,
+          "lots": 88,
+          "entry_price": 19965.0,
+          "entry_time": "2024-09-24T14:00:00.000000000",
+          "exit_price": 19999.0,
+          "exit_time": "2024-09-24T14:00:00.000000000",
+          "net_pnl": -14960.0,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "ZN_IDX": {
+      "symbol": "ZN_IDX",
+      "name": "沪锌",
+      "sector": "有色金属",
+      "overall": {
+        "total_trades": 55,
+        "win_trades": 21,
+        "loss_trades": 34,
+        "net_profit": 18411.85,
+        "profit_factor": 1.04,
+        "win_rate": 0.3818,
+        "max_drawdown": 0.207,
+        "avg_trade_pnl": 334.76
+      },
+      "train": {
+        "total_trades": 30,
+        "win_trades": 14,
+        "loss_trades": 16,
+        "net_profit": 65446.87,
+        "profit_factor": 1.33,
+        "win_rate": 0.4667,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 2181.56
+      },
+      "oos": {
+        "total_trades": 25,
+        "win_trades": 7,
+        "loss_trades": 18,
+        "net_profit": -47035.02,
+        "profit_factor": 0.83,
+        "win_rate": 0.28,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -1881.4
+      },
+      "exit_reasons": {
+        "GAP_STOP_LOSS": 9,
+        "CHANDELIER_TRAIL": 10,
+        "STOP_LOSS": 29,
+        "BE_LOCK": 7
+      },
+      "trades_count": 55,
+      "trades_sample": [
+        {
+          "symbol": "ZN_IDX",
+          "direction": -1,
+          "lots": 56,
+          "entry_price": 22705.0,
+          "entry_time": "2024-07-29T09:30:00.000000000",
+          "exit_price": 22680.0,
+          "exit_time": "2024-07-29T13:30:00.000000000",
+          "net_pnl": 7000.0,
+          "holding_bars": 5,
+          "reason": "GAP_STOP_LOSS"
+        },
+        {
+          "symbol": "ZN_IDX",
+          "direction": -1,
+          "lots": 47,
+          "entry_price": 22895.0,
+          "entry_time": "2024-08-01T22:30:00.000000000",
+          "exit_price": 22745.0,
+          "exit_time": "2024-08-02T09:30:00.000000000",
+          "net_pnl": 35250.0,
+          "holding_bars": 7,
+          "reason": "GAP_STOP_LOSS"
+        },
+        {
+          "symbol": "ZN_IDX",
+          "direction": -1,
+          "lots": 44,
+          "entry_price": 22960.0,
+          "entry_time": "2024-08-14T22:30:00.000000000",
+          "exit_price": 22791.0,
+          "exit_time": "2024-08-15T09:00:00.000000000",
+          "net_pnl": 37180.0,
+          "holding_bars": 6,
+          "reason": "CHANDELIER_TRAIL"
+        }
+      ]
+    },
+    "SN_IDX": {
+      "symbol": "SN_IDX",
+      "name": "沪锡",
+      "sector": "有色金属",
+      "overall": {
+        "total_trades": 59,
+        "win_trades": 25,
+        "loss_trades": 34,
+        "net_profit": -105822.0,
+        "profit_factor": 0.78,
+        "win_rate": 0.4237,
+        "max_drawdown": 0.1577,
+        "avg_trade_pnl": -1793.59
+      },
+      "train": {
+        "total_trades": 17,
+        "win_trades": 7,
+        "loss_trades": 10,
+        "net_profit": -17946.25,
+        "profit_factor": 0.88,
+        "win_rate": 0.4118,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -1055.66
+      },
+      "oos": {
+        "total_trades": 42,
+        "win_trades": 18,
+        "loss_trades": 24,
+        "net_profit": -87875.75,
+        "profit_factor": 0.74,
+        "win_rate": 0.4286,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -2092.28
+      },
+      "exit_reasons": {
+        "GAP_STOP_LOSS": 12,
+        "CHANDELIER_TRAIL": 10,
+        "STOP_LOSS": 28,
+        "BE_LOCK": 9
+      },
+      "trades_count": 59,
+      "trades_sample": [
+        {
+          "symbol": "SN_IDX",
+          "direction": -1,
+          "lots": 10,
+          "entry_price": 248720.0,
+          "entry_time": "2024-07-31T14:00:00.000000000",
+          "exit_price": 250390.0,
+          "exit_time": "2024-07-31T21:00:00.000000000",
+          "net_pnl": -16700.0,
+          "holding_bars": 3,
+          "reason": "GAP_STOP_LOSS"
+        },
+        {
+          "symbol": "SN_IDX",
+          "direction": 1,
+          "lots": 9,
+          "entry_price": 241940.0,
+          "entry_time": "2024-08-06T14:30:00.000000000",
+          "exit_price": 245234.0,
+          "exit_time": "2024-08-07T09:00:00.000000000",
+          "net_pnl": 29646.0,
+          "holding_bars": 10,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "SN_IDX",
+          "direction": 1,
+          "lots": 21,
+          "entry_price": 261460.0,
+          "entry_time": "2024-08-31T00:30:00.000000000",
+          "exit_price": 260754.5,
+          "exit_time": "2024-09-02T09:00:00.000000000",
+          "net_pnl": -14815.5,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "SC_IDX": {
+      "symbol": "SC_IDX",
+      "name": "原油",
+      "sector": "能源化工",
+      "overall": {
+        "total_trades": 56,
+        "win_trades": 28,
+        "loss_trades": 28,
+        "net_profit": 259067.5,
+        "profit_factor": 1.57,
+        "win_rate": 0.5,
+        "max_drawdown": 0.1833,
+        "avg_trade_pnl": 4626.21
+      },
+      "train": {
+        "total_trades": 25,
+        "win_trades": 13,
+        "loss_trades": 12,
+        "net_profit": 20457.5,
+        "profit_factor": 1.1,
+        "win_rate": 0.52,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 818.3
+      },
+      "oos": {
+        "total_trades": 31,
+        "win_trades": 15,
+        "loss_trades": 16,
+        "net_profit": 238610.0,
+        "profit_factor": 2.0,
+        "win_rate": 0.4839,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 7697.1
+      },
+      "exit_reasons": {
+        "CHANDELIER_TRAIL": 14,
+        "STOP_LOSS": 21,
+        "BE_LOCK": 10,
+        "GAP_STOP_LOSS": 10,
+        "STRUCTURAL_RUPTURE": 1
+      },
+      "trades_count": 56,
+      "trades_sample": [
+        {
+          "symbol": "SC_IDX",
+          "direction": -1,
+          "lots": 10,
+          "entry_price": 535.5,
+          "entry_time": "2024-11-21T22:00:00.000000000",
+          "exit_price": 534.62,
+          "exit_time": "2024-11-21T23:30:00.000000000",
+          "net_pnl": 8800.0,
+          "holding_bars": 4,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "SC_IDX",
+          "direction": -1,
+          "lots": 9,
+          "entry_price": 533.0,
+          "entry_time": "2024-11-26T23:30:00.000000000",
+          "exit_price": 534.6575,
+          "exit_time": "2024-11-26T23:30:00.000000000",
+          "net_pnl": -14917.5,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "SC_IDX",
+          "direction": 1,
+          "lots": 10,
+          "entry_price": 527.1,
+          "entry_time": "2024-12-02T10:00:00.000000000",
+          "exit_price": 528.88,
+          "exit_time": "2024-12-02T13:30:00.000000000",
+          "net_pnl": 17800.0,
+          "holding_bars": 4,
+          "reason": "CHANDELIER_TRAIL"
+        }
+      ]
+    },
+    "TA_IDX": {
+      "symbol": "TA_IDX",
+      "name": "PTA",
+      "sector": "纺织化工",
+      "overall": {
+        "total_trades": 49,
+        "win_trades": 22,
+        "loss_trades": 27,
+        "net_profit": 83506.0,
+        "profit_factor": 1.25,
+        "win_rate": 0.449,
+        "max_drawdown": 0.1617,
+        "avg_trade_pnl": 1704.2
+      },
+      "train": {
+        "total_trades": 23,
+        "win_trades": 9,
+        "loss_trades": 14,
+        "net_profit": -11225.0,
+        "profit_factor": 0.9,
+        "win_rate": 0.3913,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -488.04
+      },
+      "oos": {
+        "total_trades": 26,
+        "win_trades": 13,
+        "loss_trades": 13,
+        "net_profit": 94731.0,
+        "profit_factor": 1.44,
+        "win_rate": 0.5,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 3643.5
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 21,
+        "GAP_STOP_LOSS": 7,
+        "CHANDELIER_TRAIL": 16,
+        "BE_LOCK": 5
+      },
+      "trades_count": 49,
+      "trades_sample": [
+        {
+          "symbol": "TA_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 5798.0,
+          "entry_time": "2024-01-08T13:30:00.000000000",
+          "exit_price": 5770.8,
+          "exit_time": "2024-01-08T14:30:00.000000000",
+          "net_pnl": -13600.0,
+          "holding_bars": 3,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "TA_IDX",
+          "direction": -1,
+          "lots": 100,
+          "entry_price": 5794.0,
+          "entry_time": "2024-01-12T10:30:00.000000000",
+          "exit_price": 5802.0,
+          "exit_time": "2024-01-12T21:00:00.000000000",
+          "net_pnl": -4000.0,
+          "holding_bars": 6,
+          "reason": "GAP_STOP_LOSS"
+        },
+        {
+          "symbol": "TA_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 5898.0,
+          "entry_time": "2024-02-20T21:00:00.000000000",
+          "exit_price": 5882.7,
+          "exit_time": "2024-02-20T21:00:00.000000000",
+          "net_pnl": -7650.0,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "MA_IDX": {
+      "symbol": "MA_IDX",
+      "name": "甲醇",
+      "sector": "能源化工",
+      "overall": {
+        "total_trades": 34,
+        "win_trades": 14,
+        "loss_trades": 19,
+        "net_profit": -24868.75,
+        "profit_factor": 0.85,
+        "win_rate": 0.4118,
+        "max_drawdown": 0.0689,
+        "avg_trade_pnl": -731.43
+      },
+      "train": {
+        "total_trades": 24,
+        "win_trades": 10,
+        "loss_trades": 14,
+        "net_profit": 2625.0,
+        "profit_factor": 1.02,
+        "win_rate": 0.4167,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 109.38
+      },
+      "oos": {
+        "total_trades": 10,
+        "win_trades": 4,
+        "loss_trades": 5,
+        "net_profit": -27493.75,
+        "profit_factor": 0.47,
+        "win_rate": 0.4,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -2749.38
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 18,
+        "CHANDELIER_TRAIL": 7,
+        "BE_LOCK": 4,
+        "GAP_STOP_LOSS": 4,
+        "STRUCTURAL_RUPTURE": 1
+      },
+      "trades_count": 34,
+      "trades_sample": [
+        {
+          "symbol": "MA_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 2465.0,
+          "entry_time": "2023-11-20T10:30:00.000000000",
+          "exit_price": 2454.375,
+          "exit_time": "2023-11-20T13:30:00.000000000",
+          "net_pnl": -10625.0,
+          "holding_bars": 3,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "MA_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 2428.0,
+          "entry_time": "2024-02-05T22:00:00.000000000",
+          "exit_price": 2459.0,
+          "exit_time": "2024-02-06T14:00:00.000000000",
+          "net_pnl": 31000.0,
+          "holding_bars": 9,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "MA_IDX",
+          "direction": -1,
+          "lots": 100,
+          "entry_price": 2526.0,
+          "entry_time": "2024-02-27T14:00:00.000000000",
+          "exit_price": 2534.925,
+          "exit_time": "2024-02-27T14:30:00.000000000",
+          "net_pnl": -8925.0,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "SA_IDX": {
+      "symbol": "SA_IDX",
+      "name": "纯碱",
+      "sector": "能源化工",
+      "overall": {
+        "total_trades": 39,
+        "win_trades": 23,
+        "loss_trades": 16,
+        "net_profit": 35464.5,
+        "profit_factor": 1.12,
+        "win_rate": 0.5897,
+        "max_drawdown": 0.1583,
+        "avg_trade_pnl": 909.35
+      },
+      "train": {
+        "total_trades": 23,
+        "win_trades": 16,
+        "loss_trades": 7,
+        "net_profit": 165714.5,
+        "profit_factor": 2.66,
+        "win_rate": 0.6957,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 7204.98
+      },
+      "oos": {
+        "total_trades": 16,
+        "win_trades": 7,
+        "loss_trades": 9,
+        "net_profit": -130250.0,
+        "profit_factor": 0.36,
+        "win_rate": 0.4375,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -8140.62
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 15,
+        "CHANDELIER_TRAIL": 10,
+        "BE_LOCK": 10,
+        "GAP_STOP_LOSS": 4
+      },
+      "trades_count": 39,
+      "trades_sample": [
+        {
+          "symbol": "SA_IDX",
+          "direction": -1,
+          "lots": 35,
+          "entry_price": 2202.0,
+          "entry_time": "2023-12-22T10:30:00.000000000",
+          "exit_price": 2223.25,
+          "exit_time": "2023-12-22T10:30:00.000000000",
+          "net_pnl": -14875.0,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "SA_IDX",
+          "direction": -1,
+          "lots": 51,
+          "entry_price": 2068.0,
+          "entry_time": "2024-01-03T10:30:00.000000000",
+          "exit_price": 2063.0,
+          "exit_time": "2024-01-03T13:30:00.000000000",
+          "net_pnl": 5100.0,
+          "holding_bars": 3,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "SA_IDX",
+          "direction": -1,
+          "lots": 56,
+          "entry_price": 1963.0,
+          "entry_time": "2024-02-02T21:00:00.000000000",
+          "exit_price": 1951.0,
+          "exit_time": "2024-02-02T22:30:00.000000000",
+          "net_pnl": 13440.0,
+          "holding_bars": 4,
+          "reason": "CHANDELIER_TRAIL"
+        }
+      ]
+    },
+    "FG_IDX": {
+      "symbol": "FG_IDX",
+      "name": "玻璃",
+      "sector": "建材玻璃",
+      "overall": {
+        "total_trades": 39,
+        "win_trades": 16,
+        "loss_trades": 23,
+        "net_profit": -92935.0,
+        "profit_factor": 0.65,
+        "win_rate": 0.4103,
+        "max_drawdown": 0.1548,
+        "avg_trade_pnl": -2382.95
+      },
+      "train": {
+        "total_trades": 18,
+        "win_trades": 8,
+        "loss_trades": 10,
+        "net_profit": -76351.0,
+        "profit_factor": 0.43,
+        "win_rate": 0.4444,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -4241.72
+      },
+      "oos": {
+        "total_trades": 21,
+        "win_trades": 8,
+        "loss_trades": 13,
+        "net_profit": -16584.0,
+        "profit_factor": 0.88,
+        "win_rate": 0.381,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -789.71
+      },
+      "exit_reasons": {
+        "BE_LOCK": 6,
+        "CHANDELIER_TRAIL": 8,
+        "STOP_LOSS": 20,
+        "GAP_STOP_LOSS": 5
+      },
+      "trades_count": 39,
+      "trades_sample": [
+        {
+          "symbol": "FG_IDX",
+          "direction": -1,
+          "lots": 70,
+          "entry_price": 1738.0,
+          "entry_time": "2023-11-27T10:00:00.000000000",
+          "exit_price": 1736.75,
+          "exit_time": "2023-11-27T10:30:00.000000000",
+          "net_pnl": 1750.0,
+          "holding_bars": 2,
+          "reason": "BE_LOCK"
+        },
+        {
+          "symbol": "FG_IDX",
+          "direction": -1,
+          "lots": 60,
+          "entry_price": 1761.0,
+          "entry_time": "2023-11-28T09:30:00.000000000",
+          "exit_price": 1743.0,
+          "exit_time": "2023-11-28T14:30:00.000000000",
+          "net_pnl": 21600.0,
+          "holding_bars": 7,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "FG_IDX",
+          "direction": -1,
+          "lots": 80,
+          "entry_price": 1647.0,
+          "entry_time": "2024-03-05T10:00:00.000000000",
+          "exit_price": 1645.9,
+          "exit_time": "2024-03-05T11:00:00.000000000",
+          "net_pnl": 1760.0,
+          "holding_bars": 3,
+          "reason": "BE_LOCK"
+        }
+      ]
+    },
+    "RU_IDX": {
+      "symbol": "RU_IDX",
+      "name": "橡胶",
+      "sector": "能源化工",
+      "overall": {
+        "total_trades": 57,
+        "win_trades": 27,
+        "loss_trades": 29,
+        "net_profit": 182447.5,
+        "profit_factor": 1.42,
+        "win_rate": 0.4737,
+        "max_drawdown": 0.1519,
+        "avg_trade_pnl": 3200.83
+      },
+      "train": {
+        "total_trades": 27,
+        "win_trades": 12,
+        "loss_trades": 14,
+        "net_profit": 24695.0,
+        "profit_factor": 1.12,
+        "win_rate": 0.4444,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 914.63
+      },
+      "oos": {
+        "total_trades": 30,
+        "win_trades": 15,
+        "loss_trades": 15,
+        "net_profit": 157752.5,
+        "profit_factor": 1.73,
+        "win_rate": 0.5,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 5258.42
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 26,
+        "BE_LOCK": 11,
+        "CHANDELIER_TRAIL": 16,
+        "GAP_STOP_LOSS": 4
+      },
+      "trades_count": 57,
+      "trades_sample": [
+        {
+          "symbol": "RU_IDX",
+          "direction": -1,
+          "lots": 41,
+          "entry_price": 13955.0,
+          "entry_time": "2023-11-27T13:30:00.000000000",
+          "exit_price": 13991.125,
+          "exit_time": "2023-11-27T13:30:00.000000000",
+          "net_pnl": -14811.25,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "RU_IDX",
+          "direction": 1,
+          "lots": 39,
+          "entry_price": 13430.0,
+          "entry_time": "2023-12-13T09:30:00.000000000",
+          "exit_price": 13391.75,
+          "exit_time": "2023-12-13T10:00:00.000000000",
+          "net_pnl": -14917.5,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "RU_IDX",
+          "direction": -1,
+          "lots": 37,
+          "entry_price": 13575.0,
+          "entry_time": "2023-12-18T13:30:00.000000000",
+          "exit_price": 13570.5,
+          "exit_time": "2023-12-19T10:00:00.000000000",
+          "net_pnl": 1665.0,
+          "holding_bars": 10,
+          "reason": "BE_LOCK"
+        }
+      ]
+    },
+    "LC_IDX": {
+      "symbol": "LC_IDX",
+      "name": "碳酸锂",
+      "sector": "新能源",
+      "overall": {
+        "total_trades": 26,
+        "win_trades": 18,
+        "loss_trades": 8,
+        "net_profit": 76117.75,
+        "profit_factor": 1.73,
+        "win_rate": 0.6923,
+        "max_drawdown": 0.0513,
+        "avg_trade_pnl": 2927.61
+      },
+      "train": {
+        "total_trades": 18,
+        "win_trades": 14,
+        "loss_trades": 4,
+        "net_profit": 97263.25,
+        "profit_factor": 2.67,
+        "win_rate": 0.7778,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 5403.51
+      },
+      "oos": {
+        "total_trades": 8,
+        "win_trades": 4,
+        "loss_trades": 4,
+        "net_profit": -21145.5,
+        "profit_factor": 0.54,
+        "win_rate": 0.5,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -2643.19
+      },
+      "exit_reasons": {
+        "CHANDELIER_TRAIL": 6,
+        "STOP_LOSS": 7,
+        "BE_LOCK": 11,
+        "GAP_STOP_LOSS": 2
+      },
+      "trades_count": 26,
+      "trades_sample": [
+        {
+          "symbol": "LC_IDX",
+          "direction": 1,
+          "lots": 9,
+          "entry_price": 164500.0,
+          "entry_time": "2023-10-19T10:00:00.000000000",
+          "exit_price": 164980.0,
+          "exit_time": "2023-10-19T11:00:00.000000000",
+          "net_pnl": 4320.0,
+          "holding_bars": 3,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "LC_IDX",
+          "direction": -1,
+          "lots": 11,
+          "entry_price": 100450.0,
+          "entry_time": "2023-12-25T09:00:00.000000000",
+          "exit_price": 101746.25,
+          "exit_time": "2023-12-25T09:00:00.000000000",
+          "net_pnl": -14258.75,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "LC_IDX",
+          "direction": 1,
+          "lots": 15,
+          "entry_price": 114200.0,
+          "entry_time": "2024-03-14T14:30:00.000000000",
+          "exit_price": 113222.5,
+          "exit_time": "2024-03-14T14:30:00.000000000",
+          "net_pnl": -14662.5,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "SI_IDX": {
+      "symbol": "SI_IDX",
+      "name": "工业硅",
+      "sector": "新能源",
+      "overall": {
+        "total_trades": 42,
+        "win_trades": 25,
+        "loss_trades": 17,
+        "net_profit": 247225.61,
+        "profit_factor": 2.06,
+        "win_rate": 0.5952,
+        "max_drawdown": 0.0596,
+        "avg_trade_pnl": 5886.32
+      },
+      "train": {
+        "total_trades": 31,
+        "win_trades": 17,
+        "loss_trades": 14,
+        "net_profit": 68795.61,
+        "profit_factor": 1.32,
+        "win_rate": 0.5484,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 2219.21
+      },
+      "oos": {
+        "total_trades": 11,
+        "win_trades": 8,
+        "loss_trades": 3,
+        "net_profit": 178430.0,
+        "profit_factor": 10.87,
+        "win_rate": 0.7273,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 16220.91
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 14,
+        "CHANDELIER_TRAIL": 14,
+        "BE_LOCK": 6,
+        "GAP_STOP_LOSS": 8
+      },
+      "trades_count": 42,
+      "trades_sample": [
+        {
+          "symbol": "SI_IDX",
+          "direction": -1,
+          "lots": 52,
+          "entry_price": 17870.0,
+          "entry_time": "2023-02-09T09:00:00.000000000",
+          "exit_price": 17927.375,
+          "exit_time": "2023-02-09T09:00:00.000000000",
+          "net_pnl": -14917.5,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "SI_IDX",
+          "direction": 1,
+          "lots": 45,
+          "entry_price": 17740.0,
+          "entry_time": "2023-02-16T11:00:00.000000000",
+          "exit_price": 17674.125,
+          "exit_time": "2023-02-16T14:30:00.000000000",
+          "net_pnl": -14821.88,
+          "holding_bars": 4,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "SI_IDX",
+          "direction": 1,
+          "lots": 67,
+          "entry_price": 17550.0,
+          "entry_time": "2023-02-27T14:30:00.000000000",
+          "exit_price": 17505.375,
+          "exit_time": "2023-02-27T14:30:00.000000000",
+          "net_pnl": -14949.38,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "CF_IDX": {
+      "symbol": "CF_IDX",
+      "name": "棉花",
+      "sector": "软商品",
+      "overall": {
+        "total_trades": 56,
+        "win_trades": 28,
+        "loss_trades": 28,
+        "net_profit": -78163.76,
+        "profit_factor": 0.83,
+        "win_rate": 0.5,
+        "max_drawdown": 0.195,
+        "avg_trade_pnl": -1395.78
+      },
+      "train": {
+        "total_trades": 38,
+        "win_trades": 22,
+        "loss_trades": 16,
+        "net_profit": 16225.0,
+        "profit_factor": 1.05,
+        "win_rate": 0.5789,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 426.97
+      },
+      "oos": {
+        "total_trades": 18,
+        "win_trades": 6,
+        "loss_trades": 12,
+        "net_profit": -94388.76,
+        "profit_factor": 0.4,
+        "win_rate": 0.3333,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -5243.82
+      },
+      "exit_reasons": {
+        "CHANDELIER_TRAIL": 17,
+        "STOP_LOSS": 22,
+        "BE_LOCK": 7,
+        "GAP_STOP_LOSS": 10
+      },
+      "trades_count": 56,
+      "trades_sample": [
+        {
+          "symbol": "CF_IDX",
+          "direction": -1,
+          "lots": 83,
+          "entry_price": 15380.0,
+          "entry_time": "2023-12-14T09:00:00.000000000",
+          "exit_price": 15369.0,
+          "exit_time": "2023-12-14T13:30:00.000000000",
+          "net_pnl": 4565.0,
+          "holding_bars": 6,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "CF_IDX",
+          "direction": -1,
+          "lots": 74,
+          "entry_price": 15585.0,
+          "entry_time": "2024-01-11T14:30:00.000000000",
+          "exit_price": 15625.375,
+          "exit_time": "2024-01-11T21:30:00.000000000",
+          "net_pnl": -14938.75,
+          "holding_bars": 3,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "CF_IDX",
+          "direction": 1,
+          "lots": 78,
+          "entry_price": 16000.0,
+          "entry_time": "2024-01-29T09:30:00.000000000",
+          "exit_price": 16004.5,
+          "exit_time": "2024-01-29T13:30:00.000000000",
+          "net_pnl": 1755.0,
+          "holding_bars": 5,
+          "reason": "BE_LOCK"
+        }
+      ]
+    },
+    "SR_IDX": {
+      "symbol": "SR_IDX",
+      "name": "白糖",
+      "sector": "软商品",
+      "overall": {
+        "total_trades": 45,
+        "win_trades": 21,
+        "loss_trades": 24,
+        "net_profit": 39549.5,
+        "profit_factor": 1.17,
+        "win_rate": 0.4667,
+        "max_drawdown": 0.0713,
+        "avg_trade_pnl": 878.88
+      },
+      "train": {
+        "total_trades": 26,
+        "win_trades": 12,
+        "loss_trades": 14,
+        "net_profit": 78799.5,
+        "profit_factor": 1.58,
+        "win_rate": 0.4615,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 3030.75
+      },
+      "oos": {
+        "total_trades": 19,
+        "win_trades": 9,
+        "loss_trades": 10,
+        "net_profit": -39250.0,
+        "profit_factor": 0.59,
+        "win_rate": 0.4737,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -2065.79
+      },
+      "exit_reasons": {
+        "CHANDELIER_TRAIL": 14,
+        "STOP_LOSS": 20,
+        "BE_LOCK": 6,
+        "GAP_STOP_LOSS": 5
+      },
+      "trades_count": 45,
+      "trades_sample": [
+        {
+          "symbol": "SR_IDX",
+          "direction": -1,
+          "lots": 100,
+          "entry_price": 6865.0,
+          "entry_time": "2023-11-24T21:30:00.000000000",
+          "exit_price": 6815.4,
+          "exit_time": "2023-11-27T14:30:00.000000000",
+          "net_pnl": 49600.0,
+          "holding_bars": 11,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "SR_IDX",
+          "direction": -1,
+          "lots": 86,
+          "entry_price": 6243.0,
+          "entry_time": "2023-12-22T13:30:00.000000000",
+          "exit_price": 6260.425,
+          "exit_time": "2023-12-22T13:30:00.000000000",
+          "net_pnl": -14985.5,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "SR_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 6276.0,
+          "entry_time": "2024-01-10T10:30:00.000000000",
+          "exit_price": 6262.825,
+          "exit_time": "2024-01-10T11:00:00.000000000",
+          "net_pnl": -13175.0,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "C_IDX": {
+      "symbol": "C_IDX",
+      "name": "玉米",
+      "sector": "农产品",
+      "overall": {
+        "total_trades": 34,
+        "win_trades": 19,
+        "loss_trades": 15,
+        "net_profit": -12100.0,
+        "profit_factor": 0.82,
+        "win_rate": 0.5588,
+        "max_drawdown": 0.0357,
+        "avg_trade_pnl": -355.88
+      },
+      "train": {
+        "total_trades": 19,
+        "win_trades": 10,
+        "loss_trades": 9,
+        "net_profit": -18000.0,
+        "profit_factor": 0.57,
+        "win_rate": 0.5263,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -947.37
+      },
+      "oos": {
+        "total_trades": 15,
+        "win_trades": 9,
+        "loss_trades": 6,
+        "net_profit": 5900.0,
+        "profit_factor": 1.22,
+        "win_rate": 0.6,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 393.33
+      },
+      "exit_reasons": {
+        "CHANDELIER_TRAIL": 11,
+        "STOP_LOSS": 14,
+        "BE_LOCK": 6,
+        "GAP_STOP_LOSS": 3
+      },
+      "trades_count": 34,
+      "trades_sample": [
+        {
+          "symbol": "C_IDX",
+          "direction": -1,
+          "lots": 100,
+          "entry_price": 2458.0,
+          "entry_time": "2023-12-15T10:00:00.000000000",
+          "exit_price": 2456.8,
+          "exit_time": "2023-12-15T11:00:00.000000000",
+          "net_pnl": 1200.0,
+          "holding_bars": 3,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "C_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 2405.0,
+          "entry_time": "2024-01-05T09:00:00.000000000",
+          "exit_price": 2399.475,
+          "exit_time": "2024-01-05T09:00:00.000000000",
+          "net_pnl": -5525.0,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "C_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 2453.0,
+          "entry_time": "2024-02-27T10:00:00.000000000",
+          "exit_price": 2453.5,
+          "exit_time": "2024-02-27T14:00:00.000000000",
+          "net_pnl": 500.0,
+          "holding_bars": 5,
+          "reason": "BE_LOCK"
+        }
+      ]
+    },
+    "M_IDX": {
+      "symbol": "M_IDX",
+      "name": "豆粕",
+      "sector": "农产品",
+      "overall": {
+        "total_trades": 44,
+        "win_trades": 13,
+        "loss_trades": 30,
+        "net_profit": -176038.75,
+        "profit_factor": 0.31,
+        "win_rate": 0.2955,
+        "max_drawdown": 0.185,
+        "avg_trade_pnl": -4000.88
+      },
+      "train": {
+        "total_trades": 25,
+        "win_trades": 9,
+        "loss_trades": 16,
+        "net_profit": -80025.0,
+        "profit_factor": 0.46,
+        "win_rate": 0.36,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -3201.0
+      },
+      "oos": {
+        "total_trades": 19,
+        "win_trades": 4,
+        "loss_trades": 14,
+        "net_profit": -96013.75,
+        "profit_factor": 0.09,
+        "win_rate": 0.2105,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -5053.36
+      },
+      "exit_reasons": {
+        "CHANDELIER_TRAIL": 4,
+        "STOP_LOSS": 25,
+        "GAP_STOP_LOSS": 10,
+        "BE_LOCK": 5
+      },
+      "trades_count": 44,
+      "trades_sample": [
+        {
+          "symbol": "M_IDX",
+          "direction": -1,
+          "lots": 100,
+          "entry_price": 3369.0,
+          "entry_time": "2023-12-28T10:00:00.000000000",
+          "exit_price": 3365.0,
+          "exit_time": "2023-12-28T21:00:00.000000000",
+          "net_pnl": 4000.0,
+          "holding_bars": 7,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "M_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 3046.0,
+          "entry_time": "2024-01-25T21:00:00.000000000",
+          "exit_price": 3037.5,
+          "exit_time": "2024-01-25T21:00:00.000000000",
+          "net_pnl": -8500.0,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "M_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 2980.0,
+          "entry_time": "2024-02-07T14:30:00.000000000",
+          "exit_price": 2968.0,
+          "exit_time": "2024-02-07T21:00:00.000000000",
+          "net_pnl": -12000.0,
+          "holding_bars": 2,
+          "reason": "GAP_STOP_LOSS"
+        }
+      ]
+    },
+    "Y_IDX": {
+      "symbol": "Y_IDX",
+      "name": "豆油",
+      "sector": "油脂油料",
+      "overall": {
+        "total_trades": 44,
+        "win_trades": 16,
+        "loss_trades": 28,
+        "net_profit": -241414.5,
+        "profit_factor": 0.49,
+        "win_rate": 0.3636,
+        "max_drawdown": 0.2798,
+        "avg_trade_pnl": -5486.69
+      },
+      "train": {
+        "total_trades": 22,
+        "win_trades": 5,
+        "loss_trades": 17,
+        "net_profit": -169334.0,
+        "profit_factor": 0.43,
+        "win_rate": 0.2273,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -7697.0
+      },
+      "oos": {
+        "total_trades": 22,
+        "win_trades": 11,
+        "loss_trades": 11,
+        "net_profit": -72080.5,
+        "profit_factor": 0.59,
+        "win_rate": 0.5,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -3276.39
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 24,
+        "CHANDELIER_TRAIL": 8,
+        "GAP_STOP_LOSS": 5,
+        "BE_LOCK": 7
+      },
+      "trades_count": 44,
+      "trades_sample": [
+        {
+          "symbol": "Y_IDX",
+          "direction": 1,
+          "lots": 58,
+          "entry_price": 8166.0,
+          "entry_time": "2023-12-01T10:00:00.000000000",
+          "exit_price": 8140.5,
+          "exit_time": "2023-12-01T10:00:00.000000000",
+          "net_pnl": -14790.0,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "Y_IDX",
+          "direction": 1,
+          "lots": 63,
+          "entry_price": 7394.0,
+          "entry_time": "2024-01-17T22:30:00.000000000",
+          "exit_price": 7480.0,
+          "exit_time": "2024-01-18T10:00:00.000000000",
+          "net_pnl": 54180.0,
+          "holding_bars": 4,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "Y_IDX",
+          "direction": 1,
+          "lots": 55,
+          "entry_price": 7802.0,
+          "entry_time": "2024-04-08T10:00:00.000000000",
+          "exit_price": 7774.8,
+          "exit_time": "2024-04-08T13:30:00.000000000",
+          "net_pnl": -14960.0,
+          "holding_bars": 4,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "P_IDX": {
+      "symbol": "P_IDX",
+      "name": "棕榈油",
+      "sector": "油脂油料",
+      "overall": {
+        "total_trades": 47,
+        "win_trades": 26,
+        "loss_trades": 21,
+        "net_profit": 343596.0,
+        "profit_factor": 2.26,
+        "win_rate": 0.5532,
+        "max_drawdown": 0.0619,
+        "avg_trade_pnl": 7310.55
+      },
+      "train": {
+        "total_trades": 26,
+        "win_trades": 17,
+        "loss_trades": 9,
+        "net_profit": 338741.0,
+        "profit_factor": 3.96,
+        "win_rate": 0.6538,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 13028.5
+      },
+      "oos": {
+        "total_trades": 21,
+        "win_trades": 9,
+        "loss_trades": 12,
+        "net_profit": 4855.0,
+        "profit_factor": 1.03,
+        "win_rate": 0.4286,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 231.19
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 16,
+        "CHANDELIER_TRAIL": 20,
+        "GAP_STOP_LOSS": 7,
+        "BE_LOCK": 4
+      },
+      "trades_count": 47,
+      "trades_sample": [
+        {
+          "symbol": "P_IDX",
+          "direction": -1,
+          "lots": 58,
+          "entry_price": 7564.0,
+          "entry_time": "2023-11-14T22:30:00.000000000",
+          "exit_price": 7589.5,
+          "exit_time": "2023-11-14T22:30:00.000000000",
+          "net_pnl": -14790.0,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "P_IDX",
+          "direction": 1,
+          "lots": 39,
+          "entry_price": 7418.0,
+          "entry_time": "2023-11-21T21:00:00.000000000",
+          "exit_price": 7379.75,
+          "exit_time": "2023-11-21T21:00:00.000000000",
+          "net_pnl": -14917.5,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "P_IDX",
+          "direction": 1,
+          "lots": 58,
+          "entry_price": 7070.0,
+          "entry_time": "2023-12-21T22:00:00.000000000",
+          "exit_price": 7044.5,
+          "exit_time": "2023-12-21T22:00:00.000000000",
+          "net_pnl": -14790.0,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    }
+  },
+  "friction_1x": {
+    "AU_IDX": {
+      "symbol": "AU_IDX",
+      "name": "沪金",
+      "sector": "贵金属",
+      "overall": {
+        "total_trades": 33,
+        "win_trades": 18,
+        "loss_trades": 15,
+        "net_profit": 34143.47,
+        "profit_factor": 1.14,
+        "win_rate": 0.5455,
+        "max_drawdown": 0.0822,
+        "avg_trade_pnl": 1034.65
+      },
+      "train": {
+        "total_trades": 13,
+        "win_trades": 7,
+        "loss_trades": 6,
+        "net_profit": 47588.61,
+        "profit_factor": 1.76,
+        "win_rate": 0.5385,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 3660.66
+      },
+      "oos": {
+        "total_trades": 20,
+        "win_trades": 11,
+        "loss_trades": 9,
+        "net_profit": -13445.14,
+        "profit_factor": 0.92,
+        "win_rate": 0.55,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -672.26
+      },
+      "exit_reasons": {
+        "CHANDELIER_TRAIL": 13,
+        "STOP_LOSS": 8,
+        "GAP_STOP_LOSS": 8,
+        "BE_LOCK": 3,
+        "STRUCTURAL_RUPTURE": 1
+      },
+      "trades_count": 33,
+      "trades_sample": [
+        {
+          "symbol": "AU_IDX",
+          "direction": 1,
+          "lots": 13,
+          "entry_price": 611.04,
+          "entry_time": "2024-11-28T10:00:00.000000000",
+          "exit_price": 614.096,
+          "exit_time": "2024-11-28T22:30:00.000000000",
+          "net_pnl": 38931.66,
+          "holding_bars": 10,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "AU_IDX",
+          "direction": 1,
+          "lots": 13,
+          "entry_price": 614.08,
+          "entry_time": "2024-12-02T10:00:00.000000000",
+          "exit_price": 612.9125,
+          "exit_time": "2024-12-02T10:30:00.000000000",
+          "net_pnl": -15975.05,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "AU_IDX",
+          "direction": 1,
+          "lots": 14,
+          "entry_price": 618.3,
+          "entry_time": "2024-12-04T22:00:00.000000000",
+          "exit_price": 618.3,
+          "exit_time": "2024-12-04T23:00:00.000000000",
+          "net_pnl": -865.62,
+          "holding_bars": 3,
+          "reason": "GAP_STOP_LOSS"
+        }
+      ]
+    },
+    "AG_IDX": {
+      "symbol": "AG_IDX",
+      "name": "沪银",
+      "sector": "贵金属",
+      "overall": {
+        "total_trades": 40,
+        "win_trades": 18,
+        "loss_trades": 22,
+        "net_profit": 225732.7,
+        "profit_factor": 1.57,
+        "win_rate": 0.45,
+        "max_drawdown": 0.129,
+        "avg_trade_pnl": 5643.32
+      },
+      "train": {
+        "total_trades": 12,
+        "win_trades": 5,
+        "loss_trades": 7,
+        "net_profit": 283294.36,
+        "profit_factor": 3.77,
+        "win_rate": 0.4167,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 23607.86
+      },
+      "oos": {
+        "total_trades": 28,
+        "win_trades": 13,
+        "loss_trades": 15,
+        "net_profit": -57561.66,
+        "profit_factor": 0.8,
+        "win_rate": 0.4643,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -2055.77
+      },
+      "exit_reasons": {
+        "GAP_STOP_LOSS": 10,
+        "BE_LOCK": 6,
+        "STOP_LOSS": 17,
+        "CHANDELIER_TRAIL": 7
+      },
+      "trades_count": 40,
+      "trades_sample": [
+        {
+          "symbol": "AG_IDX",
+          "direction": -1,
+          "lots": 38,
+          "entry_price": 7779.0,
+          "entry_time": "2024-11-22T21:30:00.000000000",
+          "exit_price": 7783.0,
+          "exit_time": "2024-11-22T22:00:00.000000000",
+          "net_pnl": -2723.52,
+          "holding_bars": 2,
+          "reason": "GAP_STOP_LOSS"
+        },
+        {
+          "symbol": "AG_IDX",
+          "direction": 1,
+          "lots": 39,
+          "entry_price": 7759.0,
+          "entry_time": "2024-12-06T23:00:00.000000000",
+          "exit_price": 7761.0,
+          "exit_time": "2024-12-06T23:30:00.000000000",
+          "net_pnl": 716.04,
+          "holding_bars": 2,
+          "reason": "BE_LOCK"
+        },
+        {
+          "symbol": "AG_IDX",
+          "direction": 1,
+          "lots": 53,
+          "entry_price": 7918.0,
+          "entry_time": "2024-12-11T14:30:00.000000000",
+          "exit_price": 7898.3,
+          "exit_time": "2024-12-11T21:00:00.000000000",
+          "net_pnl": -16290.2,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "RB_IDX": {
+      "symbol": "RB_IDX",
+      "name": "螺纹钢",
+      "sector": "黑色建材",
+      "overall": {
+        "total_trades": 54,
+        "win_trades": 12,
+        "loss_trades": 42,
+        "net_profit": -96831.35,
+        "profit_factor": 0.66,
+        "win_rate": 0.2222,
+        "max_drawdown": 0.1656,
+        "avg_trade_pnl": -1793.17
+      },
+      "train": {
+        "total_trades": 30,
+        "win_trades": 10,
+        "loss_trades": 20,
+        "net_profit": 18613.21,
+        "profit_factor": 1.13,
+        "win_rate": 0.3333,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 620.44
+      },
+      "oos": {
+        "total_trades": 24,
+        "win_trades": 2,
+        "loss_trades": 22,
+        "net_profit": -115444.56,
+        "profit_factor": 0.15,
+        "win_rate": 0.0833,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -4810.19
+      },
+      "exit_reasons": {
+        "GAP_STOP_LOSS": 12,
+        "CHANDELIER_TRAIL": 9,
+        "STOP_LOSS": 23,
+        "BE_LOCK": 10
+      },
+      "trades_count": 54,
+      "trades_sample": [
+        {
+          "symbol": "RB_IDX",
+          "direction": -1,
+          "lots": 100,
+          "entry_price": 4048.0,
+          "entry_time": "2024-01-02T11:00:00.000000000",
+          "exit_price": 4050.0,
+          "exit_time": "2024-01-02T21:00:00.000000000",
+          "net_pnl": -2404.9,
+          "holding_bars": 5,
+          "reason": "GAP_STOP_LOSS"
+        },
+        {
+          "symbol": "RB_IDX",
+          "direction": -1,
+          "lots": 100,
+          "entry_price": 3832.0,
+          "entry_time": "2024-02-19T10:00:00.000000000",
+          "exit_price": 3822.6,
+          "exit_time": "2024-02-19T14:00:00.000000000",
+          "net_pnl": 9017.27,
+          "holding_bars": 5,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "RB_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 3766.0,
+          "entry_time": "2024-02-26T09:30:00.000000000",
+          "exit_price": 3753.1,
+          "exit_time": "2024-02-26T09:30:00.000000000",
+          "net_pnl": -13275.96,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "HC_IDX": {
+      "symbol": "HC_IDX",
+      "name": "热卷",
+      "sector": "黑色建材",
+      "overall": {
+        "total_trades": 47,
+        "win_trades": 15,
+        "loss_trades": 32,
+        "net_profit": -83419.51,
+        "profit_factor": 0.65,
+        "win_rate": 0.3191,
+        "max_drawdown": 0.1581,
+        "avg_trade_pnl": -1774.88
+      },
+      "train": {
+        "total_trades": 26,
+        "win_trades": 12,
+        "loss_trades": 14,
+        "net_profit": 52086.99,
+        "profit_factor": 1.55,
+        "win_rate": 0.4615,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 2003.35
+      },
+      "oos": {
+        "total_trades": 21,
+        "win_trades": 3,
+        "loss_trades": 18,
+        "net_profit": -135506.5,
+        "profit_factor": 0.04,
+        "win_rate": 0.1429,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -6452.69
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 20,
+        "CHANDELIER_TRAIL": 9,
+        "BE_LOCK": 11,
+        "GAP_STOP_LOSS": 7
+      },
+      "trades_count": 47,
+      "trades_sample": [
+        {
+          "symbol": "HC_IDX",
+          "direction": -1,
+          "lots": 100,
+          "entry_price": 4028.0,
+          "entry_time": "2023-11-24T21:30:00.000000000",
+          "exit_price": 4043.45,
+          "exit_time": "2023-11-27T09:00:00.000000000",
+          "net_pnl": -15853.57,
+          "holding_bars": 4,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "HC_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 3981.0,
+          "entry_time": "2023-11-30T10:30:00.000000000",
+          "exit_price": 3982.6,
+          "exit_time": "2023-11-30T13:30:00.000000000",
+          "net_pnl": 1201.82,
+          "holding_bars": 3,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "HC_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 4114.0,
+          "entry_time": "2023-12-28T21:30:00.000000000",
+          "exit_price": 4114.25,
+          "exit_time": "2023-12-29T09:00:00.000000000",
+          "net_pnl": -161.41,
+          "holding_bars": 4,
+          "reason": "BE_LOCK"
+        }
+      ]
+    },
+    "I_IDX": {
+      "symbol": "I_IDX",
+      "name": "铁矿石",
+      "sector": "黑色原料",
+      "overall": {
+        "total_trades": 47,
+        "win_trades": 18,
+        "loss_trades": 29,
+        "net_profit": -155119.16,
+        "profit_factor": 0.63,
+        "win_rate": 0.383,
+        "max_drawdown": 0.2069,
+        "avg_trade_pnl": -3300.41
+      },
+      "train": {
+        "total_trades": 26,
+        "win_trades": 12,
+        "loss_trades": 14,
+        "net_profit": -11510.87,
+        "profit_factor": 0.93,
+        "win_rate": 0.4615,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -442.73
+      },
+      "oos": {
+        "total_trades": 21,
+        "win_trades": 6,
+        "loss_trades": 15,
+        "net_profit": -143608.29,
+        "profit_factor": 0.4,
+        "win_rate": 0.2857,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -6838.49
+      },
+      "exit_reasons": {
+        "BE_LOCK": 10,
+        "STOP_LOSS": 23,
+        "CHANDELIER_TRAIL": 10,
+        "GAP_STOP_LOSS": 4
+      },
+      "trades_count": 47,
+      "trades_sample": [
+        {
+          "symbol": "I_IDX",
+          "direction": 1,
+          "lots": 27,
+          "entry_price": 972.5,
+          "entry_time": "2023-11-23T14:00:00.000000000",
+          "exit_price": 972.675,
+          "exit_time": "2023-11-23T21:00:00.000000000",
+          "net_pnl": 209.9,
+          "holding_bars": 3,
+          "reason": "BE_LOCK"
+        },
+        {
+          "symbol": "I_IDX",
+          "direction": 1,
+          "lots": 30,
+          "entry_price": 961.5,
+          "entry_time": "2023-11-28T10:00:00.000000000",
+          "exit_price": 956.1125,
+          "exit_time": "2023-11-28T10:00:00.000000000",
+          "net_pnl": -16450.14,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "I_IDX",
+          "direction": 1,
+          "lots": 33,
+          "entry_price": 943.5,
+          "entry_time": "2023-12-13T14:30:00.000000000",
+          "exit_price": 943.525,
+          "exit_time": "2023-12-13T21:00:00.000000000",
+          "net_pnl": -228.86,
+          "holding_bars": 2,
+          "reason": "BE_LOCK"
+        }
+      ]
+    },
+    "J_IDX": {
+      "symbol": "J_IDX",
+      "name": "焦炭",
+      "sector": "黑色原料",
+      "overall": {
+        "total_trades": 47,
+        "win_trades": 21,
+        "loss_trades": 26,
+        "net_profit": -100942.04,
+        "profit_factor": 0.74,
+        "win_rate": 0.4468,
+        "max_drawdown": 0.2377,
+        "avg_trade_pnl": -2147.7
+      },
+      "train": {
+        "total_trades": 32,
+        "win_trades": 13,
+        "loss_trades": 19,
+        "net_profit": -89490.62,
+        "profit_factor": 0.68,
+        "win_rate": 0.4062,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -2796.58
+      },
+      "oos": {
+        "total_trades": 15,
+        "win_trades": 8,
+        "loss_trades": 7,
+        "net_profit": -11451.42,
+        "profit_factor": 0.9,
+        "win_rate": 0.5333,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -763.43
+      },
+      "exit_reasons": {
+        "CHANDELIER_TRAIL": 15,
+        "STOP_LOSS": 21,
+        "GAP_STOP_LOSS": 7,
+        "BE_LOCK": 4
+      },
+      "trades_count": 47,
+      "trades_sample": [
+        {
+          "symbol": "J_IDX",
+          "direction": -1,
+          "lots": 7,
+          "entry_price": 2655.0,
+          "entry_time": "2023-11-22T22:00:00.000000000",
+          "exit_price": 2605.2,
+          "exit_time": "2023-11-23T10:00:00.000000000",
+          "net_pnl": 34675.89,
+          "holding_bars": 5,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "J_IDX",
+          "direction": 1,
+          "lots": 8,
+          "entry_price": 2577.5,
+          "entry_time": "2023-12-04T11:00:00.000000000",
+          "exit_price": 2558.3,
+          "exit_time": "2023-12-04T13:30:00.000000000",
+          "net_pnl": -15565.43,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "J_IDX",
+          "direction": 1,
+          "lots": 7,
+          "entry_price": 2610.5,
+          "entry_time": "2023-12-11T10:30:00.000000000",
+          "exit_price": 2658.0,
+          "exit_time": "2023-12-11T14:30:00.000000000",
+          "net_pnl": 33065.6,
+          "holding_bars": 5,
+          "reason": "CHANDELIER_TRAIL"
+        }
+      ]
+    },
+    "JM_IDX": {
+      "symbol": "JM_IDX",
+      "name": "焦煤",
+      "sector": "黑色原料",
+      "overall": {
+        "total_trades": 35,
+        "win_trades": 11,
+        "loss_trades": 24,
+        "net_profit": -145230.5,
+        "profit_factor": 0.59,
+        "win_rate": 0.3143,
+        "max_drawdown": 0.1872,
+        "avg_trade_pnl": -4149.44
+      },
+      "train": {
+        "total_trades": 24,
+        "win_trades": 7,
+        "loss_trades": 17,
+        "net_profit": -95862.85,
+        "profit_factor": 0.6,
+        "win_rate": 0.2917,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -3994.29
+      },
+      "oos": {
+        "total_trades": 11,
+        "win_trades": 4,
+        "loss_trades": 7,
+        "net_profit": -49367.65,
+        "profit_factor": 0.56,
+        "win_rate": 0.3636,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -4487.97
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 22,
+        "CHANDELIER_TRAIL": 6,
+        "BE_LOCK": 4,
+        "GAP_STOP_LOSS": 3
+      },
+      "trades_count": 35,
+      "trades_sample": [
+        {
+          "symbol": "JM_IDX",
+          "direction": 1,
+          "lots": 11,
+          "entry_price": 2046.5,
+          "entry_time": "2023-12-04T11:00:00.000000000",
+          "exit_price": 2024.75,
+          "exit_time": "2023-12-04T11:00:00.000000000",
+          "net_pnl": -14489.35,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "JM_IDX",
+          "direction": 1,
+          "lots": 14,
+          "entry_price": 2023.0,
+          "entry_time": "2023-12-07T22:30:00.000000000",
+          "exit_price": 2005.075,
+          "exit_time": "2023-12-08T09:00:00.000000000",
+          "net_pnl": -15226.18,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "JM_IDX",
+          "direction": -1,
+          "lots": 25,
+          "entry_price": 1829.5,
+          "entry_time": "2024-01-22T10:00:00.000000000",
+          "exit_price": 1839.775,
+          "exit_time": "2024-01-22T10:30:00.000000000",
+          "net_pnl": -15687.7,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "CU_IDX": {
+      "symbol": "CU_IDX",
+      "name": "沪铜",
+      "sector": "有色金属",
+      "overall": {
+        "total_trades": 45,
+        "win_trades": 17,
+        "loss_trades": 28,
+        "net_profit": -82873.6,
+        "profit_factor": 0.73,
+        "win_rate": 0.3778,
+        "max_drawdown": 0.1316,
+        "avg_trade_pnl": -1841.64
+      },
+      "train": {
+        "total_trades": 15,
+        "win_trades": 6,
+        "loss_trades": 9,
+        "net_profit": 21215.91,
+        "profit_factor": 1.21,
+        "win_rate": 0.4,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 1414.39
+      },
+      "oos": {
+        "total_trades": 30,
+        "win_trades": 11,
+        "loss_trades": 19,
+        "net_profit": -104089.51,
+        "profit_factor": 0.5,
+        "win_rate": 0.3667,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -3469.65
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 16,
+        "GAP_STOP_LOSS": 10,
+        "BE_LOCK": 8,
+        "CHANDELIER_TRAIL": 11
+      },
+      "trades_count": 45,
+      "trades_sample": [
+        {
+          "symbol": "CU_IDX",
+          "direction": -1,
+          "lots": 18,
+          "entry_price": 73970.0,
+          "entry_time": "2024-08-23T23:00:00.000000000",
+          "exit_price": 74141.5,
+          "exit_time": "2024-08-23T23:00:00.000000000",
+          "net_pnl": -16101.5,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "CU_IDX",
+          "direction": 1,
+          "lots": 12,
+          "entry_price": 76760.0,
+          "entry_time": "2024-10-09T22:00:00.000000000",
+          "exit_price": 77110.0,
+          "exit_time": "2024-10-10T13:30:00.000000000",
+          "net_pnl": 20538.39,
+          "holding_bars": 12,
+          "reason": "GAP_STOP_LOSS"
+        },
+        {
+          "symbol": "CU_IDX",
+          "direction": 1,
+          "lots": 15,
+          "entry_price": 77200.0,
+          "entry_time": "2024-10-14T22:00:00.000000000",
+          "exit_price": 76990.25,
+          "exit_time": "2024-10-14T22:00:00.000000000",
+          "net_pnl": -16309.46,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "AL_IDX": {
+      "symbol": "AL_IDX",
+      "name": "沪铝",
+      "sector": "有色金属",
+      "overall": {
+        "total_trades": 46,
+        "win_trades": 12,
+        "loss_trades": 34,
+        "net_profit": -120443.23,
+        "profit_factor": 0.71,
+        "win_rate": 0.2609,
+        "max_drawdown": 0.2158,
+        "avg_trade_pnl": -2618.33
+      },
+      "train": {
+        "total_trades": 23,
+        "win_trades": 8,
+        "loss_trades": 15,
+        "net_profit": 98337.64,
+        "profit_factor": 1.57,
+        "win_rate": 0.3478,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 4275.55
+      },
+      "oos": {
+        "total_trades": 23,
+        "win_trades": 4,
+        "loss_trades": 19,
+        "net_profit": -218780.87,
+        "profit_factor": 0.11,
+        "win_rate": 0.1739,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -9512.21
+      },
+      "exit_reasons": {
+        "CHANDELIER_TRAIL": 10,
+        "GAP_STOP_LOSS": 8,
+        "STOP_LOSS": 21,
+        "BE_LOCK": 7
+      },
+      "trades_count": 46,
+      "trades_sample": [
+        {
+          "symbol": "AL_IDX",
+          "direction": -1,
+          "lots": 94,
+          "entry_price": 19420.0,
+          "entry_time": "2024-07-23T10:00:00.000000000",
+          "exit_price": 19323.0,
+          "exit_time": "2024-07-23T14:30:00.000000000",
+          "net_pnl": 44679.54,
+          "holding_bars": 6,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "AL_IDX",
+          "direction": -1,
+          "lots": 74,
+          "entry_price": 19825.0,
+          "entry_time": "2024-08-30T14:30:00.000000000",
+          "exit_price": 19715.0,
+          "exit_time": "2024-09-02T09:00:00.000000000",
+          "net_pnl": 39968.51,
+          "holding_bars": 10,
+          "reason": "GAP_STOP_LOSS"
+        },
+        {
+          "symbol": "AL_IDX",
+          "direction": -1,
+          "lots": 88,
+          "entry_price": 19960.0,
+          "entry_time": "2024-09-24T14:00:00.000000000",
+          "exit_price": 19999.0,
+          "exit_time": "2024-09-24T14:00:00.000000000",
+          "net_pnl": -18039.1,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "ZN_IDX": {
+      "symbol": "ZN_IDX",
+      "name": "沪锌",
+      "sector": "有色金属",
+      "overall": {
+        "total_trades": 55,
+        "win_trades": 15,
+        "loss_trades": 40,
+        "net_profit": -123077.94,
+        "profit_factor": 0.78,
+        "win_rate": 0.2727,
+        "max_drawdown": 0.292,
+        "avg_trade_pnl": -2237.78
+      },
+      "train": {
+        "total_trades": 30,
+        "win_trades": 11,
+        "loss_trades": 19,
+        "net_profit": -4465.98,
+        "profit_factor": 0.98,
+        "win_rate": 0.3667,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -148.87
+      },
+      "oos": {
+        "total_trades": 25,
+        "win_trades": 4,
+        "loss_trades": 21,
+        "net_profit": -118611.96,
+        "profit_factor": 0.63,
+        "win_rate": 0.16,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -4744.48
+      },
+      "exit_reasons": {
+        "GAP_STOP_LOSS": 9,
+        "CHANDELIER_TRAIL": 9,
+        "STOP_LOSS": 29,
+        "BE_LOCK": 8
+      },
+      "trades_count": 55,
+      "trades_sample": [
+        {
+          "symbol": "ZN_IDX",
+          "direction": -1,
+          "lots": 56,
+          "entry_price": 22700.0,
+          "entry_time": "2024-07-29T09:30:00.000000000",
+          "exit_price": 22685.0,
+          "exit_time": "2024-07-29T13:30:00.000000000",
+          "net_pnl": 3564.61,
+          "holding_bars": 5,
+          "reason": "GAP_STOP_LOSS"
+        },
+        {
+          "symbol": "ZN_IDX",
+          "direction": -1,
+          "lots": 47,
+          "entry_price": 22890.0,
+          "entry_time": "2024-08-01T22:30:00.000000000",
+          "exit_price": 22750.0,
+          "exit_time": "2024-08-02T09:30:00.000000000",
+          "net_pnl": 32363.73,
+          "holding_bars": 7,
+          "reason": "GAP_STOP_LOSS"
+        },
+        {
+          "symbol": "ZN_IDX",
+          "direction": -1,
+          "lots": 44,
+          "entry_price": 22955.0,
+          "entry_time": "2024-08-14T22:30:00.000000000",
+          "exit_price": 22796.0,
+          "exit_time": "2024-08-15T09:00:00.000000000",
+          "net_pnl": 34476.74,
+          "holding_bars": 6,
+          "reason": "CHANDELIER_TRAIL"
+        }
+      ]
+    },
+    "SN_IDX": {
+      "symbol": "SN_IDX",
+      "name": "沪锡",
+      "sector": "有色金属",
+      "overall": {
+        "total_trades": 59,
+        "win_trades": 23,
+        "loss_trades": 36,
+        "net_profit": -175949.38,
+        "profit_factor": 0.67,
+        "win_rate": 0.3898,
+        "max_drawdown": 0.2216,
+        "avg_trade_pnl": -2982.19
+      },
+      "train": {
+        "total_trades": 17,
+        "win_trades": 7,
+        "loss_trades": 10,
+        "net_profit": -31175.29,
+        "profit_factor": 0.8,
+        "win_rate": 0.4118,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -1833.84
+      },
+      "oos": {
+        "total_trades": 42,
+        "win_trades": 16,
+        "loss_trades": 26,
+        "net_profit": -144774.09,
+        "profit_factor": 0.62,
+        "win_rate": 0.381,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -3447.0
+      },
+      "exit_reasons": {
+        "GAP_STOP_LOSS": 14,
+        "CHANDELIER_TRAIL": 10,
+        "STOP_LOSS": 29,
+        "BE_LOCK": 6
+      },
+      "trades_count": 59,
+      "trades_sample": [
+        {
+          "symbol": "SN_IDX",
+          "direction": -1,
+          "lots": 10,
+          "entry_price": 248710.0,
+          "entry_time": "2024-07-31T14:00:00.000000000",
+          "exit_price": 250400.0,
+          "exit_time": "2024-07-31T21:00:00.000000000",
+          "net_pnl": -17149.56,
+          "holding_bars": 3,
+          "reason": "GAP_STOP_LOSS"
+        },
+        {
+          "symbol": "SN_IDX",
+          "direction": 1,
+          "lots": 9,
+          "entry_price": 241950.0,
+          "entry_time": "2024-08-06T14:30:00.000000000",
+          "exit_price": 245224.0,
+          "exit_time": "2024-08-07T09:00:00.000000000",
+          "net_pnl": 29246.77,
+          "holding_bars": 10,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "SN_IDX",
+          "direction": 1,
+          "lots": 21,
+          "entry_price": 261470.0,
+          "entry_time": "2024-08-31T00:30:00.000000000",
+          "exit_price": 260754.5,
+          "exit_time": "2024-09-02T09:00:00.000000000",
+          "net_pnl": -15573.84,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "SC_IDX": {
+      "symbol": "SC_IDX",
+      "name": "原油",
+      "sector": "能源化工",
+      "overall": {
+        "total_trades": 56,
+        "win_trades": 24,
+        "loss_trades": 32,
+        "net_profit": 113665.12,
+        "profit_factor": 1.23,
+        "win_rate": 0.4286,
+        "max_drawdown": 0.2118,
+        "avg_trade_pnl": 2029.73
+      },
+      "train": {
+        "total_trades": 25,
+        "win_trades": 12,
+        "loss_trades": 13,
+        "net_profit": -29175.22,
+        "profit_factor": 0.87,
+        "win_rate": 0.48,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -1167.01
+      },
+      "oos": {
+        "total_trades": 31,
+        "win_trades": 12,
+        "loss_trades": 19,
+        "net_profit": 142840.34,
+        "profit_factor": 1.54,
+        "win_rate": 0.3871,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 4607.75
+      },
+      "exit_reasons": {
+        "CHANDELIER_TRAIL": 12,
+        "STOP_LOSS": 21,
+        "BE_LOCK": 11,
+        "GAP_STOP_LOSS": 11,
+        "STRUCTURAL_RUPTURE": 1
+      },
+      "trades_count": 56,
+      "trades_sample": [
+        {
+          "symbol": "SC_IDX",
+          "direction": -1,
+          "lots": 10,
+          "entry_price": 535.4,
+          "entry_time": "2024-11-21T22:00:00.000000000",
+          "exit_price": 534.72,
+          "exit_time": "2024-11-21T23:30:00.000000000",
+          "net_pnl": 6264.94,
+          "holding_bars": 4,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "SC_IDX",
+          "direction": -1,
+          "lots": 9,
+          "entry_price": 532.9,
+          "entry_time": "2024-11-26T23:30:00.000000000",
+          "exit_price": 534.6575,
+          "exit_time": "2024-11-26T23:30:00.000000000",
+          "net_pnl": -16297.9,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "SC_IDX",
+          "direction": 1,
+          "lots": 10,
+          "entry_price": 527.2,
+          "entry_time": "2024-12-02T10:00:00.000000000",
+          "exit_price": 528.78,
+          "exit_time": "2024-12-02T13:30:00.000000000",
+          "net_pnl": 15272.01,
+          "holding_bars": 4,
+          "reason": "CHANDELIER_TRAIL"
+        }
+      ]
+    },
+    "TA_IDX": {
+      "symbol": "TA_IDX",
+      "name": "PTA",
+      "sector": "纺织化工",
+      "overall": {
+        "total_trades": 49,
+        "win_trades": 21,
+        "loss_trades": 28,
+        "net_profit": 1828.38,
+        "profit_factor": 1.0,
+        "win_rate": 0.4286,
+        "max_drawdown": 0.2106,
+        "avg_trade_pnl": 37.31
+      },
+      "train": {
+        "total_trades": 23,
+        "win_trades": 8,
+        "loss_trades": 15,
+        "net_profit": -50363.14,
+        "profit_factor": 0.64,
+        "win_rate": 0.3478,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -2189.7
+      },
+      "oos": {
+        "total_trades": 26,
+        "win_trades": 13,
+        "loss_trades": 13,
+        "net_profit": 52191.52,
+        "profit_factor": 1.22,
+        "win_rate": 0.5,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 2007.37
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 20,
+        "GAP_STOP_LOSS": 8,
+        "CHANDELIER_TRAIL": 16,
+        "BE_LOCK": 5
+      },
+      "trades_count": 49,
+      "trades_sample": [
+        {
+          "symbol": "TA_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 5800.0,
+          "entry_time": "2024-01-08T13:30:00.000000000",
+          "exit_price": 5770.8,
+          "exit_time": "2024-01-08T14:30:00.000000000",
+          "net_pnl": -14889.27,
+          "holding_bars": 3,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "TA_IDX",
+          "direction": -1,
+          "lots": 100,
+          "entry_price": 5792.0,
+          "entry_time": "2024-01-12T10:30:00.000000000",
+          "exit_price": 5804.0,
+          "exit_time": "2024-01-12T21:00:00.000000000",
+          "net_pnl": -6289.9,
+          "holding_bars": 6,
+          "reason": "GAP_STOP_LOSS"
+        },
+        {
+          "symbol": "TA_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 5900.0,
+          "entry_time": "2024-02-20T21:00:00.000000000",
+          "exit_price": 5882.7,
+          "exit_time": "2024-02-20T21:00:00.000000000",
+          "net_pnl": -8944.57,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "MA_IDX": {
+      "symbol": "MA_IDX",
+      "name": "甲醇",
+      "sector": "能源化工",
+      "overall": {
+        "total_trades": 34,
+        "win_trades": 8,
+        "loss_trades": 26,
+        "net_profit": -124636.13,
+        "profit_factor": 0.43,
+        "win_rate": 0.2353,
+        "max_drawdown": 0.1293,
+        "avg_trade_pnl": -3665.77
+      },
+      "train": {
+        "total_trades": 24,
+        "win_trades": 4,
+        "loss_trades": 20,
+        "net_profit": -86916.4,
+        "profit_factor": 0.43,
+        "win_rate": 0.1667,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -3621.52
+      },
+      "oos": {
+        "total_trades": 10,
+        "win_trades": 4,
+        "loss_trades": 6,
+        "net_profit": -37719.73,
+        "profit_factor": 0.42,
+        "win_rate": 0.4,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -3771.97
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 21,
+        "BE_LOCK": 2,
+        "CHANDELIER_TRAIL": 6,
+        "GAP_STOP_LOSS": 4,
+        "STRUCTURAL_RUPTURE": 1
+      },
+      "trades_count": 34,
+      "trades_sample": [
+        {
+          "symbol": "MA_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 2466.0,
+          "entry_time": "2023-11-20T10:30:00.000000000",
+          "exit_price": 2454.375,
+          "exit_time": "2023-11-20T10:30:00.000000000",
+          "net_pnl": -11871.02,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "MA_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 2429.0,
+          "entry_time": "2024-02-05T22:00:00.000000000",
+          "exit_price": 2419.5,
+          "exit_time": "2024-02-05T22:30:00.000000000",
+          "net_pnl": -9742.43,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "MA_IDX",
+          "direction": -1,
+          "lots": 100,
+          "entry_price": 2525.0,
+          "entry_time": "2024-02-27T14:00:00.000000000",
+          "exit_price": 2534.925,
+          "exit_time": "2024-02-27T14:30:00.000000000",
+          "net_pnl": -10178.0,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "SA_IDX": {
+      "symbol": "SA_IDX",
+      "name": "纯碱",
+      "sector": "能源化工",
+      "overall": {
+        "total_trades": 39,
+        "win_trades": 14,
+        "loss_trades": 25,
+        "net_profit": 4638.34,
+        "profit_factor": 1.02,
+        "win_rate": 0.359,
+        "max_drawdown": 0.1086,
+        "avg_trade_pnl": 118.93
+      },
+      "train": {
+        "total_trades": 23,
+        "win_trades": 12,
+        "loss_trades": 11,
+        "net_profit": 72227.82,
+        "profit_factor": 1.49,
+        "win_rate": 0.5217,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 3140.34
+      },
+      "oos": {
+        "total_trades": 16,
+        "win_trades": 2,
+        "loss_trades": 14,
+        "net_profit": -67589.48,
+        "profit_factor": 0.46,
+        "win_rate": 0.125,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -4224.34
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 18,
+        "CHANDELIER_TRAIL": 10,
+        "BE_LOCK": 7,
+        "GAP_STOP_LOSS": 4
+      },
+      "trades_count": 39,
+      "trades_sample": [
+        {
+          "symbol": "SA_IDX",
+          "direction": -1,
+          "lots": 35,
+          "entry_price": 2201.0,
+          "entry_time": "2023-12-22T10:30:00.000000000",
+          "exit_price": 2223.25,
+          "exit_time": "2023-12-22T10:30:00.000000000",
+          "net_pnl": -15729.85,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "SA_IDX",
+          "direction": -1,
+          "lots": 51,
+          "entry_price": 2067.0,
+          "entry_time": "2024-01-03T10:30:00.000000000",
+          "exit_price": 2064.0,
+          "exit_time": "2024-01-03T13:30:00.000000000",
+          "net_pnl": 2849.32,
+          "holding_bars": 3,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "SA_IDX",
+          "direction": -1,
+          "lots": 56,
+          "entry_price": 1962.0,
+          "entry_time": "2024-02-02T21:00:00.000000000",
+          "exit_price": 1952.0,
+          "exit_time": "2024-02-02T22:30:00.000000000",
+          "net_pnl": 10980.82,
+          "holding_bars": 4,
+          "reason": "CHANDELIER_TRAIL"
+        }
+      ]
+    },
+    "FG_IDX": {
+      "symbol": "FG_IDX",
+      "name": "玻璃",
+      "sector": "建材玻璃",
+      "overall": {
+        "total_trades": 39,
+        "win_trades": 11,
+        "loss_trades": 28,
+        "net_profit": -210783.51,
+        "profit_factor": 0.41,
+        "win_rate": 0.2821,
+        "max_drawdown": 0.2629,
+        "avg_trade_pnl": -5404.71
+      },
+      "train": {
+        "total_trades": 18,
+        "win_trades": 4,
+        "loss_trades": 14,
+        "net_profit": -133982.36,
+        "profit_factor": 0.23,
+        "win_rate": 0.2222,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -7443.46
+      },
+      "oos": {
+        "total_trades": 21,
+        "win_trades": 7,
+        "loss_trades": 14,
+        "net_profit": -76801.15,
+        "profit_factor": 0.58,
+        "win_rate": 0.3333,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -3657.2
+      },
+      "exit_reasons": {
+        "BE_LOCK": 5,
+        "CHANDELIER_TRAIL": 7,
+        "STOP_LOSS": 22,
+        "GAP_STOP_LOSS": 5
+      },
+      "trades_count": 39,
+      "trades_sample": [
+        {
+          "symbol": "FG_IDX",
+          "direction": -1,
+          "lots": 70,
+          "entry_price": 1737.0,
+          "entry_time": "2023-11-27T10:00:00.000000000",
+          "exit_price": 1736.75,
+          "exit_time": "2023-11-27T10:30:00.000000000",
+          "net_pnl": 106.84,
+          "holding_bars": 2,
+          "reason": "BE_LOCK"
+        },
+        {
+          "symbol": "FG_IDX",
+          "direction": -1,
+          "lots": 60,
+          "entry_price": 1760.0,
+          "entry_time": "2023-11-28T09:30:00.000000000",
+          "exit_price": 1744.0,
+          "exit_time": "2023-11-28T14:30:00.000000000",
+          "net_pnl": 18989.76,
+          "holding_bars": 7,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "FG_IDX",
+          "direction": -1,
+          "lots": 80,
+          "entry_price": 1646.0,
+          "entry_time": "2024-03-05T10:00:00.000000000",
+          "exit_price": 1645.9,
+          "exit_time": "2024-03-05T11:00:00.000000000",
+          "net_pnl": -103.35,
+          "holding_bars": 3,
+          "reason": "BE_LOCK"
+        }
+      ]
+    },
+    "RU_IDX": {
+      "symbol": "RU_IDX",
+      "name": "橡胶",
+      "sector": "能源化工",
+      "overall": {
+        "total_trades": 57,
+        "win_trades": 20,
+        "loss_trades": 37,
+        "net_profit": -65853.33,
+        "profit_factor": 0.88,
+        "win_rate": 0.3509,
+        "max_drawdown": 0.1949,
+        "avg_trade_pnl": -1155.32
+      },
+      "train": {
+        "total_trades": 27,
+        "win_trades": 10,
+        "loss_trades": 17,
+        "net_profit": -26260.73,
+        "profit_factor": 0.89,
+        "win_rate": 0.3704,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -972.62
+      },
+      "oos": {
+        "total_trades": 30,
+        "win_trades": 10,
+        "loss_trades": 20,
+        "net_profit": -39592.6,
+        "profit_factor": 0.87,
+        "win_rate": 0.3333,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -1319.75
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 29,
+        "BE_LOCK": 10,
+        "CHANDELIER_TRAIL": 15,
+        "GAP_STOP_LOSS": 3
+      },
+      "trades_count": 57,
+      "trades_sample": [
+        {
+          "symbol": "RU_IDX",
+          "direction": -1,
+          "lots": 41,
+          "entry_price": 13950.0,
+          "entry_time": "2023-11-27T13:30:00.000000000",
+          "exit_price": 13991.125,
+          "exit_time": "2023-11-27T13:30:00.000000000",
+          "net_pnl": -17434.04,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "RU_IDX",
+          "direction": 1,
+          "lots": 39,
+          "entry_price": 13435.0,
+          "entry_time": "2023-12-13T09:30:00.000000000",
+          "exit_price": 13391.75,
+          "exit_time": "2023-12-13T10:00:00.000000000",
+          "net_pnl": -17390.62,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "RU_IDX",
+          "direction": -1,
+          "lots": 37,
+          "entry_price": 13570.0,
+          "entry_time": "2023-12-18T13:30:00.000000000",
+          "exit_price": 13570.5,
+          "exit_time": "2023-12-19T09:30:00.000000000",
+          "net_pnl": -687.1,
+          "holding_bars": 9,
+          "reason": "BE_LOCK"
+        }
+      ]
+    },
+    "LC_IDX": {
+      "symbol": "LC_IDX",
+      "name": "碳酸锂",
+      "sector": "新能源",
+      "overall": {
+        "total_trades": 26,
+        "win_trades": 13,
+        "loss_trades": 13,
+        "net_profit": 12564.57,
+        "profit_factor": 1.09,
+        "win_rate": 0.5,
+        "max_drawdown": 0.0833,
+        "avg_trade_pnl": 483.25
+      },
+      "train": {
+        "total_trades": 18,
+        "win_trades": 9,
+        "loss_trades": 9,
+        "net_profit": 41222.08,
+        "profit_factor": 1.47,
+        "win_rate": 0.5,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 2290.12
+      },
+      "oos": {
+        "total_trades": 8,
+        "win_trades": 4,
+        "loss_trades": 4,
+        "net_profit": -28657.51,
+        "profit_factor": 0.4,
+        "win_rate": 0.5,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -3582.19
+      },
+      "exit_reasons": {
+        "CHANDELIER_TRAIL": 6,
+        "STOP_LOSS": 7,
+        "BE_LOCK": 10,
+        "GAP_STOP_LOSS": 3
+      },
+      "trades_count": 26,
+      "trades_sample": [
+        {
+          "symbol": "LC_IDX",
+          "direction": 1,
+          "lots": 9,
+          "entry_price": 164550.0,
+          "entry_time": "2023-10-19T10:00:00.000000000",
+          "exit_price": 164930.0,
+          "exit_time": "2023-10-19T11:00:00.000000000",
+          "net_pnl": 3271.73,
+          "holding_bars": 3,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "LC_IDX",
+          "direction": -1,
+          "lots": 11,
+          "entry_price": 100400.0,
+          "entry_time": "2023-12-25T09:00:00.000000000",
+          "exit_price": 101746.25,
+          "exit_time": "2023-12-25T09:00:00.000000000",
+          "net_pnl": -14919.93,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "LC_IDX",
+          "direction": 1,
+          "lots": 15,
+          "entry_price": 114250.0,
+          "entry_time": "2024-03-14T14:30:00.000000000",
+          "exit_price": 113222.5,
+          "exit_time": "2024-03-14T14:30:00.000000000",
+          "net_pnl": -15583.1,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "SI_IDX": {
+      "symbol": "SI_IDX",
+      "name": "工业硅",
+      "sector": "新能源",
+      "overall": {
+        "total_trades": 42,
+        "win_trades": 19,
+        "loss_trades": 23,
+        "net_profit": 101013.84,
+        "profit_factor": 1.33,
+        "win_rate": 0.4524,
+        "max_drawdown": 0.1015,
+        "avg_trade_pnl": 2405.09
+      },
+      "train": {
+        "total_trades": 31,
+        "win_trades": 12,
+        "loss_trades": 19,
+        "net_profit": -45668.61,
+        "profit_factor": 0.84,
+        "win_rate": 0.3871,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -1473.18
+      },
+      "oos": {
+        "total_trades": 11,
+        "win_trades": 7,
+        "loss_trades": 4,
+        "net_profit": 146682.45,
+        "profit_factor": 6.31,
+        "win_rate": 0.6364,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 13334.77
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 16,
+        "CHANDELIER_TRAIL": 11,
+        "BE_LOCK": 8,
+        "GAP_STOP_LOSS": 7
+      },
+      "trades_count": 42,
+      "trades_sample": [
+        {
+          "symbol": "SI_IDX",
+          "direction": -1,
+          "lots": 52,
+          "entry_price": 17865.0,
+          "entry_time": "2023-02-09T09:00:00.000000000",
+          "exit_price": 17927.375,
+          "exit_time": "2023-02-09T09:00:00.000000000",
+          "net_pnl": -16682.8,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "SI_IDX",
+          "direction": 1,
+          "lots": 45,
+          "entry_price": 17745.0,
+          "entry_time": "2023-02-16T11:00:00.000000000",
+          "exit_price": 17674.125,
+          "exit_time": "2023-02-16T14:30:00.000000000",
+          "net_pnl": -16345.34,
+          "holding_bars": 4,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "SI_IDX",
+          "direction": 1,
+          "lots": 67,
+          "entry_price": 17555.0,
+          "entry_time": "2023-02-27T14:30:00.000000000",
+          "exit_price": 17505.375,
+          "exit_time": "2023-02-27T14:30:00.000000000",
+          "net_pnl": -17211.64,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "CF_IDX": {
+      "symbol": "CF_IDX",
+      "name": "棉花",
+      "sector": "软商品",
+      "overall": {
+        "total_trades": 56,
+        "win_trades": 13,
+        "loss_trades": 43,
+        "net_profit": -347814.0,
+        "profit_factor": 0.43,
+        "win_rate": 0.2321,
+        "max_drawdown": 0.3572,
+        "avg_trade_pnl": -6210.96
+      },
+      "train": {
+        "total_trades": 38,
+        "win_trades": 9,
+        "loss_trades": 29,
+        "net_profit": -177554.28,
+        "profit_factor": 0.56,
+        "win_rate": 0.2368,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -4672.48
+      },
+      "oos": {
+        "total_trades": 18,
+        "win_trades": 4,
+        "loss_trades": 14,
+        "net_profit": -170259.72,
+        "profit_factor": 0.17,
+        "win_rate": 0.2222,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -9458.87
+      },
+      "exit_reasons": {
+        "BE_LOCK": 11,
+        "STOP_LOSS": 25,
+        "GAP_STOP_LOSS": 9,
+        "CHANDELIER_TRAIL": 11
+      },
+      "trades_count": 56,
+      "trades_sample": [
+        {
+          "symbol": "CF_IDX",
+          "direction": -1,
+          "lots": 83,
+          "entry_price": 15375.0,
+          "entry_time": "2023-12-14T09:00:00.000000000",
+          "exit_price": 15375.5,
+          "exit_time": "2023-12-14T10:30:00.000000000",
+          "net_pnl": -845.57,
+          "holding_bars": 4,
+          "reason": "BE_LOCK"
+        },
+        {
+          "symbol": "CF_IDX",
+          "direction": -1,
+          "lots": 74,
+          "entry_price": 15580.0,
+          "entry_time": "2024-01-11T14:30:00.000000000",
+          "exit_price": 15625.375,
+          "exit_time": "2024-01-11T21:30:00.000000000",
+          "net_pnl": -17366.05,
+          "holding_bars": 3,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "CF_IDX",
+          "direction": 1,
+          "lots": 78,
+          "entry_price": 16005.0,
+          "entry_time": "2024-01-29T09:30:00.000000000",
+          "exit_price": 16004.5,
+          "exit_time": "2024-01-29T13:30:00.000000000",
+          "net_pnl": -819.19,
+          "holding_bars": 5,
+          "reason": "BE_LOCK"
+        }
+      ]
+    },
+    "SR_IDX": {
+      "symbol": "SR_IDX",
+      "name": "白糖",
+      "sector": "软商品",
+      "overall": {
+        "total_trades": 45,
+        "win_trades": 12,
+        "loss_trades": 33,
+        "net_profit": -120067.07,
+        "profit_factor": 0.58,
+        "win_rate": 0.2667,
+        "max_drawdown": 0.1834,
+        "avg_trade_pnl": -2668.16
+      },
+      "train": {
+        "total_trades": 26,
+        "win_trades": 7,
+        "loss_trades": 19,
+        "net_profit": -50550.02,
+        "profit_factor": 0.72,
+        "win_rate": 0.2692,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -1944.23
+      },
+      "oos": {
+        "total_trades": 19,
+        "win_trades": 5,
+        "loss_trades": 14,
+        "net_profit": -69517.05,
+        "profit_factor": 0.35,
+        "win_rate": 0.2632,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -3658.79
+      },
+      "exit_reasons": {
+        "CHANDELIER_TRAIL": 12,
+        "STOP_LOSS": 24,
+        "BE_LOCK": 7,
+        "GAP_STOP_LOSS": 2
+      },
+      "trades_count": 45,
+      "trades_sample": [
+        {
+          "symbol": "SR_IDX",
+          "direction": -1,
+          "lots": 100,
+          "entry_price": 6864.0,
+          "entry_time": "2023-11-24T21:30:00.000000000",
+          "exit_price": 6816.4,
+          "exit_time": "2023-11-27T14:30:00.000000000",
+          "net_pnl": 46915.98,
+          "holding_bars": 11,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "SR_IDX",
+          "direction": -1,
+          "lots": 86,
+          "entry_price": 6242.0,
+          "entry_time": "2023-12-22T13:30:00.000000000",
+          "exit_price": 6260.425,
+          "exit_time": "2023-12-22T13:30:00.000000000",
+          "net_pnl": -16383.1,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "SR_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 6277.0,
+          "entry_time": "2024-01-10T10:30:00.000000000",
+          "exit_price": 6262.825,
+          "exit_time": "2024-01-10T10:30:00.000000000",
+          "net_pnl": -14801.99,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "C_IDX": {
+      "symbol": "C_IDX",
+      "name": "玉米",
+      "sector": "农产品",
+      "overall": {
+        "total_trades": 34,
+        "win_trades": 6,
+        "loss_trades": 28,
+        "net_profit": -96224.93,
+        "profit_factor": 0.19,
+        "win_rate": 0.1765,
+        "max_drawdown": 0.0971,
+        "avg_trade_pnl": -2830.15
+      },
+      "train": {
+        "total_trades": 19,
+        "win_trades": 3,
+        "loss_trades": 16,
+        "net_profit": -55374.07,
+        "profit_factor": 0.16,
+        "win_rate": 0.1579,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -2914.42
+      },
+      "oos": {
+        "total_trades": 15,
+        "win_trades": 3,
+        "loss_trades": 12,
+        "net_profit": -40850.86,
+        "profit_factor": 0.22,
+        "win_rate": 0.2,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -2723.39
+      },
+      "exit_reasons": {
+        "BE_LOCK": 5,
+        "STOP_LOSS": 20,
+        "CHANDELIER_TRAIL": 7,
+        "GAP_STOP_LOSS": 2
+      },
+      "trades_count": 34,
+      "trades_sample": [
+        {
+          "symbol": "C_IDX",
+          "direction": -1,
+          "lots": 100,
+          "entry_price": 2457.0,
+          "entry_time": "2023-12-15T10:00:00.000000000",
+          "exit_price": 2457.6,
+          "exit_time": "2023-12-15T11:00:00.000000000",
+          "net_pnl": -845.73,
+          "holding_bars": 3,
+          "reason": "BE_LOCK"
+        },
+        {
+          "symbol": "C_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 2406.0,
+          "entry_time": "2024-01-05T09:00:00.000000000",
+          "exit_price": 2399.475,
+          "exit_time": "2024-01-05T09:00:00.000000000",
+          "net_pnl": -6765.27,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "C_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 2454.0,
+          "entry_time": "2024-02-27T10:00:00.000000000",
+          "exit_price": 2453.5,
+          "exit_time": "2024-02-27T14:00:00.000000000",
+          "net_pnl": -745.37,
+          "holding_bars": 5,
+          "reason": "BE_LOCK"
+        }
+      ]
+    },
+    "M_IDX": {
+      "symbol": "M_IDX",
+      "name": "豆粕",
+      "sector": "农产品",
+      "overall": {
+        "total_trades": 44,
+        "win_trades": 8,
+        "loss_trades": 36,
+        "net_profit": -236701.92,
+        "profit_factor": 0.24,
+        "win_rate": 0.1818,
+        "max_drawdown": 0.2443,
+        "avg_trade_pnl": -5379.59
+      },
+      "train": {
+        "total_trades": 25,
+        "win_trades": 7,
+        "loss_trades": 18,
+        "net_profit": -112844.89,
+        "profit_factor": 0.39,
+        "win_rate": 0.28,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -4513.8
+      },
+      "oos": {
+        "total_trades": 19,
+        "win_trades": 1,
+        "loss_trades": 18,
+        "net_profit": -123857.03,
+        "profit_factor": 0.04,
+        "win_rate": 0.0526,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -6518.79
+      },
+      "exit_reasons": {
+        "CHANDELIER_TRAIL": 5,
+        "STOP_LOSS": 24,
+        "GAP_STOP_LOSS": 11,
+        "BE_LOCK": 4
+      },
+      "trades_count": 44,
+      "trades_sample": [
+        {
+          "symbol": "M_IDX",
+          "direction": -1,
+          "lots": 100,
+          "entry_price": 3368.0,
+          "entry_time": "2023-12-28T10:00:00.000000000",
+          "exit_price": 3366.0,
+          "exit_time": "2023-12-28T21:00:00.000000000",
+          "net_pnl": 1663.3,
+          "holding_bars": 7,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "M_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 3047.0,
+          "entry_time": "2024-01-25T21:00:00.000000000",
+          "exit_price": 3037.5,
+          "exit_time": "2024-01-25T21:00:00.000000000",
+          "net_pnl": -9804.23,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "M_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 2981.0,
+          "entry_time": "2024-02-07T14:30:00.000000000",
+          "exit_price": 2967.0,
+          "exit_time": "2024-02-07T21:00:00.000000000",
+          "net_pnl": -14297.4,
+          "holding_bars": 2,
+          "reason": "GAP_STOP_LOSS"
+        }
+      ]
+    },
+    "Y_IDX": {
+      "symbol": "Y_IDX",
+      "name": "豆油",
+      "sector": "油脂油料",
+      "overall": {
+        "total_trades": 44,
+        "win_trades": 10,
+        "loss_trades": 34,
+        "net_profit": -327139.43,
+        "profit_factor": 0.37,
+        "win_rate": 0.2273,
+        "max_drawdown": 0.3594,
+        "avg_trade_pnl": -7434.99
+      },
+      "train": {
+        "total_trades": 22,
+        "win_trades": 5,
+        "loss_trades": 17,
+        "net_profit": -199760.72,
+        "profit_factor": 0.36,
+        "win_rate": 0.2273,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -9080.03
+      },
+      "oos": {
+        "total_trades": 22,
+        "win_trades": 5,
+        "loss_trades": 17,
+        "net_profit": -127378.71,
+        "profit_factor": 0.38,
+        "win_rate": 0.2273,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -5789.94
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 25,
+        "CHANDELIER_TRAIL": 7,
+        "BE_LOCK": 9,
+        "GAP_STOP_LOSS": 3
+      },
+      "trades_count": 44,
+      "trades_sample": [
+        {
+          "symbol": "Y_IDX",
+          "direction": 1,
+          "lots": 58,
+          "entry_price": 8168.0,
+          "entry_time": "2023-12-01T10:00:00.000000000",
+          "exit_price": 8140.5,
+          "exit_time": "2023-12-01T10:00:00.000000000",
+          "net_pnl": -16422.95,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "Y_IDX",
+          "direction": 1,
+          "lots": 63,
+          "entry_price": 7396.0,
+          "entry_time": "2024-01-17T22:30:00.000000000",
+          "exit_price": 7478.0,
+          "exit_time": "2024-01-18T10:00:00.000000000",
+          "net_pnl": 51191.47,
+          "holding_bars": 4,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "Y_IDX",
+          "direction": 1,
+          "lots": 55,
+          "entry_price": 7804.0,
+          "entry_time": "2024-04-08T10:00:00.000000000",
+          "exit_price": 7774.8,
+          "exit_time": "2024-04-08T13:30:00.000000000",
+          "net_pnl": -16488.42,
+          "holding_bars": 4,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "P_IDX": {
+      "symbol": "P_IDX",
+      "name": "棕榈油",
+      "sector": "油脂油料",
+      "overall": {
+        "total_trades": 47,
+        "win_trades": 23,
+        "loss_trades": 24,
+        "net_profit": 137137.26,
+        "profit_factor": 1.38,
+        "win_rate": 0.4894,
+        "max_drawdown": 0.1121,
+        "avg_trade_pnl": 2917.81
+      },
+      "train": {
+        "total_trades": 26,
+        "win_trades": 15,
+        "loss_trades": 11,
+        "net_profit": 216349.61,
+        "profit_factor": 2.34,
+        "win_rate": 0.5769,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 8321.14
+      },
+      "oos": {
+        "total_trades": 21,
+        "win_trades": 8,
+        "loss_trades": 13,
+        "net_profit": -79212.35,
+        "profit_factor": 0.61,
+        "win_rate": 0.381,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -3772.02
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 20,
+        "CHANDELIER_TRAIL": 17,
+        "GAP_STOP_LOSS": 6,
+        "BE_LOCK": 4
+      },
+      "trades_count": 47,
+      "trades_sample": [
+        {
+          "symbol": "P_IDX",
+          "direction": -1,
+          "lots": 58,
+          "entry_price": 7562.0,
+          "entry_time": "2023-11-14T22:30:00.000000000",
+          "exit_price": 7589.5,
+          "exit_time": "2023-11-14T22:30:00.000000000",
+          "net_pnl": -16389.39,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "P_IDX",
+          "direction": 1,
+          "lots": 39,
+          "entry_price": 7420.0,
+          "entry_time": "2023-11-21T21:00:00.000000000",
+          "exit_price": 7379.75,
+          "exit_time": "2023-11-21T21:00:00.000000000",
+          "net_pnl": -15986.1,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "P_IDX",
+          "direction": 1,
+          "lots": 58,
+          "entry_price": 7072.0,
+          "entry_time": "2023-12-21T22:00:00.000000000",
+          "exit_price": 7044.5,
+          "exit_time": "2023-12-21T22:00:00.000000000",
+          "net_pnl": -16359.38,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    }
+  },
+  "friction_3x": {
+    "AU_IDX": {
+      "symbol": "AU_IDX",
+      "name": "沪金",
+      "sector": "贵金属",
+      "overall": {
+        "total_trades": 33,
+        "win_trades": 15,
+        "loss_trades": 18,
+        "net_profit": -46102.99,
+        "profit_factor": 0.84,
+        "win_rate": 0.4545,
+        "max_drawdown": 0.1194,
+        "avg_trade_pnl": -1397.06
+      },
+      "train": {
+        "total_trades": 13,
+        "win_trades": 5,
+        "loss_trades": 8,
+        "net_profit": 12481.85,
+        "profit_factor": 1.15,
+        "win_rate": 0.3846,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 960.14
+      },
+      "oos": {
+        "total_trades": 20,
+        "win_trades": 10,
+        "loss_trades": 10,
+        "net_profit": -58584.84,
+        "profit_factor": 0.71,
+        "win_rate": 0.5,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -2929.24
+      },
+      "exit_reasons": {
+        "CHANDELIER_TRAIL": 13,
+        "STOP_LOSS": 9,
+        "GAP_STOP_LOSS": 7,
+        "BE_LOCK": 3,
+        "STRUCTURAL_RUPTURE": 1
+      },
+      "trades_count": 33,
+      "trades_sample": [
+        {
+          "symbol": "AU_IDX",
+          "direction": 1,
+          "lots": 13,
+          "entry_price": 611.08,
+          "entry_time": "2024-11-28T10:00:00.000000000",
+          "exit_price": 614.056,
+          "exit_time": "2024-11-28T22:30:00.000000000",
+          "net_pnl": 36298.98,
+          "holding_bars": 10,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "AU_IDX",
+          "direction": 1,
+          "lots": 13,
+          "entry_price": 614.12,
+          "entry_time": "2024-12-02T10:00:00.000000000",
+          "exit_price": 612.9125,
+          "exit_time": "2024-12-02T10:30:00.000000000",
+          "net_pnl": -18090.21,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "AU_IDX",
+          "direction": 1,
+          "lots": 14,
+          "entry_price": 618.34,
+          "entry_time": "2024-12-04T22:00:00.000000000",
+          "exit_price": 618.26,
+          "exit_time": "2024-12-04T23:00:00.000000000",
+          "net_pnl": -3716.86,
+          "holding_bars": 3,
+          "reason": "GAP_STOP_LOSS"
+        }
+      ]
+    },
+    "AG_IDX": {
+      "symbol": "AG_IDX",
+      "name": "沪银",
+      "sector": "贵金属",
+      "overall": {
+        "total_trades": 40,
+        "win_trades": 16,
+        "loss_trades": 24,
+        "net_profit": 112418.44,
+        "profit_factor": 1.24,
+        "win_rate": 0.4,
+        "max_drawdown": 0.1656,
+        "avg_trade_pnl": 2810.46
+      },
+      "train": {
+        "total_trades": 12,
+        "win_trades": 3,
+        "loss_trades": 9,
+        "net_profit": 210760.27,
+        "profit_factor": 2.36,
+        "win_rate": 0.25,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 17563.36
+      },
+      "oos": {
+        "total_trades": 28,
+        "win_trades": 13,
+        "loss_trades": 15,
+        "net_profit": -98341.83,
+        "profit_factor": 0.69,
+        "win_rate": 0.4643,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -3512.21
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 20,
+        "BE_LOCK": 6,
+        "GAP_STOP_LOSS": 7,
+        "CHANDELIER_TRAIL": 7
+      },
+      "trades_count": 40,
+      "trades_sample": [
+        {
+          "symbol": "AG_IDX",
+          "direction": -1,
+          "lots": 38,
+          "entry_price": 7777.0,
+          "entry_time": "2024-11-22T21:30:00.000000000",
+          "exit_price": 7805.925,
+          "exit_time": "2024-11-22T22:30:00.000000000",
+          "net_pnl": -17819.59,
+          "holding_bars": 3,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "AG_IDX",
+          "direction": 1,
+          "lots": 39,
+          "entry_price": 7761.0,
+          "entry_time": "2024-12-06T23:00:00.000000000",
+          "exit_price": 7761.1,
+          "exit_time": "2024-12-07T01:00:00.000000000",
+          "net_pnl": -1303.56,
+          "holding_bars": 5,
+          "reason": "BE_LOCK"
+        },
+        {
+          "symbol": "AG_IDX",
+          "direction": 1,
+          "lots": 53,
+          "entry_price": 7920.0,
+          "entry_time": "2024-12-11T14:30:00.000000000",
+          "exit_price": 7898.3,
+          "exit_time": "2024-12-11T21:00:00.000000000",
+          "net_pnl": -19137.83,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "RB_IDX": {
+      "symbol": "RB_IDX",
+      "name": "螺纹钢",
+      "sector": "黑色建材",
+      "overall": {
+        "total_trades": 54,
+        "win_trades": 10,
+        "loss_trades": 44,
+        "net_profit": -304338.32,
+        "profit_factor": 0.35,
+        "win_rate": 0.1852,
+        "max_drawdown": 0.3386,
+        "avg_trade_pnl": -5635.89
+      },
+      "train": {
+        "total_trades": 30,
+        "win_trades": 8,
+        "loss_trades": 22,
+        "net_profit": -87303.93,
+        "profit_factor": 0.63,
+        "win_rate": 0.2667,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -2910.13
+      },
+      "oos": {
+        "total_trades": 24,
+        "win_trades": 2,
+        "loss_trades": 22,
+        "net_profit": -217034.39,
+        "profit_factor": 0.05,
+        "win_rate": 0.0833,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -9043.1
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 33,
+        "CHANDELIER_TRAIL": 10,
+        "BE_LOCK": 8,
+        "GAP_STOP_LOSS": 3
+      },
+      "trades_count": 54,
+      "trades_sample": [
+        {
+          "symbol": "RB_IDX",
+          "direction": -1,
+          "lots": 100,
+          "entry_price": 4046.0,
+          "entry_time": "2024-01-02T11:00:00.000000000",
+          "exit_price": 4060.9,
+          "exit_time": "2024-01-02T21:00:00.000000000",
+          "net_pnl": -16116.04,
+          "holding_bars": 5,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "RB_IDX",
+          "direction": -1,
+          "lots": 100,
+          "entry_price": 3830.0,
+          "entry_time": "2024-02-19T10:00:00.000000000",
+          "exit_price": 3824.6,
+          "exit_time": "2024-02-19T14:00:00.000000000",
+          "net_pnl": 4251.81,
+          "holding_bars": 5,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "RB_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 3768.0,
+          "entry_time": "2024-02-26T09:30:00.000000000",
+          "exit_price": 3753.1,
+          "exit_time": "2024-02-26T09:30:00.000000000",
+          "net_pnl": -16028.17,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "HC_IDX": {
+      "symbol": "HC_IDX",
+      "name": "热卷",
+      "sector": "黑色建材",
+      "overall": {
+        "total_trades": 47,
+        "win_trades": 4,
+        "loss_trades": 43,
+        "net_profit": -360473.59,
+        "profit_factor": 0.18,
+        "win_rate": 0.0851,
+        "max_drawdown": 0.3758,
+        "avg_trade_pnl": -7669.65
+      },
+      "train": {
+        "total_trades": 26,
+        "win_trades": 3,
+        "loss_trades": 23,
+        "net_profit": -151979.74,
+        "profit_factor": 0.33,
+        "win_rate": 0.1154,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -5845.37
+      },
+      "oos": {
+        "total_trades": 21,
+        "win_trades": 1,
+        "loss_trades": 20,
+        "net_profit": -208493.85,
+        "profit_factor": 0.01,
+        "win_rate": 0.0476,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -9928.28
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 28,
+        "GAP_STOP_LOSS": 7,
+        "BE_LOCK": 9,
+        "CHANDELIER_TRAIL": 3
+      },
+      "trades_count": 47,
+      "trades_sample": [
+        {
+          "symbol": "HC_IDX",
+          "direction": -1,
+          "lots": 100,
+          "entry_price": 4026.0,
+          "entry_time": "2023-11-24T21:30:00.000000000",
+          "exit_price": 4043.45,
+          "exit_time": "2023-11-27T09:00:00.000000000",
+          "net_pnl": -18660.42,
+          "holding_bars": 4,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "HC_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 3983.0,
+          "entry_time": "2023-11-30T10:30:00.000000000",
+          "exit_price": 3981.0,
+          "exit_time": "2023-11-30T13:30:00.000000000",
+          "net_pnl": -3194.6,
+          "holding_bars": 3,
+          "reason": "GAP_STOP_LOSS"
+        },
+        {
+          "symbol": "HC_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 4116.0,
+          "entry_time": "2023-12-28T21:30:00.000000000",
+          "exit_price": 4101.95,
+          "exit_time": "2023-12-29T10:00:00.000000000",
+          "net_pnl": -15282.69,
+          "holding_bars": 6,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "I_IDX": {
+      "symbol": "I_IDX",
+      "name": "铁矿石",
+      "sector": "黑色原料",
+      "overall": {
+        "total_trades": 47,
+        "win_trades": 5,
+        "loss_trades": 42,
+        "net_profit": -743978.85,
+        "profit_factor": 0.09,
+        "win_rate": 0.1064,
+        "max_drawdown": 0.746,
+        "avg_trade_pnl": -15829.34
+      },
+      "train": {
+        "total_trades": 26,
+        "win_trades": 4,
+        "loss_trades": 22,
+        "net_profit": -284061.93,
+        "profit_factor": 0.19,
+        "win_rate": 0.1538,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -10925.46
+      },
+      "oos": {
+        "total_trades": 21,
+        "win_trades": 1,
+        "loss_trades": 20,
+        "net_profit": -459916.92,
+        "profit_factor": 0.01,
+        "win_rate": 0.0476,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -21900.81
+      },
+      "exit_reasons": {
+        "BE_LOCK": 7,
+        "STOP_LOSS": 32,
+        "CHANDELIER_TRAIL": 4,
+        "GAP_STOP_LOSS": 4
+      },
+      "trades_count": 47,
+      "trades_sample": [
+        {
+          "symbol": "I_IDX",
+          "direction": 1,
+          "lots": 27,
+          "entry_price": 973.5,
+          "entry_time": "2023-11-23T14:00:00.000000000",
+          "exit_price": 972.675,
+          "exit_time": "2023-11-23T21:00:00.000000000",
+          "net_pnl": -3015.7,
+          "holding_bars": 3,
+          "reason": "BE_LOCK"
+        },
+        {
+          "symbol": "I_IDX",
+          "direction": 1,
+          "lots": 30,
+          "entry_price": 962.5,
+          "entry_time": "2023-11-28T10:00:00.000000000",
+          "exit_price": 956.1125,
+          "exit_time": "2023-11-28T10:00:00.000000000",
+          "net_pnl": -20025.88,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "I_IDX",
+          "direction": 1,
+          "lots": 33,
+          "entry_price": 944.5,
+          "entry_time": "2023-12-13T14:30:00.000000000",
+          "exit_price": 938.5375,
+          "exit_time": "2023-12-13T14:30:00.000000000",
+          "net_pnl": -20608.35,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "J_IDX": {
+      "symbol": "J_IDX",
+      "name": "焦炭",
+      "sector": "黑色原料",
+      "overall": {
+        "total_trades": 47,
+        "win_trades": 14,
+        "loss_trades": 33,
+        "net_profit": -236246.0,
+        "profit_factor": 0.49,
+        "win_rate": 0.2979,
+        "max_drawdown": 0.3346,
+        "avg_trade_pnl": -5026.51
+      },
+      "train": {
+        "total_trades": 32,
+        "win_trades": 8,
+        "loss_trades": 24,
+        "net_profit": -176493.6,
+        "profit_factor": 0.48,
+        "win_rate": 0.25,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -5515.42
+      },
+      "oos": {
+        "total_trades": 15,
+        "win_trades": 6,
+        "loss_trades": 9,
+        "net_profit": -59752.4,
+        "profit_factor": 0.54,
+        "win_rate": 0.4,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -3983.49
+      },
+      "exit_reasons": {
+        "CHANDELIER_TRAIL": 13,
+        "STOP_LOSS": 23,
+        "GAP_STOP_LOSS": 5,
+        "BE_LOCK": 6
+      },
+      "trades_count": 47,
+      "trades_sample": [
+        {
+          "symbol": "J_IDX",
+          "direction": -1,
+          "lots": 7,
+          "entry_price": 2654.0,
+          "entry_time": "2023-11-22T22:00:00.000000000",
+          "exit_price": 2606.2,
+          "exit_time": "2023-11-23T10:00:00.000000000",
+          "net_pnl": 32907.68,
+          "holding_bars": 5,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "J_IDX",
+          "direction": 1,
+          "lots": 8,
+          "entry_price": 2578.5,
+          "entry_time": "2023-12-04T11:00:00.000000000",
+          "exit_price": 2558.3,
+          "exit_time": "2023-12-04T13:30:00.000000000",
+          "net_pnl": -16776.42,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "J_IDX",
+          "direction": 1,
+          "lots": 7,
+          "entry_price": 2611.5,
+          "entry_time": "2023-12-11T10:30:00.000000000",
+          "exit_price": 2657.0,
+          "exit_time": "2023-12-11T14:30:00.000000000",
+          "net_pnl": 31296.81,
+          "holding_bars": 5,
+          "reason": "CHANDELIER_TRAIL"
+        }
+      ]
+    },
+    "JM_IDX": {
+      "symbol": "JM_IDX",
+      "name": "焦煤",
+      "sector": "黑色原料",
+      "overall": {
+        "total_trades": 35,
+        "win_trades": 7,
+        "loss_trades": 28,
+        "net_profit": -249881.42,
+        "profit_factor": 0.41,
+        "win_rate": 0.2,
+        "max_drawdown": 0.2499,
+        "avg_trade_pnl": -7139.47
+      },
+      "train": {
+        "total_trades": 24,
+        "win_trades": 4,
+        "loss_trades": 20,
+        "net_profit": -169318.42,
+        "profit_factor": 0.42,
+        "win_rate": 0.1667,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -7054.93
+      },
+      "oos": {
+        "total_trades": 11,
+        "win_trades": 3,
+        "loss_trades": 8,
+        "net_profit": -80563.0,
+        "profit_factor": 0.38,
+        "win_rate": 0.2727,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -7323.91
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 22,
+        "CHANDELIER_TRAIL": 5,
+        "BE_LOCK": 5,
+        "GAP_STOP_LOSS": 3
+      },
+      "trades_count": 35,
+      "trades_sample": [
+        {
+          "symbol": "JM_IDX",
+          "direction": 1,
+          "lots": 11,
+          "entry_price": 2047.5,
+          "entry_time": "2023-12-04T11:00:00.000000000",
+          "exit_price": 2024.75,
+          "exit_time": "2023-12-04T11:00:00.000000000",
+          "net_pnl": -15418.15,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "JM_IDX",
+          "direction": 1,
+          "lots": 14,
+          "entry_price": 2024.0,
+          "entry_time": "2023-12-07T22:30:00.000000000",
+          "exit_price": 2005.075,
+          "exit_time": "2023-12-08T09:00:00.000000000",
+          "net_pnl": -16404.66,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "JM_IDX",
+          "direction": -1,
+          "lots": 25,
+          "entry_price": 1828.5,
+          "entry_time": "2024-01-22T10:00:00.000000000",
+          "exit_price": 1839.775,
+          "exit_time": "2024-01-22T10:30:00.000000000",
+          "net_pnl": -17737.86,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "CU_IDX": {
+      "symbol": "CU_IDX",
+      "name": "沪铜",
+      "sector": "有色金属",
+      "overall": {
+        "total_trades": 45,
+        "win_trades": 9,
+        "loss_trades": 36,
+        "net_profit": -339340.64,
+        "profit_factor": 0.3,
+        "win_rate": 0.2,
+        "max_drawdown": 0.3506,
+        "avg_trade_pnl": -7540.9
+      },
+      "train": {
+        "total_trades": 15,
+        "win_trades": 4,
+        "loss_trades": 11,
+        "net_profit": -76420.52,
+        "profit_factor": 0.56,
+        "win_rate": 0.2667,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -5094.7
+      },
+      "oos": {
+        "total_trades": 30,
+        "win_trades": 5,
+        "loss_trades": 25,
+        "net_profit": -262920.12,
+        "profit_factor": 0.15,
+        "win_rate": 0.1667,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -8764.0
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 19,
+        "GAP_STOP_LOSS": 9,
+        "CHANDELIER_TRAIL": 10,
+        "BE_LOCK": 7
+      },
+      "trades_count": 45,
+      "trades_sample": [
+        {
+          "symbol": "CU_IDX",
+          "direction": -1,
+          "lots": 18,
+          "entry_price": 73950.0,
+          "entry_time": "2024-08-23T23:00:00.000000000",
+          "exit_price": 74141.5,
+          "exit_time": "2024-08-23T23:00:00.000000000",
+          "net_pnl": -19234.24,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "CU_IDX",
+          "direction": 1,
+          "lots": 12,
+          "entry_price": 76780.0,
+          "entry_time": "2024-10-09T22:00:00.000000000",
+          "exit_price": 77090.0,
+          "exit_time": "2024-10-10T13:30:00.000000000",
+          "net_pnl": 17215.17,
+          "holding_bars": 12,
+          "reason": "GAP_STOP_LOSS"
+        },
+        {
+          "symbol": "CU_IDX",
+          "direction": 1,
+          "lots": 15,
+          "entry_price": 77220.0,
+          "entry_time": "2024-10-14T22:00:00.000000000",
+          "exit_price": 76990.25,
+          "exit_time": "2024-10-14T22:00:00.000000000",
+          "net_pnl": -18966.12,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "AL_IDX": {
+      "symbol": "AL_IDX",
+      "name": "沪铝",
+      "sector": "有色金属",
+      "overall": {
+        "total_trades": 46,
+        "win_trades": 7,
+        "loss_trades": 39,
+        "net_profit": -713678.77,
+        "profit_factor": 0.12,
+        "win_rate": 0.1522,
+        "max_drawdown": 0.729,
+        "avg_trade_pnl": -15514.76
+      },
+      "train": {
+        "total_trades": 23,
+        "win_trades": 4,
+        "loss_trades": 19,
+        "net_profit": -313024.8,
+        "profit_factor": 0.22,
+        "win_rate": 0.1739,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -13609.77
+      },
+      "oos": {
+        "total_trades": 23,
+        "win_trades": 3,
+        "loss_trades": 20,
+        "net_profit": -400653.97,
+        "profit_factor": 0.02,
+        "win_rate": 0.1304,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -17419.74
+      },
+      "exit_reasons": {
+        "CHANDELIER_TRAIL": 7,
+        "STOP_LOSS": 33,
+        "BE_LOCK": 4,
+        "GAP_STOP_LOSS": 2
+      },
+      "trades_count": 46,
+      "trades_sample": [
+        {
+          "symbol": "AL_IDX",
+          "direction": -1,
+          "lots": 94,
+          "entry_price": 19410.0,
+          "entry_time": "2024-07-23T10:00:00.000000000",
+          "exit_price": 19333.0,
+          "exit_time": "2024-07-23T14:30:00.000000000",
+          "net_pnl": 33458.62,
+          "holding_bars": 6,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "AL_IDX",
+          "direction": -1,
+          "lots": 74,
+          "entry_price": 19815.0,
+          "entry_time": "2024-08-30T14:30:00.000000000",
+          "exit_price": 19870.375,
+          "exit_time": "2024-08-30T14:30:00.000000000",
+          "net_pnl": -22691.29,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "AL_IDX",
+          "direction": -1,
+          "lots": 88,
+          "entry_price": 19950.0,
+          "entry_time": "2024-09-24T14:00:00.000000000",
+          "exit_price": 19999.0,
+          "exit_time": "2024-09-24T14:00:00.000000000",
+          "net_pnl": -24196.63,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "ZN_IDX": {
+      "symbol": "ZN_IDX",
+      "name": "沪锌",
+      "sector": "有色金属",
+      "overall": {
+        "total_trades": 55,
+        "win_trades": 10,
+        "loss_trades": 45,
+        "net_profit": -452963.01,
+        "profit_factor": 0.46,
+        "win_rate": 0.1818,
+        "max_drawdown": 0.522,
+        "avg_trade_pnl": -8235.69
+      },
+      "train": {
+        "total_trades": 30,
+        "win_trades": 7,
+        "loss_trades": 23,
+        "net_profit": -173932.57,
+        "profit_factor": 0.54,
+        "win_rate": 0.2333,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -5797.75
+      },
+      "oos": {
+        "total_trades": 25,
+        "win_trades": 3,
+        "loss_trades": 22,
+        "net_profit": -279030.44,
+        "profit_factor": 0.39,
+        "win_rate": 0.12,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -11161.22
+      },
+      "exit_reasons": {
+        "BE_LOCK": 4,
+        "GAP_STOP_LOSS": 7,
+        "CHANDELIER_TRAIL": 9,
+        "STOP_LOSS": 35
+      },
+      "trades_count": 55,
+      "trades_sample": [
+        {
+          "symbol": "ZN_IDX",
+          "direction": -1,
+          "lots": 56,
+          "entry_price": 22690.0,
+          "entry_time": "2024-07-29T09:30:00.000000000",
+          "exit_price": 22698.25,
+          "exit_time": "2024-07-29T13:30:00.000000000",
+          "net_pnl": -4216.31,
+          "holding_bars": 5,
+          "reason": "BE_LOCK"
+        },
+        {
+          "symbol": "ZN_IDX",
+          "direction": -1,
+          "lots": 47,
+          "entry_price": 22880.0,
+          "entry_time": "2024-08-01T22:30:00.000000000",
+          "exit_price": 22760.0,
+          "exit_time": "2024-08-02T09:30:00.000000000",
+          "net_pnl": 26591.19,
+          "holding_bars": 7,
+          "reason": "GAP_STOP_LOSS"
+        },
+        {
+          "symbol": "ZN_IDX",
+          "direction": -1,
+          "lots": 44,
+          "entry_price": 22945.0,
+          "entry_time": "2024-08-14T22:30:00.000000000",
+          "exit_price": 22806.0,
+          "exit_time": "2024-08-15T09:00:00.000000000",
+          "net_pnl": 29070.22,
+          "holding_bars": 6,
+          "reason": "CHANDELIER_TRAIL"
+        }
+      ]
+    },
+    "SN_IDX": {
+      "symbol": "SN_IDX",
+      "name": "沪锡",
+      "sector": "有色金属",
+      "overall": {
+        "total_trades": 59,
+        "win_trades": 20,
+        "loss_trades": 39,
+        "net_profit": -288392.46,
+        "profit_factor": 0.53,
+        "win_rate": 0.339,
+        "max_drawdown": 0.3239,
+        "avg_trade_pnl": -4888.01
+      },
+      "train": {
+        "total_trades": 17,
+        "win_trades": 7,
+        "loss_trades": 10,
+        "net_profit": -57633.51,
+        "profit_factor": 0.66,
+        "win_rate": 0.4118,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -3390.21
+      },
+      "oos": {
+        "total_trades": 42,
+        "win_trades": 13,
+        "loss_trades": 29,
+        "net_profit": -230758.95,
+        "profit_factor": 0.48,
+        "win_rate": 0.3095,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -5494.26
+      },
+      "exit_reasons": {
+        "GAP_STOP_LOSS": 13,
+        "CHANDELIER_TRAIL": 10,
+        "STOP_LOSS": 30,
+        "BE_LOCK": 6
+      },
+      "trades_count": 59,
+      "trades_sample": [
+        {
+          "symbol": "SN_IDX",
+          "direction": -1,
+          "lots": 10,
+          "entry_price": 248690.0,
+          "entry_time": "2024-07-31T14:00:00.000000000",
+          "exit_price": 250420.0,
+          "exit_time": "2024-07-31T21:00:00.000000000",
+          "net_pnl": -18048.66,
+          "holding_bars": 3,
+          "reason": "GAP_STOP_LOSS"
+        },
+        {
+          "symbol": "SN_IDX",
+          "direction": 1,
+          "lots": 9,
+          "entry_price": 241970.0,
+          "entry_time": "2024-08-06T14:30:00.000000000",
+          "exit_price": 245204.0,
+          "exit_time": "2024-08-07T09:00:00.000000000",
+          "net_pnl": 28448.32,
+          "holding_bars": 10,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "SN_IDX",
+          "direction": 1,
+          "lots": 21,
+          "entry_price": 261490.0,
+          "entry_time": "2024-08-31T00:30:00.000000000",
+          "exit_price": 260754.5,
+          "exit_time": "2024-09-02T09:00:00.000000000",
+          "net_pnl": -17090.57,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "SC_IDX": {
+      "symbol": "SC_IDX",
+      "name": "原油",
+      "sector": "能源化工",
+      "overall": {
+        "total_trades": 56,
+        "win_trades": 15,
+        "loss_trades": 41,
+        "net_profit": -271722.92,
+        "profit_factor": 0.61,
+        "win_rate": 0.2679,
+        "max_drawdown": 0.3088,
+        "avg_trade_pnl": -4852.19
+      },
+      "train": {
+        "total_trades": 25,
+        "win_trades": 4,
+        "loss_trades": 21,
+        "net_profit": -271565.82,
+        "profit_factor": 0.21,
+        "win_rate": 0.16,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -10862.63
+      },
+      "oos": {
+        "total_trades": 31,
+        "win_trades": 11,
+        "loss_trades": 20,
+        "net_profit": -157.1,
+        "profit_factor": 1.0,
+        "win_rate": 0.3548,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -5.07
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 27,
+        "CHANDELIER_TRAIL": 11,
+        "BE_LOCK": 8,
+        "GAP_STOP_LOSS": 9,
+        "STRUCTURAL_RUPTURE": 1
+      },
+      "trades_count": 56,
+      "trades_sample": [
+        {
+          "symbol": "SC_IDX",
+          "direction": -1,
+          "lots": 10,
+          "entry_price": 535.2,
+          "entry_time": "2024-11-21T22:00:00.000000000",
+          "exit_price": 536.945,
+          "exit_time": "2024-11-21T22:00:00.000000000",
+          "net_pnl": -19058.22,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "SC_IDX",
+          "direction": -1,
+          "lots": 9,
+          "entry_price": 532.7,
+          "entry_time": "2024-11-26T23:30:00.000000000",
+          "exit_price": 534.6575,
+          "exit_time": "2024-11-26T23:30:00.000000000",
+          "net_pnl": -19058.43,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "SC_IDX",
+          "direction": 1,
+          "lots": 10,
+          "entry_price": 527.4,
+          "entry_time": "2024-12-02T10:00:00.000000000",
+          "exit_price": 528.58,
+          "exit_time": "2024-12-02T13:30:00.000000000",
+          "net_pnl": 10216.03,
+          "holding_bars": 4,
+          "reason": "CHANDELIER_TRAIL"
+        }
+      ]
+    },
+    "TA_IDX": {
+      "symbol": "TA_IDX",
+      "name": "PTA",
+      "sector": "纺织化工",
+      "overall": {
+        "total_trades": 48,
+        "win_trades": 15,
+        "loss_trades": 33,
+        "net_profit": -238059.17,
+        "profit_factor": 0.5,
+        "win_rate": 0.3125,
+        "max_drawdown": 0.3269,
+        "avg_trade_pnl": -4959.57
+      },
+      "train": {
+        "total_trades": 22,
+        "win_trades": 7,
+        "loss_trades": 15,
+        "net_profit": -83390.03,
+        "profit_factor": 0.5,
+        "win_rate": 0.3182,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -3790.46
+      },
+      "oos": {
+        "total_trades": 26,
+        "win_trades": 8,
+        "loss_trades": 18,
+        "net_profit": -154669.14,
+        "profit_factor": 0.49,
+        "win_rate": 0.3077,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -5948.81
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 22,
+        "BE_LOCK": 6,
+        "CHANDELIER_TRAIL": 12,
+        "GAP_STOP_LOSS": 8
+      },
+      "trades_count": 48,
+      "trades_sample": [
+        {
+          "symbol": "TA_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 5804.0,
+          "entry_time": "2024-01-08T13:30:00.000000000",
+          "exit_price": 5770.8,
+          "exit_time": "2024-01-08T13:30:00.000000000",
+          "net_pnl": -17468.11,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "TA_IDX",
+          "direction": -1,
+          "lots": 100,
+          "entry_price": 5788.0,
+          "entry_time": "2024-01-12T10:30:00.000000000",
+          "exit_price": 5792.0,
+          "exit_time": "2024-01-12T14:00:00.000000000",
+          "net_pnl": -2868.5,
+          "holding_bars": 4,
+          "reason": "BE_LOCK"
+        },
+        {
+          "symbol": "TA_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 5904.0,
+          "entry_time": "2024-02-20T21:00:00.000000000",
+          "exit_price": 5882.7,
+          "exit_time": "2024-02-20T21:00:00.000000000",
+          "net_pnl": -11534.0,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "MA_IDX": {
+      "symbol": "MA_IDX",
+      "name": "甲醇",
+      "sector": "能源化工",
+      "overall": {
+        "total_trades": 34,
+        "win_trades": 4,
+        "loss_trades": 30,
+        "net_profit": -262949.52,
+        "profit_factor": 0.16,
+        "win_rate": 0.1176,
+        "max_drawdown": 0.2651,
+        "avg_trade_pnl": -7733.81
+      },
+      "train": {
+        "total_trades": 24,
+        "win_trades": 2,
+        "loss_trades": 22,
+        "net_profit": -195126.97,
+        "profit_factor": 0.15,
+        "win_rate": 0.0833,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -8130.29
+      },
+      "oos": {
+        "total_trades": 10,
+        "win_trades": 2,
+        "loss_trades": 8,
+        "net_profit": -67822.55,
+        "profit_factor": 0.19,
+        "win_rate": 0.2,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -6782.26
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 24,
+        "CHANDELIER_TRAIL": 4,
+        "GAP_STOP_LOSS": 3,
+        "BE_LOCK": 2,
+        "STRUCTURAL_RUPTURE": 1
+      },
+      "trades_count": 34,
+      "trades_sample": [
+        {
+          "symbol": "MA_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 2468.0,
+          "entry_time": "2023-11-20T10:30:00.000000000",
+          "exit_price": 2454.375,
+          "exit_time": "2023-11-20T10:30:00.000000000",
+          "net_pnl": -14363.36,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "MA_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 2431.0,
+          "entry_time": "2024-02-05T22:00:00.000000000",
+          "exit_price": 2419.5,
+          "exit_time": "2024-02-05T22:00:00.000000000",
+          "net_pnl": -12227.58,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "MA_IDX",
+          "direction": -1,
+          "lots": 100,
+          "entry_price": 2523.0,
+          "entry_time": "2024-02-27T14:00:00.000000000",
+          "exit_price": 2534.925,
+          "exit_time": "2024-02-27T14:00:00.000000000",
+          "net_pnl": -12683.69,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "SA_IDX": {
+      "symbol": "SA_IDX",
+      "name": "纯碱",
+      "sector": "能源化工",
+      "overall": {
+        "total_trades": 39,
+        "win_trades": 7,
+        "loss_trades": 32,
+        "net_profit": -356783.41,
+        "profit_factor": 0.28,
+        "win_rate": 0.1795,
+        "max_drawdown": 0.3595,
+        "avg_trade_pnl": -9148.29
+      },
+      "train": {
+        "total_trades": 23,
+        "win_trades": 5,
+        "loss_trades": 18,
+        "net_profit": -192019.55,
+        "profit_factor": 0.34,
+        "win_rate": 0.2174,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -8348.68
+      },
+      "oos": {
+        "total_trades": 16,
+        "win_trades": 2,
+        "loss_trades": 14,
+        "net_profit": -164763.86,
+        "profit_factor": 0.2,
+        "win_rate": 0.125,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -10297.74
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 24,
+        "BE_LOCK": 5,
+        "CHANDELIER_TRAIL": 5,
+        "GAP_STOP_LOSS": 5
+      },
+      "trades_count": 39,
+      "trades_sample": [
+        {
+          "symbol": "SA_IDX",
+          "direction": -1,
+          "lots": 35,
+          "entry_price": 2199.0,
+          "entry_time": "2023-12-22T10:30:00.000000000",
+          "exit_price": 2223.25,
+          "exit_time": "2023-12-22T10:30:00.000000000",
+          "net_pnl": -17439.34,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "SA_IDX",
+          "direction": -1,
+          "lots": 51,
+          "entry_price": 2065.0,
+          "entry_time": "2024-01-03T10:30:00.000000000",
+          "exit_price": 2066.25,
+          "exit_time": "2024-01-03T13:30:00.000000000",
+          "net_pnl": -1907.08,
+          "holding_bars": 3,
+          "reason": "BE_LOCK"
+        },
+        {
+          "symbol": "SA_IDX",
+          "direction": -1,
+          "lots": 56,
+          "entry_price": 1960.0,
+          "entry_time": "2024-02-02T21:00:00.000000000",
+          "exit_price": 1954.0,
+          "exit_time": "2024-02-02T22:30:00.000000000",
+          "net_pnl": 6062.45,
+          "holding_bars": 4,
+          "reason": "CHANDELIER_TRAIL"
+        }
+      ]
+    },
+    "FG_IDX": {
+      "symbol": "FG_IDX",
+      "name": "玻璃",
+      "sector": "建材玻璃",
+      "overall": {
+        "total_trades": 39,
+        "win_trades": 4,
+        "loss_trades": 35,
+        "net_profit": -484247.73,
+        "profit_factor": 0.11,
+        "win_rate": 0.1026,
+        "max_drawdown": 0.496,
+        "avg_trade_pnl": -12416.61
+      },
+      "train": {
+        "total_trades": 18,
+        "win_trades": 2,
+        "loss_trades": 16,
+        "net_profit": -228010.24,
+        "profit_factor": 0.1,
+        "win_rate": 0.1111,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -12667.24
+      },
+      "oos": {
+        "total_trades": 21,
+        "win_trades": 2,
+        "loss_trades": 19,
+        "net_profit": -256237.49,
+        "profit_factor": 0.12,
+        "win_rate": 0.0952,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -12201.79
+      },
+      "exit_reasons": {
+        "BE_LOCK": 4,
+        "CHANDELIER_TRAIL": 4,
+        "STOP_LOSS": 28,
+        "GAP_STOP_LOSS": 3
+      },
+      "trades_count": 39,
+      "trades_sample": [
+        {
+          "symbol": "FG_IDX",
+          "direction": -1,
+          "lots": 70,
+          "entry_price": 1735.0,
+          "entry_time": "2023-11-27T10:00:00.000000000",
+          "exit_price": 1736.75,
+          "exit_time": "2023-11-27T10:30:00.000000000",
+          "net_pnl": -3179.07,
+          "holding_bars": 2,
+          "reason": "BE_LOCK"
+        },
+        {
+          "symbol": "FG_IDX",
+          "direction": -1,
+          "lots": 60,
+          "entry_price": 1758.0,
+          "entry_time": "2023-11-28T09:30:00.000000000",
+          "exit_price": 1746.0,
+          "exit_time": "2023-11-28T14:30:00.000000000",
+          "net_pnl": 13769.28,
+          "holding_bars": 7,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "FG_IDX",
+          "direction": -1,
+          "lots": 80,
+          "entry_price": 1644.0,
+          "entry_time": "2024-03-05T10:00:00.000000000",
+          "exit_price": 1645.9,
+          "exit_time": "2024-03-05T14:00:00.000000000",
+          "net_pnl": -3829.58,
+          "holding_bars": 5,
+          "reason": "BE_LOCK"
+        }
+      ]
+    },
+    "RU_IDX": {
+      "symbol": "RU_IDX",
+      "name": "橡胶",
+      "sector": "能源化工",
+      "overall": {
+        "total_trades": 57,
+        "win_trades": 8,
+        "loss_trades": 49,
+        "net_profit": -470821.76,
+        "profit_factor": 0.41,
+        "win_rate": 0.1404,
+        "max_drawdown": 0.503,
+        "avg_trade_pnl": -8260.03
+      },
+      "train": {
+        "total_trades": 27,
+        "win_trades": 3,
+        "loss_trades": 24,
+        "net_profit": -256989.8,
+        "profit_factor": 0.34,
+        "win_rate": 0.1111,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -9518.14
+      },
+      "oos": {
+        "total_trades": 30,
+        "win_trades": 5,
+        "loss_trades": 25,
+        "net_profit": -213831.96,
+        "profit_factor": 0.47,
+        "win_rate": 0.1667,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -7127.73
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 33,
+        "CHANDELIER_TRAIL": 9,
+        "BE_LOCK": 10,
+        "GAP_STOP_LOSS": 5
+      },
+      "trades_count": 57,
+      "trades_sample": [
+        {
+          "symbol": "RU_IDX",
+          "direction": -1,
+          "lots": 41,
+          "entry_price": 13940.0,
+          "entry_time": "2023-11-27T13:30:00.000000000",
+          "exit_price": 13991.125,
+          "exit_time": "2023-11-27T13:30:00.000000000",
+          "net_pnl": -22679.01,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "RU_IDX",
+          "direction": 1,
+          "lots": 39,
+          "entry_price": 13445.0,
+          "entry_time": "2023-12-13T09:30:00.000000000",
+          "exit_price": 13391.75,
+          "exit_time": "2023-12-13T09:30:00.000000000",
+          "net_pnl": -22337.45,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "RU_IDX",
+          "direction": -1,
+          "lots": 37,
+          "entry_price": 13560.0,
+          "entry_time": "2023-12-18T13:30:00.000000000",
+          "exit_price": 13615.375,
+          "exit_time": "2023-12-18T14:30:00.000000000",
+          "net_pnl": -21996.98,
+          "holding_bars": 3,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "LC_IDX": {
+      "symbol": "LC_IDX",
+      "name": "碳酸锂",
+      "sector": "新能源",
+      "overall": {
+        "total_trades": 26,
+        "win_trades": 7,
+        "loss_trades": 19,
+        "net_profit": -95793.07,
+        "profit_factor": 0.62,
+        "win_rate": 0.2692,
+        "max_drawdown": 0.15,
+        "avg_trade_pnl": -3684.35
+      },
+      "train": {
+        "total_trades": 18,
+        "win_trades": 4,
+        "loss_trades": 14,
+        "net_profit": -89280.76,
+        "profit_factor": 0.53,
+        "win_rate": 0.2222,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -4960.04
+      },
+      "oos": {
+        "total_trades": 8,
+        "win_trades": 3,
+        "loss_trades": 5,
+        "net_profit": -6512.31,
+        "profit_factor": 0.89,
+        "win_rate": 0.375,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -814.04
+      },
+      "exit_reasons": {
+        "BE_LOCK": 7,
+        "STOP_LOSS": 10,
+        "CHANDELIER_TRAIL": 6,
+        "GAP_STOP_LOSS": 3
+      },
+      "trades_count": 26,
+      "trades_sample": [
+        {
+          "symbol": "LC_IDX",
+          "direction": 1,
+          "lots": 9,
+          "entry_price": 164650.0,
+          "entry_time": "2023-10-19T10:00:00.000000000",
+          "exit_price": 164672.5,
+          "exit_time": "2023-10-19T11:00:00.000000000",
+          "net_pnl": -242.09,
+          "holding_bars": 3,
+          "reason": "BE_LOCK"
+        },
+        {
+          "symbol": "LC_IDX",
+          "direction": -1,
+          "lots": 11,
+          "entry_price": 100300.0,
+          "entry_time": "2023-12-25T09:00:00.000000000",
+          "exit_price": 101746.25,
+          "exit_time": "2023-12-25T09:00:00.000000000",
+          "net_pnl": -16242.13,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "LC_IDX",
+          "direction": 1,
+          "lots": 15,
+          "entry_price": 114350.0,
+          "entry_time": "2024-03-14T14:30:00.000000000",
+          "exit_price": 113222.5,
+          "exit_time": "2024-03-14T14:30:00.000000000",
+          "net_pnl": -17424.54,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "SI_IDX": {
+      "symbol": "SI_IDX",
+      "name": "工业硅",
+      "sector": "新能源",
+      "overall": {
+        "total_trades": 42,
+        "win_trades": 9,
+        "loss_trades": 33,
+        "net_profit": -206849.64,
+        "profit_factor": 0.57,
+        "win_rate": 0.2143,
+        "max_drawdown": 0.287,
+        "avg_trade_pnl": -4924.99
+      },
+      "train": {
+        "total_trades": 31,
+        "win_trades": 5,
+        "loss_trades": 26,
+        "net_profit": -263937.19,
+        "profit_factor": 0.34,
+        "win_rate": 0.1613,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -8514.1
+      },
+      "oos": {
+        "total_trades": 11,
+        "win_trades": 4,
+        "loss_trades": 7,
+        "net_profit": 57087.55,
+        "profit_factor": 1.68,
+        "win_rate": 0.3636,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 5189.78
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 21,
+        "BE_LOCK": 9,
+        "GAP_STOP_LOSS": 4,
+        "CHANDELIER_TRAIL": 8
+      },
+      "trades_count": 42,
+      "trades_sample": [
+        {
+          "symbol": "SI_IDX",
+          "direction": -1,
+          "lots": 52,
+          "entry_price": 17855.0,
+          "entry_time": "2023-02-09T09:00:00.000000000",
+          "exit_price": 17927.375,
+          "exit_time": "2023-02-09T09:00:00.000000000",
+          "net_pnl": -20213.01,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "SI_IDX",
+          "direction": 1,
+          "lots": 45,
+          "entry_price": 17755.0,
+          "entry_time": "2023-02-16T11:00:00.000000000",
+          "exit_price": 17674.125,
+          "exit_time": "2023-02-16T14:30:00.000000000",
+          "net_pnl": -19392.61,
+          "holding_bars": 4,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "SI_IDX",
+          "direction": 1,
+          "lots": 67,
+          "entry_price": 17565.0,
+          "entry_time": "2023-02-27T14:30:00.000000000",
+          "exit_price": 17505.375,
+          "exit_time": "2023-02-27T14:30:00.000000000",
+          "net_pnl": -21736.66,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "CF_IDX": {
+      "symbol": "CF_IDX",
+      "name": "棉花",
+      "sector": "软商品",
+      "overall": {
+        "total_trades": 56,
+        "win_trades": 5,
+        "loss_trades": 51,
+        "net_profit": -713739.41,
+        "profit_factor": 0.2,
+        "win_rate": 0.0893,
+        "max_drawdown": 0.7137,
+        "avg_trade_pnl": -12745.35
+      },
+      "train": {
+        "total_trades": 38,
+        "win_trades": 4,
+        "loss_trades": 34,
+        "net_profit": -419474.95,
+        "profit_factor": 0.29,
+        "win_rate": 0.1053,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -11038.81
+      },
+      "oos": {
+        "total_trades": 18,
+        "win_trades": 1,
+        "loss_trades": 17,
+        "net_profit": -294264.46,
+        "profit_factor": 0.0,
+        "win_rate": 0.0556,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -16348.03
+      },
+      "exit_reasons": {
+        "GAP_STOP_LOSS": 9,
+        "STOP_LOSS": 34,
+        "CHANDELIER_TRAIL": 8,
+        "BE_LOCK": 5
+      },
+      "trades_count": 56,
+      "trades_sample": [
+        {
+          "symbol": "CF_IDX",
+          "direction": -1,
+          "lots": 83,
+          "entry_price": 15365.0,
+          "entry_time": "2023-12-14T09:00:00.000000000",
+          "exit_price": 15380.0,
+          "exit_time": "2023-12-14T10:00:00.000000000",
+          "net_pnl": -8138.88,
+          "holding_bars": 3,
+          "reason": "GAP_STOP_LOSS"
+        },
+        {
+          "symbol": "CF_IDX",
+          "direction": -1,
+          "lots": 74,
+          "entry_price": 15570.0,
+          "entry_time": "2024-01-11T14:30:00.000000000",
+          "exit_price": 15625.375,
+          "exit_time": "2024-01-11T21:00:00.000000000",
+          "net_pnl": -22220.09,
+          "holding_bars": 2,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "CF_IDX",
+          "direction": 1,
+          "lots": 78,
+          "entry_price": 16015.0,
+          "entry_time": "2024-01-29T09:30:00.000000000",
+          "exit_price": 15961.75,
+          "exit_time": "2024-01-29T09:30:00.000000000",
+          "net_pnl": -22638.14,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "SR_IDX": {
+      "symbol": "SR_IDX",
+      "name": "白糖",
+      "sector": "软商品",
+      "overall": {
+        "total_trades": 45,
+        "win_trades": 7,
+        "loss_trades": 38,
+        "net_profit": -370752.24,
+        "profit_factor": 0.23,
+        "win_rate": 0.1556,
+        "max_drawdown": 0.4113,
+        "avg_trade_pnl": -8238.94
+      },
+      "train": {
+        "total_trades": 26,
+        "win_trades": 3,
+        "loss_trades": 23,
+        "net_profit": -215375.44,
+        "profit_factor": 0.3,
+        "win_rate": 0.1154,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -8283.67
+      },
+      "oos": {
+        "total_trades": 19,
+        "win_trades": 4,
+        "loss_trades": 15,
+        "net_profit": -155376.8,
+        "profit_factor": 0.09,
+        "win_rate": 0.2105,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -8177.73
+      },
+      "exit_reasons": {
+        "CHANDELIER_TRAIL": 8,
+        "STOP_LOSS": 29,
+        "BE_LOCK": 6,
+        "GAP_STOP_LOSS": 2
+      },
+      "trades_count": 45,
+      "trades_sample": [
+        {
+          "symbol": "SR_IDX",
+          "direction": -1,
+          "lots": 100,
+          "entry_price": 6862.0,
+          "entry_time": "2023-11-24T21:30:00.000000000",
+          "exit_price": 6818.4,
+          "exit_time": "2023-11-27T14:30:00.000000000",
+          "net_pnl": 41547.94,
+          "holding_bars": 11,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "SR_IDX",
+          "direction": -1,
+          "lots": 86,
+          "entry_price": 6240.0,
+          "entry_time": "2023-12-22T13:30:00.000000000",
+          "exit_price": 6260.425,
+          "exit_time": "2023-12-22T13:30:00.000000000",
+          "net_pnl": -19178.05,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "SR_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 6279.0,
+          "entry_time": "2024-01-10T10:30:00.000000000",
+          "exit_price": 6262.825,
+          "exit_time": "2024-01-10T10:30:00.000000000",
+          "net_pnl": -18056.27,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "C_IDX": {
+      "symbol": "C_IDX",
+      "name": "玉米",
+      "sector": "农产品",
+      "overall": {
+        "total_trades": 34,
+        "win_trades": 0,
+        "loss_trades": 34,
+        "net_profit": -257078.82,
+        "profit_factor": 0.0,
+        "win_rate": 0.0,
+        "max_drawdown": 0.2571,
+        "avg_trade_pnl": -7561.14
+      },
+      "train": {
+        "total_trades": 19,
+        "win_trades": 0,
+        "loss_trades": 19,
+        "net_profit": -150248.1,
+        "profit_factor": 0.0,
+        "win_rate": 0.0,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -7907.79
+      },
+      "oos": {
+        "total_trades": 15,
+        "win_trades": 0,
+        "loss_trades": 15,
+        "net_profit": -106830.72,
+        "profit_factor": 0.0,
+        "win_rate": 0.0,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -7122.05
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 31,
+        "CHANDELIER_TRAIL": 1,
+        "GAP_STOP_LOSS": 1,
+        "BE_LOCK": 1
+      },
+      "trades_count": 34,
+      "trades_sample": [
+        {
+          "symbol": "C_IDX",
+          "direction": -1,
+          "lots": 100,
+          "entry_price": 2455.0,
+          "entry_time": "2023-12-15T10:00:00.000000000",
+          "exit_price": 2461.825,
+          "exit_time": "2023-12-15T10:00:00.000000000",
+          "net_pnl": -7562.52,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "C_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 2408.0,
+          "entry_time": "2024-01-05T09:00:00.000000000",
+          "exit_price": 2399.475,
+          "exit_time": "2024-01-05T09:00:00.000000000",
+          "net_pnl": -9246.12,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "C_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 2456.0,
+          "entry_time": "2024-02-27T10:00:00.000000000",
+          "exit_price": 2448.325,
+          "exit_time": "2024-02-27T10:00:00.000000000",
+          "net_pnl": -8410.65,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "M_IDX": {
+      "symbol": "M_IDX",
+      "name": "豆粕",
+      "sector": "农产品",
+      "overall": {
+        "total_trades": 44,
+        "win_trades": 4,
+        "loss_trades": 40,
+        "net_profit": -424784.36,
+        "profit_factor": 0.07,
+        "win_rate": 0.0909,
+        "max_drawdown": 0.4293,
+        "avg_trade_pnl": -9654.19
+      },
+      "train": {
+        "total_trades": 25,
+        "win_trades": 4,
+        "loss_trades": 21,
+        "net_profit": -225166.87,
+        "profit_factor": 0.12,
+        "win_rate": 0.16,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -9006.67
+      },
+      "oos": {
+        "total_trades": 19,
+        "win_trades": 0,
+        "loss_trades": 19,
+        "net_profit": -199617.49,
+        "profit_factor": 0.0,
+        "win_rate": 0.0,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -10506.18
+      },
+      "exit_reasons": {
+        "BE_LOCK": 3,
+        "STOP_LOSS": 30,
+        "GAP_STOP_LOSS": 6,
+        "CHANDELIER_TRAIL": 5
+      },
+      "trades_count": 44,
+      "trades_sample": [
+        {
+          "symbol": "M_IDX",
+          "direction": -1,
+          "lots": 100,
+          "entry_price": 3366.0,
+          "entry_time": "2023-12-28T10:00:00.000000000",
+          "exit_price": 3367.85,
+          "exit_time": "2023-12-28T14:30:00.000000000",
+          "net_pnl": -2860.08,
+          "holding_bars": 6,
+          "reason": "BE_LOCK"
+        },
+        {
+          "symbol": "M_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 3049.0,
+          "entry_time": "2024-01-25T21:00:00.000000000",
+          "exit_price": 3037.5,
+          "exit_time": "2024-01-25T21:00:00.000000000",
+          "net_pnl": -12412.98,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "M_IDX",
+          "direction": 1,
+          "lots": 100,
+          "entry_price": 2983.0,
+          "entry_time": "2024-02-07T14:30:00.000000000",
+          "exit_price": 2965.0,
+          "exit_time": "2024-02-07T21:00:00.000000000",
+          "net_pnl": -18892.2,
+          "holding_bars": 2,
+          "reason": "GAP_STOP_LOSS"
+        }
+      ]
+    },
+    "Y_IDX": {
+      "symbol": "Y_IDX",
+      "name": "豆油",
+      "sector": "油脂油料",
+      "overall": {
+        "total_trades": 44,
+        "win_trades": 7,
+        "loss_trades": 37,
+        "net_profit": -590870.78,
+        "profit_factor": 0.23,
+        "win_rate": 0.1591,
+        "max_drawdown": 0.6083,
+        "avg_trade_pnl": -13428.88
+      },
+      "train": {
+        "total_trades": 22,
+        "win_trades": 5,
+        "loss_trades": 17,
+        "net_profit": -261194.26,
+        "profit_factor": 0.3,
+        "win_rate": 0.2273,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -11872.47
+      },
+      "oos": {
+        "total_trades": 22,
+        "win_trades": 2,
+        "loss_trades": 20,
+        "net_profit": -329676.52,
+        "profit_factor": 0.15,
+        "win_rate": 0.0909,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -14985.3
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 29,
+        "CHANDELIER_TRAIL": 6,
+        "BE_LOCK": 4,
+        "GAP_STOP_LOSS": 5
+      },
+      "trades_count": 44,
+      "trades_sample": [
+        {
+          "symbol": "Y_IDX",
+          "direction": 1,
+          "lots": 58,
+          "entry_price": 8172.0,
+          "entry_time": "2023-12-01T10:00:00.000000000",
+          "exit_price": 8140.5,
+          "exit_time": "2023-12-01T10:00:00.000000000",
+          "net_pnl": -19689.19,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "Y_IDX",
+          "direction": 1,
+          "lots": 63,
+          "entry_price": 7400.0,
+          "entry_time": "2024-01-17T22:30:00.000000000",
+          "exit_price": 7474.0,
+          "exit_time": "2024-01-18T10:00:00.000000000",
+          "net_pnl": 45214.41,
+          "holding_bars": 4,
+          "reason": "CHANDELIER_TRAIL"
+        },
+        {
+          "symbol": "Y_IDX",
+          "direction": 1,
+          "lots": 55,
+          "entry_price": 7808.0,
+          "entry_time": "2024-04-08T10:00:00.000000000",
+          "exit_price": 7774.8,
+          "exit_time": "2024-04-08T11:00:00.000000000",
+          "net_pnl": -19545.58,
+          "holding_bars": 3,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    },
+    "P_IDX": {
+      "symbol": "P_IDX",
+      "name": "棕榈油",
+      "sector": "油脂油料",
+      "overall": {
+        "total_trades": 47,
+        "win_trades": 20,
+        "loss_trades": 27,
+        "net_profit": -3109.24,
+        "profit_factor": 0.99,
+        "win_rate": 0.4255,
+        "max_drawdown": 0.156,
+        "avg_trade_pnl": -66.15
+      },
+      "train": {
+        "total_trades": 26,
+        "win_trades": 12,
+        "loss_trades": 14,
+        "net_profit": 124757.47,
+        "profit_factor": 1.61,
+        "win_rate": 0.4615,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": 4798.36
+      },
+      "oos": {
+        "total_trades": 21,
+        "win_trades": 8,
+        "loss_trades": 13,
+        "net_profit": -127866.71,
+        "profit_factor": 0.44,
+        "win_rate": 0.381,
+        "max_drawdown": 0.0,
+        "avg_trade_pnl": -6088.89
+      },
+      "exit_reasons": {
+        "STOP_LOSS": 20,
+        "CHANDELIER_TRAIL": 18,
+        "GAP_STOP_LOSS": 6,
+        "BE_LOCK": 3
+      },
+      "trades_count": 47,
+      "trades_sample": [
+        {
+          "symbol": "P_IDX",
+          "direction": -1,
+          "lots": 58,
+          "entry_price": 7558.0,
+          "entry_time": "2023-11-14T22:30:00.000000000",
+          "exit_price": 7589.5,
+          "exit_time": "2023-11-14T22:30:00.000000000",
+          "net_pnl": -19587.83,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "P_IDX",
+          "direction": 1,
+          "lots": 39,
+          "entry_price": 7424.0,
+          "entry_time": "2023-11-21T21:00:00.000000000",
+          "exit_price": 7379.75,
+          "exit_time": "2023-11-21T21:00:00.000000000",
+          "net_pnl": -18123.52,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        },
+        {
+          "symbol": "P_IDX",
+          "direction": 1,
+          "lots": 58,
+          "entry_price": 7076.0,
+          "entry_time": "2023-12-21T22:00:00.000000000",
+          "exit_price": 7044.5,
+          "exit_time": "2023-12-21T22:00:00.000000000",
+          "net_pnl": -19498.48,
+          "holding_bars": 1,
+          "reason": "STOP_LOSS"
+        }
+      ]
+    }
+  },
+  "summary": {
+    "total_trades": 1120,
+    "win_rate_1x_pct": 34.11,
+    "net_pnl_0x": 1171418.06,
+    "net_pnl_1x": -1982383.35,
+    "net_pnl_3x": -8370539.68,
+    "train_pnl_1x": -350019.82,
+    "oos_pnl_1x": -1632363.53,
+    "oos_positive_count": 3,
+    "total_symbols": 25,
+    "exit_reasons": {
+      "CHANDELIER_TRAIL": 251,
+      "STOP_LOSS": 521,
+      "GAP_STOP_LOSS": 170,
+      "BE_LOCK": 175,
+      "STRUCTURAL_RUPTURE": 3
+    }
+  }
+}
