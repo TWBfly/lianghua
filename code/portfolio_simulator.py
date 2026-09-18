@@ -90,7 +90,10 @@ def _buy_cost(shares, raw_price, fees, max_price=None,
     return fill_price, gross, commission + transfer
 
 
-def _stamp_duty_rate(fees, date):
+def _stamp_duty_rate(fees, date, symbol=""):
+    sym = str(symbol).strip().upper().split(".")[0]
+    if sym.startswith(("51", "15", "58", "56", "16")):
+        return 0.0
     return (
         fees.stamp_duty_rate_before_cutover
         if pd.Timestamp(date) < pd.Timestamp(fees.stamp_duty_cutover)
@@ -112,7 +115,7 @@ def _sell_proceeds(shares, raw_price, fees, date, min_price=None, symbol="", dai
     gross = shares * fill_price
     commission = max(fees.min_commission, gross * fees.commission_rate)
     transfer = gross * _transfer_fee_rate(fees, symbol, date)
-    stamp = gross * _stamp_duty_rate(fees, date)
+    stamp = gross * _stamp_duty_rate(fees, date, symbol)
     total_fees = commission + transfer + stamp
     return fill_price, gross, total_fees, gross - total_fees
 
@@ -223,7 +226,7 @@ def _close_position(symbol, position, order, date, raw_price,
     transfer_fee = gross * _transfer_fee_rate(
         fee_schedule, symbol, date
     )
-    stamp_duty = gross * _stamp_duty_rate(fee_schedule, date)
+    stamp_duty = gross * _stamp_duty_rate(fee_schedule, date, symbol)
     pnl = net_proceeds - (position.entry_value + position.buy_fees)
     fill = {
         "decision_id": order["decision_id"],

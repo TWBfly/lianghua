@@ -48,24 +48,12 @@ logger.addHandler(fh)
 logger.addHandler(ch)
 
 
+from runtime_credentials import load_required_credentials
+
+
 def get_tq_credentials():
     """从 .env 读取天勤量化凭据"""
-    env_path = PROJECT_ROOT / ".env"
-    account = ""
-    password = ""
-    if env_path.exists():
-        with open(env_path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if "账号" in line or "TQ_ACCOUNT" in line:
-                    parts = line.replace("：", ":").split(":")
-                    if len(parts) > 1:
-                        account = parts[1].strip()
-                elif "密码" in line or "TQ_PASSWORD" in line:
-                    parts = line.replace("：", ":").split(":")
-                    if len(parts) > 1:
-                        password = parts[1].strip()
-    return account or "13800000000", password or "redacted_password"
+    return load_required_credentials(PROJECT_ROOT / ".env")
 
 
 class Decoupled15mVirtualTrader:

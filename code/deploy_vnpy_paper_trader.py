@@ -108,14 +108,17 @@ class VnpyPaperEngine:
             "balance": self.balance,
             "available": self.available,
             "positions": self.positions,
+            "position_costs": getattr(self, "position_costs", {}),
             "updated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
         with open(self.state_file, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
-    def log_trade(self, trade: TradeData, turnover: float, commission: float):
+    def log_trade(self, trade: TradeData, turnover: float, commission: float, pnl: float = 0.0, entry_price: float = None, entry_time: str = None):
         """记录成交台账至 CSV 与 SQLite 数据库"""
         dt_str = trade.datetime.strftime("%Y-%m-%d %H:%M:%S") if isinstance(trade.datetime, datetime.datetime) else str(trade.datetime)
+        e_price = entry_price if entry_price is not None else trade.price
+        e_time = entry_time if entry_time is not None else dt_str
         row = {
             "datetime": dt_str,
             "symbol": trade.symbol,
@@ -126,6 +129,7 @@ class VnpyPaperEngine:
             "volume": trade.volume,
             "turnover": turnover,
             "commission": commission,
+            "pnl": pnl,
             "balance": self.balance
         }
         df_row = pd.DataFrame([row])
@@ -170,14 +174,14 @@ class VnpyPaperEngine:
                     trade.direction.value,
                     trade.offset.value,
                     f"{trade.direction.value}{trade.offset.value}",
-                    dt_str,
-                    trade.price,
+                    e_time,
+                    e_price,
                     dt_str,
                     trade.price,
                     int(trade.volume),
-                    0.0,
-                    0.0,
-                    f"实盘成交: 价格 {trade.price} 数量 {trade.volume}手",
+                    float(pnl),
+                    float((pnl / (e_price * trade.volume * 10.0) * 100.0) if (e_price and trade.volume) else 0.0),
+                    f"实盘成交: 价格 {trade.price} 数量 {trade.volume}手 PnL: ¥{pnl:+.2f}",
                     datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 ))
                 conn.commit()
@@ -268,9 +272,52 @@ class VnpyPaperEngine:
                 turnover = trade.price * trade.volume * contract_size
                 commission = turnover * self.rate
                 self.balance -= commission
+                if hasattr(self, "available"):
+                    self.available -= commission
 
-                # 更新持仓
+                # 更新持仓与盈亏结转 (Realized PnL)
                 curr_pos = self.positions.get(vt_symbol, 0.0)
+                realized_pnl = 0.0
+                entry_price_for_record = trade.price
+                entry_time_for_record = trade.datetime.strftime("%Y-%m-%d %H:%M:%S") if isinstance(trade.datetime, datetime.datetime) else str(trade.datetime)
+
+                if not hasattr(self, "position_costs") or self.position_costs is None:
+                    self.position_costs = {}
+                costs = self.position_costs.setdefault(vt_symbol, [])
+
+                if trade.offset in (Offset.CLOSE, Offset.CLOSETODAY, Offset.CLOSEYESTERDAY):
+                    remain_vol = trade.volume
+                    matched_cost_sum = 0.0
+                    matched_vol_sum = 0.0
+                    while costs and remain_vol > 0:
+                        first_pos = costs[0]
+                        match_vol = min(first_pos["volume"], remain_vol)
+                        matched_cost_sum += first_pos["price"] * match_vol
+                        matched_vol_sum += match_vol
+                        entry_time_for_record = first_pos.get("time", entry_time_for_record)
+                        first_pos["volume"] -= match_vol
+                        remain_vol -= match_vol
+                        if first_pos["volume"] <= 1e-6:
+                            costs.pop(0)
+
+                    if matched_vol_sum > 0:
+                        entry_price_for_record = matched_cost_sum / matched_vol_sum
+                        if trade.direction == Direction.LONG:  # 平空买入
+                            realized_pnl = (entry_price_for_record - trade.price) * matched_vol_sum * contract_size
+                        else:  # 平多卖出
+                            realized_pnl = (trade.price - entry_price_for_record) * matched_vol_sum * contract_size
+
+                    self.balance += realized_pnl
+                    if hasattr(self, "available"):
+                        self.available += realized_pnl
+                else:
+                    costs.append({
+                        "price": trade.price,
+                        "volume": trade.volume,
+                        "direction": trade.direction.value,
+                        "time": entry_time_for_record
+                    })
+
                 if trade.direction == Direction.LONG:
                     curr_pos += trade.volume
                 else:
@@ -283,7 +330,7 @@ class VnpyPaperEngine:
                     strat.on_order(order)
                     strat.on_trade(trade)
 
-                self.log_trade(trade, turnover, commission)
+                self.log_trade(trade, turnover, commission, pnl=realized_pnl, entry_price=entry_price_for_record, entry_time=entry_time_for_record)
                 self.save_state()
                 logger.info(f"🎉 [虚拟盘成交] {vt_symbol} {trade.direction.value}{trade.offset.value} | 成交价: {trade_price} | 数量: {trade.volume}手 | 当前持仓: {curr_pos}手")
 

@@ -15,6 +15,7 @@ interface BacktestControlBarProps {
 
 const STRATEGY_OPTIONS = [
   // 🌟 自研顶级星宿与物理相变矩阵 (第一梯队)
+  { id: 'adaptive_regime_evolution', name: '🌌 【开阳·三阶演化】状态识别 × 延续预测 × 自适应路由' },
   { id: 'rc_lsr', name: '💎 【RC-LSR·流动性冲击】极端位移 × 边际吸收 × 截面广度' },
   { id: 'tianquan_extreme_phase_reversal', name: '⚖️ 【天权·极值相变】做市商吸收 × 持仓衰竭 × 动态吊灯' },
   { id: 'taichong_elastoplastic_tensor', name: '🔮 【太冲·弹塑性】协方差白化 × 微观谐振 × 相变自适应' },
@@ -177,9 +178,9 @@ export const BacktestControlBar: React.FC<BacktestControlBarProps> = ({
 
           {/* Order Sizing / Fixed Lots */}
           <div className="flex items-center gap-1.5 bg-[#0d1117] border border-[#30363d] rounded-md px-2.5 py-1">
-            <span className="text-[#8b949e]">开仓手数:</span>
+            <span className="text-[#8b949e]">开仓规模:</span>
             <select
-              value={requestParams.fixed_lots ?? 1}
+              value={requestParams.fixed_lots ?? -1}
               onChange={(e) => {
                 const lots = parseInt(e.target.value, 10);
                 onChangeParams({ fixed_lots: lots });
@@ -187,8 +188,11 @@ export const BacktestControlBar: React.FC<BacktestControlBarProps> = ({
               }}
               className="bg-transparent text-[#58a6ff] font-bold focus:outline-none cursor-pointer"
             >
+              <option value={-1} className="bg-[#161b22] text-[#58a6ff] font-semibold">
+                ⚖️ 名义价值对齐 (¥30万/笔 · 推荐)
+              </option>
               <option value={1} className="bg-[#161b22] text-[#f0f6fc]">
-                固定 1 手 (严谨标杆)
+                固定 1 手 (纯点数标杆)
               </option>
               <option value={2} className="bg-[#161b22] text-[#f0f6fc]">
                 固定 2 手
@@ -200,7 +204,7 @@ export const BacktestControlBar: React.FC<BacktestControlBarProps> = ({
                 固定 5 手
               </option>
               <option value={0} className="bg-[#161b22] text-[#8b949e]">
-                动态资金 (40%占保)
+                动态资金 (40%占保 · 账户复利)
               </option>
             </select>
           </div>

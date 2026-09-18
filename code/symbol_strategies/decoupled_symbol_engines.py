@@ -398,6 +398,7 @@ class DecoupledSymbolStrategyRunner:
 
         for i in range(train_window, n_samples - 1):
             curr_p = close_arr[i]
+            curr_o = open_arr[i]
             next_o = open_arr[i + 1]
             curr_h = high_arr[i]
             curr_l = low_arr[i]

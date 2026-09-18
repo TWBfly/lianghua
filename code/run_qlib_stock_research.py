@@ -23,7 +23,10 @@ PROJECT_ROOT = CODE_DIR.parent
 if str(CODE_DIR) not in sys.path:
     sys.path.insert(0, str(CODE_DIR))
 
-import qlib_model_adapter
+try:
+    import qlib_model_adapter
+except ImportError:
+    qlib_model_adapter = None
 from qlib_ashare_adapter import (
     load_ashare_dataset,
     STOCK_FEATURE_COLUMNS,
@@ -95,6 +98,7 @@ def run_topk_backtest(
     positions: Dict[str, int] = {}  # symbol -> shares
     daily_records = []
     peak_equity = initial_cash
+    last_known_prices: Dict[str, float] = {}
 
     # Pivot test_df for fast daily price lookups
     prices = test_df.pivot(index="trade_date", columns="symbol", values="close")
@@ -102,6 +106,9 @@ def run_topk_backtest(
 
     for i, date in enumerate(dates):
         current_prices = prices.loc[date].dropna()
+        for sym, p in current_prices.items():
+            if p > 0:
+                last_known_prices[sym] = float(p)
         current_scores = scores.loc[date].dropna() if date in scores.index else pd.Series(dtype=float)
 
         # 1. Rebalance on schedule
@@ -113,18 +120,20 @@ def run_topk_backtest(
             # Pick top-K candidates
             target_symbols = current_scores.nlargest(top_k).index.tolist()
             
-            # Current equity before rebalance
-            stock_value = sum(positions.get(s, 0) * current_prices.get(s, 0.0) for s in positions)
+            # Current equity before rebalance (E04: 缺价时使用 last_known_prices 估值)
+            stock_value = sum(positions.get(s, 0) * current_prices.get(s, last_known_prices.get(s, 0.0)) for s in positions)
             total_equity = cash + stock_value
 
             # Target position value per stock
             target_value_per_stock = total_equity / top_k
 
-            # Sell exiting positions
+            # Sell exiting positions (E04: 停牌缺价无法卖出，保留持仓不按 0 爆仓)
             for sym in list(positions.keys()):
                 if sym not in target_symbols:
-                    shares = positions.pop(sym)
                     p = current_prices.get(sym, 0.0)
+                    if p <= 0:
+                        continue
+                    shares = positions.pop(sym)
                     gross = shares * p
                     cost = gross * (commission_rate + stamp_duty_rate + slippage_rate)
                     cash += (gross - cost)
@@ -150,8 +159,8 @@ def run_topk_backtest(
                         trading_cost += cost
                         turnover += gross
 
-        # 2. Mark-to-market daily valuation
-        stock_value = sum(positions.get(s, 0) * current_prices.get(s, 0.0) for s in positions)
+        # 2. Mark-to-market daily valuation (E04: 缺价使用 last_known_prices 估值)
+        stock_value = sum(positions.get(s, 0) * current_prices.get(s, last_known_prices.get(s, 0.0)) for s in positions)
         equity = cash + stock_value
         peak_equity = max(peak_equity, equity)
         drawdown = (peak_equity - equity) / peak_equity if peak_equity > 0 else 0.0

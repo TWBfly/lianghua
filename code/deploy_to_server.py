@@ -1,5 +1,5 @@
 """
-code/deploy_to_server.py — 将「太冲·弹塑性张量」双战队与 Web 监控系统自动化推送到远程服务器 (127.0.0.1 / 739265.xyz)
+code/deploy_to_server.py — 将「太冲·弹塑性张量」双战队与 Web 监控系统自动化推送到远程服务器
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ def load_env_server_config(env_file=None):
     env_file = Path(env_file) if env_file else PROJECT_ROOT / ".env"
     # ponytail: 硬编码配置仅作为 fallback，优先从 .env 读取
     cfg = {
-        "host": "127.0.0.1",
+        "host": os.environ.get("SERVER_IP", "127.0.0.1"),
         "port": 22,
         "user": "root",
         "password": "",

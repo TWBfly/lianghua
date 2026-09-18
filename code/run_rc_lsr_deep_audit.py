@@ -215,34 +215,42 @@ def simulate_single_symbol(
         prev_sig = sigs[i - 1]
         if position == 0 and prev_sig != 0:
             cur_atr = max(atrs[i - 1], opens[i] * 0.001)
-            risk_amount = initial_capital * risk_pct
+            risk_amount = capital * risk_pct
             sl_dist = 0.85 * cur_atr  # 与 Rust 引擎对齐 0.85 ATR
             unit_risk = sl_dist * contract_mult
             calc_lots = int(risk_amount / max(unit_risk, 1.0))
-            calc_lots = max(1, min(calc_lots, 100))
 
-            if prev_sig == 1:
-                position = 1
-                lots = calc_lots
-                entry_price = opens[i] + slippage
-                stop_loss = entry_price - sl_dist
-                highest_price = entry_price
-                lowest_price = entry_price
-                be_locked = False
-                chandelier_active = False
-                holding_bars = 0
-                entry_bar_idx = i
-            elif prev_sig == -1:
-                position = -1
-                lots = calc_lots
-                entry_price = opens[i] - slippage
-                stop_loss = entry_price + sl_dist
-                highest_price = entry_price
-                lowest_price = entry_price
-                be_locked = False
-                chandelier_active = False
-                holding_bars = 0
-                entry_bar_idx = i
+            # S03: 增加真实保证金硬约束 (Margin Constraint)
+            margin_rate = spec.get("margin_rate", 0.10)
+            margin_per_lot = opens[i] * contract_mult * margin_rate
+            max_margin_lots = int(capital / margin_per_lot) if margin_per_lot > 0 else 0
+            calc_lots = min(calc_lots, max_margin_lots)
+            calc_lots = min(calc_lots, 100)
+
+            # 资金不足开 1 手时拒单，允许 0 手 (S03)
+            if calc_lots > 0:
+                if prev_sig == 1:
+                    position = 1
+                    lots = calc_lots
+                    entry_price = opens[i] + slippage
+                    stop_loss = entry_price - sl_dist
+                    highest_price = entry_price
+                    lowest_price = entry_price
+                    be_locked = False
+                    chandelier_active = False
+                    holding_bars = 0
+                    entry_bar_idx = i
+                elif prev_sig == -1:
+                    position = -1
+                    lots = calc_lots
+                    entry_price = opens[i] - slippage
+                    stop_loss = entry_price + sl_dist
+                    highest_price = entry_price
+                    lowest_price = entry_price
+                    be_locked = False
+                    chandelier_active = False
+                    holding_bars = 0
+                    entry_bar_idx = i
 
         # ----------------------------------------------------
         # 3. 盘中与收盘持仓逻辑评估 (悲观止损优先 + 吊灯追踪)
@@ -402,14 +410,19 @@ def simulate_single_symbol(
         equity_curve[-1] = capital
 
     # ----------------------------------------------------
-    # 6. 分段统计 (全样本 vs 训练段 vs 样本外盲测段)
+    # 6. 分段统计 (全样本 vs 训练段 vs 样本外盲测段, S02)
     # ----------------------------------------------------
     train_trades = [t for t in trades if t["entry_time"] < OOS_SPLIT_DATE]
     oos_trades = [t for t in trades if t["entry_time"] >= OOS_SPLIT_DATE]
 
+    # S02: 提取对应时段的真实权益子序列，防止分段回撤恒为 0
+    oos_mask = [str(t) >= OOS_SPLIT_DATE for t in times]
+    train_equity = [eq for eq, m in zip(equity_curve, oos_mask) if not m]
+    oos_equity = [eq for eq, m in zip(equity_curve, oos_mask) if m]
+
     overall_stats = compute_stats(trades, equity_curve)
-    train_stats = compute_stats(train_trades)
-    oos_stats = compute_stats(oos_trades)
+    train_stats = compute_stats(train_trades, train_equity)
+    oos_stats = compute_stats(oos_trades, oos_equity)
 
     exit_reasons = {}
     for t in trades:

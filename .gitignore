@@ -2,6 +2,9 @@
 mt5/exports/
 mt5/results/
 .env
+.env.*
+.cache_mpl/
+reports/
 __pycache__/
 *.pyc
 *.db
@@ -16,6 +19,7 @@ data/*.xls
 data/*_state.json
 data/*_status.json
 data/*.signal
+data/*.lock
 scratch/
 .DS_Store
 vnpy/

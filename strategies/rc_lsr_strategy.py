@@ -46,8 +46,10 @@ def _get_breadth_series(index: pd.DatetimeIndex) -> tuple[np.ndarray, np.ndarray
 
     n = len(index)
     if _CACHED_BREADTH_DF is not None and not _CACHED_BREADTH_DF.empty:
-        # 纯因果对齐 (left join)，缺失时 Fail-Closed 兜底 1.0 (全市场恐慌禁止开仓)
+        # 纯因果对齐 (left join)，缺失或样本不足时 Fail-Closed 兜底 1.0 (全市场恐慌禁止开仓, S01)
         matched = pd.DataFrame(index=index).join(_CACHED_BREADTH_DF, how="left")
+        if "active_symbols" in matched.columns:
+            matched.loc[matched["active_symbols"] < 5, ["down_breadth", "up_breadth"]] = np.nan
         down_b = matched["down_breadth"].fillna(1.0).values
         up_b = matched["up_breadth"].fillna(1.0).values
         return down_b, up_b

@@ -79,8 +79,9 @@ class AShareFactorPipeline:
         targets = df_factors['target_5d_return'].values
 
         X, Y = [], []
-        for i in range(window_size, len(features)):
-            X.append(features[i - window_size:i])
+        valid_len = len(features) - 5  # ponytail: target_5d_return last 5 rows are NaN
+        for i in range(window_size, valid_len):
+            X.append(features[i - window_size + 1:i + 1])  # ponytail: include bar i in observation
             Y.append(targets[i])
 
         X = np.array(X)

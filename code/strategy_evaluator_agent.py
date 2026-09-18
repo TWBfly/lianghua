@@ -141,6 +141,10 @@ class StrategyEvaluatorAgent:
             hard_fails.append(f"全市场品种盈利覆盖率过低 ({profitable_ratio*100:.1f}% < 80.0%) - 多数标的处于亏损磨损状态，严禁准入")
         if total_pnl <= 0:
             hard_fails.append("全市场累计净利润为负 (Total PnL <= 0) - 无法覆盖摩擦成本")
+        if total_trades_count < 30:
+            hard_fails.append(f"交易样本量严重不足 ({total_trades_count} < 30 笔) - 缺乏大数定律统计显著性，触发硬否决门槛")
+        if max_drawdown_pct > 15.0:
+            hard_fails.append(f"最大回撤超标 ({max_drawdown_pct:.1f}% > 15.0%) - 尾部风控失控，触发回撤硬否决门槛")
 
         # ----------------------------------------------------------------------
         # 1. Prediction Quality & Alpha (25 pt)

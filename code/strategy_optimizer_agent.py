@@ -235,26 +235,27 @@ class StrategyOptimizerAgent:
                 current_date = bar_date
                 daily_start_equity = m2m
 
+            exited_this_bar = False
             if pos > 0:
                 highest_price = max(highest_price, h[i])
                 exit_triggered = False
                 exit_price = 0.0
 
-                if tp_atr_mult > 0 and h[i] >= entry_price + tp_atr_mult * entry_atr:
+                # 悲观优先：先检查止损防守边界
+                if l[i] <= stop_price:
+                    exit_triggered = True
+                    exit_price = min(o[i], stop_price) - slippage_cost
+                elif tp_atr_mult > 0 and h[i] >= entry_price + tp_atr_mult * entry_atr:
                     exit_triggered = True
                     exit_price = min(h[i], entry_price + tp_atr_mult * entry_atr) - slippage_cost
+                elif short_sig[i-1]:
+                    exit_triggered = True
+                    exit_price = o[i] - slippage_cost
                 else:
                     if (highest_price - entry_price) >= be_atr_mult * entry_atr:
                         stop_price = max(stop_price, entry_price + 0.1 * entry_atr)
-                    dyn_trail = highest_price - trail_atr_mult * atr14[i]
+                    dyn_trail = highest_price - trail_atr_mult * (atr14[i-1] if i > 0 else atr14[0])
                     stop_price = max(stop_price, dyn_trail)
-
-                    if l[i] <= stop_price:
-                        exit_triggered = True
-                        exit_price = min(o[i], stop_price) - slippage_cost
-                    elif short_sig[i-1]:
-                        exit_triggered = True
-                        exit_price = o[i] - slippage_cost
 
                 if exit_triggered:
                     fee = exit_price * (pos * mult) * fee_rate
@@ -262,27 +263,28 @@ class StrategyOptimizerAgent:
                     cash += pnl
                     trades.append({"is_win": pnl > 0, "pnl": pnl})
                     pos = 0.0
+                    exited_this_bar = True
 
             elif pos < 0:
                 lowest_price = min(lowest_price, l[i])
                 exit_triggered = False
                 exit_price = 0.0
 
-                if tp_atr_mult > 0 and l[i] <= entry_price - tp_atr_mult * entry_atr:
+                # 悲观优先：先检查止损防守边界
+                if h[i] >= stop_price:
+                    exit_triggered = True
+                    exit_price = max(o[i], stop_price) + slippage_cost
+                elif tp_atr_mult > 0 and l[i] <= entry_price - tp_atr_mult * entry_atr:
                     exit_triggered = True
                     exit_price = max(l[i], entry_price - tp_atr_mult * entry_atr) + slippage_cost
+                elif long_sig[i-1]:
+                    exit_triggered = True
+                    exit_price = o[i] + slippage_cost
                 else:
                     if (entry_price - lowest_price) >= be_atr_mult * entry_atr:
                         stop_price = min(stop_price, entry_price - 0.1 * entry_atr)
-                    dyn_trail = lowest_price + trail_atr_mult * atr14[i]
+                    dyn_trail = lowest_price + trail_atr_mult * (atr14[i-1] if i > 0 else atr14[0])
                     stop_price = min(stop_price, dyn_trail)
-
-                    if h[i] >= stop_price:
-                        exit_triggered = True
-                        exit_price = max(o[i], stop_price) + slippage_cost
-                    elif long_sig[i-1]:
-                        exit_triggered = True
-                        exit_price = o[i] + slippage_cost
 
                 if exit_triggered:
                     fee = exit_price * (abs(pos) * mult) * fee_rate
@@ -290,9 +292,10 @@ class StrategyOptimizerAgent:
                     cash += pnl
                     trades.append({"is_win": pnl > 0, "pnl": pnl})
                     pos = 0.0
+                    exited_this_bar = True
 
-            if pos == 0:
-                entry_atr = max(atr14[i], tick * 2.0)
+            if pos == 0 and not exited_this_bar:
+                entry_atr = max(atr14[i-1] if i > 0 else atr14[0], tick * 2.0)
                 risk_budget = initial_capital * 0.005
                 unit_risk = max(tick * mult, stop_atr_mult * entry_atr * mult)
                 lot_size = max(1, min(50, int(risk_budget / unit_risk)))
@@ -314,11 +317,22 @@ class StrategyOptimizerAgent:
                     fee = entry_price * (abs(pos) * mult) * fee_rate
                     cash -= fee
 
+        # 强制结算最后一天，避免末日亏损遗漏
+        if current_date is not None:
+            m2m = cash + (pos * mult * (c[-1] - entry_price) if pos > 0 else abs(pos) * mult * (entry_price - c[-1])) if pos != 0 else cash
+            daily_equity_map[current_date] = {
+                "date": current_date,
+                "start_equity": daily_start_equity,
+                "end_equity": m2m,
+                "daily_return": (m2m / daily_start_equity - 1.0) if daily_start_equity > 0 else 0.0,
+                "turnover": 0.0,
+                "drawdown": 0.0,
+            }
+
         final_m2m = cash
         if pos != 0:
             unreal = (pos * mult * (c[-1] - entry_price)) if pos > 0 else (abs(pos) * mult * (entry_price - c[-1]))
             final_m2m += unreal
-            trades.append({"is_win": unreal > 0, "pnl": unreal})
 
         tot = len(trades)
         wins = sum(t["is_win"] for t in trades)
@@ -328,7 +342,7 @@ class StrategyOptimizerAgent:
         loss_p = sum(abs(t["pnl"]) for t in trades if not t["is_win"])
         plr = (win_p / loss_p) if loss_p > 0 else (2.5 if pnl > 0 else 0.0)
 
-        # 最大回撤
+        # 最大回撤 (结合 daily_ledger 与 final_m2m)
         daily_ledger = list(daily_equity_map.values())
         peak_eq = initial_capital
         max_dd = 0.0
@@ -337,6 +351,8 @@ class StrategyOptimizerAgent:
             peak_eq = max(peak_eq, eq)
             dd = (peak_eq - eq) / peak_eq if peak_eq > 0 else 0.0
             max_dd = max(max_dd, dd)
+        if peak_eq > 0:
+            max_dd = max(max_dd, (peak_eq - final_m2m) / peak_eq)
 
         return {
             "total_trades": tot,
@@ -383,7 +399,6 @@ class StrategyOptimizerAgent:
         best_score = -999.0
 
         min_train_trades = max(1, int(len(train_df) / 500))
-        min_test_trades = max(1, int(len(test_df) / 600))
 
         for (s_fast, s_slow) in span_pairs:
             for sq in sq_list:
@@ -400,24 +415,17 @@ class StrategyOptimizerAgent:
                                         "close_pos_th": 0.60, "vol_ratio_th": 1.05
                                     }
 
-                                    # 1. 训练集回测
+                                    # 1. 严格仅在训练集 (In-Sample) 上进行网格搜参，杜绝测试集泄漏 (R01)
                                     res_train = self.simulate_with_params(train_df, spec, params)
                                     if res_train["total_trades"] < min_train_trades:
                                         continue
 
-                                    # 2. 样本外盲测 (Out-of-Sample Test)
-                                    res_test = self.simulate_with_params(test_df, spec, params)
-                                    if res_test["total_trades"] < min_test_trades:
-                                        continue
+                                    wr = res_train["win_rate_pct"]
+                                    plr = res_train["profit_loss_ratio"]
+                                    dd = res_train["max_drawdown_pct"]
+                                    pnl = res_train["net_pnl"]
 
-                                    # 3. 全样本回测
-                                    res_full = self.simulate_with_params(df, spec, params)
-                                    wr = res_full["win_rate_pct"]
-                                    plr = res_full["profit_loss_ratio"]
-                                    dd = res_full["max_drawdown_pct"]
-                                    pnl = res_full["net_pnl"]
-
-                                    # 严格优先满足三大硬性门禁 (胜率 >= 50%, 盈亏比 >= 1.8, 回撤 <= 8%, 净利润 > 0)
+                                    # 严格依据训练集表现计算得分
                                     meets_all_3 = (wr >= 50.0) and (plr >= 1.80) and (dd <= 8.0) and (pnl > 0)
                                     meets_partial = (wr >= 48.0) and (pnl > 0) and (dd <= 8.0)
 
@@ -431,11 +439,15 @@ class StrategyOptimizerAgent:
                                             "regime": regime,
                                             "params": params,
                                             "in_sample": res_train,
-                                            "out_of_sample": res_test,
-                                            "full_sample": res_full,
                                         }
 
-        if best_candidate is None:
+        if best_candidate is not None:
+            # 2. 样本外盲测 (Out-of-Sample Test) - 仅对训练集最优参数做一次独立检验
+            res_test = self.simulate_with_params(test_df, spec, best_candidate["params"])
+            res_full = self.simulate_with_params(df, spec, best_candidate["params"])
+            best_candidate["out_of_sample"] = res_test
+            best_candidate["full_sample"] = res_full
+        else:
             fallback_params = {
                 "sq_th": 1.00, "ker_th": 0.25, "tp_atr_mult": 2.0,
                 "stop_atr_mult": 1.2, "be_atr_mult": 1.0, "trail_atr_mult": 2.5,
@@ -443,30 +455,48 @@ class StrategyOptimizerAgent:
                 "don_pos_hi": 0.70, "don_pos_lo": 0.30,
                 "close_pos_th": 0.60, "vol_ratio_th": 1.05
             }
+            res_train = self.simulate_with_params(train_df, spec, fallback_params)
+            res_test = self.simulate_with_params(test_df, spec, fallback_params)
             res_full = self.simulate_with_params(df, spec, fallback_params)
             best_candidate = {
                 "symbol": symbol,
                 "regime": regime,
                 "params": fallback_params,
-                "full_sample": res_full
+                "in_sample": res_train,
+                "out_of_sample": res_test,
+                "full_sample": res_full,
+                "_is_fallback": True,
             }
 
         # 4. 参数平原稳健性检验 (Plateau Test: 扰动 ±15% 确保性能平稳)
         p_base = best_candidate["params"]
         perturbed_params = {**p_base, "tp_atr_mult": p_base["tp_atr_mult"] * 1.15, "stop_atr_mult": p_base["stop_atr_mult"] * 0.9}
         res_perturbed = self.simulate_with_params(df, spec, perturbed_params)
-        plateau_pass = bool(res_perturbed["win_rate_pct"] >= (best_candidate["full_sample"]["win_rate_pct"] * 0.75))
+        plateau_pass = bool(res_perturbed["win_rate_pct"] >= (best_candidate["full_sample"]["win_rate_pct"] * 0.75) and res_perturbed["net_pnl"] > 0)
 
         # 5. 双倍摩擦压力测试 (Double Friction Test)
         res_double_cost = self.simulate_with_params(df, spec, p_base, fee_multiplier=2.0, slippage_multiplier=2.0)
         double_cost_pass = bool(res_double_cost["net_pnl"] > 0)
 
-        # 6. 准入资格裁定 (Admission Gate)
+        # 6. 准入资格裁定 (Admission Gate: 严格 AND 组合全部硬门禁, R02)
         final_wr = best_candidate["full_sample"]["win_rate_pct"]
         final_plr = best_candidate["full_sample"]["profit_loss_ratio"]
         final_dd = best_candidate["full_sample"]["max_drawdown_pct"]
         final_pnl = best_candidate["full_sample"]["net_pnl"]
-        is_admitted = bool(final_wr >= 48.0 and final_pnl > 0 and final_dd <= 8.0)
+        oos_pnl = best_candidate["out_of_sample"]["net_pnl"]
+        total_trades = best_candidate["full_sample"]["total_trades"]
+        is_fallback = best_candidate.get("_is_fallback", False)
+
+        is_admitted = bool(
+            (not is_fallback) and
+            (final_wr >= 48.0) and
+            (final_pnl > 0) and
+            (final_dd <= 8.0) and
+            (oos_pnl > 0) and
+            (total_trades >= 30) and
+            plateau_pass and
+            double_cost_pass
+        )
 
         best_candidate["plateau_test_pass"] = plateau_pass
         best_candidate["double_cost_pass"] = double_cost_pass
@@ -480,7 +510,7 @@ class StrategyOptimizerAgent:
             "profit_loss_ratio": final_plr,
             "net_pnl": final_pnl,
             "max_drawdown_pct": final_dd,
-            "total_trades": best_candidate["full_sample"]["total_trades"],
+            "total_trades": total_trades,
             "plateau_pass": plateau_pass,
             "double_cost_pass": double_cost_pass,
             "is_admitted": is_admitted

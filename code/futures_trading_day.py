@@ -20,22 +20,48 @@ from typing import Union
 import pandas as pd
 
 
+# 中国期货核心法定节假日表
+STATUTORY_HOLIDAYS = {
+    "2025-01-01", "2025-10-01", "2025-10-02", "2025-10-03", "2025-10-04", "2025-10-05", "2025-10-06", "2025-10-07",
+    "2026-01-01", "2026-01-02", "2026-01-03",
+    "2026-02-16", "2026-02-17", "2026-02-18", "2026-02-19", "2026-02-20", "2026-02-21", "2026-02-22",
+    "2026-04-04", "2026-04-05", "2026-04-06",
+    "2026-05-01", "2026-05-02", "2026-05-03", "2026-05-04", "2026-05-05",
+    "2026-06-19", "2026-06-20", "2026-06-21",
+    "2026-09-25", "2026-09-26", "2026-09-27",
+    "2026-10-01", "2026-10-02", "2026-10-03", "2026-10-04", "2026-10-05", "2026-10-06", "2026-10-07",
+}
+
+
+def _next_trading_day(d: datetime.date) -> datetime.date:
+    """顺延至下一个真实交易日（跳过周末与法定假日）"""
+    cur = d
+    while cur.weekday() >= 5 or cur.strftime("%Y-%m-%d") in STATUTORY_HOLIDAYS:
+        cur += datetime.timedelta(days=1)
+    return cur
+
+
 def get_futures_trading_date(dt_val: Union[datetime.datetime, pd.Timestamp, str]) -> str:
     """
     根据给定的时间戳，计算其在期货交易所结算系统中的真实归属交易日 (YYYY-MM-DD)。
+    严格校验非法输入与假日日历，杜绝静默使用当前时间或假日日期。
     """
     if isinstance(dt_val, str):
-        try:
-            dt = datetime.datetime.strptime(dt_val[:19], "%Y-%m-%d %H:%M:%S")
-        except ValueError:
+        dt = None
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d", "%Y%m%d"):
             try:
-                dt = datetime.datetime.strptime(dt_val[:10], "%Y-%m-%d")
-            except ValueError:
-                dt = datetime.datetime.now()
+                dt = datetime.datetime.strptime(dt_val[:19].strip(), fmt)
+                break
+            except (ValueError, TypeError):
+                continue
+        if dt is None:
+            raise ValueError(f"Invalid futures datetime string: {dt_val}")
     elif isinstance(dt_val, pd.Timestamp):
         dt = dt_val.to_pydatetime()
-    else:
+    elif isinstance(dt_val, datetime.datetime):
         dt = dt_val
+    else:
+        raise ValueError(f"Unsupported datetime type for futures trading date: {type(dt_val)}")
 
     hour = dt.hour
     minute = dt.minute
@@ -62,6 +88,7 @@ def get_futures_trading_date(dt_val: Union[datetime.datetime, pd.Timestamp, str]
         # 日盘 (08:30 - 16:00) 交易日即为当前日期
         target_date = dt.date()
 
+    target_date = _next_trading_day(target_date)
     return target_date.strftime("%Y-%m-%d")
 
 

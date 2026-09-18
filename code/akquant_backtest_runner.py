@@ -90,14 +90,20 @@ class AkquantBacktestRunner:
         if AKQUANT_NATIVE:
             try:
                 data_feed = {clean_code: df}
+                native_kwargs = dict(custom_params or {})
+                comm_rate = native_kwargs.pop("commission_rate", spec.fee_rate)
+                native_kwargs.pop("initial_cash", None)
+                native_kwargs.pop("lot_size", None)
+                native_kwargs.pop("symbols", None)
+
                 result = native_run_backtest(
                     strategy=strategy_class,
                     data=data_feed,
                     initial_cash=self.initial_cash,
-                    commission_rate=spec.fee_rate,
+                    commission_rate=comm_rate,
                     lot_size=1,
                     symbols=[clean_code],
-                    **(custom_params or {})
+                    **native_kwargs
                 )
 
                 metrics = {
@@ -171,7 +177,7 @@ class AkquantBacktestRunner:
 
         closed_trades: List[Dict[str, Any]] = []
         equity_series: List[float] = []
-        pending_action: Optional[Dict[str, Any]] = None
+        pending_actions: List[Dict[str, Any]] = []
 
         total_commission = 0.0
         total_slippage_cost = 0.0
@@ -183,108 +189,153 @@ class AkquantBacktestRunner:
             curr_low = float(row.low)
             curr_close = float(row.close)
 
-            # --- 1. 执行上一根 Bar 挂出的待成交动作 (严格 Next-Open 成交) ---
-            if pending_action is not None:
-                action_type = pending_action["action"]
-                target_qty = pending_action["quantity"]
+            # --- 1. 执行上一根 Bar 挂出的待成交动作 (严格 Next-Open 成交，全队列依次处理) ---
+            if pending_actions:
+                actions_to_execute = list(pending_actions)
+                pending_actions.clear()
+                for act in actions_to_execute:
+                    action_type = act["action"]
+                    target_qty = act["quantity"]
+                    req_sym = act.get("symbol", symbol)
+                    limit_p = act.get("price")
 
-                if action_type == "BUY":
-                    # 开多或平空
-                    fill_p = curr_open + slippage_tick
-                    if pos_lots < 0:
-                        # 平空
-                        close_lots = min(abs(pos_lots), target_qty)
-                        is_today = is_close_today(open_time, current_dt)
-                        exit_fee = calculate_contract_fee(spec, fill_p, close_lots, is_close_today=is_today) * fee_multiplier
-                        entry_fee_share = open_fee * (close_lots / abs(pos_lots)) if abs(pos_lots) > 0 else 0.0
-                        open_fee -= entry_fee_share
-                        gross_pnl = (open_price - fill_p) * close_lots * multiplier
-                        net_pnl = gross_pnl - entry_fee_share - exit_fee
-                        cash += (gross_pnl - exit_fee)
-                        total_commission += exit_fee
-                        total_slippage_cost += slippage_tick * close_lots * multiplier
+                    if action_type == "BUY":
+                        # 限价单判定: 若指定了限价且当前行情最低价仍高于限价，则无法成交
+                        if limit_p is not None and curr_low > limit_p:
+                            continue
+                        fill_p = curr_open + slippage_tick
+                        if limit_p is not None:
+                            fill_p = min(fill_p, limit_p + slippage_tick)
 
-                        closed_trades.append({
-                            "symbol": symbol,
-                            "side": "SHORT",
-                            "open_time": open_time,
-                            "close_time": current_dt,
-                            "open_price": open_price,
-                            "close_price": fill_p,
-                            "lots": close_lots,
-                            "gross_pnl": gross_pnl,
-                            "fee": entry_fee_share + exit_fee,
-                            "net_pnl": net_pnl,
-                            "is_close_today": is_today
-                        })
-                        pos_lots += close_lots
-                        target_qty -= close_lots
-                        if pos_lots == 0:
-                            open_time = None
-                            open_price = 0.0
-                            open_fee = 0.0
+                        if pos_lots < 0:
+                            # 平空
+                            close_lots = min(abs(pos_lots), target_qty)
+                            is_today = is_close_today(open_time, current_dt)
+                            exit_fee = calculate_contract_fee(spec, fill_p, close_lots, is_close_today=is_today) * fee_multiplier
+                            entry_fee_share = open_fee * (close_lots / abs(pos_lots)) if abs(pos_lots) > 0 else 0.0
+                            open_fee -= entry_fee_share
+                            gross_pnl = (open_price - fill_p) * close_lots * multiplier
+                            net_pnl = gross_pnl - entry_fee_share - exit_fee
+                            cash += (gross_pnl - exit_fee)
+                            total_commission += exit_fee
+                            total_slippage_cost += slippage_tick * close_lots * multiplier
 
-                    if target_qty > 0 and pos_lots == 0:
-                        # 新开多仓
-                        open_lots = target_qty
-                        fee = calculate_contract_fee(spec, fill_p, open_lots, is_close_today=False) * fee_multiplier
-                        cash -= fee
-                        total_commission += fee
-                        total_slippage_cost += slippage_tick * open_lots * multiplier
-                        pos_lots = open_lots
-                        open_price = fill_p
-                        open_time = current_dt
-                        open_fee = fee
+                            trade_data = {
+                                "symbol": req_sym,
+                                "side": "SHORT",
+                                "open_time": open_time,
+                                "close_time": current_dt,
+                                "open_price": open_price,
+                                "close_price": fill_p,
+                                "lots": close_lots,
+                                "gross_pnl": gross_pnl,
+                                "fee": entry_fee_share + exit_fee,
+                                "net_pnl": net_pnl,
+                                "is_close_today": is_today
+                            }
+                            closed_trades.append(trade_data)
+                            pos_lots += close_lots
+                            target_qty -= close_lots
+                            if hasattr(strat, "on_trade"):
+                                strat.on_trade(trade_data)
+                            if pos_lots == 0:
+                                open_time = None
+                                open_price = 0.0
+                                open_fee = 0.0
 
-                elif action_type == "SELL":
-                    # 平多或开空
-                    fill_p = curr_open - slippage_tick
-                    if pos_lots > 0:
-                        # 平多
-                        close_lots = min(pos_lots, target_qty)
-                        is_today = is_close_today(open_time, current_dt)
-                        exit_fee = calculate_contract_fee(spec, fill_p, close_lots, is_close_today=is_today) * fee_multiplier
-                        entry_fee_share = open_fee * (close_lots / pos_lots) if pos_lots > 0 else 0.0
-                        open_fee -= entry_fee_share
-                        gross_pnl = (fill_p - open_price) * close_lots * multiplier
-                        net_pnl = gross_pnl - entry_fee_share - exit_fee
-                        cash += (gross_pnl - exit_fee)
-                        total_commission += exit_fee
-                        total_slippage_cost += slippage_tick * close_lots * multiplier
+                        if target_qty > 0 and pos_lots == 0:
+                            # 资金充足性检查
+                            open_lots = target_qty
+                            fee = calculate_contract_fee(spec, fill_p, open_lots, is_close_today=False) * fee_multiplier
+                            margin_req = fill_p * open_lots * multiplier * spec.margin_rate
+                            if cash < margin_req + fee:
+                                continue  # 资金不足拒单
 
-                        closed_trades.append({
-                            "symbol": symbol,
-                            "side": "LONG",
-                            "open_time": open_time,
-                            "close_time": current_dt,
-                            "open_price": open_price,
-                            "close_price": fill_p,
-                            "lots": close_lots,
-                            "gross_pnl": gross_pnl,
-                            "fee": entry_fee_share + exit_fee,
-                            "net_pnl": net_pnl,
-                            "is_close_today": is_today
-                        })
-                        pos_lots -= close_lots
-                        target_qty -= close_lots
-                        if pos_lots == 0:
-                            open_time = None
-                            open_price = 0.0
-                            open_fee = 0.0
+                            cash -= fee
+                            total_commission += fee
+                            total_slippage_cost += slippage_tick * open_lots * multiplier
+                            pos_lots = open_lots
+                            open_price = fill_p
+                            open_time = current_dt
+                            open_fee = fee
+                            if hasattr(strat, "on_trade"):
+                                strat.on_trade({
+                                    "symbol": req_sym,
+                                    "side": "LONG",
+                                    "action": "BUY",
+                                    "open_time": open_time,
+                                    "open_price": open_price,
+                                    "lots": open_lots,
+                                    "fee": fee
+                                })
 
-                    if target_qty > 0 and pos_lots == 0:
-                        # 新开空仓
-                        open_lots = target_qty
-                        fee = calculate_contract_fee(spec, fill_p, open_lots, is_close_today=False) * fee_multiplier
-                        cash -= fee
-                        total_commission += fee
-                        total_slippage_cost += slippage_tick * open_lots * multiplier
-                        pos_lots = -open_lots
-                        open_price = fill_p
-                        open_time = current_dt
-                        open_fee = fee
+                    elif action_type == "SELL":
+                        if limit_p is not None and curr_high < limit_p:
+                            continue
+                        fill_p = curr_open - slippage_tick
+                        if limit_p is not None:
+                            fill_p = max(fill_p, limit_p - slippage_tick)
 
-                pending_action = None
+                        if pos_lots > 0:
+                            # 平多
+                            close_lots = min(pos_lots, target_qty)
+                            is_today = is_close_today(open_time, current_dt)
+                            exit_fee = calculate_contract_fee(spec, fill_p, close_lots, is_close_today=is_today) * fee_multiplier
+                            entry_fee_share = open_fee * (close_lots / pos_lots) if pos_lots > 0 else 0.0
+                            open_fee -= entry_fee_share
+                            gross_pnl = (fill_p - open_price) * close_lots * multiplier
+                            net_pnl = gross_pnl - entry_fee_share - exit_fee
+                            cash += (gross_pnl - exit_fee)
+                            total_commission += exit_fee
+                            total_slippage_cost += slippage_tick * close_lots * multiplier
+
+                            trade_data = {
+                                "symbol": req_sym,
+                                "side": "LONG",
+                                "open_time": open_time,
+                                "close_time": current_dt,
+                                "open_price": open_price,
+                                "close_price": fill_p,
+                                "lots": close_lots,
+                                "gross_pnl": gross_pnl,
+                                "fee": entry_fee_share + exit_fee,
+                                "net_pnl": net_pnl,
+                                "is_close_today": is_today
+                            }
+                            closed_trades.append(trade_data)
+                            pos_lots -= close_lots
+                            target_qty -= close_lots
+                            if hasattr(strat, "on_trade"):
+                                strat.on_trade(trade_data)
+                            if pos_lots == 0:
+                                open_time = None
+                                open_price = 0.0
+                                open_fee = 0.0
+
+                        if target_qty > 0 and pos_lots == 0:
+                            open_lots = target_qty
+                            fee = calculate_contract_fee(spec, fill_p, open_lots, is_close_today=False) * fee_multiplier
+                            margin_req = fill_p * open_lots * multiplier * spec.margin_rate
+                            if cash < margin_req + fee:
+                                continue
+
+                            cash -= fee
+                            total_commission += fee
+                            total_slippage_cost += slippage_tick * open_lots * multiplier
+                            pos_lots = -open_lots
+                            open_price = fill_p
+                            open_time = current_dt
+                            open_fee = fee
+                            if hasattr(strat, "on_trade"):
+                                strat.on_trade({
+                                    "symbol": req_sym,
+                                    "side": "SHORT",
+                                    "action": "SELL",
+                                    "open_time": open_time,
+                                    "open_price": open_price,
+                                    "lots": open_lots,
+                                    "fee": fee
+                                })
 
             # --- 2. 逐柱动态盯市 (Mark-to-Market 计算未平仓浮动盈亏) ---
             unrealized_pnl = 0.0
@@ -298,6 +349,7 @@ class AkquantBacktestRunner:
 
             # 同步更新策略对象内部持仓状态
             strat.positions[clean_code] = pos_lots
+            strat.positions[symbol] = pos_lots
 
             # --- 3. 构造当前 Bar 事件并推送给策略 ---
             bar_obj = Bar(
@@ -315,13 +367,14 @@ class AkquantBacktestRunner:
             strat.orders.clear()
             strat.on_bar(bar_obj)
 
-            # 如果策略在当根柱发出了交易指令，挂为下一根柱开盘执行的 pending_action
-            if strat.orders:
-                latest_order = strat.orders[-1]
-                pending_action = {
-                    "action": latest_order["action"],
-                    "quantity": int(latest_order.get("quantity", 1)),
-                }
+            # 将策略发出的所有交易指令推入待执行队列 (支持同Bar多笔指令与限价)
+            for ord_item in strat.orders:
+                pending_actions.append({
+                    "action": ord_item["action"],
+                    "quantity": int(ord_item.get("quantity", 1)),
+                    "price": ord_item.get("price"),
+                    "symbol": ord_item.get("symbol", symbol),
+                })
 
         strat.on_stop()
 

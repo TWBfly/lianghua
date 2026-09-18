@@ -95,16 +95,16 @@ def calculate_continuous_alpha_factors(df: pd.DataFrame) -> pd.DataFrame:
     prev_c = np.roll(c, 1)
     prev_c[0] = c[0]
     tr = np.maximum(h - l, np.maximum(np.abs(h - prev_c), np.abs(l - prev_c)))
-    atr = pd.Series(tr, index=df.index).rolling(14, min_periods=5).mean().bfill().values + 1e-8
+    atr = pd.Series(tr, index=df.index).rolling(14, min_periods=5).mean().ffill().values + 1e-8
 
     # 1. 卡尔曼速度与加速度 Z-Score
-    k_pos, k_vel, k_acc = calculate_kalman_kinematics(c)
-    vel_norm = k_vel / atr
-    vel_std = pd.Series(vel_norm).rolling(30, min_periods=5).std().bfill().values + 1e-8
+    k_pos, k_vel, k_acc = calculate_kalman_kinematics(np.log(c + 1e-8))  # ponytail: log-space makes Q/R scale-invariant across instruments
+    vel_norm = k_vel  # ponytail: log-space velocity is naturally dimensionless, no ATR normalization needed
+    vel_std = pd.Series(vel_norm).rolling(30, min_periods=5).std().ffill().values + 1e-8
     z_vel = (vel_norm / vel_std).clip(-3.0, 3.0)
 
-    acc_norm = k_acc / atr
-    acc_std = pd.Series(acc_norm).rolling(30, min_periods=5).std().bfill().values + 1e-8
+    acc_norm = k_acc  # ponytail: log-space acceleration is naturally dimensionless
+    acc_std = pd.Series(acc_norm).rolling(30, min_periods=5).std().ffill().values + 1e-8
     z_acc = (acc_norm / acc_std).clip(-3.0, 3.0)
 
     # 2. 排列熵确定性动力学分值 (0.70 为白噪声均值，低于 0.70 为有序层流)
@@ -126,7 +126,7 @@ def calculate_continuous_alpha_factors(df: pd.DataFrame) -> pd.DataFrame:
     c_diff8 = c_s.diff(8)
     tau2 = c_diff2.rolling(40, min_periods=5).std(ddof=0)
     tau8 = c_diff8.rolling(40, min_periods=5).std(ddof=0)
-    hurst = (np.log((tau8 + 1e-8) / (tau2 + 1e-8)) / np.log(4.0)).clip(0.1, 0.9).bfill().values
+    hurst = (np.log((tau8 + 1e-8) / (tau2 + 1e-8)) / np.log(4.0)).clip(0.1, 0.9).ffill().values
     z_hurst = ((hurst - 0.50) / 0.10).clip(-2.5, 2.5)
 
     # 5. 复合连续 Alpha 评分方程

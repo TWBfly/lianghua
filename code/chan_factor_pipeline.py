@@ -73,6 +73,7 @@ def compute_directional_forward_returns(
         return pd.DataFrame()
 
     c = df["close"].astype(float).values
+    o = df.get("open", df["close"]).astype(float).values  # ponytail: next-open execution, fallback to close
     atr = df.get("atr", df.get("atr_14", pd.Series(np.ones(len(df))))).astype(float).values
     n = len(c)
 
@@ -82,7 +83,8 @@ def compute_directional_forward_returns(
         for _, row in ev_df.iterrows():
             idx = int(row["known_raw_idx"])
             side = int(row["side"])
-            curr_p = c[idx]
+            exec_idx = min(idx + 1, n - 1)  # ponytail: execute at next bar open, not current close
+            curr_p = o[exec_idx]
             curr_atr = atr[idx] if atr[idx] > 0 else 1.0
 
             if idx + h < n:

@@ -13,7 +13,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ENV_PATH = PROJECT_ROOT / ".env"
 
 env_config = dotenv_values(ENV_PATH)
-SERVER_IP = env_config.get("SERVER_IP", "127.0.0.1")
+SERVER_IP = env_config.get("SERVER_IP") or os.environ.get("SERVER_IP", "127.0.0.1")
 SERVER_PORT = int(env_config.get("SERVER_PORT", 22))
 SERVER_USER = env_config.get("SERVER_USER", "root")
 SERVER_PASSWORD = env_config.get("SERVER_PASSWORD")

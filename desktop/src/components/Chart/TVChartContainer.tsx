@@ -5,6 +5,7 @@ import {
   ISeriesApi,
   CandlestickData,
   HistogramData,
+  LineData,
   SeriesMarker,
   Time,
   ColorType,
@@ -12,7 +13,7 @@ import {
   TickMarkType,
 } from 'lightweight-charts';
 import { safeInvoke } from '../../utils/ipc';
-import { ChartMarker, KlineBar } from '../../types';
+import { ChartMarker, KlineBar, TrendPoint } from '../../types';
 import { Activity, Maximize2, Minimize2, RefreshCw, Calendar, Clock, Crosshair, Cpu } from 'lucide-react';
 
 interface TVChartProps {
@@ -23,6 +24,7 @@ interface TVChartProps {
   dataSourceLabel?: string;
   customBars?: KlineBar[];
   customMarkers?: ChartMarker[];
+  customTrendSeries?: TrendPoint[];
   focusDate?: string | null;
   onSelectMarker?: (marker: ChartMarker | null) => void;
   isDrawerOpen?: boolean;
@@ -57,6 +59,7 @@ export const TVChartContainer: React.FC<TVChartProps> = ({
   dataSourceLabel,
   customBars,
   customMarkers,
+  customTrendSeries,
   focusDate,
   onSelectMarker,
   isDrawerOpen,
@@ -66,6 +69,7 @@ export const TVChartContainer: React.FC<TVChartProps> = ({
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
+  const trendLineSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
 
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -195,9 +199,18 @@ export const TVChartContainer: React.FC<TVChartProps> = ({
       },
     });
 
+    const trendLineSeries = chart.addLineSeries({
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: true,
+      title: '趋势中枢',
+    });
+
     chartRef.current = chart;
     candleSeriesRef.current = candleSeries;
     volumeSeriesRef.current = volumeSeries;
+    trendLineSeriesRef.current = trendLineSeries;
 
     chart.subscribeCrosshairMove((param) => {
       if (!param || !param.time || !param.seriesData) return;
@@ -303,6 +316,7 @@ export const TVChartContainer: React.FC<TVChartProps> = ({
         for (const m of sorted) {
           const mTime = m.time <= lastTime ? lastTime + 1 : m.time;
           lastTime = mTime;
+          markersMapRef.current.set(m.time, m);
           markersMapRef.current.set(mTime, m);
           tvMarkers.push({
             time: mTime as Time,
@@ -316,6 +330,21 @@ export const TVChartContainer: React.FC<TVChartProps> = ({
         }
       }
       candleSeriesRef.current.setMarkers(tvMarkers);
+
+      // 3. Render Trend Series (Single continuous line, multi-colored segments via LineData.color)
+      if (customTrendSeries && customTrendSeries.length > 0) {
+        // 利用 Lightweight Charts 原生 LineData.color 支持，逐点赋予状态颜色：
+        // 多头: 红色 (#f85149) | 空头: 绿色 (#3fb950) | 横盘: 黄色 (#e3b341)
+        // 彻底根除多条折线叠加与跨周期斜线穿插，实现无缝相连的唯一平滑趋势中枢线
+        const trendData: LineData[] = customTrendSeries.map((pt) => ({
+          time: pt.time as Time,
+          value: pt.value,
+          color: pt.regime === 1 ? '#f85149' : (pt.regime === -1 ? '#3fb950' : '#e3b341'),
+        }));
+        trendLineSeriesRef.current?.setData(trendData);
+      } else {
+        trendLineSeriesRef.current?.setData([]);
+      }
 
       // Adjust dimensions and fit content
       if (chartContainerRef.current && chartRef.current) {
@@ -408,6 +437,7 @@ export const TVChartContainer: React.FC<TVChartProps> = ({
       }
 
       candleSeriesRef.current.setMarkers(tvMarkers);
+      trendLineSeriesRef.current?.setData([]);
 
       if (chartContainerRef.current && chartRef.current) {
         chartRef.current.applyOptions({
@@ -426,7 +456,7 @@ export const TVChartContainer: React.FC<TVChartProps> = ({
 
   useEffect(() => {
     loadData();
-  }, [symbol, timeframe, strategyId, customBars, customMarkers]);
+  }, [symbol, timeframe, strategyId, customBars, customMarkers, customTrendSeries]);
 
   // 3. Jump and Focus on Trade Entry Position when focusDate changes
   useEffect(() => {
@@ -520,6 +550,14 @@ export const TVChartContainer: React.FC<TVChartProps> = ({
             {isFullscreen && (
               <span className="text-[11px] px-2.5 py-0.5 rounded bg-[#1f6feb]/20 text-[#58a6ff] border border-[#58a6ff]/40 font-semibold flex items-center gap-1 animate-pulse">
                 全屏沉浸模式 (按 ESC 键退出)
+              </span>
+            )}
+            {customTrendSeries && customTrendSeries.length > 0 && (
+              <span className="hidden sm:inline-flex items-center gap-2 text-[11px] px-2.5 py-0.5 rounded font-mono border bg-[#21262d] border-[#30363d] text-[#c9d1d9]">
+                <span className="text-[#8b949e]">趋势中枢:</span>
+                <span className="flex items-center gap-1 text-[#f85149] font-bold"><span className="inline-block w-2.5 h-0.5 bg-[#f85149]"></span>多头</span>
+                <span className="flex items-center gap-1 text-[#3fb950] font-bold"><span className="inline-block w-2.5 h-0.5 bg-[#3fb950]"></span>空头</span>
+                <span className="flex items-center gap-1 text-[#e3b341] font-bold"><span className="inline-block w-2.5 h-0.5 bg-[#e3b341]"></span>横盘</span>
               </span>
             )}
           </div>

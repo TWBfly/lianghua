@@ -51,7 +51,7 @@ def simulate_continuous_alpha(
     df: pd.DataFrame,
     sym: str,
     alpha_th: float = 0.85,
-    trail_atr_mult: float = 2.5,
+    trail_atr_mult: float = 1.8,  # ponytail: was 2.5, caused math deadlock with be_lock at 1.0 ATR — trail must be < be_lock + margin
     sl_atr_mult: float = 1.2,
     be_lock_mult: float = 1.0,
     friction_mult: float = 1.0,
@@ -87,6 +87,8 @@ def simulate_continuous_alpha(
     equity_curve = [capital]
 
     for i in range(1, n - 1):
+        if capital < capital_init * 0.20:  # ponytail: bankruptcy circuit breaker — stop trading on ruin
+            break
         curr_atr = atr[i]
         next_o = o[i + 1]
 
@@ -221,7 +223,7 @@ def main():
             plat_pass = 0
             for d_th in [-0.10, 0.0, 0.10, 0.20]:
                 for d_trail in [-0.5, 0.0, 0.5, 1.0]:
-                    r_p = simulate_continuous_alpha(df_oos, sym, alpha_th=max(0.60, 0.85 + d_th), trail_atr_mult=max(1.8, 2.5 + d_trail))
+                    r_p = simulate_continuous_alpha(df_oos, sym, alpha_th=max(0.60, 0.85 + d_th), trail_atr_mult=max(1.2, 1.8 + d_trail))
                     if r_p["pnl"] >= res_oos["pnl"] * 0.70 or r_p["pnl"] > 0:
                         plat_pass += 1
             plat_ratio = plat_pass / 16.0 * 100.0

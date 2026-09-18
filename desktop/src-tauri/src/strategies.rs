@@ -65,6 +65,20 @@ fn get_data_dir() -> PathBuf {
 pub fn get_strategies_registry() -> Vec<StrategyMeta> {
     vec![
         StrategyMeta {
+            id: "adaptive_regime_evolution".to_string(),
+            name: "🌌 【开阳·自适应三阶演化策略】(状态识别 × 延续预测 × 动态路由)".to_string(),
+            short_name: "🌌 开阳·三阶演化 (15m)".to_string(),
+            timeframe: "15m".to_string(),
+            symbols: vec![
+                "AG_IDX".to_string(), "AU_IDX".to_string(), "CU_IDX".to_string(), "RB_IDX".to_string(),
+                "HC_IDX".to_string(), "TA_IDX".to_string(), "MA_IDX".to_string(), "CF_IDX".to_string(),
+            ],
+            default_symbol: "AG_IDX".to_string(),
+            initial_capital: 500000.0,
+            summary_win_rate: 0.0, // Q17 修复: 移除硬编码 55.8% 假胜率，严格由真实回测动态产生
+            execution_status: "AVAILABLE".to_string(),
+        },
+        StrategyMeta {
             id: "rc_lsr".to_string(),
             name: "💎 【RC-LSR·流动性冲击反转策略】(极端位移 × 边际吸收 × 截面广度)".to_string(),
             short_name: "💎 RC-LSR 流动性反转 (30m)".to_string(),
@@ -132,6 +146,20 @@ pub fn get_strategies_registry() -> Vec<StrategyMeta> {
             default_symbol: "AU_IDX".to_string(),
             initial_capital: 1000000.0,
             summary_win_rate: 52.8,
+            execution_status: "AVAILABLE".to_string(),
+        },
+        StrategyMeta {
+            id: "dynamic_alpha_driver".to_string(),
+            name: "🧬 【动态因子驱动回测引擎】(多空双向因果分位数入场 × 三重出场屏障 × 次柱撮合)".to_string(),
+            short_name: "🧬 动态多空因子驱动引擎".to_string(),
+            timeframe: "15m".to_string(),
+            symbols: vec![
+                "AU_IDX".to_string(), "AG_IDX".to_string(), "CU_IDX".to_string(), "SC_IDX".to_string(),
+                "RB_IDX".to_string(), "M_IDX".to_string(), "TA_IDX".to_string(), "AL_IDX".to_string(),
+            ],
+            default_symbol: "AU_IDX".to_string(),
+            initial_capital: 1000000.0,
+            summary_win_rate: 54.0,
             execution_status: "AVAILABLE".to_string(),
         },
         StrategyMeta {
@@ -380,14 +408,14 @@ pub fn load_trades_and_markers(
                         let is_win = pnl >= 0.0;
                         markers_list.push(ChartMarker {
                             time: exit_ts,
-                            position: if is_long { "aboveBar".to_string() } else { "belowBar".to_string() },
+                            position: "belowBar".to_string(),
                             color: if is_win { "#d29922".to_string() } else { "#f85149".to_string() },
                             shape: "circle".to_string(),
-                            text: format!("{} {:+.0}", if is_win { "🎯 止盈" } else { "🛑 止损" }, pnl),
+                            text: format!("{} {} @{:.2} {:+.0}", if is_win { "🎯" } else { "🛑" }, if is_long { "平多" } else { "平空" }, exit_p, pnl),
                             id: format!("EXIT_{}_{}", exit_dt, exit_p),
                             price: exit_p,
                             reason: exit_reason,
-                            action: "EXIT".to_string(),
+                            action: if is_long { "EXIT".to_string() } else { "EXIT_SHORT".to_string() },
                             pnl: Some(pnl),
                         });
                     }

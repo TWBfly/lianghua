@@ -148,6 +148,8 @@ pub struct ContinuousResearchStatus {
     pub latest_factor_score: Option<f64>,
     pub latest_factor_status: Option<String>,
     pub latest_fail_reason: Option<String>,
+    pub current_evaluating_factor: Option<String>,
+    pub current_evaluating_name: Option<String>,
     pub updated_at: Option<String>,
 }
 
@@ -167,9 +169,28 @@ fn terminate_pid(pid: u32) {
         .output();
 }
 
+fn force_kill_pid(pid: u32) {
+    let _ = Command::new("kill")
+        .arg("-9")
+        .arg(pid.to_string())
+        .output();
+}
+
 #[tauri::command]
 pub fn start_continuous_research_command(duration_seconds: Option<u64>) -> Result<ContinuousResearchStatus, String> {
     let dur = duration_seconds.unwrap_or(3600);
+
+    // 1. Single-instance mutex check: If already running, return current status
+    if let Ok(st) = get_continuous_research_status_command() {
+        if st.is_running {
+            if let Some(pid) = st.pid {
+                if is_pid_alive(pid) {
+                    return Ok(st);
+                }
+            }
+        }
+    }
+
     let python_candidates = [
         "/Users/tang/PycharmProjects/pythonProject/env10/bin/python",
         "python3",
@@ -195,12 +216,22 @@ pub fn start_continuous_research_command(duration_seconds: Option<u64>) -> Resul
         }
     }
 
-    if spawned_child_pid.is_none() {
-        return Err("Failed to spawn background python continuous miner".into());
+    let child_pid = match spawned_child_pid {
+        Some(pid) => pid,
+        None => return Err("Failed to spawn background python continuous miner".into()),
+    };
+
+    // 2. Poll up to 3000ms for Python startup confirmation
+    for _ in 0..15 {
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        if let Ok(st) = get_continuous_research_status_command() {
+            if st.is_running && st.pid == Some(child_pid) {
+                return Ok(st);
+            }
+        }
     }
 
-    std::thread::sleep(std::time::Duration::from_millis(400));
-    get_continuous_research_status_command()
+    Err("Python continuous miner failed to start within 3s".into())
 }
 
 #[tauri::command]
@@ -211,12 +242,27 @@ pub fn stop_continuous_research_command() -> Result<bool, String> {
     // 1. Write stop signal file
     let _ = std::fs::write(stop_file, "STOP");
 
-    // 2. Directly terminate process if running
+    // 2. Terminate process gracefully with SIGTERM
     if let Ok(content) = std::fs::read_to_string(status_path) {
         if let Ok(mut status) = serde_json::from_str::<ContinuousResearchStatus>(&content) {
             if let Some(pid) = status.pid {
                 if is_pid_alive(pid) {
                     terminate_pid(pid);
+                    // Wait up to 1.5s for graceful exit
+                    for _ in 0..15 {
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                        if !is_pid_alive(pid) {
+                            break;
+                        }
+                    }
+                    // If still alive, force kill
+                    if is_pid_alive(pid) {
+                        force_kill_pid(pid);
+                        std::thread::sleep(std::time::Duration::from_millis(200));
+                        if is_pid_alive(pid) {
+                            return Err(format!("Failed to kill continuous miner process (pid={})", pid));
+                        }
+                    }
                 }
             }
             // 3. Immediately mark is_running as false in the status file!
@@ -228,6 +274,7 @@ pub fn stop_continuous_research_command() -> Result<bool, String> {
         }
     }
 
+    let _ = std::fs::remove_file(stop_file);
     Ok(true)
 }
 
@@ -249,6 +296,8 @@ pub fn get_continuous_research_status_command() -> Result<ContinuousResearchStat
             latest_factor_score: None,
             latest_factor_status: None,
             latest_fail_reason: None,
+            current_evaluating_factor: None,
+            current_evaluating_name: None,
             updated_at: None,
         });
     }

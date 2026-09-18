@@ -80,6 +80,8 @@ export interface BacktestRequest {
   data_source?: 'REAL' | 'SYNTHETIC';
   use_synthetic?: boolean;
   fixed_lots?: number;
+  factor_id?: string;
+  formula_dsl?: string;
 }
 
 export interface BacktestMetrics {
@@ -124,6 +126,12 @@ export interface BacktestTradeItem {
   fees_detail: string;
 }
 
+export interface TrendPoint {
+  time: number;
+  regime: number; // 1: 上涨, -1: 下跌, 0: 横盘
+  value: number;
+}
+
 export interface BacktestResponse {
   symbol: string;
   name: string;
@@ -133,6 +141,7 @@ export interface BacktestResponse {
   trades: BacktestTradeItem[];
   markers: ChartMarker[];
   bars: KlineBar[];
+  trend_series?: TrendPoint[];
 }
 
 export interface PortfolioBacktestRequest {
@@ -292,7 +301,7 @@ export interface FactorZooItem {
   breakeven_cost_mult: number;
   cross_market_pass_rate: number;
   tested_symbols: string;
-  status: 'EXCELLENT' | 'CANDIDATE' | 'GRAVEYARD' | 'LEGACY_UNVERIFIED';
+  status: 'EXCELLENT' | 'CANDIDATE' | 'GRAVEYARD' | 'LEGACY_UNVERIFIED' | 'UNRESOLVED_IMPLEMENTATION';
   fail_reason?: string | null;
   created_at: string;
 }
@@ -311,6 +320,8 @@ export interface ContinuousResearchStatus {
   latest_factor_score?: number | null;
   latest_factor_status?: string | null;
   latest_fail_reason?: string | null;
+  current_evaluating_factor?: string | null;
+  current_evaluating_name?: string | null;
   updated_at?: string | null;
 }
 

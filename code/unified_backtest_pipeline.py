@@ -256,9 +256,13 @@ def run_strategy_causal_backtest(
         prev_c = round_to_tick(closes[i - 1], tick_size)
         exited_this_bar = False
 
-        # 涨跌停板检测 (涨停无卖单，跌停无买单)
-        is_limit_up = (curr_h - curr_l < 1e-4) and (curr_c >= prev_c * 1.059)
-        is_limit_down = (curr_h - curr_l < 1e-4) and (curr_c <= prev_c * 0.941)
+        # 涨跌停板检测: 
+        # 1. 开盘报单时严格依据已知开盘价与前收盘价判定，禁止偷看当柱未发生的 high/low
+        is_open_limit_up = (curr_o >= round_to_tick(prev_c * 1.059, tick_size))
+        is_open_limit_down = (curr_o <= round_to_tick(prev_c * 0.941, tick_size))
+        # 2. 盘中平仓封死检测 (全天一字板或收盘跌停封死)
+        is_limit_up = (curr_h - curr_l < 1e-4) and (curr_c >= round_to_tick(prev_c * 1.059, tick_size))
+        is_limit_down = (curr_h - curr_l < 1e-4) and (curr_c <= round_to_tick(prev_c * 0.941, tick_size))
 
         # 2. 持仓出场与风控管理 (基于前一根 Bar 已固化的止损线进行保守撮合)
         if position == 1:
@@ -332,10 +336,38 @@ def run_strategy_causal_backtest(
                 if highest_p >= entry_p + 2.0 * curr_atr:
                     stop_p = max(stop_p, highest_p - 2.5 * curr_atr)
 
-                # 逐柱盯市权益破产判定
+                # 逐柱盯市权益破产判定: 立即以当期价格强平离场，阻断任何未来行情估值
                 if curr_equity <= 0:
                     bankruptcy_events += 1
                     is_bankrupt = True
+                    final_p = curr_c
+                    gross = (final_p - entry_p) * multiplier * current_lots
+                    is_today = is_close_today(times[entry_idx], times[i])
+                    entry_fee = calculate_contract_fee(spec, entry_p, current_lots, is_close_today=False, cost_multiplier=cost_multiplier)
+                    exit_fee = calculate_contract_fee(spec, final_p, current_lots, is_close_today=is_today, cost_multiplier=cost_multiplier)
+                    slippage = slippage_ticks * tick_size * multiplier * current_lots
+                    net = gross - entry_fee - exit_fee - slippage
+                    cash += (margin_occupied + gross - exit_fee - slippage)
+
+                    trades.append(TradeRecord(
+                        symbol=symbol,
+                        timeframe=timeframe,
+                        side="LONG",
+                        entry_time=times[entry_idx],
+                        exit_time=times[i],
+                        entry_price=entry_p,
+                        exit_price=final_p,
+                        lots=current_lots,
+                        holding_bars=i - entry_idx,
+                        regime=entry_regime,
+                        gross_pnl=gross,
+                        fees=entry_fee + exit_fee,
+                        slippage=slippage,
+                        net_pnl=net,
+                        net_return_atr=(final_p - entry_p) / curr_atr if curr_atr > 0 else 0.0,
+                    ))
+                    position = 0
+                    equity_curve.append(cash)
                     break
 
         elif position == -1:
@@ -409,13 +441,41 @@ def run_strategy_causal_backtest(
                 if curr_equity <= 0:
                     bankruptcy_events += 1
                     is_bankrupt = True
+                    final_p = curr_c
+                    gross = (entry_p - final_p) * multiplier * current_lots
+                    is_today = is_close_today(times[entry_idx], times[i])
+                    entry_fee = calculate_contract_fee(spec, entry_p, current_lots, is_close_today=False, cost_multiplier=cost_multiplier)
+                    exit_fee = calculate_contract_fee(spec, final_p, current_lots, is_close_today=is_today, cost_multiplier=cost_multiplier)
+                    slippage = slippage_ticks * tick_size * multiplier * current_lots
+                    net = gross - entry_fee - exit_fee - slippage
+                    cash += (margin_occupied + gross - exit_fee - slippage)
+
+                    trades.append(TradeRecord(
+                        symbol=symbol,
+                        timeframe=timeframe,
+                        side="SHORT",
+                        entry_time=times[entry_idx],
+                        exit_time=times[i],
+                        entry_price=entry_p,
+                        exit_price=final_p,
+                        lots=current_lots,
+                        holding_bars=i - entry_idx,
+                        regime=entry_regime,
+                        gross_pnl=gross,
+                        fees=entry_fee + exit_fee,
+                        slippage=slippage,
+                        net_pnl=net,
+                        net_return_atr=(entry_p - final_p) / curr_atr if curr_atr > 0 else 0.0,
+                    ))
+                    position = 0
+                    equity_curve.append(cash)
                     break
 
         # 3. 开仓决策 (第 t-1 根 Bar 信号 -> 第 t 根 Bar 开盘 Open 撮合)
         if position == 0 and not is_bankrupt and not exited_this_bar:
             sig = sig_vals[i - 1]
             if sig != 0:
-                if (sig > 0 and is_limit_up) or (sig < 0 and is_limit_down):
+                if (sig > 0 and is_open_limit_up) or (sig < 0 and is_open_limit_down):
                     continue
 
                 if curr_atr <= 0 or multiplier <= 0:
@@ -567,6 +627,10 @@ def run_strategy_causal_backtest(
             net_return_atr=(final_p - entry_p) / curr_atr if curr_atr > 0 else 0.0,
         ))
         position = 0
+
+    # D10 修复: 终值权益必须严格对齐最终扣除清算手续费与滑点后的现金额
+    if equity_curve:
+        equity_curve[-1] = cash
 
     if not trades:
         return [], {}

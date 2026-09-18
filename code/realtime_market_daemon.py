@@ -81,21 +81,11 @@ TIMEFRAMES = [
 ]
 
 
+from runtime_credentials import load_required_credentials
+
+
 def load_tq_credentials():
-    account, password = "", ""
-    if ENV_PATH.exists():
-        with open(ENV_PATH, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if "TQ_ACCOUNT" in line or ("账号" in line and "TQ" in line.upper()) or "天勤" in line:
-                    parts = line.replace("：", ":").split(":", 1) if ":" in line.replace("：", ":") else line.split("=", 1)
-                    if len(parts) > 1:
-                        account = parts[1].strip()
-                elif "TQ_PASSWORD" in line or ("密码" in line and "TQ" in line.upper()):
-                    parts = line.replace("：", ":").split(":", 1) if ":" in line.replace("：", ":") else line.split("=", 1)
-                    if len(parts) > 1:
-                        password = parts[1].strip()
-    return account or "13800000000", password or "redacted_password"
+    return load_required_credentials(ENV_PATH)
 
 
 def init_database():

@@ -76,6 +76,26 @@ def calculate_factor_ic_series(
     return ic_s, rank_ic_s
 
 
+def _newey_west_t(series: np.ndarray, max_lag: int = 5) -> Tuple[float, float]:
+    """Newey-West HAC adjusted t-statistic for mean != 0."""
+    n = len(series)
+    if n < 3:
+        return 0.0, 1.0
+    mean = np.mean(series)
+    centered = series - mean
+    gamma_0 = float(np.var(series, ddof=1))
+    nw_var = gamma_0
+    for j in range(1, min(max_lag + 1, n)):
+        w = 1.0 - j / (max_lag + 1)
+        gamma_j = float(np.mean(centered[j:] * centered[:-j]))
+        nw_var += 2 * w * gamma_j
+    nw_var = max(nw_var, 1e-16)
+    se = np.sqrt(nw_var / n)
+    t = mean / se
+    p = float(2 * (1 - stats.t.cdf(abs(t), df=n - 1)))
+    return float(t), p
+
+
 def evaluate_single_factor(
     df: pd.DataFrame,
     factor_col: str,
@@ -84,6 +104,7 @@ def evaluate_single_factor(
     symbol_col: str = "symbol",
     quantiles: int = 5,
     decay_horizons: Sequence[int] = (1, 2, 3, 5, 10, 20),
+    holding_period: int = 1,
 ) -> FactorEvaluationResult:
     """
     Perform deep evaluation on a single factor.
@@ -105,7 +126,7 @@ def evaluate_single_factor(
     ic_pos_ratio = float((rank_ic_s > 0).mean())
 
     # t-statistic and p-value for Rank IC != 0
-    t_stat, p_value = stats.ttest_1samp(rank_ic_s.to_numpy(), 0.0) if n_days > 2 else (0.0, 1.0)
+    t_stat, p_value = _newey_west_t(rank_ic_s.to_numpy(), max_lag=max(1, holding_period)) if n_days > 2 else (0.0, 1.0)
     t_stat = float(t_stat) if pd.notna(t_stat) else 0.0
     p_value = float(p_value) if pd.notna(p_value) else 1.0
 
@@ -148,11 +169,12 @@ def evaluate_single_factor(
     # Long-Short spread (Top Quantile - Bottom Quantile)
     top_q = f"Q{quantiles}"
     bot_q = "Q1"
+    annual_periods = 252.0 / holding_period
     if top_q in group_daily.columns and bot_q in group_daily.columns:
         ls_daily = (group_daily[top_q] - group_daily[bot_q]).dropna()
-        ls_annual_ret = float(ls_daily.mean() * 252)
+        ls_annual_ret = float(ls_daily.mean() * annual_periods)
         ls_std = float(ls_daily.std(ddof=1))
-        ls_sharpe = float((ls_daily.mean() / ls_std) * math.sqrt(252)) if ls_std > 0 else 0.0
+        ls_sharpe = float((ls_daily.mean() / ls_std) * math.sqrt(annual_periods)) if ls_std > 0 else 0.0
     else:
         ls_annual_ret = 0.0
         ls_sharpe = 0.0
@@ -201,6 +223,7 @@ def evaluate_factor_pool(
     date_col: str = "trade_date",
     symbol_col: str = "symbol",
     quantiles: int = 5,
+    holding_period: int = 1,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Evaluate multiple alpha factors and produce a ranked Leaderboard and Correlation Matrix.
@@ -215,6 +238,7 @@ def evaluate_factor_pool(
                 date_col=date_col,
                 symbol_col=symbol_col,
                 quantiles=quantiles,
+                holding_period=holding_period,
             )
             records.append({
                 "factor": res.factor_name,
@@ -237,9 +261,31 @@ def evaluate_factor_pool(
         leaderboard["abs_icir"] = leaderboard["rank_icir"].abs()
         leaderboard = leaderboard.sort_values("abs_icir", ascending=False).drop(columns=["abs_icir"]).reset_index(drop=True)
 
+    if not leaderboard.empty and "p_val" in leaderboard.columns:
+        p_vals = leaderboard["p_val"].values.copy()
+        m = len(p_vals)
+        sorted_idx = np.argsort(p_vals)
+        q_vals = np.empty(m)
+        for rank_i, orig_i in enumerate(sorted_idx):
+            q_vals[orig_i] = min(1.0, p_vals[orig_i] * m / (rank_i + 1))
+        # Enforce monotonicity
+        for rank_i in range(m - 2, -1, -1):
+            orig_i = sorted_idx[rank_i]
+            next_i = sorted_idx[rank_i + 1]
+            q_vals[orig_i] = min(q_vals[orig_i], q_vals[next_i])
+        leaderboard["q_val_bh"] = q_vals
+
     # Compute Factor Correlation Matrix (Spearman rank correlation across pooled observations)
     valid_factors = [f for f in factor_cols if f in df.columns]
-    factor_corr = df[valid_factors].corr(method="spearman")
+    # ponytail: daily cross-sectional correlation mean avoids Simpson's paradox from pooling
+    daily_corrs = []
+    for _, grp in df.groupby(date_col):
+        if len(grp) >= 10 and len(valid_factors) > 1:
+            daily_corrs.append(grp[valid_factors].corr(method="spearman"))
+    if daily_corrs:
+        factor_corr = pd.concat(daily_corrs).groupby(level=0).mean().reindex(index=valid_factors, columns=valid_factors)
+    else:
+        factor_corr = df[valid_factors].corr(method="spearman")
 
     return leaderboard, factor_corr
 
@@ -287,29 +333,29 @@ def run_alpha_factor_suite(
     print(f"\n[1/3] Loading verified A-share dataset from {Path(db_path).name}...")
     dataset = load_ashare_dataset(db_path=db_path, train_ratio=0.60, valid_ratio=0.20)
     
-    # Merge all historical data for comprehensive factor evaluation
-    full_df = pd.concat([dataset.train_df, dataset.valid_df, dataset.test_df], ignore_index=True)
-    full_df = full_df.sort_values(["trade_date", "symbol"]).reset_index(drop=True)
+    # F01: 因子排行榜严格在开发/训练集上挖掘与排序，禁止把测试集拼接进来 (防止测试集泄漏)
+    dev_df = dataset.train_df.sort_values(["trade_date", "symbol"]).reset_index(drop=True)
+    test_df = dataset.test_df.sort_values(["trade_date", "symbol"]).reset_index(drop=True)
     
     # 2. Compute registered factors if missing
     available_factors = FactorRegistry.list_factors()
     print(f"[2/3] Checking factor pool ({len(available_factors)} factors registered)...")
-    computed_df = compute_factors_for_panel(full_df, factor_names=available_factors)
+    computed_dev_df = compute_factors_for_panel(dev_df, factor_names=available_factors)
 
     # 3. Evaluation
-    print("[3/3] Running multi-dimensional factor quality evaluation...\n")
+    print("[3/3] Running multi-dimensional factor quality evaluation on DEV set...\n")
     if target_factor:
-        if target_factor not in computed_df.columns:
+        if target_factor not in computed_dev_df.columns:
             raise ValueError(f"Factor '{target_factor}' not found in computed features")
-        res = evaluate_single_factor(computed_df, factor_col=target_factor, quantiles=quantiles)
+        res = evaluate_single_factor(computed_dev_df, factor_col=target_factor, quantiles=quantiles, holding_period=5)
         print_factor_evaluation_report(res)
     else:
-        # Batch evaluate all factors and print Leaderboard
-        factor_cols = [f for f in available_factors if f in computed_df.columns]
-        leaderboard, corr_matrix = evaluate_factor_pool(computed_df, factor_cols=factor_cols, quantiles=quantiles)
+        # Batch evaluate all factors on Dev set and print Leaderboard
+        factor_cols = [f for f in available_factors if f in computed_dev_df.columns]
+        leaderboard, corr_matrix = evaluate_factor_pool(computed_dev_df, factor_cols=factor_cols, quantiles=quantiles, holding_period=5)
 
         print("=" * 70)
-        print(f"                   ALPHA FACTOR LEADERBOARD (Top {top_n})")
+        print(f"            ALPHA FACTOR DEV LEADERBOARD (Train Split, Top {top_n})")
         print("=" * 70)
         display_cols = ["factor", "mean_rank_ic", "rank_icir", "ic_pos_pct", "monotonicity", "ls_sharpe"]
         print(leaderboard[display_cols].head(top_n).to_string(index=False, justify="right", formatters={
@@ -320,6 +366,24 @@ def run_alpha_factor_suite(
             "ls_sharpe": "{:+0.2f}".format,
         }))
         print("=" * 70)
+
+        # 独立进行测试集 (OOS) 盲测验证
+        if not test_df.empty and not leaderboard.empty:
+            print("\n" + "=" * 70)
+            print(f"            ALPHA FACTOR OUT-OF-SAMPLE (OOS Test Split) AUDIT")
+            print("=" * 70)
+            computed_test_df = compute_factors_for_panel(test_df, factor_names=available_factors)
+            top_factors = [f for f in leaderboard["factor"].head(5).tolist() if f in computed_test_df.columns]
+            if top_factors:
+                oos_leaderboard, _ = evaluate_factor_pool(computed_test_df, factor_cols=top_factors, quantiles=quantiles, holding_period=5)
+                print(oos_leaderboard[display_cols].to_string(index=False, justify="right", formatters={
+                    "mean_rank_ic": "{:+0.4f}".format,
+                    "rank_icir": "{:+0.2f}".format,
+                    "ic_pos_pct": "{:0.1f}%".format,
+                    "monotonicity": "{:+0.2f}".format,
+                    "ls_sharpe": "{:+0.2f}".format,
+                }))
+                print("=" * 70)
 
 
 if __name__ == "__main__":

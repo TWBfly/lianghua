@@ -86,8 +86,13 @@ class AkquantStrategyBase:
         pass
 
     def on_trade(self, trade: Any) -> None:
-        """成交回报回调"""
-        pass
+        """成交回报回调 (更新策略内部持仓)"""
+        if hasattr(trade, "action") and hasattr(trade, "symbol") and hasattr(trade, "quantity"):
+            qty = float(trade.quantity)
+            if trade.action == "BUY":
+                self.positions[trade.symbol] = self.positions.get(trade.symbol, 0.0) + qty
+            elif trade.action == "SELL":
+                self.positions[trade.symbol] = self.positions.get(trade.symbol, 0.0) - qty
 
     def on_order(self, order: Any) -> None:
         """委托回报回调"""
@@ -100,8 +105,7 @@ class AkquantStrategyBase:
         return self.positions.get(symbol, 0.0)
 
     def buy(self, symbol: str, quantity: float, price: Optional[float] = None) -> None:
-        """买入 / 开多"""
-        self.positions[symbol] = self.positions.get(symbol, 0.0) + quantity
+        """买入 / 开多 (仅生成委托单，待成交回报后更新仓位)"""
         self.orders.append({
             "action": "BUY",
             "symbol": symbol,
@@ -111,9 +115,7 @@ class AkquantStrategyBase:
         })
 
     def sell(self, symbol: str, quantity: float, price: Optional[float] = None) -> None:
-        """卖出 / 平多 / 开空"""
-        current = self.positions.get(symbol, 0.0)
-        self.positions[symbol] = current - quantity
+        """卖出 / 平多 / 开空 (仅生成委托单，待成交回报后更新仓位)"""
         self.orders.append({
             "action": "SELL",
             "symbol": symbol,
@@ -129,6 +131,15 @@ class AkquantStrategyBase:
             if pos != 0:
                 self.sell(symbol, abs(pos)) if pos > 0 else self.buy(symbol, abs(pos))
                 self.positions[symbol] = 0.0
+            else:
+                # 若尚未成交（例如回测前测试或孤立生命周期测试），检查未成交订单意图
+                pending_qty = sum(
+                    o["quantity"] if o["action"] == "BUY" else -o["quantity"]
+                    for o in self.orders if o.get("symbol") == symbol
+                )
+                if pending_qty != 0:
+                    self.sell(symbol, abs(pending_qty)) if pending_qty > 0 else self.buy(symbol, abs(pending_qty))
+                    self.positions[symbol] = 0.0
         else:
             for sym, pos in list(self.positions.items()):
                 if pos != 0:

@@ -16,6 +16,11 @@ import sqlite3
 import datetime
 import argparse
 import signal
+import fcntl
+import threading
+import tempfile
+import multiprocessing as mp
+import cloudpickle
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Any, Optional
@@ -37,6 +42,137 @@ from autonomous_alpha_research_engine import (
 
 STATUS_FILE = os.path.join(BASE_DIR, "data", "continuous_miner_status.json")
 STOP_SIGNAL_FILE = os.path.join(BASE_DIR, "data", "stop_continuous_miner.signal")
+LOCK_FILE = os.path.join(BASE_DIR, "data", "continuous_miner.lock")
+
+
+def acquire_miner_lock() -> Optional[Any]:
+    """Atomically acquires exclusive OS lock for the miner process (Q05)."""
+    lock_fd = None
+    try:
+        lock_fd = open(LOCK_FILE, "w")
+        fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        lock_fd.write(f"{os.getpid()}\n")
+        lock_fd.flush()
+        return lock_fd
+    except (BlockingIOError, IOError):
+        if lock_fd:
+            try:
+                lock_fd.close()
+            except Exception:
+                pass
+        return None
+    except Exception:
+        if lock_fd:
+            try:
+                lock_fd.close()
+            except Exception:
+                pass
+        return None
+
+
+def release_miner_lock(lock_fd: Optional[Any]):
+    """Releases the exclusive OS lock (Q05: permanent lock file, never unlink to avoid inode race)."""
+    if lock_fd:
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            lock_fd.close()
+        except Exception:
+            pass
+
+
+def _worker_eval_process(pickled_factor: bytes, queue: Any):
+    """Isolated subprocess worker function to evaluate factor (Q03/Q06)."""
+    tmp_path = None
+    try:
+        if hasattr(os, "setpgrp"):
+            os.setpgrp()
+        factor = cloudpickle.loads(pickled_factor)
+        from autonomous_alpha_research_engine import evaluate_and_score_factor
+        res = evaluate_and_score_factor(factor)
+        
+        # Q03: Write full evaluation result to temp file to eliminate OS pipe buffer exhaustion deadlock
+        fd, tmp_path = tempfile.mkstemp(prefix="alpha_eval_", suffix=".pkl")
+        with os.fdopen(fd, "wb") as f:
+            cloudpickle.dump(res, f)
+        
+        queue.put(("OK", tmp_path))
+    except Exception as e:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+        queue.put(("ERR", str(e)))
+
+
+def run_eval_with_hard_timeout(target_factor: Dict[str, Any], timeout_seconds: float = 45.0) -> Dict[str, Any]:
+    """Runs factor evaluation inside an isolated subprocess with OS hard kill on timeout (Q03/Q06)."""
+    ctx = mp.get_context("spawn")  # ponytail: fork deadlocks with heartbeat thread; spawn is safe because args are already cloudpickle bytes
+    q = ctx.Queue()
+    p = ctx.Process(target=_worker_eval_process, args=(cloudpickle.dumps(target_factor), q))
+    p.start()
+    p.join(timeout=timeout_seconds)
+
+    if p.is_alive():
+        # Q06: Terminate process group to prevent orphan processes
+        try:
+            if hasattr(os, "killpg"):
+                os.killpg(p.pid, signal.SIGTERM)
+            else:
+                p.terminate()
+        except Exception:
+            p.terminate()
+        p.join(timeout=1.0)
+        if p.is_alive():
+            try:
+                if hasattr(os, "killpg"):
+                    os.killpg(p.pid, signal.SIGKILL)
+                else:
+                    p.kill()
+            except Exception:
+                p.kill()
+            p.join(timeout=1.0)
+        raise TimeoutError(f"Factor evaluation timed out (> {timeout_seconds}s)")
+
+    if not q.empty():
+        status, data = q.get()
+        if status == "OK":
+            temp_file_path = data
+            try:
+                with open(temp_file_path, "rb") as f:
+                    res = cloudpickle.load(f)
+                return res
+            finally:
+                if os.path.exists(temp_file_path):
+                    try:
+                        os.remove(temp_file_path)
+                    except Exception:
+                        pass
+        else:
+            raise RuntimeError(data)
+    raise RuntimeError("Worker process terminated unexpectedly without returning result")
+
+
+class MinerHeartbeatThread(threading.Thread):
+    """Independent low-overhead heartbeat thread using monotonic clock (Q04)."""
+    def __init__(self, status_data_ref: Dict[str, Any], start_mono: float, duration_seconds: int):
+        super().__init__(daemon=True)
+        self.status_data = status_data_ref
+        self.start_mono = start_mono
+        self.duration_seconds = duration_seconds
+        self.stopped = threading.Event()
+
+    def run(self):
+        while not self.stopped.wait(1.0):
+            elapsed = time.monotonic() - self.start_mono
+            remaining = max(0.0, self.duration_seconds - elapsed)
+            self.status_data["elapsed_seconds"] = int(elapsed)
+            self.status_data["remaining_seconds"] = int(remaining)
+            self.status_data["updated_at"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            write_status(self.status_data)
+
+    def stop(self):
+        self.stopped.set()
 
 def generate_combinatorial_candidate_pool() -> List[Dict[str, Any]]:
     """
@@ -218,89 +354,215 @@ def generate_combinatorial_candidate_pool() -> List[Dict[str, Any]]:
     return pool
 
 def generate_dynamic_mutation(idx: int) -> Dict[str, Any]:
-    """Generates an infinite stream of novel factor hypotheses via genetic parameter mutation."""
-    m_win = 10 + (idx * 3) % 50
-    e_fast = 5 + (idx * 2) % 20
-    e_slow = e_fast + 10 + (idx * 5) % 40
-    vol_win = 10 + (idx * 4) % 30
+    """
+    Generates a vast, non-repeating stream of 27,000+ novel factor hypotheses via 
+    multi-scale orthogonal primitives and prime parameters (P0 Fix for question.md).
+    """
+    primes_a = [7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97]
+    primes_b = [3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41]
+    primes_c = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 75, 90]
 
-    types = ["MOM_SNR", "BRK_VOL", "VWAP_REV", "ORTHO_COMP"]
-    chosen = types[idx % len(types)]
+    family_idx = idx % 8
+    rem = idx // 8
+    p_a = primes_a[rem % len(primes_a)]
+    rem = rem // len(primes_a)
+    p_b = primes_b[rem % len(primes_b)]
+    rem = rem // len(primes_b)
+    p_c = primes_c[rem % len(primes_c)]
 
-    if chosen == "MOM_SNR":
+    if family_idx == 0:
+        # MOM_SNR: Multi-scale Momentum × Efficiency Ratio with ATR normalization
         return {
-            "id": f"FAC_DYN_MSNR_{idx}_{m_win}",
-            "name": f"自适应多尺度动量信噪比变体 #{idx} (M={m_win})",
+            "id": f"FAC_DYN_MSNR_{idx}_{p_a}_{p_b}",
+            "name": f"多尺度动量效率比共振变体 #{idx} (P={p_a}/E={p_b})",
             "family": "动量家族 (Momentum)",
-            "hypothesis": f"基于动态遗传参数 {m_win} 周期的信噪比加权动量，捕捉不同时间尺度的趋势启动点。",
-            "formula": f"EfficiencyRatio[{m_win}] * NormalizedMomentum[{m_win}]",
-            "calc": (lambda win: lambda df: (
-                ((df["close"] - df["close"].shift(win)).abs() / (df["close"].diff().abs().rolling(win).sum() + 1e-6)) *
-                ((df["close"] - df["close"].shift(win)) / (
-                    pd.concat([df["high"] - df["low"], (df["high"] - df["close"].shift(1)).abs(), (df["low"] - df["close"].shift(1)).abs()], axis=1).max(axis=1).rolling(win).mean() + 1e-6
+            "hypothesis": f"在 {p_a} 周期动量基础上，使用 {p_b} 周期 Kaufman 效率比作为几何纯度权重进行信噪比放大。",
+            "formula": f"EfficiencyRatio[{p_b}] * (Close - Close.shift({p_a})) / (ATR[{p_b}] + 1e-6)",
+            "calc": (lambda win_m, win_er: lambda df: (
+                ((df["close"] - df["close"].shift(win_er)).abs() / (df["close"].diff().abs().rolling(win_er).sum() + 1e-6)) *
+                ((df["close"] - df["close"].shift(win_m)) / (
+                    pd.concat([df["high"] - df["low"], (df["high"] - df["close"].shift(1)).abs(), (df["low"] - df["close"].shift(1)).abs()], axis=1).max(axis=1).rolling(win_er).mean() + 1e-6
                 ))
-            ))(m_win),
+            ))(p_a, p_b),
             "direction": 1,
         }
-    elif chosen == "BRK_VOL":
+    elif family_idx == 1:
+        # BRK_VOL: Volatility Channel Expansion Breakout
+        mult = 1.0 + (p_b % 5) * 0.25
         return {
-            "id": f"FAC_DYN_BVOL_{idx}_{vol_win}",
-            "name": f"动态波动率通道扩张突破变体 #{idx} (V={vol_win})",
+            "id": f"FAC_DYN_BVOL_{idx}_{p_a}_{p_c}",
+            "name": f"自适应波动率通道扩张突破变体 #{idx} (W={p_a}/A={p_c})",
             "family": "通道突破 (Breakout)",
-            "hypothesis": f"在 {vol_win} 周期波动率通道上轨发生突变时介入，动态自适应商品微观波动周期。",
-            "formula": f"(Close - MaxHigh[{vol_win}]) / (ATR[{vol_win}] * 1.5 + 1e-6)",
-            "calc": (lambda win: lambda df: (
-                (df["close"] - df["high"].shift(1).rolling(win).max()) / (
-                    pd.concat([df["high"] - df["low"], (df["high"] - df["close"].shift(1)).abs(), (df["low"] - df["close"].shift(1)).abs()], axis=1).max(axis=1).rolling(win).mean() * 1.5 + 1e-6
+            "hypothesis": f"价格在突破过去 {p_a} 周期最高价时，按 {p_c} 周期动态 ATR 的 {mult:.2f} 倍归一化。",
+            "formula": f"(Close - MaxHigh[{p_a}]) / (ATR[{p_c}] * {mult:.2f} + 1e-6)",
+            "calc": (lambda win_h, win_a, m: lambda df: (
+                (df["close"] - df["high"].shift(1).rolling(win_h).max()) / (
+                    pd.concat([df["high"] - df["low"], (df["high"] - df["close"].shift(1)).abs(), (df["low"] - df["close"].shift(1)).abs()], axis=1).max(axis=1).rolling(win_a).mean() * m + 1e-6
                 )
-            ))(vol_win),
+            ))(p_a, p_c, mult),
             "direction": 1,
         }
-    elif chosen == "VWAP_REV":
+    elif family_idx == 2:
+        # VWAP_REV: Volume-Weighted Price Discrepancy Reversion
         return {
-            "id": f"FAC_DYN_VREV_{idx}_{vol_win}",
-            "name": f"成交量加权筹码偏离反转变体 #{idx} (W={vol_win})",
+            "id": f"FAC_DYN_VREV_{idx}_{p_a}_{p_b}",
+            "name": f"成交量加权筹码偏离反转变体 #{idx} (V={p_a}/A={p_b})",
             "family": "均值回归 (Mean Reversion)",
-            "hypothesis": f"价格在 {vol_win} 周期严重脱离成交量加权均价，产生过冲修正动力。",
-            "formula": f"-(Close - RollingVWAP[{vol_win}]) / ATR[{vol_win}]",
-            "calc": (lambda win: lambda df: -(df["close"] - (df["close"] * df["volume"]).rolling(win).sum() / (df["volume"].rolling(win).sum() + 1e-6)) / (
-                pd.concat([df["high"] - df["low"], (df["high"] - df["close"].shift(1)).abs(), (df["low"] - df["close"].shift(1)).abs()], axis=1).max(axis=1).rolling(win).mean() + 1e-6
-            ))(vol_win),
+            "hypothesis": f"在 {p_a} 周期内价格显著偏离加权均价，以 {p_b} 周期 ATR 进行自适应波动归一化后执行均值回归。",
+            "formula": f"-(Close - RollingVWAP[{p_a}]) / (ATR[{p_b}] + 1e-6)",
+            "calc": (lambda win_v, win_a: lambda df: (
+                -(df["close"] - (df["close"] * df["volume"]).rolling(win_v).sum() / (df["volume"].rolling(win_v).sum() + 1e-6)) / (
+                    pd.concat([df["high"] - df["low"], (df["high"] - df["close"].shift(1)).abs(), (df["low"] - df["close"].shift(1)).abs()], axis=1).max(axis=1).rolling(win_a).mean() + 1e-6
+                )
+            ))(p_a, p_b),
+            "direction": 1,
+        }
+    elif family_idx == 3:
+        # ORTHO_COMP: Multi-scale EMA cross × Volume Pulse
+        e_fast = p_b + 2
+        e_slow = e_fast + p_a
+        return {
+            "id": f"FAC_COMP_DYN_{idx}_{e_fast}_{e_slow}_{p_c}",
+            "name": f"正交均线动量与量能脉冲复合变体 #{idx} ({e_fast}/{e_slow}/V={p_c})",
+            "family": "正交复合 Alpha (Orthogonal)",
+            "hypothesis": f"快慢均线 ({e_fast}/{e_slow}) 趋势动量与 {p_c} 周期相对成交量脉冲正交相乘，震荡市主动静默。",
+            "formula": f"((EMA[{e_fast}] - EMA[{e_slow}]) / ATR[{e_slow}]) * Log(Volume / SMA(Volume, {p_c}) + 1.0)",
+            "calc": (lambda f, s, v: lambda df: (
+                (df["close"].ewm(span=f).mean() - df["close"].ewm(span=s).mean()) / (
+                    pd.concat([df["high"] - df["low"], (df["high"] - df["close"].shift(1)).abs(), (df["low"] - df["close"].shift(1)).abs()], axis=1).max(axis=1).rolling(s).mean() + 1e-6
+                ) * np.log((df["volume"] / (df["volume"].rolling(v).mean() + 1e-6)).clip(lower=0.5, upper=4.0) + 1.0)
+            ))(e_fast, e_slow, p_c),
+            "direction": 1,
+        }
+    elif family_idx == 4:
+        # CLV_PV: Close-Location-Value Money Flow Proxy with volume weighting
+        return {
+            "id": f"FAC_DYN_CLV_{idx}_{p_a}_{p_b}",
+            "name": f"微观订单流筹码吸收变体 #{idx} (C={p_a}/V={p_b})",
+            "family": "量价共振 (Price-Volume)",
+            "hypothesis": f"结合 {p_a} 周期收盘价微观分位数与 {p_b} 周期成交量比率，测度主力资金盘中微观吸收强度。",
+            "formula": f"((2*Close - High - Low) / (High - Low + 1e-6)).rolling({p_a}).mean() * (Volume / SMA(Volume, {p_b}))",
+            "calc": (lambda c_win, v_win: lambda df: (
+                (((2 * df["close"] - df["high"] - df["low"]) / (df["high"] - df["low"] + 1e-6)).rolling(c_win).mean()) *
+                (df["volume"] / (df["volume"].rolling(v_win).mean() + 1e-6)).clip(lower=0.5, upper=3.5)
+            ))(p_a, p_b),
+            "direction": 1,
+        }
+    elif family_idx == 5:
+        # VOL_EXP: Volatility Expansion Ratio with Directional Impulse
+        v_fast = p_b + 2
+        v_slow = v_fast + p_a
+        return {
+            "id": f"FAC_DYN_VEXP_{idx}_{v_fast}_{v_slow}_{p_c}",
+            "name": f"波动率挤压扩张动力学变体 #{idx} ({v_fast}/{v_slow}/M={p_c})",
+            "family": "波动率动力学 (Volatility)",
+            "hypothesis": f"短长周期波动率比率 ({v_fast}/{v_slow}) 发生突变，顺应 {p_c} 周期价格位移方向启动。",
+            "formula": f"(ATR[{v_fast}] / (ATR[{v_slow}] + 1e-6)) * Sign(Close - Close.shift({p_c}))",
+            "calc": (lambda vf, vs, ms: lambda df: (
+                pd.concat([df["high"] - df["low"], (df["high"] - df["close"].shift(1)).abs(), (df["low"] - df["close"].shift(1)).abs()], axis=1).max(axis=1).rolling(vf).mean() /
+                (pd.concat([df["high"] - df["low"], (df["high"] - df["close"].shift(1)).abs(), (df["low"] - df["close"].shift(1)).abs()], axis=1).max(axis=1).rolling(vs).mean() + 1e-6)
+            ) * np.sign(df["close"] - df["close"].shift(ms).fillna(df["close"]))
+            )(v_fast, v_slow, p_c),
+            "direction": 1,
+        }
+    elif family_idx == 6:
+        # ACCEL_MOM: Trend Curvature / Acceleration
+        return {
+            "id": f"FAC_DYN_ACC_{idx}_{p_a}_{p_b}",
+            "name": f"多阶趋势加速度与二阶曲率变体 #{idx} (A={p_a}/B={p_b})",
+            "family": "趋势质量 (Trend Quality)",
+            "hypothesis": f"测算 {p_a} 周期价格二阶差分加速度，在动能曲率发生拐点时提前识别波段主升段。",
+            "formula": f"(Close.diff(1).diff({p_a})) / (ATR[{p_b}] + 1e-6)",
+            "calc": (lambda w_a, w_b: lambda df: (
+                df["close"].diff(1).diff(w_a) / (
+                    pd.concat([df["high"] - df["low"], (df["high"] - df["close"].shift(1)).abs(), (df["low"] - df["close"].shift(1)).abs()], axis=1).max(axis=1).rolling(w_b).mean() + 1e-6
+                )
+            ))(p_a, p_b),
             "direction": 1,
         }
     else:
+        # EXH_REV: Shadow Pinbar Reversal
         return {
-            "id": f"FAC_COMP_DYN_{idx}_{e_fast}_{e_slow}",
-            "name": f"正交双均线量价复合变体 #{idx} ({e_fast}/{e_slow})",
-            "family": "正交复合 Alpha (Orthogonal)",
-            "hypothesis": f"将 {e_fast}/{e_slow} EMA 动量差与微观成交量主动性正交相乘，实现全天候跨品种稳健收益。",
-            "formula": f"((EMA[{e_fast}] - EMA[{e_slow}]) / ATR[{e_slow}]) * Log(Volume / SMA(Volume, {e_fast}) + 1.0)",
-            "calc": (lambda f, s: lambda df: (
-                (df["close"].ewm(span=f).mean() - df["close"].ewm(span=s).mean()) / (
-                    pd.concat([df["high"] - df["low"], (df["high"] - df["close"].shift(1)).abs(), (df["low"] - df["close"].shift(1)).abs()], axis=1).max(axis=1).rolling(s).mean() + 1e-6
-                ) * np.log((df["volume"] / (df["volume"].rolling(f).mean() + 1e-6)).clip(lower=0.5, upper=4.0) + 1.0)
-            ))(e_fast, e_slow),
+            "id": f"FAC_DYN_EXH_{idx}_{p_a}_{p_b}",
+            "name": f"极值影线博弈力竭反转变体 #{idx} (P={p_a}/A={p_b})",
+            "family": "竭尽反转 (Exhaustion)",
+            "hypothesis": f"在 {p_a} 周期极值点附近出现长影线，显示买卖对手盘流动性竭尽，触发高确定性反转。",
+            "formula": f"((Low - Min(O,C)) - (High - Max(O,C))) / (ATR[{p_b}] + 1e-6)",
+            "calc": (lambda w_a, w_b: lambda df: (
+                (df["low"] - np.minimum(df["open"], df["close"])) -
+                (df["high"] - np.maximum(df["open"], df["close"]))
+            ) / (
+                pd.concat([df["high"] - df["low"], (df["high"] - df["close"].shift(1)).abs(), (df["low"] - df["close"].shift(1)).abs()], axis=1).max(axis=1).rolling(w_b).mean() + 1e-6
+            ))(p_a, p_b),
             "direction": 1,
         }
 
+_status_lock = threading.Lock()  # ponytail: heartbeat thread + main thread both call write_status
+
 def write_status(data: Dict[str, Any]):
     """Atomically writes miner status JSON file."""
-    try:
-        temp_file = STATUS_FILE + ".tmp"
-        with open(temp_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        os.replace(temp_file, STATUS_FILE)
-    except Exception as e:
-        print(f"Warning: Failed to write status file: {e}", file=sys.stderr)
+    with _status_lock:
+        try:
+            temp_file = STATUS_FILE + ".tmp"
+            with open(temp_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            os.replace(temp_file, STATUS_FILE)
+        except Exception as e:
+            print(f"Warning: Failed to write status file: {e}", file=sys.stderr)
 
 def get_existing_formula_hashes() -> set:
-    """Returns all unique formula_hashes currently in the SQLite database."""
+    """Returns all unique formula_hashes currently in the SQLite database that are formally verified."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT DISTINCT formula_hash FROM factor_zoo WHERE formula_hash IS NOT NULL;")
+    cursor.execute("SELECT DISTINCT formula_hash FROM factor_zoo WHERE formula_hash IS NOT NULL AND status != 'LEGACY_UNVERIFIED';")
     rows = cursor.fetchall()
     conn.close()
     return set(r[0] for r in rows)
+
+def get_legacy_unverified_factors() -> List[Dict[str, Any]]:
+    """Returns all factors marked as LEGACY_UNVERIFIED in factor_zoo to be prioritized for re-evaluation (Q02)."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT factor_id, name, family, hypothesis, formula_dsl FROM factor_zoo WHERE status = 'LEGACY_UNVERIFIED';")
+    rows = cursor.fetchall()
+    conn.close()
+
+    from autonomous_alpha_research_engine import ALPHA_FAMILIES
+    pool = generate_combinatorial_candidate_pool()
+    pool_dict = {f["id"]: f for f in pool}
+    for f in ALPHA_FAMILIES:
+        pool_dict[f["id"]] = f
+
+    legacy_factors = []
+    unresolved_ids = []
+    for r in rows:
+        fid, name, family, hypothesis, formula_dsl = r
+        if fid in pool_dict:
+            legacy_factors.append(pool_dict[fid])
+        else:
+            unresolved_ids.append(fid)
+
+    if unresolved_ids:
+        # Q02 绝不偷换计算逻辑为 pct_change(10)，安全归档为 UNRESOLVED_IMPLEMENTATION
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(factor_zoo);")
+        cols = [c[1] for c in cursor.fetchall()]
+        if "fail_reason" in cols:
+            cursor.executemany(
+                "UPDATE factor_zoo SET status = 'UNRESOLVED_IMPLEMENTATION', fail_reason = '无法从因子池或DSL解析有效计算逻辑' WHERE factor_id = ?;",
+                [(fid,) for fid in unresolved_ids]
+            )
+        else:
+            cursor.executemany(
+                "UPDATE factor_zoo SET status = 'UNRESOLVED_IMPLEMENTATION' WHERE factor_id = ?;",
+                [(fid,) for fid in unresolved_ids]
+            )
+        conn.commit()
+        conn.close()
+        print(f"⚠️ [Q02] 发现 {len(unresolved_ids)} 个未知实现的遗留因子，已安全标记为 UNRESOLVED_IMPLEMENTATION，禁止伪造计算逻辑。")
+
+    return legacy_factors
 
 def run_continuous_miner(duration_seconds: int = 3600, interval_seconds: float = 2.0):
     """
@@ -308,24 +570,33 @@ def run_continuous_miner(duration_seconds: int = 3600, interval_seconds: float =
     Guaranteed zero duplication via formula SHA-256 hash tracking.
     """
     init_db()
+
+    # Q05: 原子文件排他锁，防止多实例并发踩踏
+    lock_fd = acquire_miner_lock()
+    if lock_fd is None:
+        print("❌ Another continuous miner instance is already running (OS lock held). Aborting startup.")
+        return
+
     if os.path.exists(STOP_SIGNAL_FILE):
         try:
             os.remove(STOP_SIGNAL_FILE)
         except Exception:
             pass
 
+    start_mono = time.monotonic()
     start_time = time.time()
     pid = os.getpid()
     print(f"🚀 Continuous Alpha Miner started (PID={pid}) for {duration_seconds}s (1小时自动挖掘模式)...")
 
     pool = generate_combinatorial_candidate_pool()
     existing_hashes = get_existing_formula_hashes()
+    legacy_candidates = get_legacy_unverified_factors()
     untested_candidates = [
         f for f in pool 
         if compute_formula_hash(f.get("formula", "")) not in existing_hashes
     ]
 
-    print(f"  -> Candidate factor space: {len(pool)} total, {len(untested_candidates)} untested unique formulas, {len(existing_hashes)} in DB.")
+    print(f"  -> Candidate factor space: {len(pool)} primary pool, {len(legacy_candidates)} legacy unverified, {len(untested_candidates)} untested in pool, {len(existing_hashes)} verified in DB.")
 
     evaluated_count = 0
     latest_record = None
@@ -343,110 +614,170 @@ def run_continuous_miner(duration_seconds: int = 3600, interval_seconds: float =
         "latest_factor_name": None,
         "latest_factor_score": None,
         "latest_factor_status": None,
+        "current_evaluating_factor": None,
+        "current_evaluating_name": None,
         "updated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
     write_status(status_data)
 
+    # Q04: 启动独立低开销心跳线程与单调时钟
+    heartbeat_thread = MinerHeartbeatThread(status_data, start_mono, duration_seconds)
+    heartbeat_thread.start()
+
     # Register graceful signal handlers
     def handle_signal(sig, frame):
         print("\n🛑 Stop signal received. Gracefully shutting down...")
+        heartbeat_thread.stop()
+        heartbeat_thread.join(timeout=1.0)
         status_data["is_running"] = False
         write_status(status_data)
+        release_miner_lock(lock_fd)
         sys.exit(0)
 
     signal.signal(signal.SIGINT, handle_signal)
     signal.signal(signal.SIGTERM, handle_signal)
 
+    legacy_idx = 0
     idx = 0
     mutation_seed = 0
-    while True:
-        elapsed = time.time() - start_time
-        remaining = max(0, duration_seconds - elapsed)
+    # ponytail: family-level adaptive skip for search efficiency (P2-1)
+    family_consecutive_fails = {}
+    FAMILY_SKIP_THRESHOLD = 15
 
-        if elapsed >= duration_seconds:
-            print(f"⏰ Duration target reached ({duration_seconds}s). 1-hour session completed!")
-            break
+    try:
+        while True:
+            elapsed = time.monotonic() - start_mono
+            remaining = max(0.0, duration_seconds - elapsed)
 
-        if os.path.exists(STOP_SIGNAL_FILE):
-            print("🛑 Found stop signal file. Halting continuous research.")
-            try:
-                os.remove(STOP_SIGNAL_FILE)
-            except Exception:
-                pass
-            break
-
-        # Check if we have untested candidates left in the primary pool
-        target_factor = None
-        while idx < len(untested_candidates):
-            cand = untested_candidates[idx]
-            idx += 1
-            cand_hash = compute_formula_hash(cand.get("formula", ""))
-            if cand_hash not in existing_hashes:
-                target_factor = cand
+            if elapsed >= duration_seconds:
+                print(f"⏰ Duration target reached ({duration_seconds}s). 1-hour session completed!")
                 break
 
-        if target_factor is None:
-            # Predefined pool evaluated, continuously search novel dynamic mutations
-            attempts = 0
-            while attempts < 200:
-                mutation_seed += 1
-                cand = generate_dynamic_mutation(mutation_seed)
+            if os.path.exists(STOP_SIGNAL_FILE):
+                print("🛑 Found stop signal file. Halting continuous research.")
+                try:
+                    os.remove(STOP_SIGNAL_FILE)
+                except Exception:
+                    pass
+                break
+
+            target_factor = None
+            # Priority 1: Legacy unverified factors needing re-audit under strict OOS rules
+            while legacy_idx < len(legacy_candidates):
+                cand = legacy_candidates[legacy_idx]
+                legacy_idx += 1
                 cand_hash = compute_formula_hash(cand.get("formula", ""))
                 if cand_hash not in existing_hashes:
                     target_factor = cand
+                    print(f"  🔄 [Priority Re-Evaluation] Re-auditing legacy factor: {cand['id']}")
                     break
-                attempts += 1
 
-        if target_factor is None:
-            print("  -> All mutation combinations for current parameter space evaluated. Pausing...")
-            time.sleep(interval_seconds * 2)
-            continue
+            # Priority 2: Primary predefined candidate pool
+            if target_factor is None:
+                while idx < len(untested_candidates):
+                    cand = untested_candidates[idx]
+                    idx += 1
+                    cand_hash = compute_formula_hash(cand.get("formula", ""))
+                    if cand_hash not in existing_hashes:
+                        target_factor = cand
+                        break
 
-        fid = target_factor["id"]
-        fname = target_factor["name"]
-        f_hash = compute_formula_hash(target_factor.get("formula", ""))
-        print(f"[{evaluated_count + 1}] Evaluating Factor: {fid} | {fname} (hash: {f_hash[:8]})...")
+            # Priority 3: Dynamic high-order orthogonal mutations (27,000+ combinations)
+            if target_factor is None:
+                attempts = 0
+                while attempts < 500:
+                    mutation_seed += 1
+                    cand = generate_dynamic_mutation(mutation_seed)
+                    cand_hash = compute_formula_hash(cand.get("formula", ""))
+                    if cand_hash not in existing_hashes:
+                        fam = cand.get("family", "")
+                        if family_consecutive_fails.get(fam, 0) >= FAMILY_SKIP_THRESHOLD:
+                            attempts += 1
+                            continue
+                        target_factor = cand
+                        break
+                    attempts += 1
 
-        try:
-            record = evaluate_and_score_factor(target_factor)
-            save_factor_to_db(record)
-            existing_hashes.add(f_hash)
-            evaluated_count += 1
-            latest_record = record
+                # If all families saturated, reset fail counters to prevent stalling
+                if target_factor is None and family_consecutive_fails:
+                    family_consecutive_fails.clear()
 
-            badge = "👑 EXCELLENT" if record["status"] == "EXCELLENT" else ("🔬 CANDIDATE" if record["status"] == "CANDIDATE" else "🪦 GRAVEYARD")
-            print(f"  -> Result: [{record['grade']} {record['total_score']}分] {badge} | PassRate={record['cross_market_pass_rate']}%")
+            if target_factor is None:
+                print("  -> Searching next parameter subspace. Pausing...")
+                time.sleep(interval_seconds * 2)
+                continue
 
-            existing_hashes.add(f_hash)
+            fid = target_factor["id"]
+            fname = target_factor["name"]
+            f_hash = compute_formula_hash(target_factor.get("formula", ""))
+            print(f"[{evaluated_count + 1}] Evaluating Factor: {fid} | {fname} (hash: {f_hash[:8]})...")
 
-            # Update status file
-            status_data.update({
-                "is_running": True,
-                "elapsed_seconds": int(elapsed),
-                "remaining_seconds": int(remaining),
-                "total_evaluated_this_run": evaluated_count,
-                "total_in_zoo": len(existing_hashes),
-                "latest_factor_id": record["factor_id"],
-                "latest_factor_name": record["name"],
-                "latest_factor_score": record["total_score"],
-                "latest_factor_status": record["status"],
-                "latest_fail_reason": record["fail_reason"],
-                "updated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            })
-            write_status(status_data)
+            status_data["current_evaluating_factor"] = fid
+            status_data["current_evaluating_name"] = fname
 
-        except Exception as e:
-            print(f"  ❌ Error evaluating {fid}: {e}", file=sys.stderr)
+            task_timeout = min(45.0, max(1.0, duration_seconds - elapsed))
+            if duration_seconds - elapsed < 2.0:
+                print("⏰ Less than 2s remaining in session budget. Ending cleanly (Q10).")
+                break
 
-        time.sleep(interval_seconds)
+            try:
+                # Q03/Q06/Q10: 独立子进程硬杀超时保障与动态单调截止时间
+                record = run_eval_with_hard_timeout(target_factor, timeout_seconds=task_timeout)
 
-    # Finalize
-    status_data["is_running"] = False
-    status_data["elapsed_seconds"] = int(time.time() - start_time)
-    status_data["remaining_seconds"] = 0
-    status_data["updated_at"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    write_status(status_data)
-    print(f"✅ Continuous Alpha Miner finished. Total new factors evaluated: {evaluated_count}.")
+                save_factor_to_db(record)
+                existing_hashes.add(f_hash)
+                evaluated_count += 1
+                latest_record = record
+
+                # P2-1: 更新 family 连续淘汰计数
+                fam = target_factor.get("family", "")
+                if record["status"] == "GRAVEYARD":
+                    family_consecutive_fails[fam] = family_consecutive_fails.get(fam, 0) + 1
+                else:
+                    family_consecutive_fails[fam] = 0
+
+                badge = "👑 EXCELLENT" if record["status"] == "EXCELLENT" else ("🔬 CANDIDATE" if record["status"] == "CANDIDATE" else "🪦 GRAVEYARD")
+                print(f"  -> Result: [{record['grade']} {record['total_score']}分] {badge} | PassRate={record['cross_market_pass_rate']}%")
+
+                # Update status file with newly evaluated factor
+                status_data.update({
+                    "total_evaluated_this_run": evaluated_count,
+                    "total_in_zoo": len(existing_hashes),
+                    "latest_factor_id": record["factor_id"],
+                    "latest_factor_name": record["name"],
+                    "latest_factor_score": record["total_score"],
+                    "latest_factor_status": record["status"],
+                    "latest_fail_reason": record["fail_reason"],
+                    "current_evaluating_factor": None,
+                    "current_evaluating_name": None,
+                })
+                write_status(status_data)
+
+            except TimeoutError:
+                print(f"  ❌ Single factor evaluation timed out (>45s) for {fid}. Subprocess hard killed. Skipping...", file=sys.stderr)
+                existing_hashes.add(f_hash)
+                status_data["current_evaluating_factor"] = None
+                status_data["current_evaluating_name"] = None
+            except Exception as e:
+                print(f"  ❌ Error evaluating {fid}: {e}", file=sys.stderr)
+                status_data["current_evaluating_factor"] = None
+                status_data["current_evaluating_name"] = None
+
+            time.sleep(interval_seconds)
+
+    finally:
+        heartbeat_thread.stop()
+        heartbeat_thread.join(timeout=1.5)
+        # Finalize
+        status_data["is_running"] = False
+        status_data["elapsed_seconds"] = int(time.monotonic() - start_mono)
+        status_data["remaining_seconds"] = 0
+        status_data["current_evaluating_factor"] = None
+        status_data["current_evaluating_name"] = None
+        status_data["updated_at"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        write_status(status_data)
+        release_miner_lock(lock_fd)
+        print(f"✅ Continuous Alpha Miner finished. Total new factors evaluated: {evaluated_count}.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Continuous Autonomous Alpha Miner")

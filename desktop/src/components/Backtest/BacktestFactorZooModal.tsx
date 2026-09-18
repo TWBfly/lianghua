@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { safeInvoke } from '../../utils/ipc';
+import { safeInvoke, isTauri } from '../../utils/ipc';
 import { FactorZooItem, ContinuousResearchStatus } from '../../types';
 import {
   Dna,
@@ -26,7 +26,7 @@ import {
 interface BacktestFactorZooModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onApplyFactorToBacktest: (symbol: string, strategyId: string) => void;
+  onApplyFactorToBacktest: (symbol: string, strategyId: string, factorId?: string, formulaDsl?: string) => void;
 }
 
 export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
@@ -34,7 +34,7 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
   onClose,
   onApplyFactorToBacktest,
 }) => {
-  const [factors, setFactors] = useState<FactorZooItem[]>([]);
+  const [allFactors, setAllFactors] = useState<FactorZooItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [researching, setResearching] = useState<boolean>(false);
   const [researchStatus, setResearchStatus] = useState<string | null>(null);
@@ -48,15 +48,45 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
   const [continuousStatus, setContinuousStatus] = useState<ContinuousResearchStatus | null>(null);
   const [isStartingContinuous, setIsStartingContinuous] = useState<boolean>(false);
 
-  const fetchFactors = async (status?: string) => {
+  // Helper to find best tested symbol for a factor
+  const getBestSymbol = (tested_symbols: string, fallback: string = 'AU_IDX') => {
+    try {
+      const parsed = typeof tested_symbols === 'string' ? JSON.parse(tested_symbols) : tested_symbols;
+      let bestSym = fallback;
+      let bestSharpe = -999;
+      for (const [sym, data] of Object.entries<any>(parsed || {})) {
+        if (data && typeof data.sharpe === 'number' && data.sharpe > bestSharpe) {
+          bestSharpe = data.sharpe;
+          bestSym = sym;
+        }
+      }
+      return bestSym;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const getTestedSymbolCount = (tested_symbols: string) => {
+    try {
+      const parsed = typeof tested_symbols === 'string' ? JSON.parse(tested_symbols) : tested_symbols;
+      const keys = Object.keys(parsed || {});
+      return keys.length > 0 ? keys.length : 6;
+    } catch {
+      return 6;
+    }
+  };
+
+  // Always fetch full factor zoo to maintain authentic global stats
+  const fetchFactors = async () => {
     try {
       setLoading(true);
       const res: FactorZooItem[] = await safeInvoke('get_factor_zoo_command', {
-        status: status === 'ALL' ? null : status,
+        status: null,
       });
-      setFactors(res || []);
+      setAllFactors(res || []);
     } catch (err) {
       console.error('Failed to fetch factor zoo:', err);
+      setAllFactors([]);
     } finally {
       setLoading(false);
     }
@@ -64,9 +94,9 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      fetchFactors(statusFilter);
+      fetchFactors();
     }
-  }, [isOpen, statusFilter]);
+  }, [isOpen]);
 
   // Polling continuous research status & auto-refreshing factors
   useEffect(() => {
@@ -78,12 +108,11 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
         const st: ContinuousResearchStatus = await safeInvoke('get_continuous_research_status_command');
         setContinuousStatus(st);
         if (st && st.is_running) {
-          // If continuous miner is running, periodically refresh factors list
           const res: FactorZooItem[] = await safeInvoke('get_factor_zoo_command', {
-            status: statusFilter === 'ALL' ? null : statusFilter,
+            status: null,
           });
-          if (res && res.length > 0) {
-            setFactors(res);
+          if (res) {
+            setAllFactors(res);
           }
         }
       } catch (e) {
@@ -96,7 +125,7 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
     return () => {
       if (timerId) clearInterval(timerId);
     };
-  }, [isOpen, statusFilter]);
+  }, [isOpen]);
 
   const handleStartContinuous = async (durationSecs: number = 3600) => {
     try {
@@ -138,7 +167,7 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
       setTimeout(async () => {
         const st: ContinuousResearchStatus = await safeInvoke('get_continuous_research_status_command');
         setContinuousStatus(st);
-        fetchFactors(statusFilter);
+        fetchFactors();
       }, 300);
     } catch (e: any) {
       console.error('Failed to stop continuous research:', e);
@@ -157,22 +186,22 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
     try {
       setResearching(true);
       setResearchStatus(
-        '⚡ 正在调用 Python 确定性因果内核，对沪金 (AU)、沪银 (AG)、沪铜 (CU)、原油 (SC)、螺纹 (RB)、豆粕 (M) 等 6 大期货主力合约执行全样本矩阵回测与 3x 极端成本压力测试...'
+        '⚡ 正在调用 Python 确定性因果内核，对各大商品期货主力合约执行全样本矩阵回测与 3x 极端成本压力测试...'
       );
       const res: FactorZooItem[] = await safeInvoke('run_autonomous_factor_research_command');
       if (res && res.length > 0) {
         // Detect newly discovered factor
-        const newlyAdded = res.find((f) => !factors.some((prev) => prev.factor_id === f.factor_id));
+        const newlyAdded = res.find((f) => !allFactors.some((prev) => prev.factor_id === f.factor_id));
         if (newlyAdded) {
           setLatestFactor(newlyAdded);
         }
-        setFactors(res);
+        setAllFactors(res);
       }
       const now = new Date();
       const timeStr = now.toTimeString().split(' ')[0];
       setLastRunTime(timeStr);
       setResearchStatus(
-        `✅ 全品种因子挖掘完成！成功在本地 SQLite (ashare_quant.db) 更新因子库（共计 ${res?.length || factors.length} 个因子），100分稳健度体检指标已刷新！`
+        `✅ 全品种因子挖掘完成！成功在本地 SQLite (ashare_quant.db) 更新因子库（共计 ${res?.length || allFactors.length} 个因子），100分稳健度体检指标已刷新！`
       );
     } catch (err: any) {
       console.error('Failed to run autonomous research:', err);
@@ -190,20 +219,20 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Compute metrics
-  const totalCount = factors.length;
-  const excellentCount = factors.filter((f) => f.status === 'EXCELLENT').length;
-  const candidateCount = factors.filter((f) => f.status === 'CANDIDATE').length;
-  const legacyCount = factors.filter((f) => f.status === 'LEGACY_UNVERIFIED').length;
-  const graveyardCount = factors.filter((f) => f.status === 'GRAVEYARD').length;
-  const avgScore = totalCount > 0 ? (factors.reduce((acc, f) => acc + f.total_score, 0) / totalCount).toFixed(1) : '0';
-  const avgIC = totalCount > 0 ? (factors.reduce((acc, f) => acc + f.rank_ic, 0) / totalCount).toFixed(4) : '0';
+  // Compute metrics from allFactors (Invariant under active filter)
+  const totalCount = allFactors.length;
+  const excellentCount = allFactors.filter((f) => f.status === 'EXCELLENT').length;
+  const candidateCount = allFactors.filter((f) => f.status === 'CANDIDATE').length;
+  const legacyCount = allFactors.filter((f) => f.status === 'LEGACY_UNVERIFIED').length;
+  const graveyardCount = allFactors.filter((f) => f.status === 'GRAVEYARD').length;
+  const avgScore = totalCount > 0 ? (allFactors.reduce((acc, f) => acc + f.total_score, 0) / totalCount).toFixed(1) : '0';
+  const avgIC = totalCount > 0 ? (allFactors.reduce((acc, f) => acc + f.rank_ic, 0) / totalCount).toFixed(4) : '0';
 
-  // Distinct families
-  const families = ['ALL', ...Array.from(new Set(factors.map((f) => f.family)))];
+  // Distinct families from allFactors
+  const families = ['ALL', ...Array.from(new Set(allFactors.map((f) => f.family)))];
 
-  // Filtering
-  const filteredFactors = factors.filter((f) => {
+  // Table filtering on allFactors
+  const filteredFactors = allFactors.filter((f) => {
     const matchStatus = statusFilter === 'ALL' || f.status === statusFilter;
     const matchFamily = familyFilter === 'ALL' || f.family === familyFilter;
     const matchSearch =
@@ -217,6 +246,21 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 sm:p-6 overflow-hidden animate-in fade-in duration-200">
       <div className="relative w-full max-w-6xl max-h-[92vh] flex flex-col bg-[#0d1117] border border-[#30363d] rounded-2xl shadow-2xl overflow-hidden">
+        {/* Browser Mock Warning Banner */}
+        {!isTauri() && (
+          <div className="bg-[#d29922]/15 border-b border-[#d29922]/30 px-6 py-2 flex items-center justify-between text-xs text-[#d29922]">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-[#d29922]" />
+              <span>
+                ⚠️ <strong>当前处于浏览器纯前端演示模式 (Mock)</strong>：展示数据为本地样例，未连接桌面端 Rust 内核与底层 Python 进程。请在 Tauri 桌面端运行以启动真实因果挖掘。
+              </span>
+            </div>
+            <span className="font-mono text-[10px] bg-[#d29922]/20 px-2 py-0.5 rounded border border-[#d29922]/40 font-bold">
+              DEMO MODE
+            </span>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#30363d] bg-[#161b22]">
           <div className="flex items-center gap-3">
@@ -230,7 +274,7 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
                 </h2>
               </div>
               <p className="text-xs text-[#8b949e] mt-0.5">
-                8大 Alpha 家族与正交复合体系 • 涵盖各大期货交易所 24 大主流主力合约池 • 3x 极端滑点规费压力测试 • 100分稳健度体检
+                8大 Alpha 家族与动态正交演化体系 • 实测各大商品期货主力合约矩阵 • 3x 极端滑点规费压力测试 • 严格 OOS 样本外硬门禁
               </p>
             </div>
           </div>
@@ -302,11 +346,15 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
               <span className="text-[#c9d1d9]">
                 本轮已探索并验证: <b className="text-[#3fb950] font-mono">{continuousStatus.total_evaluated_this_run ?? 0} 个新因子</b>
               </span>
-              {continuousStatus.latest_factor_id && (
+              {continuousStatus.current_evaluating_factor ? (
+                <span className="text-[#e3b341] font-mono hidden md:inline">
+                  ⚡ 正在评估: <b className="text-[#f0883e]">[{continuousStatus.current_evaluating_factor}] {continuousStatus.current_evaluating_name}</b>
+                </span>
+              ) : continuousStatus.latest_factor_id ? (
                 <span className="text-[#8b949e] font-mono hidden md:inline">
                   最新探索: <b className="text-[#79c0ff]">[{continuousStatus.latest_factor_id}] {continuousStatus.latest_factor_name}</b> ({continuousStatus.latest_factor_score ?? 0}分)
                 </span>
-              )}
+              ) : null}
             </div>
           </div>
         )}
@@ -437,6 +485,7 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
               { id: 'EXCELLENT', label: '👑 真实优秀库' },
               { id: 'CANDIDATE', label: '🔬 候选池' },
               { id: 'LEGACY_UNVERIFIED', label: '📦 历史待重验' },
+              { id: 'UNRESOLVED_IMPLEMENTATION', label: '⚠️ 未解析归档' },
               { id: 'GRAVEYARD', label: '🪦 淘汰墓地' },
             ].map((tab) => (
               <button
@@ -504,6 +553,8 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
               const isCandidate = f.status === 'CANDIDATE';
               const isLegacy = f.status === 'LEGACY_UNVERIFIED';
               const isGraveyard = f.status === 'GRAVEYARD';
+              const isUnresolved = f.status === 'UNRESOLVED_IMPLEMENTATION';
+              const isRunnable = isExcellent || isCandidate;
 
               return (
                 <div
@@ -515,6 +566,8 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
                       ? 'border-[#d29922]/50'
                       : isLegacy
                       ? 'border-[#8957e5]/50'
+                      : isUnresolved
+                      ? 'border-[#d29922]/40 opacity-90'
                       : 'border-[#f85149]/40 opacity-80'
                   }`}
                 >
@@ -528,6 +581,9 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
                       <span className="text-[11px] px-2 py-0.5 rounded bg-[#30363d]/60 text-[#c9d1d9]">
                         {f.family}
                       </span>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#161b22] text-[#8b949e] border border-[#30363d]/50">
+                        {getTestedSymbolCount(f.tested_symbols)}大主力合约
+                      </span>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -540,6 +596,8 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
                             ? 'bg-[#d29922]/20 text-[#d29922] border-[#d29922]/60'
                             : isLegacy
                             ? 'bg-[#8957e5]/20 text-[#bc8cff] border-[#8957e5]/60'
+                            : isUnresolved
+                            ? 'bg-[#d29922]/20 text-[#e3b341] border-[#d29922]/60'
                             : 'bg-[#f85149]/20 text-[#f85149] border-[#f85149]/60'
                         }`}
                       >
@@ -555,6 +613,8 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
                             ? 'bg-[#d29922]/20 text-[#d29922]'
                             : isLegacy
                             ? 'bg-[#8957e5]/20 text-[#bc8cff] border border-[#8957e5]/40'
+                            : isUnresolved
+                            ? 'bg-[#d29922]/20 text-[#e3b341] border border-[#d29922]/40'
                             : 'bg-[#f85149]/20 text-[#f85149]'
                         }`}
                       >
@@ -564,6 +624,8 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
                           ? '🔬 观察候选'
                           : isLegacy
                           ? '📦 历史待重验'
+                          : isUnresolved
+                          ? '⚠️ 实现未解析'
                           : '🪦 淘汰入墓'}
                       </span>
                     </div>
@@ -600,12 +662,14 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
                       <div className="flex flex-col gap-0.5">
                         <span className="text-[#8b949e] font-semibold flex items-center gap-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-[#58a6ff]" />
-                          ① 环境过滤 (Regime Filter)
+                          ① 入场因果闸门 (Entry Gate)
                         </span>
                         <span className="text-[#c9d1d9] font-mono text-[10px]">
-                          {f.family.includes('正交') || f.family.includes('复合')
-                            ? 'Kaufman ER[18] >= 0.25 (震荡市静默归零)'
-                            : '单特征无过滤 (建议搭载SNR过滤器)'}
+                          {isLegacy
+                            ? '待新版因果裁判重新核验'
+                            : f.family.includes('正交') || f.family.includes('复合')
+                            ? '因果滚动分位数双轨 (>80%多 / <20%空) + 路径纯度 ER >= 0.22'
+                            : '因果分位数双轨 (>80%多 / <20%空) 对称驱动'}
                         </span>
                       </div>
                       <div className="flex flex-col gap-0.5">
@@ -614,7 +678,7 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
                           ② 出场屏障 (Exit Shield)
                         </span>
                         <span className="text-[#c9d1d9] font-mono text-[10px]">
-                          动态吊灯追踪止损 (-2.5 ATR) / +3.5 ATR 止盈 / 30Bar时间衰竭
+                          多空对称动态吊灯追踪 (-2.5 ATR) / ±2.5% 止盈 / 30Bar时间衰竭
                         </span>
                       </div>
                       <div className="flex flex-col gap-0.5">
@@ -623,7 +687,7 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
                           ③ 资金风控 (Risk Sizing)
                         </span>
                         <span className="text-[#c9d1d9] font-mono text-[10px]">
-                          严格固定 1 手 / Next-Open次柱撮合 / 3x摩擦压力免疫
+                          名义价值对齐 (¥30万/笔) / 多空双向 / Next-Open次柱撮合 / {isLegacy ? '待测成本耐受' : f.breakeven_cost_mult >= 2.0 ? '3x摩擦压力免疫' : `${f.breakeven_cost_mult}x成本耐受`}
                         </span>
                       </div>
                     </div>
@@ -664,9 +728,9 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
                           <div className="flex items-center justify-between text-[11px] font-semibold text-[#8b949e] mb-1.5">
                             <span className="flex items-center gap-1">
                               <BarChart3 className="w-3 h-3 text-[#58a6ff]" />
-                              6 大代表性商品期货大数逐柱实测表现透视:
+                              {symKeys.length} 大商品期货主力合约大数逐柱实测表现透视:
                             </span>
-                            <span className="text-[10px] text-[#8b949e]">8000+ Bars 严格次柱开盘成交</span>
+                            <span className="text-[10px] text-[#8b949e]">分时K线严格无未来函数撮合</span>
                           </div>
                           <div className="grid grid-cols-2 sm:grid-cols-6 gap-1.5">
                             {symKeys.map((k) => {
@@ -758,32 +822,54 @@ export const BacktestFactorZooModal: React.FC<BacktestFactorZooModalProps> = ({
                     </div>
 
                     {/* Apply Button */}
-                    <button
-                      onClick={() => {
-                        let stratId = 'fac_comp_001';
-                        if (f.factor_id === 'FAC_COMP_001') {
-                          stratId = 'fac_comp_001';
-                        } else if (f.factor_id === 'FAC_COMP_007') {
-                          stratId = 'fac_comp_007';
-                        } else if (f.factor_id === 'FAC_COMP_002') {
-                          stratId = 'fac_comp_002';
-                        } else if (f.factor_id.includes('MR')) {
-                          stratId = 'guiyuan_zscore_reversion';
-                        } else if (f.factor_id.includes('MOM') || f.factor_id.includes('TQ')) {
-                          stratId = 'causal_ml';
-                        } else if (f.factor_id.includes('BRK') || f.factor_id.includes('COMP_003')) {
-                          stratId = 'chandelier_exit';
-                        } else {
-                          stratId = 'fac_comp_001';
-                        }
-                        onApplyFactorToBacktest('AU_IDX', stratId);
-                        onClose();
-                      }}
-                      className="px-3 py-1 rounded-lg bg-[#58a6ff]/15 hover:bg-[#58a6ff]/25 text-[#58a6ff] border border-[#58a6ff]/30 text-xs font-bold flex items-center gap-1.5 transition ml-auto shadow-sm"
-                    >
-                      <span>📊 一键封装并加载至主图回测</span>
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                    </button>
+                    {isRunnable ? (
+                      <button
+                        onClick={() => {
+                          const bestSymbol = getBestSymbol(f.tested_symbols, 'AU_IDX');
+                          let stratId = 'dynamic_alpha_driver';
+                          if (f.factor_id === 'FAC_COMP_001') {
+                            stratId = 'fac_comp_001';
+                          } else if (f.factor_id === 'FAC_COMP_007') {
+                            stratId = 'fac_comp_007';
+                          } else if (f.factor_id === 'FAC_COMP_002') {
+                            stratId = 'fac_comp_002';
+                          } else {
+                            stratId = 'dynamic_alpha_driver';
+                          }
+                          onApplyFactorToBacktest(bestSymbol, stratId, f.factor_id, f.formula_dsl);
+                          onClose();
+                        }}
+                        className="px-3 py-1 rounded-lg bg-[#58a6ff]/15 hover:bg-[#58a6ff]/25 text-[#58a6ff] border border-[#58a6ff]/30 text-xs font-bold flex items-center gap-1.5 transition ml-auto shadow-sm"
+                        title={`一键将该因子封装并自动加载至最佳实测合约 (${getBestSymbol(f.tested_symbols, 'AU_IDX')}) 进行主图回测`}
+                      >
+                        <span>📊 一键封装并加载至主图回测</span>
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                      </button>
+                    ) : isUnresolved ? (
+                      <button
+                        disabled
+                        className="px-3 py-1 rounded-lg bg-[#d29922]/10 text-[#d29922] border border-[#d29922]/30 text-xs font-bold flex items-center gap-1.5 ml-auto cursor-not-allowed opacity-80"
+                        title="该因子的计算实现尚未解析，系统禁止将其加载至主图回测"
+                      >
+                        <span>⚠️ 实现未解析 (禁止封装)</span>
+                      </button>
+                    ) : isLegacy ? (
+                      <button
+                        disabled
+                        className="px-3 py-1 rounded-lg bg-[#8957e5]/10 text-[#bc8cff] border border-[#8957e5]/30 text-xs font-bold flex items-center gap-1.5 ml-auto cursor-not-allowed opacity-80"
+                        title="该因子为历史未重验因子，请先启动连续挖掘完成新版因果体检"
+                      >
+                        <span>⏳ 待重验 (完成体检后可封装)</span>
+                      </button>
+                    ) : (
+                      <button
+                        disabled
+                        className="px-3 py-1 rounded-lg bg-[#30363d]/40 text-[#8b949e] border border-[#30363d] text-xs font-bold flex items-center gap-1.5 ml-auto cursor-not-allowed opacity-60"
+                        title="该因子未通过因果硬门禁已被淘汰，禁止加载至主图回测"
+                      >
+                        <span>🪦 淘汰因子 (禁止封装)</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               );

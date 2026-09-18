@@ -53,28 +53,12 @@ if not logger.handlers:
     logger.addHandler(ch)
 
 
+from runtime_credentials import load_required_credentials
+
+
 def get_tq_credentials() -> Tuple[str, str]:
     """从 .env 获取天勤量化账号密码"""
-    env_path = PROJECT_ROOT / ".env"
-    account = os.getenv("TQ_ACCOUNT", "").strip()
-    password = os.getenv("TQ_PASSWORD", "").strip()
-    if env_path.exists():
-        with open(env_path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line.startswith("TQ_ACCOUNT=") and not account:
-                    account = line.split("=", 1)[1].strip().strip("\"'")
-                elif line.startswith("TQ_PASSWORD=") and not password:
-                    password = line.split("=", 1)[1].strip().strip("\"'")
-                elif ("账号" in line or "TQ_ACCOUNT" in line) and not account:
-                    parts = line.replace("：", ":").split(":")
-                    if len(parts) > 1:
-                        account = parts[1].strip()
-                elif ("密码" in line or "TQ_PASSWORD" in line) and not password:
-                    parts = line.replace("：", ":").split(":")
-                    if len(parts) > 1:
-                        password = parts[1].strip()
-    return account or "13800000000", password or "redacted_password"
+    return load_required_credentials(PROJECT_ROOT / ".env")
 
 
 # 核心贵金属跨期交易标的配置

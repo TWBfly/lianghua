@@ -115,6 +115,7 @@ export async function safeInvoke<T>(cmd: string, args?: Record<string, any>): Pr
     const tf = args?.req?.timeframe || '15m';
 
     const STRATEGY_NAME_MAP: Record<string, string> = {
+      adaptive_regime_evolution: '🌌 【开阳·三阶演化】状态识别 × 延续预测 × 自适应路由',
       rc_lsr: '💎 【RC-LSR·流动性冲击】极端位移 × 边际吸收 × 截面广度',
       rc_lsr_strategy: '💎 【RC-LSR·流动性冲击】极端位移 × 边际吸收 × 截面广度',
       tianquan_extreme_phase_reversal: '⚖️ 【天权·极值相变】做市商吸收 × 持仓衰竭 × 动态吊灯',
@@ -183,6 +184,44 @@ export async function safeInvoke<T>(cmd: string, args?: Record<string, any>): Pr
       suitable_market_regime: '主流大宗商品期货活跃合约',
       deployment_recommendation: '推荐实盘灰度测试部署，配合资产白名单与趋势状态门禁。',
     };
+
+    if (strat === 'adaptive_regime_evolution') {
+      entryLogic = {
+        title: '开阳·自适应三阶演化策略开仓机制',
+        core_formula: 'State ∈ {UP, DOWN} ∩ DynamicMomentum(DS, KalmanVel) ∩ {Kickoff ∪ Resume ∪ Breakout} ∩ Macro_SS48',
+        trigger_conditions: [
+          '① 第一步当前状态识别: 12 周期 Ehlers 2-Pole 零滞后滤波器 + 20 周期 Kaufman DER + 归一化均线斜率，经迟滞状态机锁定动力学多空',
+          '② 第二步统计物理与动量门禁: 因果方差比 Hurst 指数 + 3 阶符号排列熵 (PE) + 运动学卡尔曼速度，强单边动量冲击可自适应放行',
+          '③ 第三步自适应路由器: 顺 48 周期 SuperSmoother 宏观中枢，提供趋势反转初生破位、记忆回踩恢复与动量突破三重顺势通道，配合微观箱体极值真突破校验',
+          '④ 转换与噪声态休眠: 在反持续高熵混沌或微宏观冲突且无强动量冲击时，强制空仓观望，规避高频洗盘磨损',
+        ],
+        execution_mechanics: '次柱开盘对价市价单严格撮合 (Next-Open Fill)，扣除 1 Tick 真实滑点与双边及平今手续费。',
+      };
+      exitLogic = {
+        title: '开阳·动态保本与 Chandelier 移动吊灯非对称追踪出场',
+        core_formula: 'Chandelier_Trailing(Highest - 2.8*ATR if Float >= 2.2*ATR) ∪ BreakEven(Entry + Friction if Float >= 1.85*ATR) ∪ Regime_Reversal',
+        trigger_conditions: [
+          '① 动态移动吊灯追踪: 持仓浮盈达到 2.2 * ATR 时激活，以持仓极值减 2.8 * ATR 动态推移，绝不使用固定点位止盈截断右尾暴利',
+          '② 动态净保本锁定: 持仓浮盈达到 1.85 * ATR 时，止损自动抬升至建仓成本上方并覆盖双边手续费、滑点与最小跳位缓冲，杜绝利润回撤为亏损',
+          '③ 状态对冲翻转退出: 当状态机彻底翻转为反向单边趋势且持仓满 2 根 Bar，或持仓满 48 根且趋势度衰竭时立即平仓离场',
+        ],
+        execution_mechanics: '次柱开盘对价平仓，全额释放保证金与风险预算。',
+      };
+      optimizationSuggestions = [
+        {
+          dimension: '微观摩擦与资产分层',
+          title: '执行资产摩擦比率定律 (Friction / ATR)',
+          suggestion: '主力配置沪银(AG)、沪金(AU)、沪锡(SN)等摩擦低于 10% ATR 的高 Alpha 合约；螺纹(RB)、热卷(HC)等高摩擦品种下调风险预算或迁移至 30m/1h 周期。',
+          expected_impact: '消灭高摩擦损耗，大幅提振组合夏普比率与卡尔玛比率。',
+        },
+        {
+          dimension: '滚动分位数自适应',
+          title: '动态 500 根 Bar 滚动分位数门禁',
+          suggestion: '根据资产波动率特征动态自适应调整门槛，消除跨品种硬编码缺陷。',
+          expected_impact: '各品种交易频次与胜率显著均衡，全面通过大数定律检验。',
+        },
+      ];
+    }
 
     if (strat === 'rc_lsr' || strat === 'rc_lsr_strategy') {
       entryLogic = {

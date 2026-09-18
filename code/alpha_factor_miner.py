@@ -370,6 +370,7 @@ def factor_oi_momentum_surge(df: pd.DataFrame) -> pd.Series:
         oi = df["open_interest"].astype(float)
         oi_diff = oi.diff().fillna(0)
         return vol_ratio * np.sign(oi_diff)
+    return vol_ratio  # ponytail: no open_interest column, degrade to pure volume ratio
 # ==============================================================================
 # 6. Liquidity Shock Reversal (RC-LSR) Microstructure Factors
 # ==============================================================================

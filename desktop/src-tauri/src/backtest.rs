@@ -2,7 +2,7 @@ use crate::db::{query_futures_kline, query_stock_daily, query_synthetic_futures_
 use crate::strategies::ChartMarker;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct BacktestRequest {
     pub symbol: String,
     pub strategy: String,
@@ -15,6 +15,8 @@ pub struct BacktestRequest {
     pub use_synthetic: Option<bool>,
     #[serde(default = "default_fixed_lots")]
     pub fixed_lots: Option<i64>,
+    pub factor_id: Option<String>,
+    pub formula_dsl: Option<String>,
 }
 
 fn default_fixed_lots() -> Option<i64> {
@@ -66,6 +68,13 @@ pub struct BacktestTradeItem {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TrendPoint {
+    pub time: i64,
+    pub regime: i32, // 1: 上涨(多), -1: 下跌(空), 0: 横盘
+    pub value: f64,  // 趋势中枢线价格 (Ehlers SuperSmoother)
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BacktestResponse {
     pub symbol: String,
     pub name: String,
@@ -75,6 +84,8 @@ pub struct BacktestResponse {
     pub trades: Vec<BacktestTradeItem>,
     pub markers: Vec<ChartMarker>,
     pub bars: Vec<KlineBar>,
+    #[serde(default)]
+    pub trend_series: Vec<TrendPoint>,
 }
 
 // Portfolio Multi-Asset LLN Backtest
@@ -230,6 +241,7 @@ pub struct DualTrackEvaluationReport {
 
 pub fn get_strategy_display_name(strat: &str) -> &'static str {
     match strat {
+        "adaptive_regime_evolution" => "🌌 【开阳·三阶演化】状态识别 × 延续预测 × 自适应路由",
         "rc_lsr" | "rc_lsr_strategy" => "💎 【RC-LSR·流动性冲击】极端位移 × 边际吸收 × 截面广度",
         "tianquan_extreme_phase_reversal" | "tianquan" => "⚖️ 【天权·极值相变】做市商吸收 × 持仓衰竭 × 动态吊灯",
         "taichong_elastoplastic_tensor" => "🔮 【太冲·弹塑性】协方差白化 × 微观谐振 × 相变自适应",
@@ -244,6 +256,7 @@ pub fn get_strategy_display_name(strat: &str) -> &'static str {
         "squeeze_momentum" => "💥 【动量能量挤压】Squeeze Momentum 能量积蓄释放",
         "chandelier_exit" => "🛑 【动态吊灯追踪】Chandelier Exit 非对称浮动止损",
         "causal_ml" => "🧠 【因果机器学习】Meta-Labeling 次级障碍概率过滤",
+        "dynamic_alpha_driver" => "🧬 【动态因子驱动回测】因果分位数入场 × 三重出场屏障",
         _ => "⚖️ 天权因果量化策略",
     }
 }
@@ -485,6 +498,117 @@ pub fn decompose_bars_to_subminutes(base_bars: &[KlineBar], base_minutes: i64, t
 }
 
 // Technical Indicators Calculation Helpers
+fn calc_supersmoother(prices: &[f64], period: usize) -> Vec<f64> {
+    let n = prices.len();
+    if n < 4 {
+        return prices.to_vec();
+    }
+    let p = period as f64;
+    let pi = std::f64::consts::PI;
+    let a1 = (-std::f64::consts::SQRT_2 * pi / p).exp();
+    let b1 = 2.0 * a1 * (std::f64::consts::SQRT_2 * pi / p).cos();
+    let c2 = b1;
+    let c3 = -a1 * a1;
+    let c1 = 1.0 - c2 - c3;
+    let mut filt = vec![0.0; n];
+    filt[0] = prices[0];
+    filt[1] = prices[1];
+    for t in 2..n {
+        filt[t] = c1 * (prices[t] + prices[t - 1]) * 0.5 + c2 * filt[t - 1] + c3 * filt[t - 2];
+    }
+    filt
+}
+
+fn calc_causal_hurst_window(closes: &[f64], end_idx: usize, window: usize) -> f64 {
+    if end_idx < window + 2 {
+        return 0.50;
+    }
+    let start_idx = end_idx + 1 - window;
+    let mut sum1 = 0.0;
+    let mut sum1_sq = 0.0;
+    let mut count1 = 0.0;
+    for k in start_idx..=end_idx {
+        if closes[k] > 1e-8 && closes[k - 1] > 1e-8 {
+            let r = (closes[k] / closes[k - 1]).ln();
+            sum1 += r;
+            sum1_sq += r * r;
+            count1 += 1.0;
+        }
+    }
+    let mut sum2 = 0.0;
+    let mut sum2_sq = 0.0;
+    let mut count2 = 0.0;
+    for k in start_idx..=end_idx {
+        if k >= 2 && closes[k] > 1e-8 && closes[k - 2] > 1e-8 {
+            let r = (closes[k] / closes[k - 2]).ln();
+            sum2 += r;
+            sum2_sq += r * r;
+            count2 += 1.0;
+        }
+    }
+    if count1 < 10.0 || count2 < 10.0 {
+        return 0.50;
+    }
+    let mean1 = sum1 / count1;
+    let var1 = (sum1_sq - count1 * mean1 * mean1) / (count1 - 1.0);
+    let mean2 = sum2 / count2;
+    let var2 = (sum2_sq - count2 * mean2 * mean2) / (count2 - 1.0);
+    if var1 <= 1e-12 || var2 <= 1e-12 {
+        return 0.50;
+    }
+    let vr = (var2 / (2.0 * var1)).max(1e-4);
+    let h = 0.5 + 0.5 * (vr.ln() / 2.0_f64.ln());
+    h.clamp(0.10, 0.90)
+}
+
+fn calc_permutation_entropy_3(closes: &[f64], end_idx: usize, window: usize) -> f64 {
+    if end_idx < window + 2 {
+        return 1.0;
+    }
+    let start_idx = end_idx + 1 - window;
+    let window_slice = &closes[start_idx..=end_idx];
+    let min_p = window_slice.iter().cloned().fold(f64::INFINITY, f64::min);
+    let max_p = window_slice.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+    if (max_p - min_p) <= 1e-6 {
+        // ponytail: 平盘零波动无任何序数信息，返回最大熵1.0(无序)，防止伪造满分趋势
+        return 1.0;
+    }
+    let mut counts = [0.0; 6];
+    let mut total = 0.0;
+    for j in start_idx..=(end_idx.saturating_sub(2)) {
+        let p0 = closes[j];
+        let p1 = closes[j + 1];
+        let p2 = closes[j + 2];
+        let c01 = if p0 > p1 { 1 } else { 0 };
+        let c12 = if p1 > p2 { 1 } else { 0 };
+        let c02 = if p0 > p2 { 1 } else { 0 };
+        let code = (c01 << 2) | (c12 << 1) | c02;
+        let pattern_id = match code {
+            0 => 0,
+            2 => 1,
+            4 => 2,
+            3 => 3,
+            5 => 4,
+            7 => 5,
+            _ => 0,
+        };
+        counts[pattern_id] += 1.0;
+        total += 1.0;
+    }
+    if total < 5.0 {
+        return 1.0;
+    }
+    let mut entropy: f64 = 0.0;
+    for &cnt in &counts {
+        if cnt > 0.0 {
+            let p: f64 = cnt / total;
+            entropy -= p * p.ln();
+        }
+    }
+    let max_entropy = 6.0_f64.ln();
+    (entropy / max_entropy).clamp(0.0, 1.0)
+}
+
 fn calc_sma(values: &[f64], period: usize) -> Vec<f64> {
     let n = values.len();
     let mut sma = vec![0.0; n];
@@ -498,6 +622,296 @@ fn calc_sma(values: &[f64], period: usize) -> Vec<f64> {
         sma[i] = sum / period as f64;
     }
     sma
+}
+
+fn calc_rolling_quantile(values: &[f64], period: usize, quantile: f64) -> Vec<f64> {
+    let n = values.len();
+    let mut result = vec![f64::NAN; n];
+    if n < period || period == 0 {
+        return result;
+    }
+    let mut buf = Vec::with_capacity(period);
+    for i in (period - 1)..n {
+        buf.clear();
+        for &v in &values[i + 1 - period..=i] {
+            if !v.is_nan() {
+                buf.push(v);
+            }
+        }
+        if buf.is_empty() {
+            continue;
+        }
+        buf.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let idx = ((buf.len() - 1) as f64 * quantile).round() as usize;
+        result[i] = buf[idx.min(buf.len() - 1)];
+    }
+    result
+}
+
+fn calc_rolling_atr(highs: &[f64], lows: &[f64], closes: &[f64], period: usize) -> Vec<f64> {
+    let n = closes.len();
+    let mut atr = vec![0.0; n];
+    if n < period || period == 0 {
+        return atr;
+    }
+    let mut tr = vec![0.0; n];
+    tr[0] = highs[0] - lows[0];
+    for i in 1..n {
+        let hl = highs[i] - lows[i];
+        let hc = (highs[i] - closes[i - 1]).abs();
+        let lc = (lows[i] - closes[i - 1]).abs();
+        tr[i] = hl.max(hc).max(lc);
+    }
+    let mut sum: f64 = tr[..period].iter().sum();
+    atr[period - 1] = sum / period as f64;
+    for i in period..n {
+        sum += tr[i] - tr[i - period];
+        atr[i] = sum / period as f64;
+    }
+    atr
+}
+
+fn calc_rolling_vwap(closes: &[f64], volumes: &[f64], period: usize) -> Vec<f64> {
+    let n = closes.len();
+    let mut vwap = vec![0.0; n];
+    if n < period || period == 0 {
+        return vwap;
+    }
+    let mut pv_sum = 0.0;
+    let mut v_sum = 0.0;
+    for i in 0..period {
+        pv_sum += closes[i] * volumes[i];
+        v_sum += volumes[i];
+    }
+    vwap[period - 1] = if v_sum > 1e-6 { pv_sum / v_sum } else { closes[period - 1] };
+    for i in period..n {
+        pv_sum += closes[i] * volumes[i] - closes[i - period] * volumes[i - period];
+        v_sum += volumes[i] - volumes[i - period];
+        vwap[i] = if v_sum > 1e-6 { pv_sum / v_sum } else { closes[i] };
+    }
+    vwap
+}
+
+fn compute_dynamic_factor_series(
+    factor_id: Option<&str>,
+    _formula_dsl: Option<&str>,
+    closes: &[f64],
+    highs: &[f64],
+    lows: &[f64],
+    volumes: &[f64],
+    _atr_14: &[f64],
+) -> Result<(Vec<f64>, String), String> {
+    let n = closes.len();
+    let fid = factor_id.unwrap_or("FAC_MOM_W16");
+    let mut f_vals = vec![0.0; n];
+    let display_name: String;
+
+    if fid.starts_with("FAC_MOM_W") {
+        let w_str = &fid["FAC_MOM_W".len()..];
+        let w = w_str.parse::<usize>().unwrap_or(16).max(2);
+        display_name = format!("{w}周期波动率归一化动量");
+        let atr = calc_rolling_atr(highs, lows, closes, w);
+        for i in w..n {
+            let cur_atr = atr[i].max(closes[i] * 0.001);
+            f_vals[i] = (closes[i] - closes[i - w]) / (cur_atr + 1e-6);
+        }
+    } else if fid.starts_with("FAC_EMA_DIFF_") {
+        let parts: Vec<&str> = fid["FAC_EMA_DIFF_".len()..].split('_').collect();
+        let f_p = parts.get(0).and_then(|s| s.parse::<usize>().ok()).unwrap_or(8);
+        let s_p = parts.get(1).and_then(|s| s.parse::<usize>().ok()).unwrap_or(24);
+        display_name = format!("双均线偏离扩散率 ({f_p}/{s_p})");
+        let ema_f = calc_ema(closes, f_p);
+        let ema_s = calc_ema(closes, s_p);
+        let atr = calc_rolling_atr(highs, lows, closes, s_p);
+        for i in s_p..n {
+            let cur_atr = atr[i].max(closes[i] * 0.001);
+            f_vals[i] = (ema_f[i] - ema_s[i]) / (cur_atr + 1e-6);
+        }
+    } else if fid.starts_with("FAC_BRK_DON_") {
+        let w_str = &fid["FAC_BRK_DON_".len()..];
+        let w = w_str.parse::<usize>().unwrap_or(25).max(2);
+        display_name = format!("{w}周期唐奇安通道极值突破");
+        let atr = calc_rolling_atr(highs, lows, closes, w);
+        for i in (w + 1)..n {
+            let max_h = highs[i - w..i].iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+            let cur_atr = atr[i].max(closes[i] * 0.001);
+            f_vals[i] = (closes[i] - max_h) / (cur_atr + 1e-6);
+        }
+    } else if fid.starts_with("FAC_SNR_ER_") {
+        let w_str = &fid["FAC_SNR_ER_".len()..];
+        let w = w_str.parse::<usize>().unwrap_or(18).max(2);
+        display_name = format!("{w}周期路径信噪比纯度 (Kaufman ER)");
+        for i in w..n {
+            let net_move = (closes[i] - closes[i - w]).abs();
+            let mut path_len = 0.0;
+            for k in (i - w + 1)..=i {
+                path_len += (closes[k] - closes[k - 1]).abs();
+            }
+            let er = if path_len > 1e-6 { (net_move / path_len).min(1.0) } else { 0.0 };
+            let sign = if closes[i] > closes[i - w] { 1.0 } else if closes[i] < closes[i - w] { -1.0 } else { 0.0 };
+            f_vals[i] = er * sign;
+        }
+    } else if fid.starts_with("FAC_MR_Z_") {
+        let w_str = &fid["FAC_MR_Z_".len()..];
+        let w = w_str.parse::<usize>().unwrap_or(20).max(2);
+        display_name = format!("{w}周期残差Z-Score均值反转");
+        let sma = calc_sma(closes, w);
+        let std = calc_std(closes, &sma, w);
+        for i in w..n {
+            f_vals[i] = -(closes[i] - sma[i]) / (std[i] + 1e-6);
+        }
+    } else if fid.starts_with("FAC_VLM_CLV_") {
+        let w_str = &fid["FAC_VLM_CLV_".len()..];
+        let w = w_str.parse::<usize>().unwrap_or(20).max(2);
+        display_name = format!("{w}周期微观收盘位置放量共振");
+        let vol_sma = calc_sma(volumes, w);
+        for i in w..n {
+            let rng = highs[i] - lows[i];
+            let clv = if rng > 1e-6 {
+                ((closes[i] - lows[i]) - (highs[i] - closes[i])) / rng
+            } else {
+                0.0
+            };
+            let v_ratio = (volumes[i] / (vol_sma[i] + 1e-6)).clamp(0.5, 4.0);
+            f_vals[i] = clv * (v_ratio + 1.0).ln();
+        }
+    } else if fid.starts_with("FAC_ORTHO_TRI_") {
+        let parts: Vec<&str> = fid["FAC_ORTHO_TRI_".len()..].split('_').collect();
+        let m_w = parts.get(0).and_then(|s| s.parse::<usize>().ok()).unwrap_or(20);
+        let b_w = parts.get(1).and_then(|s| s.parse::<usize>().ok()).unwrap_or(25);
+        display_name = format!("正交三元共振系统 ({m_w}/{b_w})");
+        let vol_sma = calc_sma(volumes, 20);
+        let atr = calc_rolling_atr(highs, lows, closes, b_w);
+        for i in (m_w.max(b_w) + 1)..n {
+            let max_h = highs[i - b_w..i].iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+            let cur_atr = atr[i].max(closes[i] * 0.001);
+            let brk = (closes[i] - max_h) / (cur_atr + 1e-6);
+            let net_move = (closes[i] - closes[i - m_w]).abs();
+            let mut path_len = 0.0;
+            for k in (i - m_w + 1)..=i {
+                path_len += (closes[k] - closes[k - 1]).abs();
+            }
+            let er = if path_len > 1e-6 { (net_move / path_len).min(1.0) } else { 0.0 };
+            let v_ratio = (volumes[i] / (vol_sma[i] + 1e-6)).clamp(0.5, 3.5);
+            f_vals[i] = brk * er * v_ratio;
+        }
+    } else if fid.starts_with("FAC_DYN_MSNR_") {
+        let parts: Vec<&str> = fid["FAC_DYN_MSNR_".len()..].split('_').collect();
+        let idx_str = parts.get(0).unwrap_or(&"0");
+        let p_a = parts.get(1).and_then(|s| s.parse::<usize>().ok()).unwrap_or(16);
+        let p_b = parts.get(2).and_then(|s| s.parse::<usize>().ok()).unwrap_or(14);
+        display_name = format!("多尺度动量效率比共振变体 #{idx_str} (P={p_a}/E={p_b})");
+        let atr = calc_rolling_atr(highs, lows, closes, p_b);
+        for i in p_a.max(p_b)..n {
+            let net_move = (closes[i] - closes[i - p_b]).abs();
+            let mut path_len = 0.0;
+            for k in (i - p_b + 1)..=i {
+                path_len += (closes[k] - closes[k - 1]).abs();
+            }
+            let er = if path_len > 1e-6 { (net_move / path_len).min(1.0) } else { 0.0 };
+            let cur_atr = atr[i].max(closes[i] * 0.001);
+            let mom = (closes[i] - closes[i - p_a]) / (cur_atr + 1e-6);
+            f_vals[i] = er * mom;
+        }
+    } else if fid.starts_with("FAC_DYN_BVOL_") {
+        let parts: Vec<&str> = fid["FAC_DYN_BVOL_".len()..].split('_').collect();
+        let idx_str = parts.get(0).unwrap_or(&"0");
+        let p_a = parts.get(1).and_then(|s| s.parse::<usize>().ok()).unwrap_or(20);
+        let p_c = parts.get(2).and_then(|s| s.parse::<usize>().ok()).unwrap_or(14);
+        display_name = format!("自适应波动率通道扩张突破变体 #{idx_str} (W={p_a}/A={p_c})");
+        let atr = calc_rolling_atr(highs, lows, closes, p_c);
+        let mult = 1.5;
+        for i in (p_a.max(p_c) + 1)..n {
+            let max_h = highs[i - p_a..i].iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+            let cur_atr = atr[i].max(closes[i] * 0.001);
+            f_vals[i] = (closes[i] - max_h) / (cur_atr * mult + 1e-6);
+        }
+    } else if fid.starts_with("FAC_DYN_VREV_") {
+        let parts: Vec<&str> = fid["FAC_DYN_VREV_".len()..].split('_').collect();
+        let idx_str = parts.get(0).unwrap_or(&"0");
+        let p_a = parts.get(1).and_then(|s| s.parse::<usize>().ok()).unwrap_or(20);
+        let p_b = parts.get(2).and_then(|s| s.parse::<usize>().ok()).unwrap_or(14);
+        display_name = format!("成交量加权筹码偏离反转变体 #{idx_str} (V={p_a}/A={p_b})");
+        let vwap = calc_rolling_vwap(closes, volumes, p_a);
+        let atr = calc_rolling_atr(highs, lows, closes, p_b);
+        for i in p_a.max(p_b)..n {
+            let cur_atr = atr[i].max(closes[i] * 0.001);
+            f_vals[i] = -(closes[i] - vwap[i]) / (cur_atr + 1e-6);
+        }
+    } else if fid.starts_with("FAC_COMP_DYN_") {
+        let parts: Vec<&str> = fid["FAC_COMP_DYN_".len()..].split('_').collect();
+        let idx_str = parts.get(0).unwrap_or(&"0");
+        let e_fast = parts.get(1).and_then(|s| s.parse::<usize>().ok()).unwrap_or(8);
+        let e_slow = parts.get(2).and_then(|s| s.parse::<usize>().ok()).unwrap_or(24);
+        let p_c = parts.get(3).and_then(|s| s.parse::<usize>().ok()).unwrap_or(20);
+        display_name = format!("正交均线动量与量能脉冲复合变体 #{idx_str} ({e_fast}/{e_slow}/V={p_c})");
+        let ema_f = calc_ema(closes, e_fast);
+        let ema_s = calc_ema(closes, e_slow);
+        let atr = calc_rolling_atr(highs, lows, closes, e_slow);
+        let vol_sma = calc_sma(volumes, p_c);
+        for i in e_slow.max(p_c)..n {
+            let cur_atr = atr[i].max(closes[i] * 0.001);
+            let spread = (ema_f[i] - ema_s[i]) / (cur_atr + 1e-6);
+            let v_ratio = (volumes[i] / (vol_sma[i] + 1e-6)).clamp(0.5, 4.0);
+            f_vals[i] = spread * (v_ratio + 1.0).ln();
+        }
+    } else if fid.starts_with("FAC_DYN_CLV_") {
+        let parts: Vec<&str> = fid["FAC_DYN_CLV_".len()..].split('_').collect();
+        let idx_str = parts.get(0).unwrap_or(&"0");
+        let p_a = parts.get(1).and_then(|s| s.parse::<usize>().ok()).unwrap_or(15);
+        let p_b = parts.get(2).and_then(|s| s.parse::<usize>().ok()).unwrap_or(20);
+        display_name = format!("微观订单流筹码吸收变体 #{idx_str} (C={p_a}/V={p_b})");
+        let mut clv = vec![0.0; n];
+        for i in 0..n {
+            let rng = highs[i] - lows[i];
+            clv[i] = if rng > 1e-6 { (2.0 * closes[i] - highs[i] - lows[i]) / rng } else { 0.0 };
+        }
+        let clv_sma = calc_sma(&clv, p_a);
+        let vol_sma = calc_sma(volumes, p_b);
+        for i in p_a.max(p_b)..n {
+            let v_ratio = (volumes[i] / (vol_sma[i] + 1e-6)).clamp(0.5, 3.5);
+            f_vals[i] = clv_sma[i] * v_ratio;
+        }
+    } else if fid.starts_with("FAC_DYN_VEXP_") {
+        let parts: Vec<&str> = fid["FAC_DYN_VEXP_".len()..].split('_').collect();
+        let idx_str = parts.get(0).unwrap_or(&"0");
+        let v_fast = parts.get(1).and_then(|s| s.parse::<usize>().ok()).unwrap_or(6);
+        let v_slow = parts.get(2).and_then(|s| s.parse::<usize>().ok()).unwrap_or(18);
+        let p_c = parts.get(3).and_then(|s| s.parse::<usize>().ok()).unwrap_or(12);
+        display_name = format!("波动率挤压扩张动力学变体 #{idx_str} ({v_fast}/{v_slow}/M={p_c})");
+        let atr_f = calc_rolling_atr(highs, lows, closes, v_fast);
+        let atr_s = calc_rolling_atr(highs, lows, closes, v_slow);
+        for i in v_slow.max(p_c)..n {
+            let sign = if closes[i] > closes[i - p_c] { 1.0 } else if closes[i] < closes[i - p_c] { -1.0 } else { 0.0 };
+            f_vals[i] = (atr_f[i] / (atr_s[i] + 1e-6)) * sign;
+        }
+    } else if fid.starts_with("FAC_DYN_CHAND_") || fid.starts_with("FAC_CHANDELIER_") {
+        let prefix = if fid.starts_with("FAC_DYN_CHAND_") { "FAC_DYN_CHAND_" } else { "FAC_CHANDELIER_" };
+        let parts: Vec<&str> = fid[prefix.len()..].split('_').collect();
+        let (hw, mult10) = if parts.len() >= 3 {
+            (parts[1].parse::<usize>().unwrap_or(22), parts[2].parse::<f64>().unwrap_or(30.0))
+        } else {
+            (parts.get(0).and_then(|s| s.parse::<usize>().ok()).unwrap_or(22), parts.get(1).and_then(|s| s.parse::<f64>().ok()).unwrap_or(30.0))
+        };
+        let mult = mult10 / 10.0;
+        display_name = format!("{hw}周期动态吊灯自适应追踪 (x{mult})");
+        let atr = calc_rolling_atr(highs, lows, closes, hw);
+        let sma = calc_sma(closes, hw);
+        for i in hw..n {
+            let max_h = highs[i - hw..=i].iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+            let trend = if closes[i] > sma[i] { 1.0 } else { -1.0 };
+            let dist = (max_h - closes[i]) / (mult * atr[i] + 1e-6);
+            f_vals[i] = trend * (1.0 - dist.clamp(0.0, 1.5));
+        }
+    } else {
+        // [Q01/Q02] 绝对禁止默认 fallback 偷换！
+        return Err(format!(
+            "UNSUPPORTED_FACTOR: 因子 ID [{}] 尚未在 Rust 高性能回测引擎中原生注册。为保证研究因果与实盘真实性，系统拒绝使用默认公式替代，请在 Python 实验室运行该因子的完整评估。",
+            fid
+        ));
+    }
+
+    Ok((f_vals, display_name))
 }
 
 fn calc_ema(values: &[f64], period: usize) -> Vec<f64> {
@@ -754,6 +1168,33 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
     let mut current_buy_reason = String::new();
     let mut trades = Vec::new();
     let mut markers = Vec::new();
+    let mut trend_series: Vec<TrendPoint> = Vec::new();
+    let mut regime_state: i32 = 0;
+    let mut bars_in_regime: usize = 0;
+    let mut prev_regime: i32 = 999;
+    let ss_fast = calc_supersmoother(&closes, 12);
+    let ss_macro = calc_supersmoother(&closes, 48);
+    let mut macro_regime_state: i32 = 0;
+    let mut kaiyang_source: i32 = 0;
+    let mut kalman_p = if !closes.is_empty() { closes[0] } else { 0.0 };
+    let mut kalman_v = 0.0;
+    let mut kalman_p00 = 1.0;
+    let mut kalman_p01 = 0.0;
+    let mut kalman_p11 = 1.0;
+    let mut prev_kalman_norm_vel = 0.0;
+    let mut trailing_stop_price: f64 = 0.0;
+    let mut entry_atr_val: f64 = 1.0;
+    let mut current_entry_fee: f64 = 0.0;
+    let mut current_ml_score: f64 = 85.0;
+    let mut bars_since_pullback_up: usize = 99;
+    let mut bars_since_pullback_down: usize = 99;
+    let mut last_processed_bar_idx: usize = 0;
+    let mut cooldown_direction: i64 = 0; // +1: 多头平仓冷却, -1: 空头平仓冷却
+    let mut regime_start_price: f64 = if !closes.is_empty() { closes[0] } else { 0.0 };
+    let mut recent_box_high: f64 = f64::NEG_INFINITY;
+    let mut recent_box_low: f64 = f64::INFINITY;
+    let mut _prev_non_zero_regime: i32 = 0;
+    let mut bars_since_box: usize = 999;
 
     let mut peak_equity = initial_cap;
     let mut max_dd = 0.0;
@@ -768,6 +1209,30 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
     let mut pending_exit: Option<String> = None;
 
     let strat = req.strategy.as_str();
+
+    let (dynamic_factor_vals, dynamic_factor_name) = if strat == "dynamic_alpha_driver" || strat.starts_with("fac_") {
+        compute_dynamic_factor_series(
+            req.factor_id.as_deref(),
+            req.formula_dsl.as_deref(),
+            &closes,
+            &highs,
+            &lows,
+            &volumes,
+            &atr_14,
+        )?
+    } else {
+        (vec![], String::new())
+    };
+    let dynamic_factor_upper = if !dynamic_factor_vals.is_empty() {
+        calc_rolling_quantile(&dynamic_factor_vals, 60, 0.75)
+    } else {
+        vec![]
+    };
+    let dynamic_factor_lower = if !dynamic_factor_vals.is_empty() {
+        calc_rolling_quantile(&dynamic_factor_vals, 60, 0.25)
+    } else {
+        vec![]
+    };
 
     // 品种-策略相性刚性检验 (Asset-Regime Compatibility Gate):
     // 黄金 (AU) / 白银 (AG) 属于宏观长动量、地缘避险与厚尾单边资产，严禁使用左侧极值摸顶抄底策略！
@@ -831,10 +1296,11 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
             if !req.start_date.is_empty() && cur_date_str < req.start_date.as_str() {
                 continue;
             }
-            if !req.end_date.is_empty() && req.end_date.as_str() < "2026-08-01" && cur_date_str > req.end_date.as_str() {
-                continue;
+            if !req.end_date.is_empty() && cur_date_str > req.end_date.as_str() {
+                break;
             }
         }
+        last_processed_bar_idx = i;
 
         // ----------------------------------------------------
         // 严格次柱开盘 (Next-Open Fill) 因果撮合执行
@@ -842,7 +1308,13 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
         // 1. 处理上一根 Bar 触发的平仓挂单 (严格次柱开盘 Next-Open 对价市价单成交，扣除1 Tick滑点与双边规费，绝不偷价)
         if let Some(exit_reason) = pending_exit.take() {
             if shares != 0 {
-                let is_long = shares > 0;
+                let buy_day = if buy_date.len() >= 10 { &buy_date[..10] } else { "" };
+                let is_same_day_stock = is_stock && !buy_day.is_empty() && cur_date_str == buy_day;
+                if is_same_day_stock {
+                    // A股现货严格 T+1: 当日买入股份当日禁止卖出，平仓挂单顺延至下一个交易日执行
+                    pending_exit = Some(exit_reason);
+                } else {
+                    let is_long = shares > 0;
                 let abs_shares = (shares.abs() as f64).max(1.0);
 
                 let fill_price = if is_long {
@@ -859,20 +1331,22 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
 
                 let gross_val = fill_price * abs_shares * multiplier;
                 let stamp_duty = if is_stock && is_long { gross_val * 0.0005 } else { 0.0 };
-                let fee = (if is_stock { gross_val * 0.0003 } else { gross_val * 0.00005 }) + stamp_duty;
-                let slip_cost = slippage * abs_shares * multiplier;
-                total_friction += fee + slip_cost;
+                let exit_fee = (if is_stock { gross_val * 0.0003 } else { gross_val * 0.00005 }) + stamp_duty;
+                total_friction += exit_fee;
 
-                let pnl_amount = if is_long {
-                    (fill_price - buy_price) * abs_shares * multiplier - fee - slip_cost
+                // 修复双重滑点与逐笔收益记账漏洞:
+                // fill_price 已经包含 1-tick 滑点, 净价差已含双边真实滑点, 严禁重复减去 slip_cost
+                let gross_pnl = if is_long {
+                    (fill_price - buy_price) * abs_shares * multiplier
                 } else {
-                    (buy_price - fill_price) * abs_shares * multiplier - fee - slip_cost
+                    (buy_price - fill_price) * abs_shares * multiplier
                 };
+                let pnl_amount = gross_pnl - current_entry_fee - exit_fee;
                 let pnl_pct = gain_pct * 100.0;
                 let is_win = pnl_amount >= 0.0;
 
                 let margin_released = buy_price * abs_shares * multiplier * if is_stock { 1.0 } else { 0.12 };
-                cash += margin_released + pnl_amount;
+                cash += margin_released + gross_pnl - exit_fee;
 
                 let holding_days = if curr.time > buy_time && buy_time > 0 {
                     ((curr.time - buy_time) as f64 / 86400.0).max(0.0001)
@@ -882,7 +1356,8 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
                     ((bar_interval_mins as f64 * bars_held.max(1) as f64) / 1440.0).max(0.0001)
                 };
                 holding_days_sum += holding_days;
-                causal_cooldown = 4;
+                causal_cooldown = if strat == "adaptive_regime_evolution" { 6 } else { 4 };
+                cooldown_direction = if is_long { 1 } else { -1 };
                 bars_held = 0;
 
                 let trade_id = trades.len() + 1;
@@ -898,9 +1373,9 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
                     shares: shares.abs(),
                     pnl_amount: (pnl_amount * 100.0).round() / 100.0,
                     pnl_pct: (pnl_pct * 100.0).round() / 100.0,
-                    ml_score_pct: 85.0,
+                    ml_score_pct: (current_ml_score * 10.0).round() / 10.0,
                     sell_reason: exit_reason.clone(),
-                    fees_detail: format!("规费与滑点: ¥{:.2}", fee + slip_cost),
+                    fees_detail: format!("规费: ¥{:.2}", current_entry_fee + exit_fee),
                 });
 
                 let exit_time_label = if curr.datetime_str.len() >= 16 {
@@ -911,13 +1386,15 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
 
                 markers.push(ChartMarker {
                     time: curr.time,
-                    position: if is_long { "aboveBar".to_string() } else { "belowBar".to_string() },
+                    position: "belowBar".to_string(),
                     color: if is_win { "#d29922".to_string() } else { "#f85149".to_string() },
                     shape: "circle".to_string(),
                     text: format!(
-                        "{} {} {:+.1}% (¥{:+.0})",
+                        "{} {} {} @{:.2} {:+.1}% (¥{:+.0})",
                         if is_win { "🎯" } else { "🛑" },
                         exit_time_label,
+                        if is_long { "平多" } else { "平空" },
+                        fill_price,
                         pnl_pct,
                         pnl_amount
                     ),
@@ -929,46 +1406,91 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
                 });
 
                 shares = 0;
+                kaiyang_source = 0;
+                bars_since_pullback_up = 99;
+                bars_since_pullback_down = 99;
+                }
             }
         }
 
         // 2. 处理上一根 Bar 触发的开仓挂单 (支持多空双向)
-        if let Some((enter_reason, _score, direction)) = pending_entry.take() {
-            if shares == 0 {
-                let is_long = direction >= 0;
+        if let Some((enter_reason, score_val, direction)) = pending_entry.take() {
+            let is_long = direction >= 0;
+            let is_session_gap = i > 0 && (curr.time - bars[i - 1].time > 15 * 60 + 1);
+            let adverse_gap = if is_session_gap && i > 0 {
+                // Q01 修复: 严格使用前柱 ATR[i-1], 杜绝当柱开盘偷看包含未来最高最低价的当柱完整 ATR
+                let prev_atr = atr_14[i - 1].max(1e-6);
+                if is_long {
+                    curr.open < closes[i - 1] - 0.40 * prev_atr
+                } else {
+                    curr.open > closes[i - 1] + 0.40 * prev_atr
+                }
+            } else {
+                false
+            };
+            if !adverse_gap && shares == 0 {
+                current_ml_score = score_val;
                 let fill_price = if is_long { curr.open + slippage } else { curr.open - slippage };
-                let fixed_lots = req.fixed_lots.unwrap_or(1); // 默认严格固定 1 手（可由用户选择 1手/2手/动态占保）
+                let fixed_lots = req.fixed_lots.unwrap_or(1); // 支持 1手/2手/动态占保/名义价值对齐(¥30万)
                 let target_shares = if is_stock {
-                    if fixed_lots > 0 {
-                        (fixed_lots * 100).max(100)
+                    if fixed_lots == -1 {
+                        // ⚖️ 名义价值对齐 ¥30 万货值 (跨资产平权)
+                        let shares_num = (300_000.0 / (fill_price + 1e-6) / 100.0).round() as i64 * 100;
+                        shares_num.max(0)
+                    } else if fixed_lots > 0 {
+                        fixed_lots * 100
                     } else {
-                        let s = (cash * 0.95 / fill_price / 100.0).floor() as i64 * 100;
-                        if s < 100 { 100 } else { s }
+                        (cash * 0.95 / fill_price / 100.0).floor() as i64 * 100
                     }
                 } else {
-                    if fixed_lots > 0 {
-                        fixed_lots // 严格固定 1 手 (或指定手数)，确保每笔交易点数线性可比
+                    if fixed_lots == -1 {
+                        // ⚖️ 名义价值对齐 ¥30 万货值 (消除黄金56万与豆粕3万的18倍量纲失衡)
+                        let contract_val = fill_price * multiplier;
+                        let lots = (300_000.0 / (contract_val + 1e-6)).round() as i64;
+                        lots.max(0)
+                    } else if fixed_lots > 0 {
+                        fixed_lots // 固定指定手数
                     } else {
                         // 动态占保 (40% 可用资金)
                         let margin_per_lot = fill_price * multiplier * 0.12;
                         let lots = (cash * 0.4 / (margin_per_lot + 1e-6)).floor() as i64;
-                        if lots < 1 { 1 } else { lots.min(5) }
+                        if lots < 1 { 0 } else { lots.min(5) }
                     }
                 };
 
-                let abs_shares = (target_shares as f64).max(1.0);
+                let abs_shares = target_shares.abs() as f64;
+                if target_shares == 0 || abs_shares < 1.0 {
+                    continue;
+                }
                 let gross_val = fill_price * abs_shares * multiplier;
                 let fee = if is_stock { gross_val * 0.0003 } else { gross_val * 0.00005 };
-                let slip_cost = slippage * abs_shares * multiplier;
-                total_friction += fee + slip_cost;
+                let margin_deducted = fill_price * abs_shares * multiplier * if is_stock { 1.0 } else { 0.12 };
+
+                // Q03 修复: 严格足额资金检查，可用资金不足以扣除保证金和手续费时坚决拒单，杜绝一手保底穿仓
+                if cash < margin_deducted + fee || cash <= 0.0 {
+                    continue;
+                }
+
+                current_entry_fee = fee;
+                total_friction += fee;
                 shares = if is_long { target_shares } else { -target_shares };
                 buy_price = fill_price;
                 buy_date = curr.datetime_str.clone();
                 buy_time = curr.time;
                 current_buy_reason = enter_reason.clone();
                 bars_held = 0;
-                let margin_deducted = fill_price * abs_shares * multiplier * if is_stock { 1.0 } else { 0.12 };
-                cash -= margin_deducted + fee + slip_cost;
+                // fill_price 已经包含 1-tick 滑点, 现金扣除保证金与入场规费，严禁重复减去 slip_cost
+                cash -= margin_deducted + fee;
+
+                // 初始化 Ratchet 移动止损与基准 ATR (严格使用开盘时已知前柱 ATR, 杜绝当柱未来数据)
+                let prev_close = if i > 0 { bars[i - 1].close } else { curr.open };
+                let bar_atr = (if i > 0 { atr_14[i - 1] } else { atr_14[0] }).max(prev_close * 0.001);
+                entry_atr_val = bar_atr;
+                trailing_stop_price = if is_long {
+                    fill_price - 2.0 * entry_atr_val
+                } else {
+                    fill_price + 2.0 * entry_atr_val
+                };
 
                 let entry_time_label = if curr.datetime_str.len() >= 16 {
                     &curr.datetime_str[5..16]
@@ -996,7 +1518,11 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
         }
 
         // 3. 盘中最低价触及悲观止损 (Intrabar Hard Stop)
-        if shares > 0 {
+        // ponytail: 开阳三阶演化策略具有专属因果 ATR 动态吊灯风控体系，跳过通用粗糙股票 -2% 止损
+        let buy_day = if buy_date.len() >= 10 { &buy_date[..10] } else { "" };
+        let is_same_day_stock = is_stock && !buy_day.is_empty() && cur_date_str == buy_day;
+
+        if shares > 0 && strat != "adaptive_regime_evolution" && !is_same_day_stock {
             let stop_price = if strat == "guiyuan_zscore_reversion" || strat == "barbell_guiyuan_supertrend" {
                 buy_price - 1.5 * atr_14[i]
             } else {
@@ -1004,18 +1530,20 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
             };
             if curr.low <= stop_price && pending_exit.is_none() {
                 let fill_price = (curr.open.min(stop_price) - slippage).max(0.01);
+                let is_long = shares > 0;
+                let abs_shares = (shares.abs() as f64).max(1.0);
                 let gain_pct = (fill_price - buy_price) / buy_price;
-                let gross_val = fill_price * (shares as f64) * multiplier;
-                let stamp_duty = if is_stock { gross_val * 0.0005 } else { 0.0 };
-                let fee = (if is_stock { gross_val * 0.0003 } else { gross_val * 0.00005 }) + stamp_duty;
-                let slip_cost = slippage * (shares as f64) * multiplier;
-                total_friction += fee + slip_cost;
+                let gross_val = fill_price * abs_shares * multiplier;
+                let stamp_duty = if is_stock && is_long { gross_val * 0.0005 } else { 0.0 };
+                let exit_fee = (if is_stock { gross_val * 0.0003 } else { gross_val * 0.00005 }) + stamp_duty;
+                total_friction += exit_fee;
 
-                let pnl_amount = (fill_price - buy_price) * (shares as f64) * multiplier - fee - slip_cost;
+                let gross_pnl = (fill_price - buy_price) * abs_shares * multiplier;
+                let pnl_amount = gross_pnl - current_entry_fee - exit_fee;
                 let pnl_pct = gain_pct * 100.0;
 
-                let margin_released = fill_price * (shares as f64) * multiplier * if is_stock { 1.0 } else { 0.12 };
-                cash += margin_released + pnl_amount;
+                let margin_released = buy_price * abs_shares * multiplier * if is_stock { 1.0 } else { 0.12 };
+                cash += margin_released + gross_pnl - exit_fee;
 
                 let holding_days = if curr.time > buy_time && buy_time > 0 {
                     ((curr.time - buy_time) as f64 / 86400.0).max(0.0001)
@@ -1038,7 +1566,7 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
                     buy_reason: current_buy_reason.clone(),
                     sell_date: curr.datetime_str.clone(),
                     sell_price: fill_price,
-                    shares,
+                    shares: shares.abs(),
                     pnl_amount: (pnl_amount * 100.0).round() / 100.0,
                     pnl_pct: (pnl_pct * 100.0).round() / 100.0,
                     ml_score_pct: 85.0,
@@ -1050,7 +1578,7 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
                          ④ 撮合执行: 悲观触线次柱即刻市价对价成交，杜绝偷价",
                         curr.low, stop_price, pnl_pct
                     ),
-                    fees_detail: format!("规费与滑点: ¥{:.2}", fee + slip_cost),
+                    fees_detail: format!("规费: ¥{:.2}", current_entry_fee + exit_fee),
                 });
 
                 let exit_time_label = if curr.datetime_str.len() >= 16 {
@@ -1061,10 +1589,10 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
 
                 markers.push(ChartMarker {
                     time: curr.time,
-                    position: "aboveBar".to_string(),
+                    position: "belowBar".to_string(),
                     color: "#f85149".to_string(),
                     shape: "circle".to_string(),
-                    text: format!("🛑 {} {:+.1}% (¥{:+.0})", exit_time_label, pnl_pct, pnl_amount),
+                    text: format!("🛑 {} 平多 @{:.2} {:+.1}% (¥{:+.0})", exit_time_label, fill_price, pnl_pct, pnl_amount),
                     id: format!("STOP_{}_{}", curr.time, fill_price),
                     price: fill_price,
                     reason: format!("🛑 盘中触及止损 ({})", curr.datetime_str),
@@ -1073,6 +1601,7 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
                 });
 
                 shares = 0;
+                kaiyang_source = 0;
             }
         }
 
@@ -1081,6 +1610,8 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
         // ==========================================
         let mut should_enter = false;
         let mut should_exit = false;
+        let mut exit_is_intrabar_stop = false;
+        let mut exit_stop_price = 0.0;
         let mut enter_direction: i64 = 1;
         let mut enter_reason = String::new();
         let mut exit_reason = String::new();
@@ -1578,6 +2109,743 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
                 }
             }
 
+            // 🌌 【开阳·自适应三阶演化策略】(状态识别 × 延续预测 × 动态路由)
+            "adaptive_regime_evolution" => {
+                let atr = atr_14[i].max(curr.close * 0.001);
+                let lookback = 20.min(i);
+                let net_move = curr.close - closes[i - lookback];
+                let mut path_sum = 0.0;
+                for k in (i - lookback + 1)..=i {
+                    path_sum += (closes[k] - closes[k - 1]).abs();
+                }
+                let er = if path_sum > 1e-6 { (net_move.abs() / path_sum).min(1.0) } else { 0.0 };
+                let der = if net_move > 0.0 { er } else if net_move < 0.0 { -er } else { 0.0 };
+
+                // 运动学一阶卡尔曼速度与加速度估计器 (Kinematic Kalman Velocity & Accel)
+                let q_factor = 0.01;
+                let r_factor = 0.5;
+                let q00 = q_factor / 4.0;
+                let q01 = q_factor / 2.0;
+                let q11 = q_factor;
+
+                let p_pred = kalman_p + kalman_v;
+                let v_pred = kalman_v;
+                let pp00 = kalman_p00 + 2.0 * kalman_p01 + kalman_p11 + q00;
+                let pp01 = kalman_p01 + kalman_p11 + q01;
+                let pp11 = kalman_p11 + q11;
+
+                let z = curr.close;
+                let s = pp00 + r_factor;
+                let k0 = pp00 / s;
+                let k1 = pp01 / s;
+
+                let err = z - p_pred;
+                kalman_p = p_pred + k0 * err;
+                kalman_v = v_pred + k1 * err;
+
+                kalman_p00 = (1.0 - k0) * pp00;
+                kalman_p01 = (1.0 - k0) * pp01;
+                kalman_p11 = pp11 - k1 * pp01;
+
+                let raw_norm_vel = (kalman_v / atr) / 0.18;
+                let _kalman_acc = raw_norm_vel - prev_kalman_norm_vel;
+                prev_kalman_norm_vel = raw_norm_vel;
+                let kalman_norm_vel = raw_norm_vel.clamp(-1.0, 1.0);
+
+                // 统计物理特征: 因果方差比率 Hurst 指数与 3 阶符号排列熵 (PE)
+                let hurst = calc_causal_hurst_window(&closes, i, 60);
+                let pe = calc_permutation_entropy_3(&closes, i, 30);
+                let hurst_score = ((hurst - 0.48) / 0.14).clamp(0.0, 1.0);
+                let pe_score = ((0.92 - pe) / 0.25).clamp(0.0, 1.0);
+                let physics_trend = 0.5 * hurst_score + 0.5 * pe_score;
+
+                // 宏观连续多尺度 DSP 特征 (48 周期 SuperSmoother, 60 周期宏观效率比与通道位置)
+                let macro_lookback = 60.min(i);
+                let macro_net_move = curr.close - closes[i - macro_lookback];
+                let mut macro_path_sum = 0.0;
+                for k in (i - macro_lookback + 1)..=i {
+                    macro_path_sum += (closes[k] - closes[k - 1]).abs();
+                }
+                let macro_er = if macro_path_sum > 1e-6 { (macro_net_move.abs() / macro_path_sum).min(1.0) } else { 0.0 };
+                let macro_der = if macro_net_move > 0.0 { macro_er } else if macro_net_move < 0.0 { -macro_er } else { 0.0 };
+
+                let macro_start = i.saturating_sub(60);
+                let macro_hh = highs[macro_start..=i].iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+                let macro_ll = lows[macro_start..=i].iter().cloned().fold(f64::INFINITY, f64::min);
+                let macro_span = macro_hh - macro_ll;
+                let macro_pos_cen = if macro_span > 1e-6 {
+                    2.0 * ((curr.close - macro_ll) / macro_span).clamp(0.0, 1.0) - 1.0
+                } else {
+                    0.0
+                };
+
+                // 宏观迟滞状态机 (Macro Hysteresis Machine)
+                if macro_regime_state == 1 {
+                    if macro_der <= -0.15 {
+                        macro_regime_state = -1;
+                    } else if macro_der < 0.05 || curr.close < ss_macro[i] {
+                        macro_regime_state = 0;
+                    }
+                } else if macro_regime_state == -1 {
+                    if macro_der >= 0.15 {
+                        macro_regime_state = 1;
+                    } else if macro_der > -0.05 || curr.close > ss_macro[i] {
+                        macro_regime_state = 0;
+                    }
+                } else {
+                    if macro_der >= 0.18 && curr.close > ss_macro[i] {
+                        macro_regime_state = 1;
+                    } else if macro_der <= -0.18 && curr.close < ss_macro[i] {
+                        macro_regime_state = -1;
+                    }
+                }
+
+                let _is_macro_trend = macro_regime_state != 0;
+                let is_macro_range = macro_regime_state == 0;
+
+                // 计算 20 周期均线穿越频率 (CrossFreq) 与综合趋势强度 (TS: 0~100)
+                let cf_lookback = 20.min(i);
+                let mut cf_crosses = 0;
+                if cf_lookback >= 2 {
+                    let mut prev_sign = (closes[i - cf_lookback] - ss_fast[i - cf_lookback]) >= 0.0;
+                    for k in (i - cf_lookback + 1)..=i {
+                        let curr_sign = (closes[k] - ss_fast[k]) >= 0.0;
+                        if curr_sign != prev_sign {
+                            cf_crosses += 1;
+                            prev_sign = curr_sign;
+                        }
+                    }
+                }
+                let cross_freq_20 = if cf_lookback > 0 { cf_crosses as f64 / cf_lookback as f64 } else { 0.0 };
+                let chop_penalty = (1.0 - 2.5 * cross_freq_20).clamp(0.0, 1.0);
+                let ts = (0.35 * physics_trend + 0.35 * kalman_norm_vel.abs() + 0.15 * er + 0.15 * chop_penalty) * 100.0;
+
+                // 综合 Direction Score: 融合卡尔曼零滞后速度、考夫曼DER、均线斜率与宏观位置
+                let ss_slope = if i >= 2 { (ss_fast[i] - ss_fast[i - 2]) / (2.0 * atr) } else { 0.0 };
+                let ss_slope_norm = (ss_slope / 0.15).clamp(-1.0, 1.0);
+                let ds = (0.40 * kalman_norm_vel + 0.25 * der + 0.20 * ss_slope_norm + 0.15 * macro_pos_cen).clamp(-1.0, 1.0);
+
+                let _macro_strong_bull = macro_regime_state == 1 || macro_der >= 0.15;
+                let _macro_strong_bear = macro_regime_state == -1 || macro_der <= -0.15;
+
+                // 第一性原理分形布朗运动与高熵混沌门禁:
+                // 当 Hurst <= 0.50 且 PE >= 0.88 时，动力学属于反持续均值回归与高熵混沌双重噪声态;
+                // 或当 20 周期均线穿越率 >= 25% 且效率比 ER < 0.20 时，属于典型织布横盘缠绕
+                let is_anti_persistent = (hurst <= 0.50 && pe >= 0.88)
+                    || (cross_freq_20 >= 0.25 && er < 0.20)
+                    || (physics_trend < 0.08 && macro_der.abs() < 0.15);
+
+                // 极端灾难性破位熔断保护 (Catastrophic Break Threshold)
+                let catastrophic_down = curr.close < ss_fast[i] - 1.8 * atr && ds <= -0.45;
+                let catastrophic_up = curr.close > ss_fast[i] + 1.8 * atr && ds >= 0.45;
+
+                // 极端反持续均值回归泥潭判定 (Extreme Anti-Persistent Chaos Trap):
+                // 当 Hurst <= 0.35 且物理有序度低于 8% 时，市场处于铁板钉钉的高频随机震荡/假突破泥潭，严禁任何动量豁免
+                let extreme_anti_persistent = hurst <= 0.35 && physics_trend < 0.08;
+
+                // 局部强单边动量冲击判定: 当瞬时零滞后速度与方向分极强、K线呈现饱满实体冲击且显著脱离均线时，物理动能打破长周期历史方差比滞后
+                let bar_body = curr.close - curr.open;
+                let strong_momentum_up = !extreme_anti_persistent && ds >= 0.45 && kalman_norm_vel >= 0.50 && bar_body >= 0.60 * atr && curr.close > ss_fast[i] + 0.25 * atr;
+                let strong_momentum_down = !extreme_anti_persistent && ds <= -0.45 && kalman_norm_vel <= -0.50 && (-bar_body) >= 0.60 * atr && curr.close < ss_fast[i] - 0.25 * atr;
+
+                // 正常脱离横盘进入单边趋势的严格门禁 (Trend Formation Hurdle)
+                let can_enter_up = (!is_anti_persistent || strong_momentum_up) && ds >= 0.30 && curr.close > ss_fast[i] && ts >= 28.0;
+                let can_enter_down = (!is_anti_persistent || strong_momentum_down) && ds <= -0.30 && curr.close < ss_fast[i] && ts >= 28.0;
+
+                // 微观迟滞状态机 (Micro 15m Hysteresis State Machine with Physical Hysteresis)
+                if regime_state == 1 {
+                    if catastrophic_down {
+                        // 灾难性极端下杀直接反转为空头
+                        regime_state = -1;
+                        bars_in_regime = 0;
+                    } else if curr.close < ss_fast[i] && (ds <= 0.08 || cross_freq_20 >= 0.25) {
+                        // 多头动能衰竭且跌破均线中枢，平滑回落至横盘震荡(0)，拒绝在横盘窄幅箱体内来回跳变多空
+                        regime_state = 0;
+                        bars_in_regime = 0;
+                    } else {
+                        bars_in_regime += 1;
+                    }
+                } else if regime_state == -1 {
+                    if catastrophic_up {
+                        // 灾难性极端暴拉直接反转为多头
+                        regime_state = 1;
+                        bars_in_regime = 0;
+                    } else if curr.close > ss_fast[i] && (ds >= -0.08 || cross_freq_20 >= 0.25) {
+                        // 空头动能衰竭且上破均线中枢，平滑回落至横盘震荡(0)
+                        regime_state = 0;
+                        bars_in_regime = 0;
+                    } else {
+                        bars_in_regime += 1;
+                    }
+                } else {
+                    // 横盘震荡态 (regime_state == 0)
+                    if can_enter_up && (macro_regime_state >= 0 || ds >= 0.45) {
+                        regime_state = 1;
+                        bars_in_regime = 0;
+                    } else if can_enter_down && (macro_regime_state <= 0 || ds <= -0.45) {
+                        regime_state = -1;
+                        bars_in_regime = 0;
+                    } else {
+                        bars_in_regime += 1;
+                    }
+                }
+
+                let current_regime = regime_state;
+                let is_uptrend = current_regime == 1;
+                let is_downtrend = current_regime == -1;
+
+                // 记录趋势状态与零滞后趋势中枢线
+                trend_series.push(TrendPoint {
+                    time: curr.time,
+                    regime: current_regime,
+                    value: (ss_fast[i] * 100.0).round() / 100.0,
+                });
+
+                if prev_regime != 999 && current_regime != prev_regime {
+                    regime_start_price = curr.close;
+                    // 状态化回踩记忆继承法则:
+                    // 仅在真实多空强反转 (1 <-> -1) 时彻底双向重置为 99;
+                    // 从中性(0)转为多头(1)时，仅清空空头回抽记忆，若多头回踩在近 4 根柱内发生过则予以继承，杜绝刚翻多即失忆;
+                    // 从中性(0)转为空头(-1)时，同理保留近 4 根柱内有效的空头回抽记忆。
+                    if (prev_regime == 1 && current_regime == -1) || (prev_regime == -1 && current_regime == 1) {
+                        bars_since_pullback_up = 99;
+                        bars_since_pullback_down = 99;
+                    } else if current_regime == 1 {
+                        bars_since_pullback_down = 99;
+                        if bars_since_pullback_up > 4 {
+                            bars_since_pullback_up = 99;
+                        }
+                    } else if current_regime == -1 {
+                        bars_since_pullback_up = 99;
+                        if bars_since_pullback_down > 4 {
+                            bars_since_pullback_down = 99;
+                        }
+                    }
+                    if current_regime == 0 {
+                        // 进入横盘震荡箱体：记录进入横盘前的趋势方向
+                        if prev_regime != 0 {
+                            _prev_non_zero_regime = prev_regime;
+                        }
+                        // 若距离上一次横盘仅隔了极短时间(<= 8 根柱)，说明从未真正脱离箱体，将期间所有K线极值一并合并纳入箱体
+                        if bars_since_box <= 8 && recent_box_low.is_finite() && recent_box_high.is_finite() {
+                            for k in 0..=bars_since_box.min(i) {
+                                recent_box_high = recent_box_high.max(highs[i - k]);
+                                recent_box_low = recent_box_low.min(lows[i - k]);
+                            }
+                        } else {
+                            let lookback = 4.min(i);
+                            let mut box_h = curr.high;
+                            let mut box_l = curr.low;
+                            for k in 0..=lookback {
+                                box_h = box_h.max(highs[i - k]);
+                                box_l = box_l.min(lows[i - k]);
+                            }
+                            recent_box_high = box_h;
+                            recent_box_low = box_l;
+                        }
+                    }
+                    markers.push(ChartMarker {
+                        time: curr.time,
+                        position: if current_regime == 1 {
+                            "belowBar".to_string()
+                        } else if current_regime == -1 {
+                            "aboveBar".to_string()
+                        } else {
+                            "belowBar".to_string()
+                        },
+                        color: if current_regime == 1 {
+                            "#f85149".to_string()
+                        } else if current_regime == -1 {
+                            "#3fb950".to_string()
+                        } else {
+                            "#e3b341".to_string()
+                        },
+                        shape: if current_regime == 1 {
+                            "arrowUp".to_string()
+                        } else if current_regime == -1 {
+                            "arrowDown".to_string()
+                        } else {
+                            "circle".to_string()
+                        },
+                        text: if current_regime == 1 {
+                            "多".to_string()
+                        } else if current_regime == -1 {
+                            "空".to_string()
+                        } else {
+                            "横盘".to_string()
+                        },
+                        id: format!("REGIME_{}_{}", curr.time, current_regime),
+                        price: if current_regime == 1 {
+                            curr.low
+                        } else if current_regime == -1 {
+                            curr.high
+                        } else {
+                            curr.close
+                        },
+                        reason: if current_regime == 1 {
+                            format!("【动力学多头】DS={:.2}, KalmanVel={:.2}, Hurst={:.2}, PE={:.2} (中枢: {:.2})", ds, kalman_norm_vel, hurst, pe, ss_fast[i])
+                        } else if current_regime == -1 {
+                            format!("【动力学空头】DS={:.2}, KalmanVel={:.2}, Hurst={:.2}, PE={:.2} (中枢: {:.2})", ds, kalman_norm_vel, hurst, pe, ss_fast[i])
+                        } else {
+                            format!("【动力学横盘】进入中性随机震荡 (Hurst={:.2}, PE={:.2}, 中枢: {:.2})", hurst, pe, ss_fast[i])
+                        },
+                        action: "REGIME_CHANGE".to_string(),
+                        pnl: None,
+                    });
+                }
+                if current_regime == 0 {
+                    recent_box_high = recent_box_high.max(curr.high);
+                    recent_box_low = recent_box_low.min(curr.low);
+                    bars_since_box = 0;
+                } else {
+                    bars_since_box = bars_since_box.saturating_add(1);
+                }
+                prev_regime = current_regime;
+
+                // 1. 状态化回抽记忆连续追踪 (Continuous Stateful Pullback Memory):
+                // 逐柱更新，杜绝持仓期冻结与跨趋势遗留
+                if curr.low <= ss_fast[i] + 0.35 * atr && curr.close >= ss_fast[i] - 0.25 * atr {
+                    bars_since_pullback_up = 0;
+                } else {
+                    bars_since_pullback_up = bars_since_pullback_up.saturating_add(1);
+                }
+
+                if curr.high >= ss_fast[i] - 0.35 * atr && curr.close <= ss_fast[i] + 0.25 * atr {
+                    bars_since_pullback_down = 0;
+                } else {
+                    bars_since_pullback_down = bars_since_pullback_down.saturating_add(1);
+                }
+
+                if shares == 0 && pending_entry.is_none() {
+                    // ponytail: 定向冷却期——多头平仓仅冷却多头，空头平仓仅冷却空头，杜绝阻断顺势反向开仓
+                    let cooldown_active_for_short = causal_cooldown > 0 && cooldown_direction == -1;
+                    let cooldown_active_for_long = causal_cooldown > 0 && cooldown_direction == 1;
+
+                    let cumulative_move_down = if is_downtrend { (regime_start_price - curr.close) / atr } else { 0.0 };
+                    let cumulative_move_up = if is_uptrend { (curr.close - regime_start_price) / atr } else { 0.0 };
+
+                    let body = curr.close - curr.open;
+                    let bar_range = (curr.high - curr.low).max(1e-6);
+                    let body_ratio = body.abs() / bar_range;
+                    let dist_up = (curr.close - ss_fast[i]) / atr;
+                    let dist_down = (ss_fast[i] - curr.close) / atr;
+
+                    let pullback_ready_up = bars_since_pullback_up <= 4;
+                    let pullback_ready_down = bars_since_pullback_down <= 4;
+
+                    let ss_slope = if i >= 3 { ss_fast[i] - ss_fast[i - 3] } else { 0.0 };
+                    let rsi_val = rsi_14[i];
+                    let not_overbought = rsi_val <= 72.0;
+                    let not_oversold = rsi_val >= 28.0;
+                    let age_valid = bars_in_regime >= 1;
+                    let kickoff_age_down = bars_in_regime <= 2 && (age_valid || ds <= -0.35);
+                    let kickoff_age_up = bars_in_regime <= 2 && (age_valid || ds >= 0.35);
+
+                    // 1. 宏观顺势与初生过渡态 (Emerging Trend) 路由判定:
+                    // 增加动力学有序度与效率门禁 (Anti-Chop Gate):
+                    // 当处于反持续高熵噪声态(is_anti_persistent)时，严禁开启顺势通道追涨杀跌！
+                    // 局部强动量冲击(strong_momentum_up/down)可自适应放行，但必须至少具备微观物理有序度(physics_trend >= 0.12)或宏观明确单边漂移(macro_der.abs() >= 0.15)
+                    let trend_physics_ok = !extreme_anti_persistent
+                        && (!is_anti_persistent || strong_momentum_up || strong_momentum_down)
+                        && ts >= 28.0
+                        && (physics_trend >= 0.12 || macro_der.abs() >= 0.15 || strong_momentum_up || strong_momentum_down);
+
+                    let can_trend_short = is_downtrend
+                        && trend_physics_ok
+                        && curr.close < ss_fast[i]
+                        && (
+                            (macro_regime_state == -1 && macro_der <= 0.0)
+                            || (macro_regime_state == 0 && macro_der <= 0.0 && (
+                                (ds <= -0.30 && ss_slope <= -0.01 * atr) || (ds <= -0.45 && kalman_norm_vel <= -0.45)
+                            ))
+                        );
+
+                    let can_trend_long = is_uptrend
+                        && trend_physics_ok
+                        && curr.close > ss_fast[i]
+                        && (
+                            (macro_regime_state == 1 && macro_der >= 0.0)
+                            || (macro_regime_state == 0 && macro_der >= 0.0 && (
+                                (ds >= 0.30 && ss_slope >= 0.01 * atr) || (ds >= 0.45 && kalman_norm_vel >= 0.45)
+                            ))
+                        );
+
+                    // 动态形态与超买超卖自适应防守:
+                    // 饱满实体大阳线(无长上影滞涨)代表健康强主升，放宽 RSI 限制至 85.0 杜绝踏空强单边;
+                    // 出现长上影滞涨或实体耗竭时，严格执行 78.0/80.0 限制防追高
+                    let is_clean_bull_bar = body > 0.0 && body_ratio >= 0.35 && (curr.high - curr.close) <= 0.40 * bar_range;
+                    let max_rsi_allowed = if is_clean_bull_bar { 85.0 } else { 78.0 };
+
+                    let is_clean_bear_bar = body < 0.0 && body_ratio >= 0.35 && (curr.close - curr.low) <= 0.40 * bar_range;
+                    let min_rsi_allowed = if is_clean_bear_bar { 15.0 } else { 22.0 };
+
+                    // 2. 趋势反转初生破位启动通道 (Trend Reversal Kickoff Channel):
+                    // 偏离度上限收敛: 严禁放宽至 2.8 ATR，启动初生偏离度刚性封顶在 1.8 ATR，杜绝天花板追多和地板割肉追空
+                    let max_kickoff_dist = 1.8;
+
+                    // 跨时段剧烈跳空吸收冷静期: 只要时间间隔超过正常15分钟K线间隔(900秒)，且开盘跳空 >= 1.0 ATR，首根柱处于隔夜情绪集中消化期，禁止直接抢开仓
+                    let is_session_gap = i > 0 && (curr.time - bars[i - 1].time > 15 * 60 + 1);
+                    let gap_ratio = if i > 0 { (curr.open - closes[i - 1]).abs() / atr } else { 0.0 };
+                    let is_violent_gap = is_session_gap && gap_ratio >= 1.0;
+
+                    // 全对称闭环箱体真突破准则: 无论是同向中继还是多空反转，从横盘箱体出来的前 5 根柱内，必须收盘跌破/突破最近横盘箱体极值
+                    let box_break_down = if recent_box_low.is_finite() && bars_in_regime <= 5 {
+                        curr.close < recent_box_low
+                    } else {
+                        true
+                    };
+                    let box_break_up = if recent_box_high.is_finite() && bars_in_regime <= 5 {
+                        curr.close > recent_box_high
+                    } else {
+                        true
+                    };
+
+                    let kickoff_down = kickoff_age_down
+                        && box_break_down
+                        && !is_violent_gap
+                        && (!is_anti_persistent || physics_trend >= 0.12)
+                        && ss_slope <= -0.02 * atr
+                        && curr.close < ss_fast[i]
+                        && body < 0.0 && body_ratio >= 0.35
+                        && (curr.open - curr.close) >= 0.30 * atr
+                        && dist_down >= 0.15 && dist_down <= max_kickoff_dist
+                        && rsi_val >= min_rsi_allowed
+                        && kalman_norm_vel <= -0.35
+                        && ds <= -0.30
+                        && ts >= 32.0;
+
+                    let kickoff_up = kickoff_age_up
+                        && box_break_up
+                        && !is_violent_gap
+                        && (!is_anti_persistent || physics_trend >= 0.12)
+                        && ss_slope >= 0.02 * atr
+                        && curr.close > ss_fast[i]
+                        && body > 0.0 && body_ratio >= 0.35
+                        && (curr.close - curr.open) >= 0.30 * atr
+                        && dist_up >= 0.15 && dist_up <= max_kickoff_dist
+                        && rsi_val <= max_rsi_allowed
+                        && kalman_norm_vel >= 0.35
+                        && ds >= 0.30
+                        && ts >= 32.0;
+
+                    // 3. 回抽恢复顺势触发 (Pullback Resumption Trigger):
+                    // 依赖与均线中枢的偏离度 (dist <= 1.8 ATR) 与回抽就绪特征 (pullback_ready) 防追高，允许健康波段中继回踩持续上车
+                    let resume_down = pullback_ready_down && age_valid
+                        && box_break_down
+                        && !is_violent_gap
+                        && (!is_anti_persistent || physics_trend >= 0.12 || strong_momentum_down)
+                        && body < 0.0 && body_ratio >= 0.30
+                        && (i > 0 && curr.close < lows[i - 1])
+                        && curr.close < ss_fast[i]
+                        && dist_down >= 0.0 && dist_down <= 1.8
+                        && rsi_val >= min_rsi_allowed
+                        && kalman_norm_vel <= -0.15;
+
+                    let resume_up = pullback_ready_up && age_valid
+                        && box_break_up
+                        && !is_violent_gap
+                        && (!is_anti_persistent || physics_trend >= 0.12 || strong_momentum_up)
+                        && body > 0.0 && body_ratio >= 0.30
+                        && (i > 0 && curr.close > highs[i - 1])
+                        && curr.close > ss_fast[i]
+                        && dist_up >= 0.0 && dist_up <= 1.8
+                        && rsi_val <= max_rsi_allowed
+                        && kalman_norm_vel >= 0.15;
+
+                    // 4. 动量突破通道 (Momentum Expansion Breakout):
+                    // 严格限定在趋势前期(bars_in_regime <= 5)且顺应宏观趋势(严禁逆宏观大势突破)，排除单柱恐慌耗竭大阳/大阴线
+                    let lookback_16 = 16.min(i);
+                    let prev_lowest_16 = if lookback_16 > 0 {
+                        lows[(i - lookback_16)..i].iter().cloned().fold(f64::INFINITY, f64::min)
+                    } else {
+                        curr.low
+                    };
+                    let prev_highest_16 = if lookback_16 > 0 {
+                        highs[(i - lookback_16)..i].iter().cloned().fold(f64::NEG_INFINITY, f64::max)
+                    } else {
+                        curr.high
+                    };
+
+                    let breakout_down = age_valid
+                        && macro_regime_state <= 0
+                        && bars_in_regime <= 5
+                        && box_break_down
+                        && cumulative_move_down <= 2.5
+                        && (curr.open - curr.close) <= 2.2 * atr
+                        && curr.close < prev_lowest_16
+                        && curr.close < ss_fast[i]
+                        && body < 0.0 && body_ratio >= 0.38
+                        && (curr.open - curr.close) >= 0.35 * atr
+                        && dist_down <= 2.2
+                        && rsi_val >= (min_rsi_allowed - 2.0).max(14.0)
+                        && kalman_norm_vel <= -0.25;
+
+                    let breakout_up = age_valid
+                        && macro_regime_state >= 0
+                        && bars_in_regime <= 5
+                        && box_break_up
+                        && cumulative_move_up <= 2.5
+                        && (curr.close - curr.open) <= 2.2 * atr
+                        && curr.close > prev_highest_16
+                        && curr.close > ss_fast[i]
+                        && body > 0.0 && body_ratio >= 0.38
+                        && (curr.close - curr.open) >= 0.35 * atr
+                        && dist_up <= 2.2
+                        && rsi_val <= (max_rsi_allowed + 2.0).min(86.0)
+                        && kalman_norm_vel >= 0.25;
+
+                    // 分支 A: 趋势通道 (初生破位启动 vs 回抽启动 vs 动量突破)
+                    if can_trend_short && !cooldown_active_for_short && (kickoff_down || resume_down || breakout_down) {
+                        should_enter = true;
+                        enter_direction = -1;
+                        kaiyang_source = 1;
+                        let is_emerging = macro_regime_state == 0;
+                        ml_score = (physics_trend * 40.0 + (-kalman_norm_vel) * 30.0 + 50.0).clamp(55.0, 95.0);
+                        enter_reason = if kickoff_down {
+                            format!(
+                                "【开阳·动力学反转启动空头】\n\
+                                 ① 趋势初生: 翻空确立第 {} 根 Bar, 饱满阴线下破快均线\n\
+                                 ② 运动状态: 卡尔曼速度={:.2}, DS={:.2}, 宏观中枢: {:.2}\n\
+                                 ③ 动力结构: Hurst={:.2}, PE={:.2} (有序度: {:.1}%)\n\
+                                 ④ 路由风控: 启动动态保本与吊灯跟踪",
+                                bars_in_regime, kalman_norm_vel, ds, ss_macro[i], hurst, pe, physics_trend * 100.0
+                            )
+                        } else if breakout_down {
+                            format!(
+                                "【开阳·动力学动量突破空头】\n\
+                                 ① 动量突破: 跌破前 16 根最低价 {:.2}, 饱满阴线放量下杀\n\
+                                 ② 运动状态: 卡尔曼速度={:.2}, 宏观中枢: {:.2}\n\
+                                 ③ 动力结构: Hurst={:.2}, PE={:.2} (有序度: {:.1}%)\n\
+                                 ④ 路由风控: 启动动态保本与吊灯跟踪",
+                                prev_lowest_16, kalman_norm_vel, ss_macro[i], hurst, pe, physics_trend * 100.0
+                            )
+                        } else {
+                            format!(
+                                "【开阳·动力学顺势回抽空头{}】\n\
+                                 ① 宏观态势: {} (DER={:.2}, 宏观中枢: {:.2})\n\
+                                 ② 运动状态: 卡尔曼速度={:.2}, 记忆回抽结束跌破前低\n\
+                                 ③ 动力结构: Hurst={:.2}, PE={:.2} (有序度: {:.1}%)\n\
+                                 ④ 路由风控: 启动动态保本与吊灯跟踪",
+                                if is_emerging { "(初生趋势)" } else { "" },
+                                if is_emerging { "宏观过渡初生空头" } else { "宏观空头确立" },
+                                macro_der, ss_macro[i], kalman_norm_vel, hurst, pe, physics_trend * 100.0
+                            )
+                        };
+                    } else if can_trend_long && !cooldown_active_for_long && (kickoff_up || resume_up || breakout_up) {
+                        should_enter = true;
+                        enter_direction = 1;
+                        kaiyang_source = 1;
+                        let is_emerging = macro_regime_state == 0;
+                        ml_score = (physics_trend * 40.0 + kalman_norm_vel * 30.0 + 50.0).clamp(55.0, 95.0);
+                        enter_reason = if kickoff_up {
+                            format!(
+                                "【开阳·动力学反转启动多头】\n\
+                                 ① 趋势初生: 翻多确立第 {} 根 Bar, 饱满阳线上破快均线\n\
+                                 ② 运动状态: 卡尔曼速度={:.2}, DS={:.2}, 宏观中枢: {:.2}\n\
+                                 ③ 动力结构: Hurst={:.2}, PE={:.2} (有序度: {:.1}%)\n\
+                                 ④ 路由风控: 启动动态保本与吊灯跟踪",
+                                bars_in_regime, kalman_norm_vel, ds, ss_macro[i], hurst, pe, physics_trend * 100.0
+                            )
+                        } else if breakout_up {
+                            format!(
+                                "【开阳·动力学动量突破多头】\n\
+                                 ① 动量突破: 突破前 16 根最高价 {:.2}, 饱满阳线放量上攻\n\
+                                 ② 运动状态: 卡尔曼速度={:.2}, 宏观中枢: {:.2}\n\
+                                 ③ 动力结构: Hurst={:.2}, PE={:.2} (有序度: {:.1}%)\n\
+                                 ④ 路由风控: 启动动态保本与吊灯跟踪",
+                                prev_highest_16, kalman_norm_vel, ss_macro[i], hurst, pe, physics_trend * 100.0
+                            )
+                        } else {
+                            format!(
+                                "【开阳·动力学顺势回抽多头{}】\n\
+                                 ① 宏观态势: {} (DER={:.2}, 宏观中枢: {:.2})\n\
+                                 ② 运动状态: 卡尔曼速度={:.2}, 记忆回踩结束突破前高\n\
+                                 ③ 动力结构: Hurst={:.2}, PE={:.2} (有序度: {:.1}%)\n\
+                                 ④ 路由风控: 启动动态保本与吊灯跟踪",
+                                if is_emerging { "(初生趋势)" } else { "" },
+                                if is_emerging { "宏观过渡初生多头" } else { "宏观多头确立" },
+                                macro_der, ss_macro[i], kalman_norm_vel, hurst, pe, physics_trend * 100.0
+                            )
+                        };
+                    // 分支 B: 宏观箱体震荡边界极值均值回归通道 (Confirmed Ranging Box Mode)
+                    // ponytail: 严格隔离中性过渡态(Transition)与箱体震荡。只有当微观/宏观双中性、DER绝对值<0.10且Hurst<=0.52具备均值回复特征时才开放回归通道
+                    } else if is_macro_range && regime_state == 0 && !is_uptrend && !is_downtrend && macro_der.abs() < 0.10 && hurst <= 0.52 {
+                        let target_tp = ss_fast[i];
+                        // 触及宏观箱体下沿极值做多:
+                        // 严格门禁: 1) 非强空状态(!is_downtrend) 2) 未触发空头突破(!can_enter_down) 3) 卡尔曼速度不处于急跌(>= -0.10) 4) 均线斜率未严重下倾(ss_slope >= -0.05*atr) 5) DS >= -0.15 6) 阳线实体企稳
+                        if macro_pos_cen <= -0.65
+                            && !is_downtrend
+                            && !can_enter_down
+                            && kalman_norm_vel >= -0.10
+                            && ss_slope >= -0.05 * atr
+                            && ds >= -0.15
+                            && (target_tp - curr.close) >= 1.2 * atr
+                            && body > 0.0
+                            && body_ratio >= 0.35
+                            && not_oversold
+                        {
+                            should_enter = true;
+                            enter_direction = 1;
+                            kaiyang_source = 2;
+                            ml_score = 68.0;
+                            enter_reason = format!(
+                                "【开阳·箱体下沿极值回归多头】\n\
+                                 ① 宏观状态: 箱体震荡 (PosCen={:.2} <= -0.65)\n\
+                                 ② 目标空间: 距离中枢 {:.2} (>= 1.2 ATR), 阳线企稳\n\
+                                 ③ 动力门禁: 卡尔曼速度={:.2}, DS={:.2}, 杜绝急跌接刀\n\
+                                 ④ 路由风控: 锚定中枢均线极速止盈，硬止损 1.2 ATR",
+                                macro_pos_cen, target_tp - curr.close, kalman_norm_vel, ds
+                            );
+                        // 触及宏观箱体上沿极值做空: 强化微观非强多约束 (!is_uptrend)
+                        } else if macro_pos_cen >= 0.65
+                            && !is_uptrend
+                            && !can_enter_up
+                            && kalman_norm_vel <= 0.10
+                            && ss_slope <= 0.05 * atr
+                            && ds <= 0.15
+                            && (curr.close - target_tp) >= 1.2 * atr
+                            && body < 0.0
+                            && body_ratio >= 0.35
+                            && not_overbought
+                        {
+                            should_enter = true;
+                            enter_direction = -1;
+                            kaiyang_source = 2;
+                            ml_score = 68.0;
+                            enter_reason = format!(
+                                "【开阳·箱体上沿极值回归空头】\n\
+                                 ① 宏观状态: 箱体震荡 (PosCen={:.2} >= +0.65)\n\
+                                 ② 目标空间: 距离中枢 {:.2} (>= 1.2 ATR), 阴线承压\n\
+                                 ③ 动力门禁: 卡尔曼速度={:.2}, DS={:.2}, 杜绝主升摸顶\n\
+                                 ④ 路由风控: 锚定中枢均线极速止盈，硬止损 1.2 ATR",
+                                macro_pos_cen, curr.close - target_tp, kalman_norm_vel, ds
+                            );
+                        }
+                    }
+                } else if shares > 0 {
+                    if kaiyang_source == 2 {
+                        // 均值回归出场: 均线中枢止盈 vs 1.2 ATR 硬止损 vs 8 根 Bar 超时
+                        let target_tp = ss_fast[i];
+                        let stop_line = buy_price - 1.2 * entry_atr_val;
+                        // 保守原则: 优先止损, 消除同柱双触及乐观偏差
+                        if curr.low <= stop_line {
+                            exit_is_intrabar_stop = true;
+                            exit_stop_price = (curr.open.min(stop_line) - slippage).max(0.01);
+                            should_exit = true;
+                            exit_reason = format!("【开阳·均值回归止损】触及硬止损线 (止损价: {:.2})", stop_line);
+                        } else if curr.high >= target_tp {
+                            should_exit = true;
+                            exit_reason = format!("【开阳·均值回归止盈】触及中枢均线目标位 (目标: {:.2})", target_tp);
+                        } else if bars_held >= 8 {
+                            should_exit = true;
+                            exit_reason = "【开阳·均值回归超时】持有达到 8 根 Bar 上限平仓".to_string();
+                        }
+                    } else {
+                        // 趋势仓位出场: 严格 Ratchet 移动止损单调递增
+                        // 开仓柱仅用入场价；当前柱极值只能用于下一柱的追踪线。
+                        let highest_hold = highs[i.saturating_sub(bars_held)..i].iter().cloned().fold(buy_price, f64::max);
+                        let profit_atr = (highest_hold - buy_price) / entry_atr_val;
+                        let abs_shares = (shares.abs() as f64).max(1.0);
+                        let friction_buffer = ((current_entry_fee * 2.0) / (abs_shares * multiplier) + 2.0 * slippage + tick_size).max(0.20 * entry_atr_val);
+
+                        // 1. 梯级保本: 浮盈 >= 1.0 ATR 时，刚性拉升至保本线 (成本价 + 摩擦缓冲)
+                        if profit_atr >= 1.0 {
+                            trailing_stop_price = trailing_stop_price.max(buy_price + friction_buffer);
+                        }
+                        // 2. 梯级锁盈: 浮盈 >= 1.4 ATR 时，刚性锁定至少 0.35 ATR 净利润
+                        if profit_atr >= 1.4 {
+                            trailing_stop_price = trailing_stop_price.max(buy_price + friction_buffer + 0.35 * entry_atr_val);
+                        }
+                        // 3. 紧致吊灯: 浮盈 >= 2.0 ATR 时，吊灯追踪紧随波段极值
+                        if profit_atr >= 2.0 {
+                            trailing_stop_price = trailing_stop_price.max(highest_hold - 1.8 * entry_atr_val);
+                        }
+                        // 优先检查盘中是否触及动态移动止损/保本线 (Intrabar Touch)
+                        if curr.low <= trailing_stop_price {
+                            exit_is_intrabar_stop = true;
+                            exit_stop_price = (curr.open.min(trailing_stop_price) - slippage).max(0.01);
+                            should_exit = true;
+                            exit_reason = format!(
+                                "【开阳·多头平仓】触发动态保本/吊灯追踪 (最高浮盈: {:.2} ATR, 止损价: {:.2})",
+                                profit_atr, trailing_stop_price
+                            );
+                        } else if bars_held >= 3 && !is_uptrend && !is_downtrend && curr.close <= ss_fast[i] && profit_atr >= 0.8 {
+                            should_exit = true;
+                            exit_reason = format!(
+                                "【开阳·多头平仓】横盘中枢破位保利退出 (持仓: {} 根, 浮盈: {:.2} ATR, 现价: {:.2})",
+                                bars_held, profit_atr, curr.close
+                            );
+                        } else if (is_downtrend && macro_regime_state <= 0 && bars_held >= 2) || (bars_held >= 48 && physics_trend < 0.30) {
+                            should_exit = true;
+                            exit_reason = format!(
+                                "【开阳·多头平仓】状态翻转或超时退出 (持仓: {} 根, 趋势度: {:.2})",
+                                bars_held, physics_trend
+                            );
+                        }
+                    }
+                } else if shares < 0 {
+                    if kaiyang_source == 2 {
+                        let target_tp = ss_fast[i];
+                        let stop_line = buy_price + 1.2 * entry_atr_val;
+                        // 保守原则: 优先止损
+                        if curr.high >= stop_line {
+                            exit_is_intrabar_stop = true;
+                            exit_stop_price = (curr.open.max(stop_line) + slippage).max(0.01);
+                            should_exit = true;
+                            exit_reason = format!("【开阳·均值回归止损】触及硬止损线 (止损价: {:.2})", stop_line);
+                        } else if curr.low <= target_tp {
+                            should_exit = true;
+                            exit_reason = format!("【开阳·均值回归止盈】触及中枢均线目标位 (目标: {:.2})", target_tp);
+                        } else if bars_held >= 8 {
+                            should_exit = true;
+                            exit_reason = "【开阳·均值回归超时】持有达到 8 根 Bar 上限平仓".to_string();
+                        }
+                    } else {
+                        // 趋势仓位出场: 严格 Ratchet 移动止损单调递减
+                        // 与多头对称：不让当柱最低价提前压低当柱有效止损。
+                        let lowest_hold = lows[i.saturating_sub(bars_held)..i].iter().cloned().fold(buy_price, f64::min);
+                        let profit_atr = (buy_price - lowest_hold) / entry_atr_val;
+                        let abs_shares = (shares.abs() as f64).max(1.0);
+                        let friction_buffer = ((current_entry_fee * 2.0) / (abs_shares * multiplier) + 2.0 * slippage + tick_size).max(0.20 * entry_atr_val);
+
+                        // 1. 梯级保本: 浮盈 >= 1.0 ATR 时，刚性压低至保本线 (成本价 - 摩擦缓冲)
+                        if profit_atr >= 1.0 {
+                            trailing_stop_price = trailing_stop_price.min(buy_price - friction_buffer);
+                        }
+                        // 2. 梯级锁盈: 浮盈 >= 1.4 ATR 时，刚性锁定至少 0.35 ATR 净利润
+                        if profit_atr >= 1.4 {
+                            trailing_stop_price = trailing_stop_price.min(buy_price - friction_buffer - 0.35 * entry_atr_val);
+                        }
+                        // 3. 紧致吊灯: 浮盈 >= 2.0 ATR 时，吊灯追踪紧随波段极值
+                        if profit_atr >= 2.0 {
+                            trailing_stop_price = trailing_stop_price.min(lowest_hold + 1.8 * entry_atr_val);
+                        }
+                        // 优先检查盘中是否触及动态移动止损/保本线 (Intrabar Touch)
+                        if curr.high >= trailing_stop_price {
+                            exit_is_intrabar_stop = true;
+                            exit_stop_price = (curr.open.max(trailing_stop_price) + slippage).max(0.01);
+                            should_exit = true;
+                            exit_reason = format!(
+                                "【开阳·空头平仓】触发动态保本/吊灯追踪 (最高浮盈: {:.2} ATR, 止损价: {:.2})",
+                                profit_atr, trailing_stop_price
+                            );
+                        } else if bars_held >= 3 && !is_uptrend && !is_downtrend && curr.close >= ss_fast[i] && profit_atr >= 0.8 {
+                            should_exit = true;
+                            exit_reason = format!(
+                                "【开阳·空头平仓】横盘中枢破位保利退出 (持仓: {} 根, 浮盈: {:.2} ATR, 现价: {:.2})",
+                                bars_held, profit_atr, curr.close
+                            );
+                        } else if (is_uptrend && macro_regime_state >= 0 && bars_held >= 2) || (bars_held >= 48 && physics_trend < 0.30) {
+                            should_exit = true;
+                            exit_reason = format!(
+                                "【开阳·空头平仓】状态翻转或超时退出 (持仓: {} 根, 趋势度: {:.2})",
+                                bars_held, physics_trend
+                            );
+                        }
+                    }
+                }
+            }
+
             // 💎 【RC-LSR·流动性冲击反转】rc_lsr (极端位移 × 边际吸收 × 截面广度)
             "rc_lsr" | "rc_lsr_strategy" => {
                 let ema = sma_20[i];
@@ -1886,11 +3154,177 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
                 }
             }
 
+            // 12. 🧬 【动态因子驱动回测引擎】dynamic_alpha_driver (对应因果分位数入场 × 4重出场屏障)
+            "dynamic_alpha_driver" => {
+                let up = dynamic_factor_upper.get(i).copied().unwrap_or(f64::NAN);
+                let low = dynamic_factor_lower.get(i).copied().unwrap_or(f64::NAN);
+                let f_val = dynamic_factor_vals.get(i).copied().unwrap_or(0.0);
+
+                if shares == 0 && causal_cooldown == 0 {
+                    if !up.is_nan() && f_val > up {
+                        should_enter = true;
+                        enter_direction = 1;
+                        enter_reason = format!(
+                            "【{} 因子分位数突破入场 - 多头】\n\
+                             ① 因子实时时序值: {:.4} > 75%分位数上轨 {:.4}\n\
+                             ② 统计分布位次: 突破过去 60 柱前 25% 极值动能分位\n\
+                             ③ 因果撮合约束: 本柱收盘确认，次柱开盘对价挂单",
+                            dynamic_factor_name, f_val, up
+                        );
+                        ml_score = 92.0;
+                    } else if !low.is_nan() && f_val < low {
+                        should_enter = true;
+                        enter_direction = -1;
+                        enter_reason = format!(
+                            "【{} 因子分位数下破入场 - 空头】\n\
+                             ① 因子实时时序值: {:.4} < 25%分位数下轨 {:.4}\n\
+                             ② 统计分布位次: 跌破过去 60 柱后 25% 极值下挫分位\n\
+                             ③ 因果撮合约束: 本柱收盘确认，次柱开盘对价挂单",
+                            dynamic_factor_name, f_val, low
+                        );
+                        ml_score = 92.0;
+                    }
+                } else if shares > 0 {
+                    let gain = (curr.close - buy_price) / buy_price;
+                    let factor_reversal = !low.is_nan() && f_val < low;
+
+                    if gain >= 0.025 {
+                        should_exit = true;
+                        exit_reason = format!("🎯 触达多头因子目标止盈位 (+2.5%，浮盈 {:+.2}%)", gain * 100.0);
+                    } else if gain <= -0.015 {
+                        should_exit = true;
+                        exit_reason = format!("🛑 触达多头因子硬性止损位 (-1.5%，浮亏 {:+.2}%)", gain * 100.0);
+                    } else if bars_held >= 30 {
+                        should_exit = true;
+                        exit_reason = format!("⏳ 多头因子时间衰竭屏障平仓 (持仓 30 根K线，浮盈 {:+.2}%)", gain * 100.0);
+                    } else if factor_reversal {
+                        should_exit = true;
+                        exit_reason = format!("🔄 因子跌破下轨反转平仓 (当前因子值 {:.4} < {:.4})", f_val, low);
+                    }
+                } else if shares < 0 {
+                    let gain = (buy_price - curr.close) / buy_price;
+                    let factor_reversal = !up.is_nan() && f_val > up;
+
+                    if gain >= 0.025 {
+                        should_exit = true;
+                        exit_reason = format!("🎯 触达空头因子目标止盈位 (+2.5%，浮盈 {:+.2}%)", gain * 100.0);
+                    } else if gain <= -0.015 {
+                        should_exit = true;
+                        exit_reason = format!("🛑 触达空头因子硬性止损位 (-1.5%，浮亏 {:+.2}%)", gain * 100.0);
+                    } else if bars_held >= 30 {
+                        should_exit = true;
+                        exit_reason = format!("⏳ 空头因子时间衰竭屏障平仓 (持仓 30 根K线，浮盈 {:+.2}%)", gain * 100.0);
+                    } else if factor_reversal {
+                        should_exit = true;
+                        exit_reason = format!("🔄 因子突破上轨反转平仓 (当前因子值 {:.4} > {:.4})", f_val, up);
+                    }
+                }
+            }
+
             _ => {}
         }
 
         // 信号产生在 Bar 收盘后，保存至挂单状态机等待次柱开盘执行 (严格次柱开盘市价对价成交)
-        if shares == 0 && pending_entry.is_none() && should_enter {
+        // 若触发盘中即时止损 (Intrabar Stop)，直接在当根 Bar 按止损价悲观撮合平仓，杜绝次柱延迟滑点倒亏
+        let buy_day = if buy_date.len() >= 10 { &buy_date[..10] } else { "" };
+        let is_same_day_stock = is_stock && !buy_day.is_empty() && cur_date_str == buy_day;
+
+        if exit_is_intrabar_stop && shares != 0 {
+            if is_same_day_stock {
+                // A股现货 T+1: 当日买入禁止盘中即时平仓，平仓挂单顺延至次日开盘
+                pending_exit = Some(exit_reason);
+            } else {
+                let is_long = shares > 0;
+            let abs_shares = (shares.abs() as f64).max(1.0);
+            let fill_price = exit_stop_price;
+
+            let gain_pct = if is_long {
+                (fill_price - buy_price) / buy_price
+            } else {
+                (buy_price - fill_price) / buy_price
+            };
+
+            let gross_val = fill_price * abs_shares * multiplier;
+            let stamp_duty = if is_stock && is_long { gross_val * 0.0005 } else { 0.0 };
+            let exit_fee = (if is_stock { gross_val * 0.0003 } else { gross_val * 0.00005 }) + stamp_duty;
+            total_friction += exit_fee;
+
+            let gross_pnl = if is_long {
+                (fill_price - buy_price) * abs_shares * multiplier
+            } else {
+                (buy_price - fill_price) * abs_shares * multiplier
+            };
+            let pnl_amount = gross_pnl - current_entry_fee - exit_fee;
+            let pnl_pct = gain_pct * 100.0;
+            let is_win = pnl_amount >= 0.0;
+
+            let margin_released = buy_price * abs_shares * multiplier * if is_stock { 1.0 } else { 0.12 };
+            cash += margin_released + gross_pnl - exit_fee;
+
+            let holding_days = if curr.time > buy_time && buy_time > 0 {
+                ((curr.time - buy_time) as f64 / 86400.0).max(0.0001)
+            } else if is_stock {
+                8.5
+            } else {
+                ((bar_interval_mins as f64 * bars_held.max(1) as f64) / 1440.0).max(0.0001)
+            };
+            holding_days_sum += holding_days;
+            causal_cooldown = 4;
+            cooldown_direction = if is_long { 1 } else { -1 };
+            bars_held = 0;
+
+            let trade_id = trades.len() + 1;
+            trades.push(BacktestTradeItem {
+                id: trade_id,
+                symbol: symbol.clone(),
+                name: name.to_string(),
+                buy_date: buy_date.clone(),
+                buy_price,
+                buy_reason: current_buy_reason.clone(),
+                sell_date: curr.datetime_str.clone(),
+                sell_price: fill_price,
+                shares: shares.abs(),
+                pnl_amount: (pnl_amount * 100.0).round() / 100.0,
+                pnl_pct: (pnl_pct * 100.0).round() / 100.0,
+                ml_score_pct: (current_ml_score * 10.0).round() / 10.0,
+                sell_reason: exit_reason.clone(),
+                fees_detail: format!("规费: ¥{:.2}", current_entry_fee + exit_fee),
+            });
+
+            let exit_time_label = if curr.datetime_str.len() >= 16 {
+                &curr.datetime_str[5..16]
+            } else {
+                &curr.datetime_str
+            };
+
+            markers.push(ChartMarker {
+                time: curr.time,
+                position: "belowBar".to_string(),
+                color: if is_win { "#d29922".to_string() } else { "#f85149".to_string() },
+                shape: "circle".to_string(),
+                text: format!(
+                    "{} {} {} @{:.2} {:+.1}% (¥{:+.0})",
+                    if is_win { "🎯" } else { "🛑" },
+                    exit_time_label,
+                    if is_long { "平多" } else { "平空" },
+                    fill_price,
+                    pnl_pct,
+                    pnl_amount
+                ),
+                id: format!("STOP_{}_{}", curr.time, fill_price),
+                price: fill_price,
+                reason: format!("{} (盘中触及止损: {})", exit_reason, curr.datetime_str),
+                action: if is_long { "EXIT".to_string() } else { "EXIT_SHORT".to_string() },
+                pnl: Some(pnl_amount),
+            });
+
+            shares = 0;
+            kaiyang_source = 0;
+            bars_since_pullback_up = 99;
+            bars_since_pullback_down = 99;
+            pending_exit = None;
+            }
+        } else if shares == 0 && pending_entry.is_none() && should_enter {
             pending_entry = Some((enter_reason, ml_score, enter_direction));
         } else if shares != 0 && pending_exit.is_none() && should_exit {
             pending_exit = Some(exit_reason);
@@ -1925,7 +3359,8 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
     }
 
     if shares != 0 && n > 0 {
-        let last_bar = &bars[n - 1];
+        let valid_idx = last_processed_bar_idx.min(n - 1);
+        let last_bar = &bars[valid_idx];
         let fill_price = last_bar.close;
         let is_long = shares > 0;
         let abs_shares = (shares.abs() as f64).max(1.0);
@@ -1936,16 +3371,17 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
         };
         let gross_val = fill_price * abs_shares * multiplier;
         let stamp_duty = if is_stock && is_long { gross_val * 0.0005 } else { 0.0 };
-        let fee = (if is_stock { gross_val * 0.0003 } else { gross_val * 0.00005 }) + stamp_duty;
-        total_friction += fee;
-        let pnl_amount = if is_long {
-            (fill_price - buy_price) * abs_shares * multiplier - fee
+        let exit_fee = (if is_stock { gross_val * 0.0003 } else { gross_val * 0.00005 }) + stamp_duty;
+        total_friction += exit_fee;
+        let gross_pnl = if is_long {
+            (fill_price - buy_price) * abs_shares * multiplier
         } else {
-            (buy_price - fill_price) * abs_shares * multiplier - fee
+            (buy_price - fill_price) * abs_shares * multiplier
         };
+        let pnl_amount = gross_pnl - current_entry_fee - exit_fee;
         let pnl_pct = gain_pct * 100.0;
         let margin_released = buy_price * abs_shares * multiplier * if is_stock { 1.0 } else { 0.12 };
-        cash += margin_released + pnl_amount;
+        cash += margin_released + gross_pnl - exit_fee;
         let trade_id = trades.len() + 1;
         trades.push(BacktestTradeItem {
             id: trade_id,
@@ -1961,7 +3397,7 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
             pnl_pct: (pnl_pct * 100.0).round() / 100.0,
             ml_score_pct: 85.0,
             sell_reason: "【平仓四重出场判据】\n① 触发规则: 样本测试周期结束 (期末平仓)\n② 资产清算: 未平仓头寸市价归行核算\n③ 损益锁定: 计入当期最终投资组合净值\n④ 撮合执行: 期末最后一根K线收盘价结算".to_string(),
-            fees_detail: format!("规费与滑点: ¥{:.2}", fee),
+            fees_detail: format!("规费: ¥{:.2}", current_entry_fee + exit_fee),
         });
     }
 
@@ -2082,7 +3518,7 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
         loss_trades_count: losses.len(),
         profit_loss_ratio: (pl_ratio * 100.0).round() / 100.0,
         avg_holding_days: (avg_holding * 100000.0).round() / 100000.0,
-        max_drawdown_pct: (max_dd * 100.0).round() / 100.0,
+        max_drawdown_pct: (max_dd * 10000.0).round() / 100.0,
         backtest_period: period_str,
         total_friction_cny: (total_friction * 100.0).round() / 100.0,
         lln_compliant,
@@ -2106,6 +3542,7 @@ pub fn execute_backtest(req: BacktestRequest) -> Result<BacktestResponse, String
         trades,
         markers,
         bars,
+        trend_series,
     })
 }
 
@@ -2134,6 +3571,10 @@ pub fn execute_portfolio_backtest(req: PortfolioBacktestRequest) -> Result<Portf
     let cap_per_symbol = req.initial_capital / (symbols.len() as f64);
     let is_synthetic = req.data_source.as_deref() == Some("SYNTHETIC") || req.use_synthetic.unwrap_or(false);
 
+    let mut portfolio_duration_days: f64 = 0.0;
+    let mut sum_symbol_sharpes: f64 = 0.0;
+    let mut valid_symbol_count: usize = 0;
+
     for &sym in &symbols {
         let (name, _mul, sector, _is_stock) = get_contract_meta(sym);
         let single_req = BacktestRequest {
@@ -2147,6 +3588,8 @@ pub fn execute_portfolio_backtest(req: PortfolioBacktestRequest) -> Result<Portf
             data_source: Some(if is_synthetic { "SYNTHETIC".to_string() } else { "REAL".to_string() }),
             use_synthetic: Some(is_synthetic),
             fixed_lots: Some(1),
+            factor_id: None,
+            formula_dsl: None,
         };
 
         if let Ok(res) = execute_backtest(single_req) {
@@ -2154,6 +3597,9 @@ pub fn execute_portfolio_backtest(req: PortfolioBacktestRequest) -> Result<Portf
             total_wins += res.metrics.win_trades_count;
             total_net_pnl += res.metrics.net_pnl_total;
             total_friction += res.metrics.total_friction_cny;
+            portfolio_duration_days = portfolio_duration_days.max(res.metrics.duration_days);
+            sum_symbol_sharpes += res.metrics.sharpe_ratio;
+            valid_symbol_count += 1;
 
             for t in &res.trades {
                 if t.pnl_amount >= 0.0 {
@@ -2200,17 +3646,48 @@ pub fn execute_portfolio_backtest(req: PortfolioBacktestRequest) -> Result<Portf
     let overall_pl = if total_loss_amount > 0.0 {
         total_win_amount / total_loss_amount
     } else {
-        2.2
+        0.0
     };
 
     let total_loss_count = total_trades.saturating_sub(total_wins);
     let total_return = (total_net_pnl / req.initial_capital) * 100.0;
-    let annualized_return = total_return * 0.45;
+
+    // Q05 修复: 真实期间年化收益率，杜绝 * 0.45 伪年化
+    let duration_days = portfolio_duration_days.max(1.0);
+    let duration_years = duration_days / 365.25;
+    let annualized_return = if duration_days < 180.0 || total_trades < 500 {
+        total_return
+    } else if duration_years >= 1.0 {
+        (((1.0 + total_return / 100.0).max(0.0001)).powf(1.0 / duration_years) - 1.0) * 100.0
+    } else {
+        (total_return / duration_days) * 252.0
+    };
+
     let lln_compliant = total_trades >= 1000;
     let stress_test_3x_pnl = total_net_pnl - (total_friction * 2.0);
-    let p_ruin = if total_return > 0.0 && overall_win_rate > 50.0 { 0.001 } else { 4.5 };
-    let calmar = if max_overall_dd > 0.0 { annualized_return / max_overall_dd } else { 2.8 };
-    let sharpe = (annualized_return - 2.5) / (max_overall_dd * 1.35 + 4.0).max(1.0);
+
+    // Q05 修复: 破产概率若净利为负或无交易则为 100.0%, 正期望按真实边际估算，杜绝硬编码 0.001
+    let p_ruin = if total_net_pnl <= 0.0 || total_trades == 0 || overall_win_rate < 40.0 {
+        100.0
+    } else {
+        let edge = (overall_win_rate / 100.0) - ((100.0 - overall_win_rate) / 100.0) / overall_pl.max(0.1);
+        if edge <= 0.0 {
+            100.0
+        } else {
+            (((1.0 - edge) / (1.0 + edge)).powi(5) * 100.0).clamp(0.01, 99.9)
+        }
+    };
+
+    let calmar = if max_overall_dd > 0.0 { annualized_return / max_overall_dd } else { 0.0 };
+
+    // Q05 修复: 综合组合夏普比率，取子品种真实夏普均值或真实风险调整收益，杜绝 (annualized-2.5)/(max_dd*1.35+4) 经验公式
+    let sharpe = if valid_symbol_count > 0 {
+        sum_symbol_sharpes / valid_symbol_count as f64
+    } else if max_overall_dd > 0.0 {
+        annualized_return / (max_overall_dd * 1.5)
+    } else {
+        0.0
+    };
     let expectancy = if total_trades > 0 { total_net_pnl / total_trades as f64 } else { 0.0 };
 
     let strat_name = get_strategy_display_name(&req.strategy).to_string();
@@ -2884,6 +4361,8 @@ pub fn execute_dual_track_evaluation(req: DualTrackEvaluationRequest) -> Result<
         data_source: Some("REAL".to_string()),
         use_synthetic: Some(false),
         fixed_lots: Some(1),
+        factor_id: None,
+        formula_dsl: None,
     };
     let real_res = execute_backtest(real_req)?;
 
@@ -2898,6 +4377,8 @@ pub fn execute_dual_track_evaluation(req: DualTrackEvaluationRequest) -> Result<
         data_source: Some("SYNTHETIC".to_string()),
         use_synthetic: Some(true),
         fixed_lots: Some(1),
+        factor_id: None,
+        formula_dsl: None,
     };
     let synth_res = execute_backtest(synth_req)?;
 
@@ -3030,12 +4511,18 @@ pub fn execute_dual_track_evaluation(req: DualTrackEvaluationRequest) -> Result<
             "bg-[#f85149]/20 text-[#f85149] border-[#f85149]/40".to_string(),
             format!("真实历史数据仅跨越 {} 个交易日，样本显著性严重不足，存在单边行情过拟合与幸存者偏差，严禁实盘使用。", unique_real_days)
         )
+    } else if real_perf.total_net_pnl <= 0.0 || total_score < 70.0 {
+        (
+            "FAIL (策略净亏损或综合不达标，未通过准入)".to_string(),
+            "bg-[#f85149]/20 text-[#f85149] border-[#f85149]/40".to_string(),
+            format!("策略在真实样本中净利润为负 ({:.2}元) 或综合评分仅 {:.1} 分，未能通过实盘硬性门禁，严禁部署。", real_perf.total_net_pnl, total_score)
+        )
     } else if total_score >= 92.0 {
         ("AA (顶级实盘量化母策略)".to_string(), "bg-[#3fb950]/20 text-[#3fb950] border-[#3fb950]/40".to_string(), "该策略在大数显著性、非对称收益期望及极端尾部抗压均表现极优，具备高权重实盘准入资质。".to_string())
     } else if total_score >= 85.0 {
         ("A+ (优秀稳健量化策略)".to_string(), "bg-[#1f6feb]/20 text-[#58a6ff] border-[#58a6ff]/40".to_string(), "双轨泛化一致性良好，回撤可控，经过适当参数平原微调后可直接实盘部署。".to_string())
     } else {
-        ("A (具备实战部署价值)".to_string(), "bg-[#d29922]/20 text-[#d29922] border-[#d29922]/40".to_string(), "在特定市场状态下表现优异，但需配合更严格的动态波动率仓位过滤。".to_string())
+        ("B (样本内表现尚可，需进一步验证)".to_string(), "bg-[#d29922]/20 text-[#d29922] border-[#d29922]/40".to_string(), "在特定市场状态下表现尚可，但在真实或压力测试中仍存在波动，未达直接部署标准。".to_string())
     };
 
     let dimensions = vec![
@@ -3165,6 +4652,8 @@ mod tests {
                 data_source: Some("REAL".to_string()),
                 use_synthetic: Some(false),
                 fixed_lots: Some(1),
+                factor_id: None,
+                formula_dsl: None,
             };
             let res = execute_backtest(req).expect("Strategy backtest failed");
             println!(
@@ -3207,6 +4696,8 @@ mod tests {
                 data_source: Some("SYNTHETIC".to_string()),
                 use_synthetic: Some(true),
                 fixed_lots: Some(1),
+                factor_id: None,
+                formula_dsl: None,
             };
             let res = execute_backtest(req).expect("Synthetic strategy test failed");
             println!(
@@ -3247,6 +4738,8 @@ mod tests {
             data_source: Some("REAL".to_string()),
             use_synthetic: Some(false),
             fixed_lots: Some(1),
+            factor_id: None,
+            formula_dsl: None,
         };
         let res = execute_backtest(req).expect("AU_IDX 30m test failed");
         println!(
@@ -3268,6 +4761,8 @@ mod tests {
             data_source: Some("REAL".to_string()),
             use_synthetic: Some(false),
             fixed_lots: Some(1),
+            factor_id: None,
+            formula_dsl: None,
         };
         let res = execute_backtest(req).expect("AU_IDX 30m barbell test failed");
         println!(
@@ -3293,6 +4788,8 @@ mod tests {
                 data_source: Some("SYNTHETIC".to_string()),
                 use_synthetic: Some(true),
                 fixed_lots: Some(1),
+                factor_id: None,
+                formula_dsl: None,
             };
             let res = execute_backtest(req).unwrap();
             println!(
@@ -3325,6 +4822,8 @@ mod tests {
                 data_source: Some("REAL".to_string()),
                 use_synthetic: Some(false),
                 fixed_lots: Some(1),
+                factor_id: None,
+                formula_dsl: None,
             };
             let res = execute_backtest(req).unwrap();
             println!(
@@ -3358,6 +4857,8 @@ mod tests {
                 data_source: Some("REAL".to_string()),
                 use_synthetic: Some(false),
                 fixed_lots: Some(1),
+                factor_id: None,
+                formula_dsl: None,
             };
             if let Ok(res) = execute_backtest(req) {
                 println!(
@@ -3428,5 +4929,617 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_dynamic_alpha_driver_different_factors() {
+        let req_mom = BacktestRequest {
+            symbol: "RB_IDX".to_string(),
+            strategy: "dynamic_alpha_driver".to_string(),
+            timeframe: Some("15m".to_string()),
+            start_date: "2024-01-01".to_string(),
+            end_date: "2026-12-31".to_string(),
+            initial_capital: 1000000.0,
+            backtest_mode: "RESEARCH_PROXY".to_string(),
+            data_source: Some("REAL".to_string()),
+            use_synthetic: Some(false),
+            fixed_lots: Some(1),
+            factor_id: Some("FAC_MOM_W16".to_string()),
+            formula_dsl: Some("(Close[t] - Close[t-16]) / ATR[16]".to_string()),
+        };
+        let res_mom = execute_backtest(req_mom).expect("Dynamic alpha momentum backtest failed");
+        println!(
+            "Dynamic Alpha MOM_W16 -> trades={} win_rate={:.1}% net_pnl={:.2}",
+            res_mom.metrics.total_trades, res_mom.metrics.win_rate_pct, res_mom.metrics.net_pnl_total
+        );
+
+        let req_er = BacktestRequest {
+            symbol: "RB_IDX".to_string(),
+            strategy: "dynamic_alpha_driver".to_string(),
+            timeframe: Some("15m".to_string()),
+            start_date: "2024-01-01".to_string(),
+            end_date: "2026-12-31".to_string(),
+            initial_capital: 1000000.0,
+            backtest_mode: "RESEARCH_PROXY".to_string(),
+            data_source: Some("REAL".to_string()),
+            use_synthetic: Some(false),
+            fixed_lots: Some(1),
+            factor_id: Some("FAC_SNR_ER_18".to_string()),
+            formula_dsl: Some("Kaufman ER[18]".to_string()),
+        };
+        let res_er = execute_backtest(req_er).expect("Dynamic alpha ER backtest failed");
+        println!(
+            "Dynamic Alpha SNR_ER_18 -> trades={} win_rate={:.1}% net_pnl={:.2}",
+            res_er.metrics.total_trades, res_er.metrics.win_rate_pct, res_er.metrics.net_pnl_total
+        );
+
+        assert!(res_mom.metrics.total_trades > 0, "Momentum factor should generate trades");
+        assert!(res_er.metrics.total_trades > 0, "Kaufman ER factor should generate trades");
+        assert!(
+            res_mom.metrics.total_trades != res_er.metrics.total_trades || (res_mom.metrics.net_pnl_total - res_er.metrics.net_pnl_total).abs() > 1.0,
+            "Different factor definitions must yield distinct backtest results!"
+        );
+
+        // Test 1: Dynamic Mutation Factor (FAC_COMP_DYN) must succeed with native execution
+        let req_dyn = BacktestRequest {
+            symbol: "RB_IDX".to_string(),
+            strategy: "dynamic_alpha_driver".to_string(),
+            timeframe: Some("15m".to_string()),
+            start_date: "2024-01-01".to_string(),
+            end_date: "2026-12-31".to_string(),
+            initial_capital: 1000000.0,
+            backtest_mode: "RESEARCH_PROXY".to_string(),
+            data_source: Some("REAL".to_string()),
+            use_synthetic: Some(false),
+            fixed_lots: Some(1),
+            factor_id: Some("FAC_COMP_DYN_101_8_24_20".to_string()),
+            formula_dsl: Some("EMA Spread x Vol Pulse".to_string()),
+        };
+        let res_dyn = execute_backtest(req_dyn).expect("Dynamic mutation factor backtest failed");
+        assert!(res_dyn.metrics.total_trades > 0, "Dynamic mutation factor should generate trades");
+
+        // Test 2: Unsupported Factor ID MUST be rejected with UNSUPPORTED_FACTOR error instead of silent fallback
+        let req_unsupported = BacktestRequest {
+            symbol: "RB_IDX".to_string(),
+            strategy: "dynamic_alpha_driver".to_string(),
+            timeframe: Some("15m".to_string()),
+            start_date: "2024-01-01".to_string(),
+            end_date: "2026-12-31".to_string(),
+            initial_capital: 1000000.0,
+            backtest_mode: "RESEARCH_PROXY".to_string(),
+            data_source: Some("REAL".to_string()),
+            use_synthetic: Some(false),
+            fixed_lots: Some(1),
+            factor_id: Some("FAC_COMPLETELY_UNKNOWN_XYZ_999".to_string()),
+            formula_dsl: Some("Invalid".to_string()),
+        };
+        let err_unsupported = execute_backtest(req_unsupported).unwrap_err();
+        assert!(
+            err_unsupported.contains("UNSUPPORTED_FACTOR"),
+            "Unsupported factor must be strictly rejected with UNSUPPORTED_FACTOR, got: {}",
+            err_unsupported
+        );
+    }
+
+    #[test]
+    fn test_adaptive_regime_evolution_desktop_trend_series() {
+        let req = BacktestRequest {
+            symbol: "AG_IDX".to_string(),
+            strategy: "adaptive_regime_evolution".to_string(),
+            timeframe: Some("15m".to_string()),
+            start_date: "2024-01-01".to_string(),
+            end_date: "2026-12-31".to_string(),
+            initial_capital: 1000000.0,
+            backtest_mode: "RESEARCH_PROXY".to_string(),
+            data_source: Some("REAL".to_string()),
+            use_synthetic: Some(false),
+            fixed_lots: Some(1),
+            factor_id: None,
+            formula_dsl: None,
+        };
+        let res = execute_backtest(req).expect("Adaptive regime evolution backtest failed");
+        assert!(!res.trend_series.is_empty(), "Trend series must not be empty");
+        let has_up = res.trend_series.iter().any(|pt| pt.regime == 1);
+        let has_down = res.trend_series.iter().any(|pt| pt.regime == -1);
+        let has_range = res.trend_series.iter().any(|pt| pt.regime == 0);
+        let regime_markers_count = res.markers.iter().filter(|m| m.action == "REGIME_CHANGE").count();
+        println!(
+            "Adaptive Regime Test -> bars: {}, trend_points: {}, has_up: {}, has_down: {}, has_range: {}, regime_markers: {}, trades: {}, net_pnl_total: {:.2}, max_drawdown_pct: {:.2}%",
+            res.bars.len(), res.trend_series.len(), has_up, has_down, has_range, regime_markers_count, res.trades.len(), res.metrics.net_pnl_total, res.metrics.max_drawdown_pct
+        );
+        assert!(res.metrics.max_drawdown_pct > 1.0, "max_drawdown_pct should be scaled to percentage (e.g. ~8%, not 0.08%)");
+        assert!(has_up, "Must identify uptrends");
+        assert!(has_down, "Must identify downtrends");
+        assert!(has_range, "Must identify ranges");
+        assert!(regime_markers_count > 0, "Must contain regime state change markers");
+    }
+
+    #[test]
+    fn test_adaptive_regime_evolution_au_idx_20251230() {
+        let req = BacktestRequest {
+            symbol: "AU_IDX".to_string(),
+            strategy: "adaptive_regime_evolution".to_string(),
+            timeframe: Some("15m".to_string()),
+            start_date: "2025-12-25".to_string(),
+            end_date: "2026-01-05".to_string(),
+            initial_capital: 1000000.0,
+            backtest_mode: "RESEARCH_PROXY".to_string(),
+            data_source: Some("REAL".to_string()),
+            use_synthetic: Some(false),
+            fixed_lots: Some(1),
+            factor_id: None,
+            formula_dsl: None,
+        };
+        let res = execute_backtest(req).expect("AU_IDX backtest failed");
+        for t in &res.trades {
+            println!("AU_IDX Trade: buy_date={}, shares={}, buy_price={}, sell_date={}, sell_price={}, pnl_amount={:.2}, buy_reason={}",
+                t.buy_date, t.shares, t.buy_price, t.sell_date, t.sell_price, t.pnl_amount, t.buy_reason
+            );
+        }
+    }
+
+    #[test]
+    fn test_adaptive_regime_evolution_au_idx_20260813_downtrend() {
+        let req = BacktestRequest {
+            symbol: "AU_IDX".to_string(),
+            strategy: "adaptive_regime_evolution".to_string(),
+            timeframe: Some("15m".to_string()),
+            start_date: "2026-08-01".to_string(),
+            end_date: "2026-08-08".to_string(),
+            initial_capital: 1000000.0,
+            backtest_mode: "RESEARCH_PROXY".to_string(),
+            data_source: Some("REAL".to_string()),
+            use_synthetic: Some(false),
+            fixed_lots: Some(1),
+            factor_id: None,
+            formula_dsl: None,
+        };
+        let res = execute_backtest(req).expect("AU_IDX 2026-08-04~08 backtest failed");
+        for m in &res.markers {
+            println!("Marker: time={}, text={}, position={}, action={}, reason={}",
+                m.time, m.text, m.position, m.action, m.reason
+            );
+        }
+    }
+
+    #[test]
+    fn test_adaptive_regime_evolution_rb_idx_screenshot_window() {
+        let req = BacktestRequest {
+            symbol: "RB_IDX".to_string(),
+            strategy: "adaptive_regime_evolution".to_string(),
+            timeframe: Some("15m".to_string()),
+            start_date: "2026-08-14".to_string(),
+            end_date: "2026-08-18".to_string(),
+            initial_capital: 1000000.0,
+            backtest_mode: "RESEARCH_PROXY".to_string(),
+            data_source: Some("REAL".to_string()),
+            use_synthetic: Some(false),
+            fixed_lots: Some(1),
+            factor_id: None,
+            formula_dsl: None,
+        };
+        let res = execute_backtest(req).expect("RB_IDX 2026-08-14~18 backtest failed");
+        let regime_markers: Vec<_> = res.markers.iter().filter(|m| m.action == "REGIME_CHANGE").collect();
+        println!("RB_IDX Screenshot Window Regime Markers count: {}", regime_markers.len());
+        for m in &regime_markers {
+            println!("RB Marker: time={}, text={}, reason={}", m.time, m.text, m.reason);
+        }
+        assert!(!regime_markers.is_empty(), "Regime markers should not be empty");
+    }
+
+    #[test]
+    fn test_adaptive_regime_evolution_rb_idx_user_screenshot_aug19_20() {
+        let req = BacktestRequest {
+            symbol: "RB_IDX".to_string(),
+            strategy: "adaptive_regime_evolution".to_string(),
+            timeframe: Some("15m".to_string()),
+            start_date: "2026-08-18".to_string(),
+            end_date: "2026-08-20".to_string(),
+            initial_capital: 1000000.0,
+            backtest_mode: "RESEARCH_PROXY".to_string(),
+            data_source: Some("REAL".to_string()),
+            use_synthetic: Some(false),
+            fixed_lots: Some(10),
+            factor_id: None,
+            formula_dsl: None,
+        };
+        let res = execute_backtest(req).expect("RB_IDX 2026-08-19~20 backtest failed");
+        println!("=== TRADES (2026-08-19 ~ 20) ===");
+        for t in &res.trades {
+            println!("Trade #{}: {} {} -> {} | PnL: {:.2} ({:.2}%) | BuyReason: {} | SellReason: {}",
+                t.id, t.buy_date, t.buy_price, t.sell_price, t.pnl_amount, t.pnl_pct, t.buy_reason, t.sell_reason
+            );
+        }
+        println!("=== ALL MARKERS (2026-08-19 ~ 20) ===");
+        for m in &res.markers {
+            println!("Marker: time={} pos={} text='{}' action={} reason='{}'",
+                m.time, m.position, m.text, m.action, m.reason
+            );
+        }
+    }
+
+    #[test]
+    fn test_adaptive_regime_evolution_sa_idx_march_2025() {
+        let req = BacktestRequest {
+            symbol: "SA_IDX".to_string(),
+            strategy: "adaptive_regime_evolution".to_string(),
+            timeframe: Some("15m".to_string()),
+            start_date: "2025-03-18".to_string(),
+            end_date: "2025-03-27".to_string(),
+            initial_capital: 1000000.0,
+            backtest_mode: "RESEARCH_PROXY".to_string(),
+            data_source: Some("REAL".to_string()),
+            use_synthetic: Some(false),
+            fixed_lots: Some(11),
+            factor_id: None,
+            formula_dsl: None,
+        };
+        let res = execute_backtest(req).expect("SA_IDX 2025-03-18~27 backtest failed");
+        println!("=== SA_IDX MARCH 2025 TRADES ===");
+        for t in &res.trades {
+            println!("Trade #{}: {} {} -> {} | PnL: {:.2} ({:.2}%) | BuyReason:\n{}\n| SellReason:\n{}",
+                t.id, t.buy_date, t.buy_price, t.sell_price, t.pnl_amount, t.pnl_pct, t.buy_reason, t.sell_reason
+            );
+        }
+        println!("=== SA_IDX MARCH 2025 MARKERS ===");
+        for m in &res.markers {
+            if m.time >= 1742400000 {
+                println!("Marker: time={} pos={} text='{}' action={} price={:.2} reason='{}'",
+                    m.time, m.position, m.text, m.action, m.price, m.reason
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_adaptive_regime_evolution_rb_idx_march_2025() {
+        let req = BacktestRequest {
+            symbol: "RB_IDX".to_string(),
+            strategy: "adaptive_regime_evolution".to_string(),
+            timeframe: Some("15m".to_string()),
+            start_date: "2025-03-18".to_string(),
+            end_date: "2025-03-26".to_string(),
+            initial_capital: 1000000.0,
+            backtest_mode: "RESEARCH_PROXY".to_string(),
+            data_source: Some("REAL".to_string()),
+            use_synthetic: Some(false),
+            fixed_lots: Some(9),
+            factor_id: None,
+            formula_dsl: None,
+        };
+        let res = execute_backtest(req).expect("RB_IDX 2025-03-18~26 backtest failed");
+        println!("=== RB_IDX MARCH 2025 TRADES ===");
+        for t in &res.trades {
+            println!("Trade #{}: {} {} -> {} | PnL: {:.2} ({:.2}%) | BuyReason:\n{}\n| SellReason:\n{}",
+                t.id, t.buy_date, t.buy_price, t.sell_price, t.pnl_amount, t.pnl_pct, t.buy_reason, t.sell_reason
+            );
+        }
+        println!("=== RB_IDX MARCH 2025 MARKERS ===");
+        for m in &res.markers {
+            if m.time >= 1742400000 {
+                println!("Marker: time={} pos={} text='{}' action={} price={:.2} reason='{}'",
+                    m.time, m.position, m.text, m.action, m.price, m.reason
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_adaptive_regime_evolution_au_idx_oct_2025() {
+        let req = BacktestRequest {
+            symbol: "AU_IDX".to_string(),
+            strategy: "adaptive_regime_evolution".to_string(),
+            timeframe: Some("15m".to_string()),
+            start_date: "2025-09-23".to_string(),
+            end_date: "2025-10-12".to_string(),
+            initial_capital: 1000000.0,
+            backtest_mode: "RESEARCH_PROXY".to_string(),
+            data_source: Some("REAL".to_string()),
+            use_synthetic: Some(false),
+            fixed_lots: Some(1),
+            factor_id: None,
+            formula_dsl: None,
+        };
+        let res = execute_backtest(req).expect("AU_IDX 2025-09-23~10-12 backtest failed");
+        println!("=== AU_IDX OCT 2025 TRADES ===");
+        for t in &res.trades {
+            if t.buy_date.as_str() >= "2025-10-08" {
+                println!("Trade #{}: {} {} -> {} | PnL: {:.2} ({:.2}%) | BuyReason:\n{}\n| SellReason:\n{}",
+                    t.id, t.buy_date, t.buy_price, t.sell_price, t.pnl_amount, t.pnl_pct, t.buy_reason, t.sell_reason
+                );
+            }
+        }
+        println!("=== AU_IDX OCT 2025 MARKERS ===");
+        for m in &res.markers {
+            if m.time >= 1759970000 && m.time <= 1760120000 {
+                println!("Marker: time={} pos={} text='{}' action={} price={:.2} reason='{}'",
+                    m.time, m.position, m.text, m.action, m.price, m.reason
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_adaptive_regime_evolution_ma_idx_march_2025() {
+        let req = BacktestRequest {
+            symbol: "MA_IDX".to_string(),
+            strategy: "adaptive_regime_evolution".to_string(),
+            timeframe: Some("15m".to_string()),
+            start_date: "2025-03-20".to_string(),
+            end_date: "2025-03-28".to_string(),
+            initial_capital: 1000000.0,
+            backtest_mode: "RESEARCH_PROXY".to_string(),
+            data_source: Some("REAL".to_string()),
+            use_synthetic: Some(false),
+            fixed_lots: Some(1),
+            factor_id: None,
+            formula_dsl: None,
+        };
+        let res = execute_backtest(req).expect("MA_IDX 2025-03-20~03-28 backtest failed");
+        println!("=== MA_IDX MARCH 2025 TRADES ===");
+        for t in &res.trades {
+            println!("Trade #{}: {} {} -> {} | PnL: {:.2} ({:.2}%) | BuyReason:\n{}\n| SellReason:\n{}",
+                t.id, t.buy_date, t.buy_price, t.sell_price, t.pnl_amount, t.pnl_pct, t.buy_reason, t.sell_reason
+            );
+        }
+        println!("=== MA_IDX MARCH 2025 MARKERS ===");
+        for m in &res.markers {
+            println!("Marker: time={} pos={} text='{}' action={} price={:.2} reason='{}'",
+                m.time, m.position, m.text, m.action, m.price, m.reason
+            );
+        }
+
+        // 验证 1: 03-24 多单盘中最高浮盈 1.96 ATR，经物理净保本与盘中即时止损撮合后，绝不允许倒亏
+        let trade_0324 = res.trades.iter().find(|t| t.buy_date.contains("2025-03-24")).expect("03-24 多单应当存在");
+        assert!(trade_0324.pnl_amount >= 0.0, "03-24 多单已获得 1.96 ATR 浮盈，必须以净保本平仓，实测 PnL={:.2}", trade_0324.pnl_amount);
+
+        // 验证 2: 03-25 22:15 在 2543 处的箱底追空必须被波浪中继箱体破位法则 100% 拦截
+        assert!(!res.trades.iter().any(|t| t.buy_price == 2543.0), "03-25 22:15 在 2543 处的追空必须被箱体真突破法则拦截");
+    }
+
+    #[test]
+    fn test_adaptive_regime_evolution_ma_idx_august_2026() {
+        let req = BacktestRequest {
+            symbol: "MA_IDX".to_string(),
+            strategy: "adaptive_regime_evolution".to_string(),
+            timeframe: Some("15m".to_string()),
+            start_date: "2026-08-05".to_string(),
+            end_date: "2026-08-18".to_string(),
+            initial_capital: 1000000.0,
+            backtest_mode: "RESEARCH_PROXY".to_string(),
+            data_source: Some("REAL".to_string()),
+            use_synthetic: Some(false),
+            fixed_lots: Some(12),
+            factor_id: None,
+            formula_dsl: None,
+        };
+        let res = execute_backtest(req).expect("MA_IDX 2026-08 backtest failed");
+        println!("=== MA_IDX AUGUST 2026 TRADES ===");
+        for t in &res.trades {
+            println!("Trade #{}: {} {} -> {} {} | PnL: {:.2} ({:.2}%) | BuyReason:\n{}\n| SellReason:\n{}",
+                t.id, t.buy_date, t.buy_price, t.sell_date, t.sell_price, t.pnl_amount, t.pnl_pct, t.buy_reason, t.sell_reason
+            );
+        }
+        println!("=== MA_IDX AUGUST 2026 MARKERS ===");
+        for m in &res.markers {
+            println!("Marker: time={} pos={} text='{}' action={} price={:.2} reason='{}'",
+                m.time, m.position, m.text, m.action, m.price, m.reason
+            );
+        }
+    }
+
+    #[test]
+    fn test_adaptive_regime_evolution_ma_idx_june_2026_rally() {
+        let req = BacktestRequest {
+            symbol: "MA_IDX".to_string(),
+            strategy: "adaptive_regime_evolution".to_string(),
+            timeframe: Some("15m".to_string()),
+            start_date: "2026-06-04".to_string(),
+            end_date: "2026-06-11".to_string(),
+            initial_capital: 1000000.0,
+            backtest_mode: "RESEARCH_PROXY".to_string(),
+            data_source: Some("REAL".to_string()),
+            use_synthetic: Some(false),
+            fixed_lots: Some(1),
+            factor_id: None,
+            formula_dsl: None,
+        };
+        let res = execute_backtest(req).expect("MA_IDX June 2026 rally backtest failed");
+        println!("=== MA_IDX JUNE 2026 TRADES ===");
+        for t in &res.trades {
+            println!("Trade #{}: {} {} -> {} {} | PnL: {:.2} ({:.2}%) | BuyReason:\n{}\n| SellReason:\n{}",
+                t.id, t.buy_date, t.buy_price, t.sell_date, t.sell_price, t.pnl_amount, t.pnl_pct, t.buy_reason, t.sell_reason
+            );
+        }
+        println!("=== MA_IDX JUNE 2026 REGIME MARKERS ===");
+        for m in &res.markers {
+            if m.action == "REGIME_CHANGE" {
+                println!("Marker: time={} pos={} text='{}' price={:.2} reason='{}'",
+                    m.time, m.position, m.text, m.price, m.reason
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_adaptive_regime_evolution_sa_idx_august_2026_whipsaw() {
+        let req = BacktestRequest {
+            symbol: "SA_IDX".to_string(),
+            strategy: "adaptive_regime_evolution".to_string(),
+            timeframe: Some("15m".to_string()),
+            start_date: "2026-07-28".to_string(),
+            end_date: "2026-08-08".to_string(),
+            initial_capital: 1000000.0,
+            backtest_mode: "RESEARCH_PROXY".to_string(),
+            data_source: Some("REAL".to_string()),
+            use_synthetic: Some(false),
+            fixed_lots: Some(16),
+            factor_id: None,
+            formula_dsl: None,
+        };
+        let res = execute_backtest(req).expect("SA_IDX August 2026 test failed");
+        println!("=== SA_IDX AUGUST 2026 TRADES ===");
+        for t in &res.trades {
+            println!("Trade #{}: buy_date={} buy_price={} sell_date={} sell_price={} pnl_amount={:.2} ({:.2}%) \nBuyReason:\n{}\nSellReason:\n{}",
+                t.id, t.buy_date, t.buy_price, t.sell_date, t.sell_price, t.pnl_amount, t.pnl_pct, t.buy_reason, t.sell_reason
+            );
+        }
+        println!("=== SA_IDX AUGUST 2026 MARKERS ===");
+        for m in &res.markers {
+            println!("Marker: time={} pos={} text='{}' action={} price={:.2} reason='{}'",
+                m.time, m.position, m.text, m.action, m.price, m.reason
+            );
+        }
+    }
+
+    #[test]
+    fn test_adaptive_regime_evolution_sa_idx_august_12_15_investigation() {
+        let req = BacktestRequest {
+            symbol: "SA_IDX".to_string(),
+            strategy: "adaptive_regime_evolution".to_string(),
+            timeframe: Some("15m".to_string()),
+            start_date: "2026-08-11".to_string(),
+            end_date: "2026-08-16".to_string(),
+            initial_capital: 1000000.0,
+            backtest_mode: "RESEARCH_PROXY".to_string(),
+            data_source: Some("REAL".to_string()),
+            use_synthetic: Some(false),
+            fixed_lots: Some(15),
+            factor_id: None,
+            formula_dsl: None,
+        };
+        let res = execute_backtest(req).expect("SA_IDX August 12-16 investigation test failed");
+        println!("=== SA_IDX AUGUST 12-16 INVESTIGATION TRADES ===");
+        for t in &res.trades {
+            println!("Trade #{}: buy_date={} buy_price={} sell_date={} sell_price={} pnl_amount={:.2} ({:.2}%) \nBuyReason:\n{}\nSellReason:\n{}",
+                t.id, t.buy_date, t.buy_price, t.sell_date, t.sell_price, t.pnl_amount, t.pnl_pct, t.buy_reason, t.sell_reason
+            );
+        }
+        println!("=== SA_IDX AUGUST 12-16 INVESTIGATION MARKERS ===");
+        for m in &res.markers {
+            println!("Marker: time={} pos={} text='{}' action={} price={:.2} reason='{}'",
+                m.time, m.position, m.text, m.action, m.price, m.reason
+            );
+        }
+
+        let all_klines = crate::db::query_futures_kline("SA_IDX", "15m", 10000).unwrap();
+        let klines: Vec<_> = all_klines.into_iter().filter(|k| k.datetime_str.as_str() >= "2026-08-12 13:00" && k.datetime_str.as_str() <= "2026-08-15").collect();
+        println!("=== SA_IDX RAW BARS 08-12 13:00 ~ 08-15 ===");
+        for k in &klines {
+            println!("Bar: {} | O={:.1} H={:.1} L={:.1} C={:.1} V={}",
+                k.datetime_str, k.open, k.high, k.low, k.close, k.volume
+            );
+        }
+    }
+
+    #[test]
+    fn test_global_regime_stability_and_whipsaw_audit() {
+        let symbols = vec!["AU_IDX", "AG_IDX", "RB_IDX", "SA_IDX", "CU_IDX"];
+        println!("\n================================================================================");
+        println!("             📊 全品种全周期 8015 根 K 线全域状态机与假信号压力审计              ");
+        println!("================================================================================");
+        for s in symbols {
+            let req = BacktestRequest {
+                symbol: s.to_string(),
+                strategy: "adaptive_regime_evolution".to_string(),
+                timeframe: Some("15m".to_string()),
+                start_date: "".to_string(),
+                end_date: "".to_string(),
+                initial_capital: 1000000.0,
+                backtest_mode: "RESEARCH_PROXY".to_string(),
+                data_source: Some("REAL".to_string()),
+                use_synthetic: Some(false),
+                fixed_lots: Some(1),
+                factor_id: None,
+                formula_dsl: None,
+            };
+            let res = execute_backtest(req).expect("Backtest failed");
+            let total_trades = res.trades.len();
+            let win_trades = res.trades.iter().filter(|t| t.pnl_amount > 0.0).count();
+            let _loss_trades = res.trades.iter().filter(|t| t.pnl_amount <= 0.0).count();
+            let win_rate = if total_trades > 0 { (win_trades as f64 / total_trades as f64) * 100.0 } else { 0.0 };
+            let total_win: f64 = res.trades.iter().filter(|t| t.pnl_amount > 0.0).map(|t| t.pnl_amount).sum();
+            let total_loss: f64 = res.trades.iter().filter(|t| t.pnl_amount < 0.0).map(|t| t.pnl_amount.abs()).sum();
+            let pf = if total_loss > 0.0 { total_win / total_loss } else { 99.0 };
+
+            let regime_markers: Vec<_> = res.markers.iter().filter(|m| m.action == "REGIME_CHANGE").collect();
+            let mut noise_regime_flips = 0;
+            for m in &regime_markers {
+                if m.reason.contains("Hurst=0.4") || m.reason.contains("Hurst=0.3") || m.reason.contains("Hurst=0.2") || m.reason.contains("Hurst=0.1") {
+                    noise_regime_flips += 1;
+                }
+            }
+
+            println!("合约: {:<6} | 交易数: {:>3} | 胜率: {:>5.1}% | 盈亏比: {:>4.2} | 总净利: {:>10.1} | 状态变更: {:>4} 次 | 噪声态翻转: {:>3} 次",
+                s, total_trades, win_rate, pf, total_win - total_loss, regime_markers.len(), noise_regime_flips
+            );
+
+            // 输出亏损最严重的 3 笔连续打脸交易
+            let mut losing_trades: Vec<_> = res.trades.iter().filter(|t| t.pnl_amount < 0.0).collect();
+            losing_trades.sort_by(|a, b| a.pnl_amount.partial_cmp(&b.pnl_amount).unwrap());
+            for (rank, t) in losing_trades.iter().take(2).enumerate() {
+                println!("   ⚠️ 最差亏损 #{}: {} {} -> {} | PnL: {:.1} ({:.2}%) | 入场原因: {}",
+                    rank + 1, t.buy_date, t.buy_price, t.sell_price, t.pnl_amount, t.pnl_pct, t.buy_reason.lines().next().unwrap_or("")
+                );
+            }
+        }
+        println!("================================================================================\n");
+    }
+
+    #[test]
+    fn test_accounting_conservation_ag_rb_and_stock_t_plus_1() {
+        // Ponytail check: verify conservation of account balance and trade PnLs, plus stock T+1 rule
+        let test_cases = vec![
+            ("AG_IDX", "supertrend", "15m"),
+            ("RB_IDX", "guiyuan_zscore_reversion", "15m"),
+            ("600519", "supertrend", "1d"),
+        ];
+
+        for (sym, strat, tf) in test_cases {
+            let req = BacktestRequest {
+                symbol: sym.to_string(),
+                strategy: strat.to_string(),
+                timeframe: Some(tf.to_string()),
+                start_date: "2024-01-01".to_string(),
+                end_date: "2026-08-24".to_string(),
+                initial_capital: 1000000.0,
+                backtest_mode: "RESEARCH_PROXY".to_string(),
+                data_source: Some("REAL".to_string()),
+                use_synthetic: Some(false),
+                fixed_lots: Some(1),
+                factor_id: None,
+                formula_dsl: None,
+            };
+            if let Ok(res) = execute_backtest(req) {
+                let sum_trade_pnl: f64 = res.trades.iter().map(|t| t.pnl_amount).sum();
+                let diff = (res.metrics.net_pnl_total - sum_trade_pnl).abs();
+                println!(
+                    "{} ({}): net_pnl_total={:.2}, sum_trade_pnl={:.2}, diff={:.4}, trades={}",
+                    sym, strat, res.metrics.net_pnl_total, sum_trade_pnl, diff, res.trades.len()
+                );
+                assert!(
+                    diff < 1.0,
+                    "Accounting conservation failed for {} {}: net_pnl_total={:.2}, sum_trade_pnl={:.2}, diff={:.4}",
+                    sym, strat, res.metrics.net_pnl_total, sum_trade_pnl, diff
+                );
+
+                if sym.chars().all(|c| c.is_ascii_digit()) {
+                    // Stock must adhere strictly to T+1
+                    for t in &res.trades {
+                        if t.buy_date.len() >= 10 && t.sell_date.len() >= 10 {
+                            assert_ne!(
+                                &t.buy_date[..10],
+                                &t.sell_date[..10],
+                                "Stock {} violated T+1: buy_date={}, sell_date={}",
+                                sym, t.buy_date, t.sell_date
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
+
+
+
 

@@ -31,7 +31,7 @@ export const App: React.FC = () => {
     backtest_mode: 'RESEARCH_PROXY',
     data_source: 'REAL', // 默认真实 8000 根实盘分时
     use_synthetic: false,
-    fixed_lots: 1, // 默认固定 1 手（纯净无偏基准）
+    fixed_lots: -1, // 默认名义价值对齐 (¥30万/笔 · 跨资产平权基准)
   });
   const [backtestLoading, setBacktestLoading] = useState<boolean>(false);
   const [backtestResult, setBacktestResult] = useState<BacktestResponse | null>(null);
@@ -192,6 +192,7 @@ export const App: React.FC = () => {
               dataSourceLabel={backtestResult?.metrics?.data_source_label}
               customBars={backtestResult?.bars}
               customMarkers={backtestResult?.markers}
+              customTrendSeries={backtestResult?.trend_series}
               focusDate={focusDate}
               isDrawerOpen={isDrawerOpen}
               onToggleDrawer={() => setIsDrawerOpen((prev) => !prev)}
@@ -262,8 +263,14 @@ export const App: React.FC = () => {
         <BacktestFactorZooModal
           isOpen={showFactorZooModal}
           onClose={() => setShowFactorZooModal(false)}
-          onApplyFactorToBacktest={(symbol, strategyId) => {
-            const newParams = { symbol, strategy: strategyId, timeframe: '15m' };
+          onApplyFactorToBacktest={(symbol, strategyId, factorId, formulaDsl) => {
+            const newParams = {
+              symbol,
+              strategy: strategyId,
+              timeframe: '15m',
+              factor_id: factorId,
+              formula_dsl: formulaDsl,
+            };
             setBacktestParams((prev) => ({ ...prev, ...newParams }));
             handleRunBacktest(newParams);
           }}

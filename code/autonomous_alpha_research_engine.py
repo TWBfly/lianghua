@@ -54,13 +54,18 @@ COMMODITY_SPECS = {
     "AP_IDX": {"name": "苹果", "multiplier": 10.0, "tick": 1.0, "fee_rate": 0.00005},
 }
 
+TARGET_NOMINAL_VALUE = 300000.0  # 基准单笔名义货值 (¥300,000 元/笔)，用于消除跨资产量纲与资金敞口失衡 (无复利/零未来函数)
+
+
 def compute_formula_hash(formula_str: str) -> str:
     """Computes deterministic SHA-256 hash of normalized factor formula string."""
     normalized = "".join(formula_str.split()).lower()
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
-def init_db(db_path: str = DB_PATH):
+def init_db(db_path: Optional[str] = None):
     """Initializes factor_zoo and factor_graveyard tables in SQLite database."""
+    if db_path is None:
+        db_path = DB_PATH
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute("""
@@ -84,40 +89,39 @@ def init_db(db_path: str = DB_PATH):
         tested_symbols TEXT NOT NULL,
         status TEXT NOT NULL,
         fail_reason TEXT,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        blind_sharpe REAL,
+        blind_consumed INTEGER DEFAULT 0
     );
     """)
     cursor.execute("PRAGMA table_info(factor_zoo);")
     cols = [c[1] for c in cursor.fetchall()]
     if "formula_hash" not in cols:
         cursor.execute("ALTER TABLE factor_zoo ADD COLUMN formula_hash TEXT;")
+    if "blind_sharpe" not in cols:
+        cursor.execute("ALTER TABLE factor_zoo ADD COLUMN blind_sharpe REAL;")
+    if "blind_consumed" not in cols:
+        cursor.execute("ALTER TABLE factor_zoo ADD COLUMN blind_consumed INTEGER DEFAULT 0;")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_factor_formula_hash ON factor_zoo(formula_hash);")
     conn.commit()
     conn.close()
 
 def load_bars_from_db(symbol: str, timeframe: str = "15m", limit: int = 15000) -> pd.DataFrame:
-    """Loads futures historical bars from local SQLite database."""
+    """Loads futures historical bars from local SQLite database (latest bars, sorted ASC)."""
     conn = sqlite3.connect(DB_PATH)
+    # C03: 倒序获取最新的 limit 根数据，并通过子查询正序排列，且严格限制 timeframe 禁止混读周期
     query = """
-        SELECT trade_time, open, high, low, close, volume, amount
-        FROM futures_min_bars
-        WHERE symbol = ? AND timeframe = ?
+        SELECT * FROM (
+            SELECT trade_time, open, high, low, close, volume, amount
+            FROM futures_min_bars
+            WHERE symbol = ? AND timeframe = ?
+            ORDER BY trade_time DESC
+            LIMIT ?
+        )
         ORDER BY trade_time ASC
-        LIMIT ?
     """
     df = pd.read_sql_query(query, conn, params=(symbol, timeframe, limit))
     conn.close()
-    if df.empty:
-        conn = sqlite3.connect(DB_PATH)
-        query = """
-            SELECT trade_time, open, high, low, close, volume, amount
-            FROM futures_min_bars
-            WHERE symbol = ?
-            ORDER BY trade_time ASC
-            LIMIT ?
-        """
-        df = pd.read_sql_query(query, conn, params=(symbol, limit))
-        conn.close()
 
     if not df.empty:
         df["open"] = df["open"].astype(float)
@@ -519,7 +523,14 @@ def evaluate_factor_on_symbol(factor_def: Dict[str, Any], symbol: str) -> Dict[s
     direction = factor_def.get("direction", 1)
     raw_factor = factor_def["calc"](df)
     factor_vals = raw_factor * direction if direction == -1 else raw_factor
-    forward_returns = df["close"].shift(-3) / df["close"] - 1.0
+    
+    # 预测周期自适应匹配：均值回归/反转/竭尽类因子匹配短周期 H=3 (45m)，趋势/动量/突破/正交复合类匹配波段周期 H=10 (2.5h)
+    family_str = str(factor_def.get("family", ""))
+    if any(k in family_str for k in ["均值回归", "竭尽反转", "反转", "Reversion", "Exhaustion"]):
+        forward_horizon = 3
+    else:
+        forward_horizon = 10
+    forward_returns = df["close"].shift(-forward_horizon) / df["close"] - 1.0
 
     valid_mask = ~(factor_vals.isna() | forward_returns.isna())
     if valid_mask.sum() < 300:
@@ -529,43 +540,46 @@ def evaluate_factor_on_symbol(factor_def: Dict[str, Any], symbol: str) -> Dict[s
             "rank_ic": 0.0,
             "ic_std": 0.05,
             "sharpe": 0.0,
+            "oos_sharpe": 0.0,
             "win_rate": 0.0,
             "profit_factor": 0.0,
             "max_dd": 0.0,
             "trades": 0,
             "net_pnl": 0.0,
-            "pnl_3x": 0.0
+            "pnl_3x": 0.0,
+            "blind_sharpe": 0.0,
+            "blind_win_rate": 0.0,
+            "blind_trades": 0
         }
 
     f_series = factor_vals[valid_mask]
     r_series = forward_returns[valid_mask]
 
-    # Block-based Rank IC to compute genuine IC mean & std
+    # 全局真实 Rank IC (消除分块切片局部 rank() 引发的辛普森悖论与微观假象)
+    rank_ic = float(f_series.rank().corr(r_series.rank())) if len(f_series) > 1 else 0.0
+
+    # 分块统计时序 IC 稳定性标准差与 ICIR
     block_size = max(50, len(f_series) // 10)
     block_ics = []
     for b_start in range(0, len(f_series) - block_size + 1, block_size):
-        sub_f = f_series.iloc[b_start:b_start + block_size].rank()
-        sub_r = r_series.iloc[b_start:b_start + block_size].rank()
-        corr = float(np.corrcoef(sub_f, sub_r)[0, 1])
+        sub_f = f_series.iloc[b_start:b_start + block_size]
+        sub_r = r_series.iloc[b_start:b_start + block_size]
+        corr = float(sub_f.rank().corr(sub_r.rank()))
         if not np.isnan(corr):
             block_ics.append(corr)
 
-    rank_ic = float(np.mean(block_ics)) if block_ics else 0.0
     ic_std = float(np.std(block_ics)) if len(block_ics) > 1 else 0.05
 
-    # Causal rolling quantile thresholds (LOOKBACK 120, MIN 30 BARS, STRICTLY SHIFTED BY 1 TO PREVENT FUTURE LEAKAGE)
-    # Decision at bar i strictly uses only data available up to bar i-1!
-    if factor_vals.dropna().nunique() <= 6:
-        upper_thresh = pd.Series(0.5 if factor_vals.max() >= 1.0 else 0.0, index=df.index)
-        lower_thresh = pd.Series(-0.5 if factor_vals.min() <= -1.0 else 0.0, index=df.index)
-    else:
-        upper_thresh = factor_vals.shift(1).rolling(window=120, min_periods=30).quantile(0.80).bfill()
-        lower_thresh = factor_vals.shift(1).rolling(window=120, min_periods=30).quantile(0.20).bfill()
+    # C03/F03: 严格因果滚动分位数阈值 (无 bfill、无全样本 nunique/max 窥视未来)
+    upper_thresh = factor_vals.shift(1).rolling(window=120, min_periods=30).quantile(0.80)
+    lower_thresh = factor_vals.shift(1).rolling(window=120, min_periods=30).quantile(0.20)
 
     trades = []
-    in_pos = False
+    pos = 0  # 0: 空仓, 1: 多头, -1: 空头 (期货多空双向对称交易，彻底剥离单边牛市 Beta)
+    pending_order = None
     entry_price = 0.0
     entry_bar = 0
+    lots = 1
     multiplier = spec["multiplier"]
     tick = spec["tick"]
     fee_rate = spec["fee_rate"]
@@ -576,36 +590,109 @@ def evaluate_factor_on_symbol(factor_def: Dict[str, Any], symbol: str) -> Dict[s
     up_vals = upper_thresh.values
     low_vals = lower_thresh.values
     n = len(df)
+    # P0-1: 60/20/20 三段密封切分 — IS 训练 / OOS-select 筛选 / Blind 密封盲测
+    split_select = int(n * 0.60)  # IS ends, OOS-select begins
+    split_blind = int(n * 0.80)   # OOS-select ends, Blind begins
 
-    for i in range(25, n - 1):
-        if not in_pos:
-            # Signal generated at close of bar i using past-only threshold, executed on Open of bar i+1
-            if f_vals[i] > up_vals[i]:
-                in_pos = True
-                entry_price = opens[i + 1]
-                entry_bar = i + 1
-        else:
-            held = (i + 1) - entry_bar
-            gain_pct = (opens[i + 1] - entry_price) / entry_price
-            # Exit rules: Take Profit (+2.5%), Stop Loss (-1.5%), or Max Hold 30 bars or signal reversal
-            if gain_pct >= 0.025 or gain_pct <= -0.015 or held >= 30 or f_vals[i] < low_vals[i]:
-                exit_price = opens[i + 1]
-                gross_val = (entry_price + exit_price) * 1.0 * multiplier
+    equity = 1000000.0  # 虚拟初始基准资金 (¥100万)
+    peak_eq = equity
+    real_max_dd = 0.0
+
+    for i in range(30, n):
+        # 阶段 1: 开盘执行前序挂单 (因果严格撮合，杜绝跨期错位)
+        if pending_order is not None:
+            if pending_order["action"] == "EXIT":
+                exit_price = opens[i]
+                gross_val = (entry_price + exit_price) * lots * multiplier
                 fee_1x = gross_val * fee_rate
-                slip_1x = 2 * tick * 1.0 * multiplier  # 1 tick per side = 2 ticks round trip
+                slip_1x = 2 * tick * lots * multiplier
                 friction_1x = fee_1x + slip_1x
-                net_pnl_1x = (exit_price - entry_price) * 1.0 * multiplier - friction_1x
+                price_diff = (exit_price - entry_price) if pos == 1 else (entry_price - exit_price)
+                net_pnl_1x = price_diff * lots * multiplier - friction_1x
 
                 # 3x friction stress test
                 friction_3x = (fee_1x * 3.0) + (slip_1x * 3.0)
-                net_pnl_3x = (exit_price - entry_price) * 1.0 * multiplier - friction_3x
+                net_pnl_3x = price_diff * lots * multiplier - friction_3x
 
                 trades.append({
                     "pnl_1x": net_pnl_1x,
                     "pnl_3x": net_pnl_3x,
                     "is_win": net_pnl_1x > 0,
+                    "bar": i,
+                    "segment": "IS" if i < split_select else ("OOS" if i < split_blind else "BLIND"),
                 })
-                in_pos = False
+                equity += net_pnl_1x
+                pos = 0
+                pending_order = None
+
+            elif pending_order["action"] == "ENTRY":
+                pos = pending_order["direction"]
+                entry_price = opens[i]
+                entry_bar = i
+                # 名义价值归一化：每个品种固定分配约 30 万元货值敞口，消除 18 倍量纲失衡 (零复利/零未来函数)
+                lots = max(1, int(round(TARGET_NOMINAL_VALUE / (entry_price * multiplier + 1e-6))))
+                pending_order = None
+
+        # 阶段 2: 盘中/收盘逐柱动态盯市 (Mark to Market)，仅对真实当前持仓计入浮动盈亏与回撤
+        current_eq = equity
+        if pos == 1:
+            unrealized_pnl = (closes[i] - entry_price) * lots * multiplier
+            current_eq += unrealized_pnl
+        elif pos == -1:
+            unrealized_pnl = (entry_price - closes[i]) * lots * multiplier
+            current_eq += unrealized_pnl
+        peak_eq = max(peak_eq, current_eq)
+        if peak_eq > 0:
+            dd = (peak_eq - current_eq) / peak_eq
+            real_max_dd = max(real_max_dd, dd)
+
+        # 阶段 3: 收盘决策 (仅在 i < n - 1 时产生次日开盘挂单)
+        if i < n - 1:
+            if pos == 0 and pending_order is None:
+                # 因子在 i 柱收盘确认，次日开盘 opens[i+1] 对价撮合成交
+                if not np.isnan(up_vals[i]) and f_vals[i] > up_vals[i]:
+                    pending_order = {"action": "ENTRY", "direction": 1}
+                elif not np.isnan(low_vals[i]) and f_vals[i] < low_vals[i]:
+                    pending_order = {"action": "ENTRY", "direction": -1}
+            elif pos == 1 and pending_order is None:
+                held = i - entry_bar + 1
+                # 多头退出逻辑：+2.5% 止盈、-1.5% 止损、30 柱超时或因子跌破下轨反转
+                close_gain = (closes[i] - entry_price) / entry_price
+                should_exit = (close_gain >= 0.025) or (close_gain <= -0.015) or (held >= 30) or (not np.isnan(low_vals[i]) and f_vals[i] < low_vals[i])
+                if should_exit:
+                    pending_order = {"action": "EXIT"}
+            elif pos == -1 and pending_order is None:
+                held = i - entry_bar + 1
+                # 空头退出逻辑：下跌 2.5% 止盈、反弹 1.5% 止损、30 柱超时或因子突破上轨反转
+                close_gain = (entry_price - closes[i]) / entry_price
+                should_exit = (close_gain >= 0.025) or (close_gain <= -0.015) or (held >= 30) or (not np.isnan(up_vals[i]) and f_vals[i] > up_vals[i])
+                if should_exit:
+                    pending_order = {"action": "EXIT"}
+
+    # 期末强制平仓结算，防止持仓浮亏被隐匿 (F04, 多空对称)
+    if pos != 0:
+        exit_price = closes[n - 1]
+        gross_val = (entry_price + exit_price) * lots * multiplier
+        fee_1x = gross_val * fee_rate
+        slip_1x = 2 * tick * lots * multiplier
+        friction_1x = fee_1x + slip_1x
+        price_diff = (exit_price - entry_price) if pos == 1 else (entry_price - exit_price)
+        net_pnl_1x = price_diff * lots * multiplier - friction_1x
+        friction_3x = (fee_1x * 3.0) + (slip_1x * 3.0)
+        net_pnl_3x = price_diff * lots * multiplier - friction_3x
+        trades.append({
+            "pnl_1x": net_pnl_1x,
+            "pnl_3x": net_pnl_3x,
+            "is_win": net_pnl_1x > 0,
+            "bar": n - 1,
+            "segment": "IS" if (n - 1) < split_select else ("OOS" if (n - 1) < split_blind else "BLIND"),
+        })
+        equity += net_pnl_1x
+        peak_eq = max(peak_eq, equity)
+        dd = (peak_eq - equity) / peak_eq if peak_eq > 0 else 0.0
+        real_max_dd = max(real_max_dd, dd)
+        pos = 0
+
 
     if not trades:
         return {
@@ -614,12 +701,16 @@ def evaluate_factor_on_symbol(factor_def: Dict[str, Any], symbol: str) -> Dict[s
             "rank_ic": rank_ic,
             "ic_std": ic_std,
             "sharpe": 0.0,
+            "oos_sharpe": 0.0,
             "win_rate": 0.0,
             "profit_factor": 0.0,
-            "max_dd": 0.0,
+            "max_dd": real_max_dd * 100.0,
             "trades": 0,
             "net_pnl": 0.0,
-            "pnl_3x": 0.0
+            "pnl_3x": 0.0,
+            "blind_sharpe": 0.0,
+            "blind_win_rate": 0.0,
+            "blind_trades": 0
         }
 
     total_trades = len(trades)
@@ -634,23 +725,37 @@ def evaluate_factor_on_symbol(factor_def: Dict[str, Any], symbol: str) -> Dict[s
     # Real Profit Factor
     total_wins = sum(p for p in pnl_1x_list if p > 0)
     total_losses = abs(sum(p for p in pnl_1x_list if p < 0))
-    real_pf = (total_wins / (total_losses + 1e-6)) if total_losses > 0 else (2.5 if total_wins > 0 else 0.0)
-
-    # Real Max Drawdown from trade sequence
-    eq = 100000.0
-    peak = eq
-    real_max_dd = 0.0
-    for pnl in pnl_1x_list:
-        eq += pnl
-        if eq > peak:
-            peak = eq
-        dd = (peak - eq) / (peak + 1e-6)
-        if dd > real_max_dd:
-            real_max_dd = dd
+    if total_losses > 0:
+        real_pf = total_wins / total_losses
+    elif total_wins > 0:
+        real_pf = 5.0
+    else:
+        real_pf = 0.0
 
     avg_pnl = np.mean(pnl_1x_list)
     std_pnl = np.std(pnl_1x_list) + 1e-6
     sharpe = float((avg_pnl / std_pnl) * np.sqrt(min(252, total_trades))) if std_pnl > 0 else 0.0
+
+    # OOS 样本外独立统计 (中间 20% OOS-select 验证段)
+    oos_trades = [t for t in trades if t.get("segment") == "OOS" or t.get("is_oos", False)]
+    if len(oos_trades) >= 5:
+        oos_pnls = [t["pnl_1x"] for t in oos_trades]
+        oos_std = np.std(oos_pnls) + 1e-6
+        oos_sharpe = float((np.mean(oos_pnls) / oos_std) * np.sqrt(min(252, len(oos_trades))))
+    else:
+        oos_sharpe = 0.0
+
+    # Blind 密封盲测段独立统计 (最后 20% 仅用于终审升级，禁止用于筛选)
+    blind_trades = [t for t in trades if t.get("segment") == "BLIND"]
+    if len(blind_trades) >= 5:
+        blind_pnls = [t["pnl_1x"] for t in blind_trades]
+        blind_std = np.std(blind_pnls) + 1e-6
+        blind_sharpe = float((np.mean(blind_pnls) / blind_std) * np.sqrt(min(252, len(blind_trades))))
+        blind_wins = sum(1 for t in blind_trades if t["is_win"])
+        blind_win_rate = (blind_wins / len(blind_trades)) * 100.0
+    else:
+        blind_sharpe = 0.0
+        blind_win_rate = 0.0
 
     return {
         "symbol": symbol,
@@ -658,6 +763,10 @@ def evaluate_factor_on_symbol(factor_def: Dict[str, Any], symbol: str) -> Dict[s
         "rank_ic": rank_ic,
         "ic_std": ic_std,
         "sharpe": max(-3.0, min(sharpe, 4.5)),
+        "oos_sharpe": max(-3.0, min(oos_sharpe, 4.5)),
+        "blind_sharpe": max(-3.0, min(blind_sharpe, 4.5)),
+        "blind_win_rate": blind_win_rate,
+        "blind_trades": len(blind_trades),
         "win_rate": win_rate,
         "profit_factor": real_pf,
         "max_dd": real_max_dd * 100.0,
@@ -719,21 +828,22 @@ def evaluate_and_score_factor(factor_def: Dict[str, Any], test_symbols: List[str
 
     # Genuine ICIR = mean(IC) / std(IC)
     icir = (avg_ic / (avg_ic_std + 1e-6)) if avg_ic_std > 0 else 0.0
+    avg_oos_sharpe = float(np.mean([r.get("oos_sharpe", 0.0) for r in valid_res])) if valid_res else 0.0
+    avg_blind_sharpe = float(np.mean([r.get("blind_sharpe", 0.0) for r in valid_res])) if valid_res else 0.0
 
-    # 100-Point Scorecard Calculation (COMPLETELY STRIPPED OF "NAME-BASED BONUS")
-    # All dimensions are measured directly from empirical performance!
-    mech_score = 12.0 if "OVERFIT" not in fid else 2.0
+    # 100-Point Scorecard Calculation (COMPLETELY STRIPPED OF "NAME-BASED BONUS", F05)
+    # 机制分基于客观逻辑规范，严禁根据名字字符串包含 "OVERFIT" 进行预设判决
+    mech_score = 12.0
     ic_score = min(20.0, max(2.0, abs(avg_ic) * 200.0 + (5.0 if abs(avg_ic) > 0.03 else 2.0)))
     market_score = (pass_rate / 100.0) * 20.0
     cost_score = 16.0 if avg_3x_ratio > 0.40 else (10.0 if avg_3x_ratio > 0.10 else (5.0 if avg_3x_ratio > 0.0 else 1.0))
-    oos_score = 16.0 if avg_sharpe > 1.2 else (10.0 if avg_sharpe > 0.6 else 3.0)
+    # oos_score 严格基于样本外真实夏普比率 (OOS-select 20% Sharpe)
+    oos_score = 16.0 if avg_oos_sharpe > 1.0 else (10.0 if avg_oos_sharpe > 0.5 else (5.0 if avg_oos_sharpe > 0.0 else 2.0))
     risk_score = 16.0 if (avg_win_rate >= 50.0 and max_dd_overall < 8.0) else (10.0 if avg_win_rate >= 44.0 else 4.0)
     total_score = round(mech_score + ic_score + market_score + cost_score + oos_score + risk_score, 1)
 
-    # Hard Gates Check (STRICT AND EQUAL TO ALL FACTORS - NO NAME-BASED EXEMPTIONS)
+    # Hard Gates Check (客观可检验硬门禁，无任何名称字符串偏见)
     fail_reasons = []
-    if "OVERFIT" in fid:
-        fail_reasons.append("人工过拟合套娃结构，缺乏微观经济学逻辑")
     if total_trades < 50:
         fail_reasons.append(f"大数定律样本不足 (总交易笔数 {total_trades} < 50)")
     if avg_3x_ratio <= 0.0:
@@ -742,11 +852,25 @@ def evaluate_and_score_factor(factor_def: Dict[str, Any], test_symbols: List[str
         fail_reasons.append(f"跨市场多品种泛化失败 (仅 {pass_rate:.1f}% 品种盈利)")
     if avg_pf < 1.05:
         fail_reasons.append(f"盈亏比过低 (PF {avg_pf:.2f} < 1.05 无安全边际)")
+    if avg_oos_sharpe <= 0.0:
+        fail_reasons.append(f"样本外 (OOS 20%) 表现崩塌 (平均 OOS Sharpe {avg_oos_sharpe:.2f} <= 0.0 无样本外泛化能力)")
+    oos_pos_cnt = sum(1 for r in valid_res if r.get("oos_sharpe", 0.0) > 0.0)
+    oos_pass_rate = (oos_pos_cnt / len(valid_res) * 100.0) if valid_res else 0.0
+    if oos_pass_rate < 50.0:
+        fail_reasons.append(f"跨品种样本外泛化失败 (仅 {oos_pass_rate:.1f}% 品种在 OOS 期间盈利)")
 
-    # Grade & Status
+    # Grade & Status (P0-1: 密封盲测门禁，杜绝 OOS 窥探虚高)
+    blind_consumed = 0
     if not fail_reasons and total_score >= 80.0:
-        grade = "A+" if total_score >= 88.0 else "A"
-        status = "EXCELLENT"
+        blind_consumed = 1
+        blind_pass = (avg_blind_sharpe > 0.0) and all(r.get("blind_win_rate", 0.0) >= 40.0 for r in valid_res if r.get("blind_trades", 0) >= 5)
+        if blind_pass:
+            grade = "A+" if total_score >= 88.0 else "A"
+            status = "EXCELLENT"
+        else:
+            grade = "B"
+            status = "CANDIDATE"
+            fail_reasons.append(f"密封盲测段 (Blind 20%) 未通过 (平均 Blind Sharpe {avg_blind_sharpe:.2f} <= 0 或胜率低于 40%)")
     elif not fail_reasons and total_score >= 65.0:
         grade = "B"
         status = "CANDIDATE"
@@ -774,11 +898,15 @@ def evaluate_and_score_factor(factor_def: Dict[str, Any], test_symbols: List[str
         "tested_symbols": json.dumps({r["symbol"]: {"sharpe": r["sharpe"], "pnl": round(r["net_pnl"], 1)} for r in symbol_results}, ensure_ascii=False),
         "status": status,
         "fail_reason": " | ".join(fail_reasons) if fail_reasons else None,
+        "blind_sharpe": round(avg_blind_sharpe, 2),
+        "blind_consumed": blind_consumed,
         "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
 
-def save_factor_to_db(record: Dict[str, Any], db_path: str = DB_PATH):
+def save_factor_to_db(record: Dict[str, Any], db_path: Optional[str] = None):
     """Saves or updates a single factor record into factor_zoo table with formula_hash."""
+    if db_path is None:
+        db_path = DB_PATH
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute("""
@@ -786,14 +914,15 @@ def save_factor_to_db(record: Dict[str, Any], db_path: str = DB_PATH):
             factor_id, formula_hash, name, family, hypothesis, formula_dsl, total_score,
             grade, rank_ic, icir, win_rate, sharpe, profit_factor, max_dd,
             breakeven_cost_mult, cross_market_pass_rate, tested_symbols,
-            status, fail_reason, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            status, fail_reason, created_at, blind_sharpe, blind_consumed
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         record["factor_id"], record.get("formula_hash"), record["name"], record["family"], record["hypothesis"],
-        record["formula_dsl"], record["total_score"], record["grade"], record["rank_ic"],
+        record.get("formula_dsl", record.get("formula", "")), record["total_score"], record["grade"], record["rank_ic"],
         record["icir"], record["win_rate"], record["sharpe"], record["profit_factor"],
         record["max_dd"], record["breakeven_cost_mult"], record["cross_market_pass_rate"],
-        record["tested_symbols"], record["status"], record["fail_reason"], record["created_at"]
+        record["tested_symbols"], record["status"], record["fail_reason"], record["created_at"],
+        record.get("blind_sharpe", 0.0), record.get("blind_consumed", 0)
     ))
     conn.commit()
     conn.close()

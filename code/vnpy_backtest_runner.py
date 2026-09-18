@@ -78,6 +78,7 @@ class VnpyBacktestRunner:
         self.limit_order_count: int = 0
         self.limit_orders: dict[str, OrderData] = {}
         self.active_limit_orders: dict[str, OrderData] = {}
+        self.active_stop_orders: dict[str, OrderData] = {}
 
         self.trade_count: int = 0
         self.trades: dict[str, TradeData] = {}
@@ -114,6 +115,16 @@ class VnpyBacktestRunner:
         stop: bool = False
     ) -> list[str]:
         """策略发送委托单回调"""
+        # 严格校验平仓单: 若无相应持仓，拒绝报单，禁止平仓单变成反向开仓
+        if offset in (Offset.CLOSE, Offset.CLOSETODAY, Offset.CLOSEYESTERDAY):
+            curr_pos = getattr(strategy, "pos", 0.0)
+            if direction == Direction.SHORT and curr_pos <= 0:
+                self.write_log(f"拒单: 无多头持仓可平 (当前持仓 {curr_pos})")
+                return []
+            elif direction == Direction.LONG and curr_pos >= 0:
+                self.write_log(f"拒单: 无空头持仓可平 (当前持仓 {curr_pos})")
+                return []
+
         self.limit_order_count += 1
         orderid = f"ORD_{self.limit_order_count:06d}"
 
@@ -132,25 +143,58 @@ class VnpyBacktestRunner:
             datetime=self.datetime,
             gateway_name="VNPY_BT"
         )
-        self.active_limit_orders[orderid] = order
+        if stop:
+            self.active_stop_orders[orderid] = order
+        else:
+            self.active_limit_orders[orderid] = order
         self.limit_orders[orderid] = order
         return [order.vt_orderid]
 
     def cancel_order(self, strategy: CtaTemplate, vt_orderid: str):
         orderid = vt_orderid.split(".")[-1]
+        order = None
         if orderid in self.active_limit_orders:
             order = self.active_limit_orders.pop(orderid)
+        elif orderid in self.active_stop_orders:
+            order = self.active_stop_orders.pop(orderid)
+        if order:
             order.status = Status.CANCELLED
             strategy.on_order(order)
 
     def cancel_all(self, strategy: CtaTemplate):
         for orderid in list(self.active_limit_orders.keys()):
             self.cancel_order(strategy, f"VNPY_BT.{orderid}")
+        for orderid in list(self.active_stop_orders.keys()):
+            self.cancel_order(strategy, f"VNPY_BT.{orderid}")
+
+    def cross_stop_order(self, bar: BarData):
+        """条件止损单撮合"""
+        if getattr(bar, "volume", 1.0) <= 0:
+            return
+
+        for orderid, order in list(self.active_stop_orders.items()):
+            if order.direction == Direction.LONG:
+                if bar.high_price >= order.price:
+                    raw_trade_price = max(order.price, bar.open_price) + self.slippage
+                    trade_price = min(bar.high_price, max(bar.low_price, raw_trade_price))
+                    self.execute_trade(order, trade_price, bar.datetime)
+                    if orderid in self.active_stop_orders:
+                        del self.active_stop_orders[orderid]
+            elif order.direction == Direction.SHORT:
+                if bar.low_price <= order.price:
+                    raw_trade_price = min(order.price, bar.open_price) - self.slippage
+                    trade_price = min(bar.high_price, max(bar.low_price, raw_trade_price))
+                    self.execute_trade(order, trade_price, bar.datetime)
+                    if orderid in self.active_stop_orders:
+                        del self.active_stop_orders[orderid]
 
     def cross_limit_order(self, bar: BarData):
         """
         核心时序撮合逻辑：在当前 Bar 内对历史有效报单进行价格匹配
         """
+        if getattr(bar, "volume", 1.0) <= 0:
+            return
+
         for orderid, order in list(self.active_limit_orders.items()):
             long_cross_price = bar.low_price
             short_cross_price = bar.high_price
@@ -159,15 +203,14 @@ class VnpyBacktestRunner:
             if order.direction == Direction.LONG:
                 # 报单价 >= 最低价即可成交
                 if order.price >= long_cross_price:
-                    # 成交价判定（若开盘直接跳空低开，以开盘价成交；否则以报单价成交，并加滑点）
-                    raw_trade_price = min(order.price, bar.open_price) + self.slippage * self.pricetick
+                    raw_trade_price = min(order.price, bar.open_price) + self.slippage
                     trade_price = min(bar.high_price, max(bar.low_price, raw_trade_price))
                     self.execute_trade(order, trade_price, bar.datetime)
             # 撮合卖单
             elif order.direction == Direction.SHORT:
                 # 报单价 <= 最高价即可成交
                 if order.price <= short_cross_price:
-                    raw_trade_price = max(order.price, bar.open_price) - self.slippage * self.pricetick
+                    raw_trade_price = max(order.price, bar.open_price) - self.slippage
                     trade_price = min(bar.high_price, max(bar.low_price, raw_trade_price))
                     self.execute_trade(order, trade_price, bar.datetime)
 
@@ -194,14 +237,25 @@ class VnpyBacktestRunner:
         order.status = Status.ALLTRADED
         if order.orderid in self.active_limit_orders:
             del self.active_limit_orders[order.orderid]
+        if order.orderid in self.active_stop_orders:
+            del self.active_stop_orders[order.orderid]
 
         self.trades[tradeid] = trade
 
-        # 更新策略持仓
-        if trade.direction == Direction.LONG:
-            self.strategy.pos += trade.volume
+        # 更新策略持仓 (严格防止平仓溢出反向开仓)
+        if order.offset in (Offset.CLOSE, Offset.CLOSETODAY, Offset.CLOSEYESTERDAY):
+            if trade.direction == Direction.LONG:
+                actual_vol = min(abs(self.strategy.pos), trade.volume)
+                self.strategy.pos += actual_vol
+            else:
+                actual_vol = min(max(self.strategy.pos, 0.0), trade.volume)
+                self.strategy.pos -= actual_vol
+            trade.volume = actual_vol
         else:
-            self.strategy.pos -= trade.volume
+            if trade.direction == Direction.LONG:
+                self.strategy.pos += trade.volume
+            else:
+                self.strategy.pos -= trade.volume
 
         self.strategy.on_order(order)
         self.strategy.on_trade(trade)
@@ -219,7 +273,8 @@ class VnpyBacktestRunner:
         for bar in self.bars:
             self.datetime = bar.datetime
 
-            # 1. 先撮合上一周期发出的挂单
+            # 1. 先撮合上一周期发出的止损单与挂单
+            self.cross_stop_order(bar)
             self.cross_limit_order(bar)
 
             # 2. 推送当前完整 Bar 给策略（产生新信号并发出下一周期委托）

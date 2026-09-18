@@ -141,4 +141,30 @@ def test_project_sources_contain_no_nonempty_password_fallback():
                 ):
                     findings.append((path.name, node.lineno, f"Call arg fallback: {names}"))
 
+            if isinstance(node, ast.Return) and node.value:
+                for subnode in ast.walk(node.value):
+                    if isinstance(subnode, ast.Constant) and isinstance(subnode.value, str):
+                        s = subnode.value
+                        if s in ("13800000000", "redacted_password") or s.startswith("sk-"):
+                            findings.append((path.name, node.lineno, f"Return literal: {s}"))
+
     assert findings == []
+
+
+def test_project_sources_contain_no_plaintext_secrets():
+    leaks = []
+    for path in SECRET_PATHS:
+        text = path.read_text(encoding="utf-8")
+        if "13800000000" in text:
+            leaks.append((path.name, "Found hardcoded account 13800000000"))
+        if "redacted_password" in text:
+            leaks.append((path.name, "Found hardcoded password redacted_password"))
+        if "sk-" in text:
+            # exclude python comments or non-key substrings
+            for line_no, line in enumerate(text.splitlines(), start=1):
+                if "sk-" in line and not line.strip().startswith("#"):
+                    import re
+                    if re.search(r"sk-[a-zA-Z0-9]{15,}", line):
+                        leaks.append((path.name, f"line {line_no}: Found API key pattern"))
+    assert leaks == []
+

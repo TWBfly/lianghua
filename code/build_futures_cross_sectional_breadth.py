@@ -55,12 +55,13 @@ def calculate_cross_sectional_breadth(timeframe: str = "30m") -> pd.DataFrame:
     active_count = z_ret.notna().sum(axis=1)
 
     # 极端下潜合约数 (收益率低于 -2.0 个局部标准差)
+    # S01: 样本不足 (< 5) 时标记为 NaN (未知覆盖)，严禁编码为 0.0 伪造市场平静
     down_extreme_count = (z_ret < -2.0).sum(axis=1)
-    down_breadth = np.where(active_count >= 5, down_extreme_count / active_count, 0.0)
+    down_breadth = np.where(active_count >= 5, down_extreme_count / active_count, np.nan)
 
     # 极端冲顶合约数 (收益率高于 +2.0 个局部标准差)
     up_extreme_count = (z_ret > 2.0).sum(axis=1)
-    up_breadth = np.where(active_count >= 5, up_extreme_count / active_count, 0.0)
+    up_breadth = np.where(active_count >= 5, up_extreme_count / active_count, np.nan)
 
     # 截面中位数收益率 (系统性共模分量 Common Return)
     median_ret = ret_df.median(axis=1).fillna(0.0)

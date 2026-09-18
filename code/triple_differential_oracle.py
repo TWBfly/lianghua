@@ -87,12 +87,19 @@ class TripleDifferentialOracle:
         # 1. 轨 1: 接入内部自研引擎结果
         # -------------------------------------------------------------
         if internal_summary:
+            wr = float(internal_summary.get("win_rate_pct", internal_summary.get("win_rate", 0.0)))
+            if 0.0 < wr <= 1.0:
+                wr *= 100.0
+            mdd = internal_summary.get("max_drawdown_pct")
+            if mdd is None and "max_drawdown" in internal_summary and initial_cash > 0:
+                mdd = (float(internal_summary["max_drawdown"]) / initial_cash) * 100.0
+
             results["Lianghua_Internal"] = EngineResultSummary(
                 engine_name="Lianghua_Internal_M2M",
-                total_net_pnl=float(internal_summary.get("total_net_pnl", 0.0)),
-                total_trades=int(internal_summary.get("total_trades", internal_summary.get("trades", 0))),
-                win_rate_pct=float(internal_summary.get("win_rate_pct", internal_summary.get("win_rate", 0.0))),
-                max_drawdown_pct=float(internal_summary.get("max_drawdown_pct", 0.0)),
+                total_net_pnl=float(internal_summary.get("total_net_pnl", internal_summary.get("net_pnl", 0.0))),
+                total_trades=int(internal_summary.get("total_trades", internal_summary.get("trade_count", internal_summary.get("trades", 0)))),
+                win_rate_pct=wr,
+                max_drawdown_pct=float(mdd or 0.0),
                 profit_factor=float(internal_summary.get("profit_factor", 0.0)),
                 details=internal_summary
             )
@@ -126,13 +133,23 @@ class TripleDifferentialOracle:
                     vn_runner.load_bars(vn_bars)
                     vn_stats = vn_runner.run_backtesting()
 
+                    vn_mdd = vn_stats.get("max_drawdown_pct")
+                    if vn_mdd is None:
+                        vn_mdd = vn_stats.get("max_drawdown_percent")
+                    if vn_mdd is None and "max_drawdown" in vn_stats and initial_cash > 0:
+                        vn_mdd = (float(vn_stats["max_drawdown"]) / initial_cash) * 100.0
+
+                    vn_trades = vn_stats.get("closed_trade_count")
+                    if vn_trades is None:
+                        vn_trades = vn_stats.get("total_trade_count", vn_stats.get("total_trades", 0))
+
                     results["VNPy_CTA"] = EngineResultSummary(
                         engine_name="VNPy_CTA_EventEngine",
-                        total_net_pnl=float(vn_stats.get("total_net_pnl", 0.0)),
-                        total_trades=int(vn_stats.get("total_trade_count", 0)),
-                        win_rate_pct=float(vn_stats.get("win_rate", 0.0)),
-                        max_drawdown_pct=abs(float(vn_stats.get("max_drawdown_percent", 0.0))),
-                        profit_factor=float(vn_stats.get("profit_factor", 0.0)),
+                        total_net_pnl=float(vn_stats.get("total_net_pnl", vn_stats.get("net_pnl", 0.0))),
+                        total_trades=int(vn_trades),
+                        win_rate_pct=float(vn_stats.get("win_rate_pct", vn_stats.get("win_rate", 0.0))),
+                        max_drawdown_pct=abs(float(vn_mdd or 0.0)),
+                        profit_factor=float(vn_stats.get("profit_factor", vn_stats.get("profit_loss_ratio", 0.0))),
                         details=vn_stats
                     )
             except Exception as e:

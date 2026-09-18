@@ -1,6 +1,6 @@
 """
 code/deploy_ek_supertrend_v7_trader.py — 「太冲·零滞后相变趋势引擎」(EK-ZLP SuperTrend V7) 实时虚拟盘自动化交易与守护引擎
-(支持 127.0.0.1 / https://739265.xyz/ 实时云端监控与 TqSdk / 仿真执行)
+(支持云端监控与 TqSdk / 仿真执行)
 
 实盘配置与执行铁律：
 1. 核心精选 5 大高弹性大宗商品：白银 (AG)、沪铜 (CU)、黄金 (AU)、碳酸锂 (LC)、棕榈油 (P)；
